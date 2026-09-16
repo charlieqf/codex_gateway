@@ -5,6 +5,9 @@ import { randomInt } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
 const origin = "https://goldencode.instmarket.com.au:1443";
+const clientVersion = process.env.MEDEVIDENCE_SMOKE_CLIENT_VERSION ?? "2.0.0-beta.76";
+const minimumVersion =
+  process.env.GATEWAY_MINIMUM_DESKTOP_VERSION ?? "2.0.0-beta.76";
 const admin = process.env.GATEWAY_BILLING_ADMIN_TOKEN;
 const provider = process.env.GATEWAY_BILLING_IDENTITY_PROVIDER;
 assert.ok(admin && provider, "Billing configuration required");
@@ -13,9 +16,16 @@ db.exec("PRAGMA query_only=ON");
 const run = `phone_enrollment_smoke_${Date.now()}`;
 const report = { checked_at: new Date().toISOString(), checks: [], accounts: [], cleanup: [] };
 const accounts = [];
-async function call(path, { method = "GET", token, body, event, status = 200 } = {}) {
+async function call(path, {
+  method = "GET",
+  token,
+  body,
+  event,
+  status = 200,
+  clientHeaders = { "x-medevidence-client-version": clientVersion }
+} = {}) {
   const response = await fetch(origin + path, { method, headers: {
-    "x-medevidence-client-version": "2.0.0-beta.47",
+    ...clientHeaders,
     ...(token ? { authorization: `Bearer ${token}` } : {}),
     ...(body ? { "content-type": "application/json" } : {}),
     ...(event ? { "idempotency-key": event } : {})
@@ -52,6 +62,16 @@ try {
       event:`${run}:${kind}:create`,body:{provider,external_user_id:account.externalId,scope_allowlist:["code"]} });
     account.subjectId=created.subject.id; account.key=created.credential.key;
     assert.ok(account.key?.startsWith("cgu_live_"),"Original key missing");
+    const legacyBlocked = await call("/v1/responses", {
+      method: "POST",
+      token: account.key,
+      body: {},
+      status: 426,
+      clientHeaders: { "x-medcode-client-app-version": "1.9.116" }
+    });
+    assert.equal(legacyBlocked.error?.code, "client_upgrade_required");
+    assert.equal(legacyBlocked.error?.minimum_version, minimumVersion);
+    assert.ok(legacyBlocked.error?.message?.includes(legacyBlocked.error?.download_url));
     assert.ok(!db.prepare("SELECT 1 FROM phone_auth_identities WHERE subject_id=?").get(account.subjectId),"Legacy fixture already enrolled");
     const start = new Date(Date.now()-60000), end = new Date(start.getTime()+30*86400000);
     await call("/gateway/admin/billing/v1/entitlement-events", {method:"POST",token:admin,event:`${run}:${kind}:purchase`,
