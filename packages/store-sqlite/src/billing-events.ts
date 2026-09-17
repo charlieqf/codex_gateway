@@ -53,6 +53,7 @@ export function apply(
   let finished = false;
   db.exec("BEGIN IMMEDIATE");
   try {
+    input.assertOwnership?.();
     const lockedExisting = getByIdempotencyKey(db, input.idempotencyKey);
     if (lockedExisting) {
       assertPayloadMatches(lockedExisting, input.payloadHash);

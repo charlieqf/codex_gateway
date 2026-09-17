@@ -96,6 +96,14 @@ describe("SqliteGatewayStore", () => {
       expect(tableExists(db, "phone_auth_sessions")).toBe(true);
       expect(tableExists(db, "phone_auth_refresh_tokens")).toBe(true);
       expect(tableExists(db, "phone_auth_audit_events")).toBe(true);
+      expect(columnNames(db, "external_subject_registrations")).toEqual(
+        expect.arrayContaining([
+          "upstream_user_id",
+          "upstream_key_id",
+          "last_error_code",
+          "last_error_at"
+        ])
+      );
       expect(
         db.prepare(
           "SELECT COUNT(*) AS count FROM schema_migrations WHERE version = 25"
@@ -162,6 +170,38 @@ describe("SqliteGatewayStore", () => {
     store.close();
   });
 
+  it("upgrades a version 31 database without losing interrupted registrations", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gateway-issuance-upgrade-"));
+    cleanupDirs.push(dir);
+    const dbPath = path.join(dir, "gateway.db");
+    let store = createSqliteStore({path: dbPath});
+    const identity = {provider: "manual_trial", externalUserId: "migration-user"};
+    store.resolveExternalSubject({...identity, phone: "13800138000", requestId: "migration-test"});
+    store.claimExternalSubjectCreate({...identity, idempotencyKey: "original-create", payloadHash: "original-hash"});
+    store.recordExternalSubjectUpstream({...identity, idempotencyKey: "original-create", payloadHash: "original-hash",
+      upstreamUserId: "upstream-user-test", upstreamKeyId: "upstream-key-test"});
+    store.database.exec(`DROP TABLE real_user_issuance_tasks;
+      DROP TABLE billing_provisioning_attempts;
+      DROP INDEX idx_external_subject_registration_pending_phone;
+      ALTER TABLE external_subject_registrations DROP COLUMN released_at;
+      ALTER TABLE external_subject_registrations DROP COLUMN release_actor;
+      ALTER TABLE external_subject_registrations DROP COLUMN release_reason;
+      ALTER TABLE external_subject_registrations DROP COLUMN release_eligible;
+      CREATE UNIQUE INDEX idx_external_subject_registration_pending_phone
+        ON external_subject_registrations(phone_number) WHERE state != 'linked';
+      ALTER TABLE external_subject_registrations DROP COLUMN compensation_state;
+      DELETE FROM schema_migrations WHERE version IN (32, 33);`);
+    store.close();
+    store = createSqliteStore({path: dbPath});
+    try {
+      expect(store.getExternalSubjectRegistration(identity)).toMatchObject({state: "creating", phone: "+8613800138000",
+        idempotencyKey: "original-create", upstreamUserId: "upstream-user-test", upstreamKeyId: "upstream-key-test", compensationState: "none"});
+      expect(store.listIssuanceTasks(null, 20)).toEqual([]);
+      expect(store.database.prepare("SELECT version FROM schema_migrations WHERE version = 32").get()).toBeTruthy();
+      expect(store.database.prepare("SELECT version FROM schema_migrations WHERE version = 33").get()).toBeTruthy();
+    } finally {store.close();}
+  });
+
   it("creates plan entitlement schema during migration", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-store-plan-"));
     cleanupDirs.push(dir);
@@ -223,6 +263,9 @@ describe("SqliteGatewayStore", () => {
       ).toBeTruthy();
       expect(
         db.prepare("SELECT version FROM schema_migrations WHERE version = 27").get()
+      ).toBeTruthy();
+      expect(
+        db.prepare("SELECT version FROM schema_migrations WHERE version = 31").get()
       ).toBeTruthy();
       expect(indexNames(db, "request_events")).toContain(
         "idx_request_events_failure_started"

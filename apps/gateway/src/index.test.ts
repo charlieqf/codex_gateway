@@ -1,9 +1,10 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { generateKeyPairSync } from "node:crypto";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   defaultImageGenerationFeaturePolicy,
   encryptSecret,
@@ -13,6 +14,7 @@ import {
   issueBillingAdminToken,
   issueUnifiedClientKey,
   phoneSignupFreePlan,
+  phoneSignupFreePlanId,
   validateFeaturePolicy,
   type MessageInput,
   type ProviderAdapter,
@@ -31,7 +33,11 @@ import {
 } from "@codex-gateway/store-sqlite";
 import type { ImageGenerationProvider } from "./image-generation.js";
 import { buildGateway, validateRuntimeEnvironment } from "./index.js";
-import { phoneAuthMedevidenceOrigin } from "./services/phone-auth-service.js";
+import {
+  PhoneAuthService,
+  phoneAuthGatewayOrigin,
+  phoneAuthMedevidenceOrigin
+} from "./services/phone-auth-service.js";
 import { chatMessagesToPrompt, type ChatCompletionRequest } from "./openai-compat.js";
 import {
   InMemoryCredentialRateLimiter,
@@ -2377,8 +2383,14 @@ describe("gateway phase 1 routes", () => {
   it("serves the real-user issuance UI and guards its job routes", async () => {
     const previousSecret = process.env.GATEWAY_API_KEY_ENCRYPTION_SECRET;
     const previousPublicBaseUrl = process.env.GATEWAY_PUBLIC_BASE_URL;
+    const previousVersionGate = process.env.GATEWAY_DESKTOP_VERSION_GATE;
+    const previousMinimumVersion = process.env.GATEWAY_MINIMUM_DESKTOP_VERSION;
+    const previousDownloadUrl = process.env.GATEWAY_DESKTOP_DOWNLOAD_URL;
     process.env.GATEWAY_API_KEY_ENCRYPTION_SECRET = "real-user-issue-secret-1234567890";
-    process.env.GATEWAY_PUBLIC_BASE_URL = "https://goldencode.invalid:1443";
+    process.env.GATEWAY_PUBLIC_BASE_URL = phoneAuthGatewayOrigin;
+    process.env.GATEWAY_DESKTOP_VERSION_GATE = "auth_only";
+    process.env.GATEWAY_MINIMUM_DESKTOP_VERSION = "2.0.0-beta.76";
+    process.env.GATEWAY_DESKTOP_DOWNLOAD_URL = "https://updates.invalid/desktop-downloads/beta";
     const store = createSqliteStore({ path: ":memory:" });
     store.createPlan({
       id: "plan_billing_v1",
@@ -2388,13 +2400,39 @@ describe("gateway phase 1 routes", () => {
       featurePolicy: imageFeaturePolicy(),
       now: new Date("2026-05-01T00:00:00Z")
     });
+    const recoverySecret = "real-user-recovery-secret-test-only";
+    const { privateKey } = generateKeyPairSync("ed25519");
+    const phoneAuthService = new PhoneAuthService({
+      mode: "transition",
+      store,
+      credentialStore: store,
+      unifiedKeyStore: store,
+      entitlementStore: store,
+      publicGatewayBaseUrl: phoneAuthGatewayOrigin,
+      issuer: `${phoneAuthGatewayOrigin}/gateway/auth/v1`,
+      audience: "codex-gateway",
+      activeKid: "real-user-test-only",
+      privateKeyPem: privateKey.export({ type: "pkcs8", format: "pem" }).toString(),
+      phoneLookupSecret: "real-user-phone-lookup-secret-test-only",
+      phoneEncryptionSecret: "real-user-phone-encryption-secret-test-only",
+      unifiedKeyRecoverySecret: recoverySecret,
+      apiKeyEncryptionSecret: "real-user-issue-secret-1234567890",
+      now: () => new Date("2026-05-01T00:00:00Z")
+    });
+    vi.stubGlobal("fetch", async () => {
+      throw new Error("real-user validation disabled in route test");
+    });
     const billingHeaders = { authorization: "Bearer billing-admin-token-1234567890" };
+    const upstreamV2Client = new FakeUpstreamV2Client();
     const app = buildGateway({
       authMode: "credential",
       provider: new FakeProvider(),
       sessionStore: store,
       billingAdminToken: "billing-admin-token-1234567890",
-      upstreamV2Client: new FakeUpstreamV2Client(),
+      upstreamV2Client,
+      phoneAuthService,
+      externalIdentityProvider: "medevidence_billing_test",
+      unifiedKeyRecoverySecret: recoverySecret,
       logger: false
     });
 
@@ -2442,6 +2480,14 @@ describe("gateway phase 1 routes", () => {
         payload: { name: "张三", phone: "abc", plan_id: "plan_billing_v1" }
       });
       expect(badPhone.statusCode).toBe(400);
+
+      const formattedPhone = await app.inject({
+        method: "POST",
+        url: "/gateway/admin/billing/v1/real-user-issue",
+        headers: billingHeaders,
+        payload: { name: "张三", phone: "138-0013-8000", plan_id: "plan_billing_v1" }
+      });
+      expect(formattedPhone.statusCode).toBe(400);
 
       const shortValidity = await app.inject({
         method: "POST",
@@ -2499,24 +2545,44 @@ describe("gateway phase 1 routes", () => {
         method: "POST",
         url: "/gateway/admin/billing/v1/real-user-issue",
         headers: billingHeaders,
-        payload: { name: "张三", phone: "13800138000", plan_id: "plan_billing_v1" }
+        payload: { name: "张三", phone: "+8613800138000", plan_id: "plan_billing_v1" }
       });
       expect(accepted.statusCode).toBe(202);
       const acceptedBody = accepted.json();
       expect(acceptedBody.job_id).toMatch(/^rui_/);
       expect(acceptedBody.authority_mode).toBe("r760_only");
       expect(acceptedBody.phone_tail).toBe("8000");
+      expect(acceptedBody.external_user_id).toBe("phone_13800138000");
       expect(acceptedBody.unified_key).toBeUndefined();
       expect(acceptedBody.steps).toHaveLength(6);
 
-      const duplicate = await app.inject({
-        method: "POST",
-        url: "/gateway/admin/billing/v1/real-user-issue",
-        headers: billingHeaders,
-        payload: { name: "张三", phone: "13800138000", plan_id: "plan_billing_v1" }
+      let finishedJob = acceptedBody;
+      for (let attempt = 0; attempt < 50 && finishedJob.state !== "retryable"; attempt += 1) {
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        const jobResponse = await app.inject({
+          method: "GET",
+          url: `/gateway/admin/billing/v1/real-user-issue/${acceptedBody.job_id}`,
+          headers: billingHeaders
+        });
+        expect(jobResponse.statusCode).toBe(200);
+        finishedJob = jobResponse.json();
+      }
+      expect(finishedJob.state).toBe("retryable");
+      expect(finishedJob.recovery_action).toBe("resume");
+      expect(upstreamV2Client.disableCalls).toHaveLength(0);
+      const failedSubject = store.getSubjectByExternalIdentity({
+        provider: "manual_trial",
+        externalUserId: "phone_13800138000"
       });
-      expect(duplicate.statusCode).toBe(409);
-      expect(duplicate.json().error.code).toBe("issue_already_running");
+      expect(failedSubject).toMatchObject({
+        phoneNumber: "+8613800138000",
+        state: "active"
+      });
+      expect(store.getPhoneAuthIdentityBySubjectId(failedSubject!.id)?.state).toBe("active");
+      expect(store.getPlan(phoneSignupFreePlanId)).toBeNull();
+      expect(store.listEntitlements({ subjectId: failedSubject!.id })).toEqual([
+        expect.objectContaining({ planId: "plan_billing_v1", state: "active" })
+      ]);
 
       const jobs = await app.inject({
         method: "GET",
@@ -2538,6 +2604,13 @@ describe("gateway phase 1 routes", () => {
       } else {
         process.env.GATEWAY_PUBLIC_BASE_URL = previousPublicBaseUrl;
       }
+      if (previousVersionGate === undefined) delete process.env.GATEWAY_DESKTOP_VERSION_GATE;
+      else process.env.GATEWAY_DESKTOP_VERSION_GATE = previousVersionGate;
+      if (previousMinimumVersion === undefined) delete process.env.GATEWAY_MINIMUM_DESKTOP_VERSION;
+      else process.env.GATEWAY_MINIMUM_DESKTOP_VERSION = previousMinimumVersion;
+      if (previousDownloadUrl === undefined) delete process.env.GATEWAY_DESKTOP_DOWNLOAD_URL;
+      else process.env.GATEWAY_DESKTOP_DOWNLOAD_URL = previousDownloadUrl;
+      vi.unstubAllGlobals();
     }
   });
 

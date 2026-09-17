@@ -20,6 +20,28 @@ afterEach(() => {
 });
 
 describe("codex-gateway-admin user API key operations", () => {
+  it("previews registration release read-only and requires a revision for the audited write", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gateway-release-cli-"));
+    cleanupDirs.push(dir);
+    const dbPath = path.join(dir, "gateway.db");
+    const store = createSqliteStore({path: dbPath});
+    const identity = {provider: "manual_trial", externalUserId: "cli-test"};
+    store.resolveExternalSubject({...identity, phone: "13800138000", requestId: "test"});
+    const command = ["release-registration", identity.provider, identity.externalUserId, "--actor", "operator-test", "--reason", "abandoned test"];
+    try {
+      const before = store.getExternalSubjectRegistration(identity);
+      const result = runCli(dbPath, command) as {applied: boolean; revision: string};
+      expect(result.applied).toBe(false);
+      expect(store.getExternalSubjectRegistration(identity)).toEqual(before);
+      expect(store.listAdminAuditEvents({action: "registration-release"})).toHaveLength(0);
+      expect(() => runCli(dbPath, [...command, "--apply"])).toThrow();
+      expect(() => runCli(dbPath, [...command, "--apply", "--expected-revision", "0".repeat(64)])).toThrow();
+      expect(runCli(dbPath, [...command, "--apply", "--expected-revision", result.revision])).toMatchObject({applied: true});
+      expect(store.getExternalSubjectRegistration(identity)?.releasedAt).toBeInstanceOf(Date);
+      expect(store.listAdminAuditEvents({action: "registration-release"})).toHaveLength(1);
+    } finally {store.close();}
+  }, 30_000);
+
   it("raises only eligible user credentials below an RPM minimum", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-admin-user-rpm-"));
     cleanupDirs.push(dir);

@@ -6,6 +6,7 @@ import type {
 } from "./plan-entitlement.js";
 import type {
   AccessCredentialRecord,
+  RateLimitPolicy,
   Scope,
   Subject,
   UnifiedClientKeyRecord,
@@ -57,6 +58,8 @@ export interface BillingEventRecord {
 }
 
 export interface ApplyBillingEntitlementEventInput {
+  /** Internal worker fence, rechecked under the store write lock. Never deserialized from HTTP. */
+  assertOwnership?: () => void;
   idempotencyKey: string;
   eventType: BillingEventType;
   applyMode: BillingApplyMode;
@@ -166,6 +169,7 @@ export interface BillingSubjectDetails {
 }
 
 export interface CreateBillingSubjectInput {
+  assertOwnership?: () => void;
   idempotencyKey: string;
   payloadHash: string;
   subjectId: string;
@@ -177,8 +181,10 @@ export interface CreateBillingSubjectInput {
   gatewayCredential: AccessCredentialRecord;
   unifiedClientKey: UnifiedClientKeyRecord;
   upstreamV2Binding: UpstreamV2BindingRecord;
-  /** Server-built enrollment for a newly resolved phone; committed with its free grant. */
+  /** Server-built enrollment for a newly resolved phone; committed atomically with the Subject. */
   phoneSignup?: PreparePhoneAuthIdentityInput;
+  /** Defaults to true for public phone signup; internal paid/trial issuance can suppress the Free grant. */
+  phoneSignupGrantDefaultEntitlement?: boolean;
   now?: Date;
 }
 
@@ -211,10 +217,13 @@ export interface RotateBillingSubjectResult extends BillingSubjectDetails {
 }
 
 export interface DisableBillingSubjectInput {
+  assertOwnership?: () => void;
   idempotencyKey: string;
   payloadHash: string;
   subjectId: string;
   reason?: string | null;
+  /** False during compensation until remote disable has been confirmed. */
+  upstreamDisableConfirmed?: boolean;
   now?: Date;
 }
 
@@ -227,6 +236,10 @@ export interface DisableBillingSubjectResult extends BillingSubjectDetails {
 }
 
 export interface BillingAdminStore {
+  /** Internal issuance fence; normalize only contact labels, never expiry/rate or login state. */
+  inspectBillingIssuance(input: BillingIssuanceInspection): { upstreamUserId: string; upstreamKeyId: string };
+  recordBillingProvisioningAttempt(identity: {provider: string; externalUserId: string}, now?: Date): void;
+  hasBillingProvisioningAttempt(identity: {provider: string; externalUserId: string}): boolean;
   replayBillingSubjectCreate(
     idempotencyKey: string,
     payloadHash: string
@@ -242,6 +255,7 @@ export interface BillingAdminStore {
     payloadHash: string
   ): DisableBillingSubjectResult | null;
   disableBillingSubject(input: DisableBillingSubjectInput): DisableBillingSubjectResult;
+  confirmBillingSubjectUpstreamDisabled(subjectId: string, upstreamUserId: string, now?: Date): void;
   getBillingSubject(subjectId: string): BillingSubjectDetails | null;
   getBillingSubjectByExternal(
     provider: string,
@@ -255,6 +269,29 @@ export interface BillingAdminStore {
   listBillingEvents(input?: ListBillingEventsInput): BillingEventListResult;
   listBillingEntitlements(input: ListBillingEntitlementsInput): BillingEntitlementListResult;
   reportBillingUsage(input: BillingUsageReportInput): BillingUsageReportResult;
+}
+
+export interface BillingIssuanceInspection {
+  taskId: string;
+  subjectId: string;
+  provider: string;
+  externalUserId: string;
+  phone: string;
+  phoneHash: string;
+  name: string;
+  scope: string;
+  allowedPublicModels: string[];
+  keyExpiresAt: Date;
+  rate: RateLimitPolicy;
+  planId: string;
+  entitlementEnd: Date;
+  periodStart: Date;
+  credentialLabel: string;
+  disabled?: boolean;
+  normalize?: boolean;
+  requireEntitlement?: boolean;
+  assertOwnership: () => void;
+  now: Date;
 }
 
 export function isBillingEventType(value: unknown): value is BillingEventType {

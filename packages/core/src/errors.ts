@@ -80,6 +80,13 @@ export const gatewayErrorCodes = [
   "research_backup_stale",
   "issue_job_not_found",
   "issue_already_running",
+  "issue_already_exists",
+  "issue_lease_lost",
+  "issue_not_resumable",
+  "issue_recovery_requires_review",
+  "registration_released",
+  "registration_release_refused",
+  "disable_target_changed",
   "issue_validation_unreachable",
   "issue_validation_failed",
   "service_unavailable"

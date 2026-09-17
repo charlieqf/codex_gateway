@@ -1,10 +1,13 @@
 import { DatabaseSync } from "node:sqlite";
+export { releaseExternalSubjectRegistration, type RegistrationReleaseInput } from "./registration-release.js";
 import * as accessCredentials from "./access-credentials.js";
 import * as adminAudit from "./admin-audit.js";
 import * as billingAdminTokens from "./billing-admin-tokens.js";
 import * as billingEvents from "./billing-events.js";
 import * as billingSubjects from "./billing-subjects.js";
+import * as billingIssuance from "./billing-issuance.js";
 import * as externalIdentities from "./external-identities.js";
+import * as issuanceTasks from "./issuance-tasks.js";
 import * as entitlementsStore from "./entitlements.js";
 import type { EntitlementStoreDependencies } from "./entitlements.js";
 import { migrateGatewaySchema } from "./migrations.js";
@@ -24,13 +27,19 @@ import {
   type AccessCredentialRecord,
   type ClaimExternalSubjectInput,
   type ExternalIdentityKey,
+  type IssuanceTaskRecord,
+  type ExternalSubjectRegistration,
   type ExternalSubjectResolution,
+  type RecordExternalSubjectCreateFailureInput,
+  type RecordExternalSubjectUpstreamInput,
+  type ExternalSubjectCompensationInput,
   type ResolveExternalSubjectInput,
   type ResolveExternalSubjectOptions,
   type AdminAuditEventRecord,
   type ApplyBillingEntitlementEventInput,
   type ApplyBillingEntitlementEventResult,
   type BillingAdminTokenRecord,
+  type BillingIssuanceInspection,
   type BillingSubjectDetails,
   type BillingEntitlementListResult,
   type BillingEventListResult,
@@ -345,6 +354,14 @@ export class SqliteGatewayStore implements GatewayStore {
     return billingEvents.apply(this.db, input);
   }
 
+  recordBillingProvisioningAttempt(identity: {provider: string; externalUserId: string}, now?: Date): void {
+    externalIdentities.recordProvisioningAttempt(this.db, identity, now);
+  }
+
+  hasBillingProvisioningAttempt(identity: {provider: string; externalUserId: string}): boolean {
+    return Boolean(this.db.prepare("SELECT 1 FROM billing_provisioning_attempts WHERE provider = ? AND external_user_id = ?").get(identity.provider, identity.externalUserId));
+  }
+
   replayBillingSubjectCreate(
     idempotencyKey: string,
     payloadHash: string
@@ -354,6 +371,10 @@ export class SqliteGatewayStore implements GatewayStore {
 
   createBillingSubject(input: CreateBillingSubjectInput): CreateBillingSubjectResult {
     return billingSubjects.create(this.db, input);
+  }
+
+  inspectBillingIssuance(input: BillingIssuanceInspection) {
+    return billingIssuance.inspect(this.db, input);
   }
 
   replayBillingSubjectRotate(
@@ -378,6 +399,10 @@ export class SqliteGatewayStore implements GatewayStore {
     return billingSubjects.disable(this.db, input);
   }
 
+  confirmBillingSubjectUpstreamDisabled(subjectId: string, upstreamUserId: string, now?: Date): void {
+    billingSubjects.confirmUpstreamDisabled(this.db, subjectId, upstreamUserId, now);
+  }
+
   getBillingSubject(subjectId: string): BillingSubjectDetails | null {
     return billingSubjects.getDetails(this.db, subjectId);
   }
@@ -390,12 +415,39 @@ export class SqliteGatewayStore implements GatewayStore {
     return externalIdentities.registration(this.db, identity.provider, identity.externalUserId)?.state ?? null;
   }
 
+  getExternalSubjectRegistration(identity: ExternalIdentityKey): ExternalSubjectRegistration | null {
+    return externalIdentities.publicRegistration(this.db, identity.provider, identity.externalUserId);
+  }
+
+  insertIssuanceTask(record: IssuanceTaskRecord): void { issuanceTasks.insert(this.db, record); }
+  getIssuanceTask(id: string): IssuanceTaskRecord | null { return issuanceTasks.get(this.db, id); }
+  listIssuanceTasks(actorId: string | null, limit: number): IssuanceTaskRecord[] { return issuanceTasks.list(this.db, actorId, limit); }
+  claimIssuanceTask(id: string, token: string, now: Date, expiresAt: Date, expectedState: string): boolean { return issuanceTasks.claim(this.db, id, token, now, expiresAt, expectedState); }
+  saveIssuanceTask(record: IssuanceTaskRecord, token: string, now: Date): void { issuanceTasks.save(this.db, record, token, now); }
+  releaseIssuanceTask(id: string, token: string): void { issuanceTasks.release(this.db, id, token); }
+
   resolveExternalSubject(input: ResolveExternalSubjectInput, options?: ResolveExternalSubjectOptions): ExternalSubjectResolution {
     return externalIdentities.resolve(this.db, input, options);
   }
 
   claimExternalSubjectCreate(input: ClaimExternalSubjectInput): string {
     return externalIdentities.claimCreate(this.db, input);
+  }
+
+  recordExternalSubjectUpstream(input: RecordExternalSubjectUpstreamInput): void {
+    externalIdentities.recordUpstream(this.db, input);
+  }
+
+  recordExternalSubjectCreateFailure(input: RecordExternalSubjectCreateFailureInput): void {
+    externalIdentities.recordCreateFailure(this.db, input);
+  }
+
+  beginExternalSubjectCompensation(input: ExternalSubjectCompensationInput): void {
+    externalIdentities.beginCompensation(this.db, input);
+  }
+
+  completeExternalSubjectCompensation(input: ExternalSubjectCompensationInput): void {
+    externalIdentities.completeCompensation(this.db, input);
   }
 
   getBillingSubjectByExternal(

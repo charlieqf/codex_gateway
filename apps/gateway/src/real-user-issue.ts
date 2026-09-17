@@ -1,5 +1,15 @@
 import { randomUUID } from "node:crypto";
-import { GatewayError, normalizeAccessCredentialStoredPrefix } from "@codex-gateway/core";
+import {
+  GatewayError,
+  gatewayErrorCodes,
+  type GatewayErrorCode,
+  decryptSecret,
+  encryptSecret,
+  type IssuanceTaskStore,
+  type IssuanceTaskRecord,
+  normalizeAccessCredentialStoredPrefix,
+  normalizeMainlandChinaPhone
+} from "@codex-gateway/core";
 import type { RateLimitPolicy } from "@codex-gateway/core";
 
 /**
@@ -27,7 +37,7 @@ export const realUserIssueStepKeys = [
 
 export type RealUserIssueStepKey = (typeof realUserIssueStepKeys)[number];
 export type RealUserIssueStepState = "pending" | "running" | "ok" | "failed";
-export type RealUserIssueJobState = "queued" | "running" | "succeeded" | "failed";
+export type RealUserIssueJobState = "queued" | "running" | "retryable" | "compensating" | "compensation_failed" | "succeeded" | "failed";
 
 const stepLabels: Record<RealUserIssueStepKey, string> = {
   create_subject: "创建计费主体与 key",
@@ -89,6 +99,11 @@ export interface RealUserIssueJob {
   error: { code: string; message: string } | null;
   createdAt: Date;
   updatedAt: Date;
+  input?: RealUserIssueInput;
+  subjectId: string | null;
+  compensationError: { code: string; message: string } | null;
+  /** Persisted in the encrypted snapshot, without changing the SQL state enum. */
+  requiresReview?: boolean;
 }
 
 export interface RealUserIssueInput {
@@ -111,6 +126,8 @@ export interface RealUserIssueJobStoreOptions {
   keyTtlMs?: number;
   maxJobs?: number;
   now?: () => Date;
+  persistence?: IssuanceTaskStore;
+  encryptionSecret?: string;
 }
 
 const defaultJobTtlMs = 2 * 60 * 60 * 1000;
@@ -124,22 +141,31 @@ export class RealUserIssueJobStore {
   private readonly keyTtlMs: number;
   private readonly maxJobs: number;
   private readonly now: () => Date;
+  private readonly persistence?: IssuanceTaskStore;
+  private readonly encryptionSecret?: string;
+  private readonly leases = new Map<string, string>();
 
   constructor(options: RealUserIssueJobStoreOptions = {}) {
     this.jobTtlMs = options.jobTtlMs ?? defaultJobTtlMs;
     this.keyTtlMs = options.keyTtlMs ?? defaultKeyTtlMs;
     this.maxJobs = options.maxJobs ?? defaultMaxJobs;
     this.now = options.now ?? (() => new Date());
+    this.persistence = options.persistence;
+    this.encryptionSecret = options.encryptionSecret;
+    if (this.persistence && !this.encryptionSecret) throw new Error("Issuance encryption is required.");
   }
+
+  get durable(): boolean { return Boolean(this.persistence); }
 
   create(input: {
     externalUserId: string;
     displayName: string;
     phone: string;
     actorTokenPrefix: string | null;
+    issuanceInput?: RealUserIssueInput;
   }): RealUserIssueJob {
     this.sweep();
-    if (this.inFlightExternalUserIds.has(input.externalUserId)) {
+    if (!this.persistence && this.inFlightExternalUserIds.has(input.externalUserId)) {
       throw new GatewayError({
         code: "issue_already_running",
         message: "An issuance for this phone number is already running.",
@@ -167,8 +193,15 @@ export class RealUserIssueJobStore {
       unifiedKeyExpiresAt: null,
       error: null,
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
+      input: input.issuanceInput,
+      subjectId: null,
+      compensationError: null
     };
+    if (this.persistence) {
+      if (!job.input) throw new Error("Durable issuance requires immutable input.");
+      this.persistence.insertIssuanceTask(this.record(job));
+    }
     this.jobs.set(job.id, job);
     this.inFlightExternalUserIds.add(input.externalUserId);
     this.enforceMaxJobs();
@@ -177,11 +210,24 @@ export class RealUserIssueJobStore {
 
   get(id: string): RealUserIssueJob | null {
     this.sweep();
+    if (this.persistence) {
+      const record = this.persistence.getIssuanceTask(id);
+      if (!record) return null;
+      const job = this.decode(record);
+      const cached = this.jobs.get(id);
+      if (!record.retiredAt && job.state === "succeeded" && cached?.state === "succeeded" && cached.unifiedKey &&
+          cached.unifiedKeyExpiresAt && cached.unifiedKeyExpiresAt > this.now()) {
+        job.unifiedKey = cached.unifiedKey;
+      }
+      this.jobs.set(id, job);
+      return job;
+    }
     return this.jobs.get(id) ?? null;
   }
 
   list(actorTokenPrefix: string | null, limit = 20): RealUserIssueJob[] {
     this.sweep();
+    if (this.persistence) return this.persistence.listIssuanceTasks(actorTokenPrefix, limit).map(record => this.get(record.id)!);
     return [...this.jobs.values()]
       .filter((job) => actorTokenPrefix === null || job.actorTokenPrefix === actorTokenPrefix)
       .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
@@ -197,6 +243,113 @@ export class RealUserIssueJobStore {
         step.startedAt = this.now();
       }
     });
+  }
+
+  acquire(id: string, action: "resume" | "retry-disable" = "resume", acknowledgeReview = false): void {
+    const job = this.get(id);
+    if (!job) throw new GatewayError({ code: "issue_job_not_found", message: "Issuance task not found.", httpStatus: 404 });
+    const compensating = job.state === "compensating" || job.state === "compensation_failed";
+    if (["succeeded", "failed"].includes(job.state) || compensating !== (action === "retry-disable")) {
+      throw new GatewayError({ code: "issue_not_resumable", message: "This task cannot perform the requested recovery action.", httpStatus: 409 });
+    }
+    if (job.requiresReview && !acknowledgeReview) {
+      throw new GatewayError({code: "issue_recovery_requires_review", message: "Inspect and reconcile this task before explicitly acknowledging recovery.", httpStatus: 409});
+    }
+    if (this.leases.has(id)) throw new GatewayError({ code: "issue_already_running", message: "Issuance is already running.", httpStatus: 409 });
+    const token = randomUUID();
+    if (this.persistence && !this.persistence.claimIssuanceTask(id, token, this.now(), this.leaseExpiry(), job.state)) {
+      throw new GatewayError({ code: "issue_already_running", message: "Issuance is running or its previous lease has not expired.", httpStatus: 409 });
+    }
+    this.leases.set(id, token);
+  }
+
+  assertOwner(id: string): void {
+    if (!this.persistence) return;
+    const record = this.persistence.getIssuanceTask(id);
+    if (!record || record.retiredAt || !this.leases.get(id) || record.leaseToken !== this.leases.get(id) ||
+        !record.leaseExpiresAt || record.leaseExpiresAt <= this.now()) {
+      throw new GatewayError({ code: "issue_lease_lost", message: "Issuance ownership expired; reload the task.", httpStatus: 409 });
+    }
+  }
+
+  release(id: string): void {
+    const token = this.leases.get(id);
+    if (token) this.persistence?.releaseIssuanceTask(id, token);
+    this.leases.delete(id);
+  }
+
+  checkpointSubject(id: string, subjectId: string): void {
+    this.mutate(id, job => { job.subjectId = subjectId; });
+  }
+
+  markRetryable(id: string, error: { code: string; message: string }): void {
+    this.mutate(id, job => { job.state = "retryable"; job.error = error; job.unifiedKey = null; job.requiresReview = false; });
+  }
+
+  requireReview(id: string, error: { code: string; message: string }): void {
+    this.mutate(id, job => { job.state = "retryable"; job.error = error; job.unifiedKey = null; job.requiresReview = true; });
+  }
+
+  beginCompensation(id: string, error: { code: string; message: string }): void {
+    this.mutate(id, job => {
+      job.state = "compensating"; job.error = error; job.compensationError = null; job.unifiedKey = null;
+      job.requiresReview = false;
+    });
+  }
+
+  failCompensation(id: string, error: { code: string; message: string }): void {
+    this.mutate(id, job => { job.state = "compensation_failed"; job.compensationError = error;
+      job.requiresReview = error.code === "issue_recovery_requires_review" || error.code === "disable_target_changed"; });
+  }
+
+  private leaseExpiry(): Date { return new Date(this.now().getTime() + 120_000); }
+
+  private record(job: RealUserIssueJob): IssuanceTaskRecord {
+    return { id: job.id, provider: job.input?.provider ?? defaultRealUserProvider,
+      externalUserId: job.externalUserId, actorId: job.actorTokenPrefix ?? "",
+      state: job.state, snapshotCiphertext: encryptSecret(JSON.stringify({ ...job, unifiedKey: null }), this.encryptionSecret!),
+      leaseToken: this.leases.get(job.id) ?? null, leaseExpiresAt: this.leaseExpiry(),
+      createdAt: job.createdAt, updatedAt: job.updatedAt };
+  }
+
+  private decode(record: IssuanceTaskRecord): RealUserIssueJob {
+    const job = JSON.parse(decryptSecret(record.snapshotCiphertext, this.encryptionSecret!)) as RealUserIssueJob;
+    if (job.id !== record.id || job.state !== record.state || job.input?.provider !== record.provider ||
+        job.externalUserId !== record.externalUserId || (job.actorTokenPrefix ?? "") !== record.actorId) {
+      throw new Error("Invalid issuance snapshot.");
+    }
+    job.createdAt = new Date(job.createdAt); job.updatedAt = new Date(job.updatedAt);
+    job.unifiedKeyExpiresAt = job.unifiedKeyExpiresAt ? new Date(job.unifiedKeyExpiresAt) : null;
+    for (const step of job.steps) {
+      step.startedAt = step.startedAt ? new Date(step.startedAt) : null;
+      step.finishedAt = step.finishedAt ? new Date(step.finishedAt) : null;
+    }
+    if (job.input) {
+      job.input.entitlementEnd = new Date(job.input.entitlementEnd);
+      job.input.keyExpiresAt = new Date(job.input.keyExpiresAt);
+    }
+    if (job.result) {
+      job.result.backingKeyExpiresAt = new Date(job.result.backingKeyExpiresAt);
+      job.result.entitlementEnd = new Date(job.result.entitlementEnd);
+    }
+    if (record.retiredAt) {
+      job.state = "failed";
+      job.requiresReview = false;
+      job.updatedAt = record.retiredAt;
+      job.unifiedKey = null;
+      job.unifiedKeyExpiresAt = null;
+      job.compensationError = null;
+      job.result = null;
+      job.error = {code: "registration_released", message: "原登记已由管理员释放，本任务已终止，不得恢复。"};
+      for (const step of job.steps) {
+        if (step.state === "running") {
+          step.state = "failed";
+          step.detail = job.error.message;
+          step.finishedAt = record.retiredAt;
+        }
+      }
+    }
+    return job;
   }
 
   finishStep(id: string, key: RealUserIssueStepKey, detail?: string): void {
@@ -220,6 +373,7 @@ export class RealUserIssueJobStore {
       }
       job.state = "failed";
       job.error = error;
+      job.requiresReview = false;
       job.unifiedKey = null;
       job.unifiedKeyExpiresAt = null;
       this.inFlightExternalUserIds.delete(job.externalUserId);
@@ -229,6 +383,9 @@ export class RealUserIssueJobStore {
   succeedJob(id: string, result: RealUserIssueResult, unifiedKey: string): void {
     this.mutate(id, (job) => {
       job.state = "succeeded";
+      job.requiresReview = false;
+      job.error = null;
+      job.compensationError = null;
       job.result = result;
       job.unifiedKey = unifiedKey;
       job.unifiedKeyExpiresAt = new Date(this.now().getTime() + this.keyTtlMs);
@@ -251,12 +408,14 @@ export class RealUserIssueJobStore {
   }
 
   private mutate(id: string, mutator: (job: RealUserIssueJob) => void): void {
-    const job = this.jobs.get(id);
+    this.assertOwner(id);
+    const job = this.get(id);
     if (!job) {
       return;
     }
     mutator(job);
     job.updatedAt = this.now();
+    if (this.persistence) this.persistence.saveIssuanceTask(this.record(job), this.leases.get(id)!, this.now());
   }
 
   private enforceMaxJobs(): void {
@@ -303,13 +462,20 @@ export interface CurrentCredential {
 }
 
 export interface RealUserIssueRunnerDeps {
+  assertAccountUnchanged?(subjectId: string): void;
+  normalizeAccount?(subjectId: string, credentialLabel: string): void;
+  canDiscardFailedCreate?(input: RealUserIssueInput): boolean;
   createSubject(input: {
     provider: string;
     externalUserId: string;
+    phone: string;
     displayName: string;
     scope: string;
     metadata: Record<string, unknown>;
     idempotencyKey: string;
+    recoveryTaskId?: string;
+    keyExpiresAt?: Date;
+    rate?: RateLimitPolicy;
   }): Promise<CreatedSubject>;
   grantEntitlement(input: {
     provider: string;
@@ -352,16 +518,28 @@ class IssueStepError extends Error {
   }
 }
 
+/** Public validation errors must not be confused with destructive business-step failures. */
+export class IssueValidationError extends GatewayError {
+  constructor(code: string, httpStatus: number) {
+    const safeCode = (gatewayErrorCodes as readonly string[]).includes(code) ? code as GatewayErrorCode : "issue_validation_failed";
+    super({code: safeCode, httpStatus, message: `Public credential validation failed (HTTP ${httpStatus}, ${safeCode}); inspect the original account before recovery.`});
+  }
+}
+
 /**
  * Runs the issuance to completion, recording progress on the job as it goes.
- * Never throws: every failure lands on the job record instead.
+ * Business failures land on the task; ownership/storage failures stop the worker.
  */
 export async function runRealUserIssueJob(
   store: RealUserIssueJobStore,
   jobId: string,
   deps: RealUserIssueRunnerDeps,
-  input: RealUserIssueInput
+  input: RealUserIssueInput,
+  acquired = false
 ): Promise<void> {
+  if (!acquired) store.acquire(jobId);
+  const originalJob = store.get(jobId)!;
+  input = originalJob.input ?? input;
   let subjectId: string | null = null;
   let createdSubjectThisRun = false;
 
@@ -377,14 +555,17 @@ export async function runRealUserIssueJob(
     const created = await deps.createSubject({
       provider: input.provider,
       externalUserId: input.externalUserId,
+      phone: input.phone,
       displayName: input.name,
       scope: input.scope,
       metadata: {
         purpose: "real_user_manual_trial",
         issued_by: "real-user-issue-ui",
-        created_at: deps.now().toISOString()
+        ...(store.durable ? { issuance_task_id: jobId } : {})
       },
-      idempotencyKey: `${input.provider}:${input.externalUserId}:create_subject`
+      idempotencyKey: store.durable ? `${jobId}:create_subject` : `${input.provider}:${input.externalUserId}:create_subject`,
+      ...(store.durable ? { recoveryTaskId: jobId } : {}),
+      keyExpiresAt: input.keyExpiresAt, rate: input.rate
     });
     if (created.idempotentReplay && !created.opaqueKey) {
       throw new IssueStepError(
@@ -404,12 +585,14 @@ export async function runRealUserIssueJob(
       throw new IssueStepError("create_subject", "missing_subject_id", "创建计费主体没有返回 subject id。");
     }
     subjectId = created.subjectId;
-    createdSubjectThisRun = created.created && !created.idempotentReplay;
+    createdSubjectThisRun = (created.created && !created.idempotentReplay) || store.durable;
+    store.checkpointSubject(jobId, subjectId);
     const opaqueKey = created.opaqueKey;
     store.finishStep(jobId, "create_subject", `subject ${subjectId}`);
+    deps.assertAccountUnchanged?.(subjectId);
 
     store.startStep(jobId, "grant_entitlement");
-    const stamp = utcStamp(deps.now());
+    const stamp = store.durable ? jobId : utcStamp(deps.now());
     const entitlement = await deps.grantEntitlement({
       provider: input.provider,
       subjectId,
@@ -417,9 +600,10 @@ export async function runRealUserIssueJob(
       externalOrderId: `manual_trial_${stamp}`,
       externalEventId: `evt_${stamp}`,
       idempotencyKey: `${input.provider}:${input.externalUserId}:purchase:${stamp}`,
-      periodStart: new Date(deps.now().getTime() - 60_000),
+      periodStart: new Date(originalJob.createdAt.getTime() - 60_000),
       periodEnd: input.entitlementEnd
     });
+    deps.assertAccountUnchanged?.(subjectId);
     if (!entitlement.applied || entitlement.entitlementState !== "active") {
       throw new IssueStepError("grant_entitlement", "entitlement_not_active", "Plan 权益没有生效。");
     }
@@ -427,6 +611,7 @@ export async function runRealUserIssueJob(
 
     store.startStep(jobId, "resolve_key");
     const resolved = await deps.resolveUnifiedKey(opaqueKey);
+    deps.assertAccountUnchanged?.(subjectId);
     if (!resolved.valid || resolved.subjectId !== subjectId) {
       throw new IssueStepError("resolve_key", "resolve_failed", "opaque key 解析校验失败。");
     }
@@ -480,17 +665,17 @@ export async function runRealUserIssueJob(
     store.finishStep(jobId, "resolve_key", resolved.codexKeyPrefix);
 
     store.startStep(jobId, "normalize_metadata");
-    const label = credentialLabel(deps.now(), input.name);
-    deps.updateSubjectMetadata(subjectId, {
-      label: input.name,
-      name: input.name,
-      phoneNumber: input.phone
-    });
-    deps.updateCredential(normalizeAccessCredentialStoredPrefix(resolved.codexKeyPrefix), {
-      label,
-      expiresAt: input.keyExpiresAt,
-      rate: input.rate
-    });
+    const label = credentialLabel(originalJob.createdAt, input.name);
+    if (deps.normalizeAccount) {
+      deps.normalizeAccount(subjectId, label);
+    } else {
+      deps.updateSubjectMetadata(subjectId, {
+        label: input.name, name: input.name, phoneNumber: input.phone
+      });
+      deps.updateCredential(normalizeAccessCredentialStoredPrefix(resolved.codexKeyPrefix), {
+        label, expiresAt: input.keyExpiresAt, rate: input.rate
+      });
+    }
     store.finishStep(
       jobId,
       "normalize_metadata",
@@ -501,6 +686,7 @@ export async function runRealUserIssueJob(
 
     store.startStep(jobId, "validate_credential");
     const current = await deps.currentCredential(resolved.codexApiKey);
+    deps.assertAccountUnchanged?.(subjectId);
     if (!current.valid || current.subjectId !== subjectId) {
       throw new IssueStepError("validate_credential", "credential_invalid", "Gateway 凭据校验失败。");
     }
@@ -528,7 +714,8 @@ export async function runRealUserIssueJob(
         unifiedKey: opaqueKey,
         requestId: `real-user-issue:${jobId}`
       });
-    } catch {
+    } catch (error) {
+      if (error instanceof GatewayError) throw error;
       throw new IssueStepError(
         "prepare_phone_login",
         "phone_identity_prepare_failed",
@@ -556,22 +743,65 @@ export async function runRealUserIssueJob(
       opaqueKey
     );
   } catch (err) {
+    // An expired worker must not write state or start compensation after another
+    // worker has taken ownership. The new owner will inspect the business ledger.
+    store.assertOwner(jobId);
     const step = err instanceof IssueStepError ? err.step : null;
-    const code = err instanceof IssueStepError ? err.code : "issue_failed";
-    store.failJob(jobId, step, {
+    const code = err instanceof IssueStepError || err instanceof GatewayError ? err.code : "issue_failed";
+    const failure = {
       code,
       message: redactIssueMessage(err instanceof Error ? err.message : String(err))
-    });
-    if (subjectId && createdSubjectThisRun) {
-      // Leave no half-provisioned user behind: the subject exists but has no
-      // usable entitlement, so disable it rather than letting it linger.
+    };
+    const deterministicConflict = ["subject_already_exists", "identity_conflict", "account_disabled", "account_migration_required",
+      "phone_identity_conflict", "phone_login_disabled", "invalid_request", "idempotency_conflict", "registration_released"].includes(code);
+    if (!subjectId && !originalJob.subjectId && deterministicConflict && deps.canDiscardFailedCreate?.(input)) {
+      store.failJob(jobId, "create_subject", failure);
+    } else if (store.durable && (["issue_recovery_requires_review", "entitlement_already_active", "invalid_entitlement_transition"].includes(code) ||
+        (err instanceof IssueValidationError && err.httpStatus < 500 && ![408, 425, 429].includes(err.httpStatus)) ||
+        (!subjectId && deterministicConflict))) {
+      store.requireReview(jobId, failure);
+    } else if (store.durable && (!subjectId || err instanceof IssueValidationError || (!(err instanceof IssueStepError) &&
+        (!(err instanceof GatewayError) || err.httpStatus >= 500)))) {
+      store.markRetryable(jobId, failure);
+    } else if (subjectId && createdSubjectThisRun) {
+      store.beginCompensation(jobId, failure);
       try {
         await deps.disableSubject(subjectId, `real_user_issue_failed:${code}`);
-      } catch {
-        // Best effort only; the job already carries the original failure.
+        store.failJob(jobId, step, failure);
+      } catch (error) {
+        store.failCompensation(jobId, compensationFailure(error));
       }
+    } else {
+      store.failJob(jobId, step, failure);
     }
+  } finally {
+    store.release(jobId);
   }
+}
+
+export async function retryRealUserIssueCompensation(
+  store: RealUserIssueJobStore, jobId: string, deps: RealUserIssueRunnerDeps, acquired = false
+): Promise<void> {
+  if (!acquired) store.acquire(jobId, "retry-disable");
+  try {
+    const job = store.get(jobId)!;
+    if (!job.subjectId || !job.error) throw new Error("Compensation target is missing.");
+    store.beginCompensation(jobId, job.error);
+    await deps.disableSubject(job.subjectId, `real_user_issue_failed:${job.error.code}`);
+    store.failJob(jobId, null, job.error);
+  } catch (error) {
+    store.failCompensation(jobId, compensationFailure(error));
+  } finally {
+    store.release(jobId);
+  }
+}
+
+function compensationFailure(error: unknown): { code: string; message: string } {
+  if (error instanceof GatewayError && ["issue_recovery_requires_review", "disable_target_changed"].includes(error.code)) {
+    return {code: error.code, message: "Account or original disable target changed. Inspect the original task; do not retry disable until reconciliation is complete."};
+  }
+  return { code: error instanceof GatewayError ? error.code : "compensation_failed",
+    message: "Account disable has not completed; retry disable from the original issuance task." };
 }
 
 export function publicKeyPrefix(opaqueKey: string): string {
@@ -579,7 +809,7 @@ export function publicKeyPrefix(opaqueKey: string): string {
   return `cgu_live_${withoutScheme.slice(0, 16)}`;
 }
 
-function credentialLabel(now: Date, name: string): string {
+export function credentialLabel(now: Date, name: string): string {
   const day = now.toISOString().slice(0, 10).replace(/-/g, "");
   return `medevidence-unified-${day}-${safeSlug(name).slice(0, 32)}`;
 }
@@ -608,7 +838,8 @@ export function redactIssueMessage(message: string): string {
 }
 
 export function defaultExternalUserId(phone: string): string {
-  const digits = phone.replace(/\D/g, "");
+  const normalized = normalizeMainlandChinaPhone(phone);
+  const digits = normalized ? normalized.slice(3) : phone.replace(/\D/g, "");
   return `phone_${digits}`;
 }
 
@@ -634,6 +865,11 @@ export function publicRealUserIssueJob(
       finished_at: step.finishedAt ? step.finishedAt.toISOString() : null
     })),
     error: job.error,
+    subject_id: job.subjectId,
+    compensation_error: job.compensationError,
+    requires_review: Boolean(job.requiresReview),
+    recovery_action: job.state === "compensating" || job.state === "compensation_failed"
+      ? "retry-disable" : ["queued", "running", "retryable"].includes(job.state) ? "resume" : null,
     result: job.result
       ? {
           subject_id: job.result.subjectId,

@@ -277,21 +277,29 @@ export function isPhoneAuthStore(
 export function isExternalIdentityStore(store: GatewayStore): store is GatewayStore & ExternalIdentityStore {
   const candidate = store as Partial<ExternalIdentityStore>;
   return typeof candidate.getSubjectByExternalIdentity === "function" &&
+    typeof candidate.getExternalSubjectRegistration === "function" &&
     typeof candidate.getExternalSubjectRegistrationState === "function" &&
     typeof candidate.resolveExternalSubject === "function" &&
-    typeof candidate.claimExternalSubjectCreate === "function";
+    typeof candidate.claimExternalSubjectCreate === "function" &&
+    typeof candidate.recordExternalSubjectUpstream === "function" &&
+    typeof candidate.recordExternalSubjectCreateFailure === "function" &&
+    typeof candidate.beginExternalSubjectCompensation === "function" &&
+    typeof candidate.completeExternalSubjectCompensation === "function";
 }
 
 export function isBillingAdminStore(store: GatewayStore): store is GatewayStore & BillingAdminStore {
   const candidate = store as Partial<BillingAdminStore>;
   return (
     typeof candidate.applyBillingEntitlementEvent === "function" &&
+    typeof candidate.recordBillingProvisioningAttempt === "function" &&
+    typeof candidate.hasBillingProvisioningAttempt === "function" &&
     typeof candidate.replayBillingSubjectCreate === "function" &&
     typeof candidate.createBillingSubject === "function" &&
     typeof candidate.replayBillingSubjectRotate === "function" &&
     typeof candidate.rotateBillingSubject === "function" &&
     typeof candidate.replayBillingSubjectDisable === "function" &&
     typeof candidate.disableBillingSubject === "function" &&
+    typeof candidate.confirmBillingSubjectUpstreamDisabled === "function" &&
     typeof candidate.getBillingSubject === "function" &&
     typeof candidate.getBillingSubjectByExternal === "function" &&
     typeof candidate.getBillingSubjectActiveUnifiedKey === "function" &&

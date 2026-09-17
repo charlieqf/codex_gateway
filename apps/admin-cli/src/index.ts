@@ -50,6 +50,7 @@ import {
   registerClientEventQueryCommands
 } from "./commands/client-event-queries.js";
 import { registerIssueCommand } from "./commands/issue.js";
+import { registerRegistrationReleaseCommand } from "./commands/registration-release.js";
 import { registerProvisionUserCommand } from "./commands/provision-user.js";
 import { buildOpsSnapshot } from "./commands/ops-snapshot.js";
 import { resolveSubjectUserId } from "./commands/subject-options.js";
@@ -123,6 +124,7 @@ const commandContext = buildCommandContext({
 });
 
 registerIssueCommand(program, commandContext);
+registerRegistrationReleaseCommand(program, {dbPath: requireDbPath, printJson});
 registerProvisionUserCommand(program, commandContext);
 registerClientEventQueryCommands(program, {
   gatewayDbPath: requireDbPath,

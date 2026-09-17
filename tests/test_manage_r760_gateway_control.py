@@ -21,6 +21,47 @@ SPEC.loader.exec_module(MODULE)
 
 
 class ManageR760GatewayControlTests(unittest.TestCase):
+    def test_registration_release_is_preview_then_backup_then_revision_guarded_write(self) -> None:
+        revision = "a" * 64
+        args = MODULE.parse_args(["--", "release-registration", "manual_trial", "test-id", "operator", "abandoned", revision])
+        order = []
+        def admin(_endpoint, command, **_kwargs):
+            if "--apply" in command:
+                self.assertEqual(command[-2:], ["--expected-revision", revision])
+                order.append("write")
+                return {"applied": True}
+            self.assertEqual(command[-1], "--dry-run")
+            order.append("preview")
+            return {"revision": revision, "applied": False}
+        with (
+            mock.patch.object(MODULE, "run_remote_admin", side_effect=admin),
+            mock.patch.object(MODULE, "install_helper"),
+            mock.patch.object(MODULE, "run_helper_json", return_value={
+                "migration": 33, "integrity": {"quick_check": "ok", "foreign_key_violations": 0}}),
+            mock.patch.object(MODULE, "create_target_backup", side_effect=lambda *a, **kw: order.append("backup") or {}),
+            mock.patch.object(MODULE, "remove_helper_best_effort"),
+        ):
+            self.assertTrue(MODULE.execute(args)["authority_result"]["applied"])
+        self.assertEqual(order, ["preview", "backup", "write"])
+
+    def test_registration_release_what_if_and_bad_revision_never_backup_or_write(self) -> None:
+        base = ["release-registration", "manual_trial", "test-id", "operator", "abandoned"]
+        with (
+            mock.patch.object(MODULE, "run_remote_admin", return_value={"revision": "a" * 64, "applied": False}) as admin,
+            mock.patch.object(MODULE, "create_target_backup") as backup,
+            mock.patch.object(MODULE, "install_helper") as install,
+        ):
+            self.assertFalse(MODULE.execute(MODULE.parse_args(["--what-if", "--", *base]))["plan"]["applied"])
+            for suffix in ([], ["b" * 64]):
+                with self.assertRaises(MODULE.ManagementError):
+                    MODULE.execute(MODULE.parse_args(["--", *base, *suffix]))
+            backup.assert_not_called()
+            install.assert_not_called()
+            self.assertTrue(all(call.args[1][-1] == "--dry-run" for call in admin.call_args_list))
+        for bad in ([*base, "--apply"], [*base, "a" * 64, "--db", "wrong.db"]):
+            with self.assertRaises(MODULE.ManagementError):
+                MODULE.validate_admin_args(bad)
+
     def test_rejects_commands_that_can_reveal_a_key(self) -> None:
         for command in (["issue", "--user", "x"], ["rotate", "cgw.prefix"], ["reveal-key", "x"]):
             with self.subTest(command=command):

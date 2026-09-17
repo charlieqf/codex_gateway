@@ -3,8 +3,9 @@ import { generateKeyPairSync } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defaultFeaturePolicy, decryptSecret, encryptSecret, issueAccessCredential, issueUnifiedClientKey, phoneSignupFreePlan, phoneSignupFreePlanId, type Subject } from "@codex-gateway/core";
 import { createSqliteStore, SqliteTokenBudgetLimiter } from "@codex-gateway/store-sqlite";
-import { registerBillingAdminRoutes } from "./billing-admin.js";
+import { registerBillingAdminRoutes, type BillingAdminRouteOptions } from "./billing-admin.js";
 import { PhoneAuthService, phoneAuthGatewayOrigin } from "./services/phone-auth-service.js";
+import type { UpstreamV2CreateUserResult } from "./upstream-v2-client.js";
 
 const now = new Date("2026-09-09T00:00:00Z");
 const expiresAt = new Date("2027-09-09T00:00:00Z");
@@ -13,7 +14,7 @@ const recoverySecret = "recovery-integration-test-secret-not-live";
 const encryptionSecret = "backing-integration-test-secret-not-live";
 const adminToken = "billing-admin-integration-test-only";
 const cleanups: Array<() => Promise<void>> = [];
-afterEach(async () => { for (const cleanup of cleanups.splice(0)) await cleanup(); });
+afterEach(async () => { for (const cleanup of cleanups.splice(0)) await cleanup(); vi.unstubAllGlobals(); });
 
 function fixture() {
   const store = createSqliteStore({ path: ":memory:" });
@@ -29,22 +30,25 @@ function fixture() {
     unifiedKeyRecoverySecret: recoverySecret, apiKeyEncryptionSecret: encryptionSecret, now: () => now
   });
   app.addHook("onRequest", async (request, reply) => { reply.header("x-request-id", request.id); });
-  const createUser = vi.fn(async (_input: unknown) => ({
+  const createUser = vi.fn(async (_input: unknown): Promise<UpstreamV2CreateUserResult> => ({
     status: "created" as const, user: { id: "v2_test" },
     key: { id: "v2_key_test", key: "medevidence-integration-test-key", keyPrefix: "medevidence-test" }
   }));
-  registerBillingAdminRoutes(app, {
+  const disableUser = vi.fn(async (_input: unknown) => ({ disabled: true, user: { id: "v2_test" } }));
+  const routeOptions: BillingAdminRouteOptions = {
     access: { token: adminToken, nextToken: null }, tokenMode: "env", billingStore: store,
     credentialStore: store, planEntitlementStore: store,
+    subjectMetadataStore: store, publicBaseUrl: phoneAuthGatewayOrigin, adminAuditStore: store,
     externalIdentityStore: store, externalIdentityProvider: provider,
     phoneAuthService: phoneAuth,
     unifiedKeyRecoverySecret: recoverySecret, apiKeyEncryptionSecret: encryptionSecret,
     upstreamV2Client: {
       createUser,
       revokeKey: async () => ({ revoked: true, key: { id: "v2_key_test" } }),
-      disableUser: async () => ({ disabled: true, user: { id: "v2_test" } })
+      disableUser
     }, now: () => now
-  });
+  };
+  registerBillingAdminRoutes(app, routeOptions);
   store.createPlan({
     id: "plan_test", displayName: "Test", scopeAllowlist: ["code"],
     featurePolicy: { ...defaultFeaturePolicy(), capabilities: ["chat", "tools"] },
@@ -75,8 +79,360 @@ function fixture() {
     return { subject, backing, unified };
   };
   cleanups.push(async () => { await app.close(); store.close(); });
-  return { app, store, createUser, resolve, create, seed, pay, phoneAuth };
+  return { app, store, createUser, disableUser, routeOptions, resolve, create, seed, pay, phoneAuth };
 }
+
+describe("issuance recovery against the billing ledger", () => {
+  const headers = {authorization: `Bearer ${adminToken}`};
+  async function waitJob(app: ReturnType<typeof Fastify>, jobId: string) {
+    for (let attempt = 0; attempt < 50; attempt++) {
+      const response = await app.inject({url: `/gateway/admin/billing/v1/real-user-issue/${jobId}`, headers});
+      const job = response.json();
+      if (!["queued", "running", "compensating"].includes(job.state)) return job;
+      await new Promise(resolve => setTimeout(resolve, 5));
+    }
+    throw new Error("Task did not settle");
+  }
+  function validation(f: ReturnType<typeof fixture>, valid = true) {
+    vi.stubGlobal("fetch", async (url: string) => {
+      const keys = f.store.listUnifiedClientKeys();
+      const key = keys.find(candidate => candidate.metadata?.issuance_task_id) ?? keys[0]!;
+      return new Response(JSON.stringify(url.endsWith("/resolve") ? {
+        valid: true, subject: {id: key.subjectId},
+        codex_gateway: {api_key: decryptSecret(key.codexKeyCiphertext, encryptionSecret), key_prefix: `cgw.${key.codexCredentialPrefix}`,
+          endpoint_base_url: `${phoneAuthGatewayOrigin}/v1`, credential_validation_url: `${phoneAuthGatewayOrigin}/gateway/credentials/current`},
+        medevidence: {api_key: "test-runtime-key", key_prefix: "test-runtime-prefix"}
+      } : {valid, subject: {id: key.subjectId}, entitlement: {state: "active", feature_policy: {capabilities: ["chat", "tools"]}}}), {status: 200});
+    });
+  }
+  const payload = {name: "Test User", phone: "13800138000", plan_id: "plan_test"};
+
+  it.each(["active", "disabled", "archived"] as const)("rejects a phone owned by a %s account without linking or changing it", async state => {
+    const f = fixture();
+    const existing = f.seed();
+    f.store.setSubjectState(existing.subject.id, state);
+    const beforeSubjects = f.store.listSubjects({includeArchived: true});
+    const beforeKeys = f.store.listUnifiedClientKeys();
+    const beforePhone = f.store.database.prepare("SELECT * FROM phone_auth_identities").all();
+    const accepted = await f.app.inject({method: "POST", url: "/gateway/admin/billing/v1/real-user-issue", headers, payload});
+    expect(accepted.statusCode).toBe(202);
+    const job = await waitJob(f.app, accepted.json().job_id);
+    expect(job).toMatchObject({state: "failed", error: {code: "subject_already_exists"}});
+    expect(job.error.message).toContain(existing.subject.id);
+    expect(f.createUser).not.toHaveBeenCalled();
+    expect(f.disableUser).not.toHaveBeenCalled();
+    expect(f.store.listSubjects({includeArchived: true})).toEqual(beforeSubjects);
+    expect(f.store.listUnifiedClientKeys()).toEqual(beforeKeys);
+    expect(f.store.database.prepare("SELECT * FROM phone_auth_identities").all()).toEqual(beforePhone);
+    expect(f.store.getExternalSubjectRegistration({provider: "manual_trial", externalUserId: "phone_13800138000"})).toBeNull();
+    expect((await f.app.inject({method: "POST", url: `/gateway/admin/billing/v1/real-user-issue/${job.job_id}/resume`, headers})).statusCode).toBe(409);
+    // A failed preflight must not permanently consume the task identity.
+    validation(f);
+    const corrected = await f.app.inject({method: "POST", url: "/gateway/admin/billing/v1/real-user-issue", headers,
+      payload: {...payload, external_user_id: "phone_13800138000", phone: "13900139000"}});
+    expect(corrected.statusCode).toBe(202);
+    expect((await waitJob(f.app, corrected.json().job_id)).state).toBe("succeeded");
+    expect(f.createUser).toHaveBeenCalledTimes(1);
+  });
+
+  it("checks phone identity ownership even when Subject contact metadata is absent", async () => {
+    const f = fixture();
+    const existing = f.seed(); f.pay(existing.subject.id);
+    f.phoneAuth.prepareIdentity({phone: "13800138000", subjectId: existing.subject.id, unifiedKey: existing.unified.token, requestId: "test"});
+    f.store.updateSubject(existing.subject.id, {phoneNumber: null});
+    expect(f.store.getSubject(existing.subject.id)?.phoneNumber).toBeNull();
+    const before = f.store.database.prepare("SELECT * FROM phone_auth_identities").all();
+    const accepted = await f.app.inject({method: "POST", url: "/gateway/admin/billing/v1/real-user-issue", headers, payload});
+    expect((await waitJob(f.app, accepted.json().job_id)).state).toBe("failed");
+    expect(f.createUser).not.toHaveBeenCalled();
+    expect(f.store.database.prepare("SELECT * FROM phone_auth_identities").all()).toEqual(before);
+  });
+
+  it("keeps a post-upstream identity conflict recoverable rather than discarding its orphan evidence", async () => {
+    const f = fixture();
+    const createUser = f.createUser.getMockImplementation()!;
+    f.createUser.mockImplementationOnce(async input => {
+      const result = await createUser(input);
+      f.seed("racing-owner");
+      return result;
+    });
+    const accepted = await f.app.inject({method: "POST", url: "/gateway/admin/billing/v1/real-user-issue", headers, payload});
+    const job = await waitJob(f.app, accepted.json().job_id);
+    expect(job).toMatchObject({state: "retryable", error: {code: "identity_conflict"}});
+    expect(f.store.getExternalSubjectRegistration({provider: "manual_trial", externalUserId: "phone_13800138000"}))
+      .toMatchObject({state: "creating", upstreamUserId: "v2_test", upstreamKeyId: "v2_key_test"});
+    expect(f.store.hasBillingProvisioningAttempt({provider: "manual_trial", externalUserId: "phone_13800138000"})).toBe(true);
+  });
+
+  it("terminates an original create task after its orphan is confirmed disabled", async () => {
+    const f = fixture();
+    const failure = vi.spyOn(f.store, "createBillingSubject").mockImplementationOnce(() => { throw new Error("local commit failed"); });
+    const accepted = await f.app.inject({method: "POST", url: "/gateway/admin/billing/v1/real-user-issue", headers, payload});
+    const jobId = accepted.json().job_id;
+    expect((await waitJob(f.app, jobId)).state).toBe("retryable");
+    failure.mockRestore();
+    const identity = {provider: "manual_trial", externalUserId: "phone_13800138000"};
+    const registration = f.store.getExternalSubjectRegistration(identity)!;
+    const compensation = {...identity, idempotencyKey: registration.idempotencyKey!, payloadHash: registration.payloadHash!,
+      upstreamUserId: registration.upstreamUserId!, upstreamKeyId: registration.upstreamKeyId!, actorId: "test", requestId: "test"};
+    f.store.beginExternalSubjectCompensation(compensation);
+    f.store.completeExternalSubjectCompensation(compensation);
+    expect((await f.app.inject({method: "POST", url: `/gateway/admin/billing/v1/real-user-issue/${jobId}/resume`, headers})).statusCode).toBe(202);
+    expect((await waitJob(f.app, jobId))).toMatchObject({state: "failed", error: {code: "account_disabled"}});
+    expect(f.createUser).toHaveBeenCalledTimes(1);
+  });
+
+  it("recovers after entitlement commit without creating another subject, key or entitlement", async () => {
+    const f = fixture();
+    validation(f);
+    const apply = f.store.applyBillingEntitlementEvent.bind(f.store);
+    const fault = vi.spyOn(f.store, "applyBillingEntitlementEvent").mockImplementationOnce(input => {
+      apply(input); throw new Error("crash after grant commit");
+    });
+    const accepted = await f.app.inject({method: "POST", url: "/gateway/admin/billing/v1/real-user-issue", headers, payload});
+    expect(accepted.statusCode).toBe(202);
+    const jobId = accepted.json().job_id;
+    expect((await waitJob(f.app, jobId)).state).toBe("retryable");
+    const originalKey = f.store.listUnifiedClientKeys()[0]!;
+    const originalEntitlements = f.store.listEntitlements({subjectId: originalKey.subjectId});
+    fault.mockRestore();
+    const restarted = Fastify({logger: false});
+    registerBillingAdminRoutes(restarted, f.routeOptions);
+    try {
+      const denied = await restarted.inject({method: "POST", url: `/gateway/admin/billing/v1/real-user-issue/${jobId}/retry-disable`, headers});
+      expect(denied.statusCode).toBe(409);
+      const resumed = await restarted.inject({method: "POST", url: `/gateway/admin/billing/v1/real-user-issue/${jobId}/resume`, headers,
+        payload: {plan_id: "ignored", key_expires_at: "2030-01-01T00:00:00Z"}});
+      expect(resumed.statusCode).toBe(202);
+      const finished = await waitJob(restarted, jobId);
+      expect(finished.state).toBe("succeeded");
+      expect(finished.unified_key).toBe(decryptSecret(originalKey.tokenCiphertext!, recoverySecret));
+      expect(f.store.listSubjects()).toHaveLength(1);
+      expect(f.store.listUnifiedClientKeys()).toHaveLength(1);
+      expect(f.store.listEntitlements({subjectId: originalKey.subjectId})).toEqual(originalEntitlements);
+      expect(f.createUser).toHaveBeenCalledTimes(1);
+      expect(f.disableUser).not.toHaveBeenCalled();
+    } finally { await restarted.close(); }
+  });
+
+  it("keeps upstream disable pending and retries only compensation", async () => {
+    const f = fixture(); validation(f, false);
+    const log = vi.spyOn(f.app.log, "error");
+    f.disableUser.mockRejectedValueOnce(new Error("upstream unreachable"));
+    const accepted = await f.app.inject({method: "POST", url: "/gateway/admin/billing/v1/real-user-issue", headers, payload});
+    const jobId = accepted.json().job_id;
+    const failed = await waitJob(f.app, jobId);
+    expect(failed.state).toBe("compensation_failed");
+    expect(log).toHaveBeenCalledWith(expect.objectContaining({event: "issuance_compensation_pending", job_id: jobId}), expect.any(String));
+    expect(f.store.getBillingSubject(failed.subject_id)).toMatchObject({subject: {state: "disabled"}, upstreamV2Binding: {state: "pending"}});
+    expect(f.store.getPhoneAuthIdentityBySubjectId(failed.subject_id)?.state).toBe("disabled");
+    expect((await f.app.inject({method: "POST", url: `/gateway/admin/billing/v1/real-user-issue/${jobId}/resume`, headers})).statusCode).toBe(409);
+    expect((await f.app.inject({method: "POST", url: `/gateway/admin/billing/v1/real-user-issue/${jobId}/retry-disable`, headers})).statusCode).toBe(202);
+    expect((await waitJob(f.app, jobId)).state).toBe("failed");
+    expect(f.store.getBillingSubject(failed.subject_id)?.upstreamV2Binding?.state).toBe("disabled");
+    expect(f.createUser).toHaveBeenCalledTimes(1);
+    expect(f.disableUser).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not recover a revoked original key or disable a changed account", async () => {
+    const f = fixture();
+    vi.stubGlobal("fetch", async () => { throw new Error("network interrupted"); });
+    const response = await f.app.inject({method: "POST", url: "/gateway/admin/billing/v1/real-user-issue", headers, payload});
+    const jobId = response.json().job_id;
+    expect((await waitJob(f.app, jobId)).state).toBe("retryable");
+    const key = f.store.listUnifiedClientKeys()[0]!;
+    f.store.database.prepare("UPDATE unified_client_keys SET revoked_at = ? WHERE id = ?").run(now.toISOString(), key.id);
+    expect((await f.app.inject({method: "POST", url: `/gateway/admin/billing/v1/real-user-issue/${jobId}/resume`, headers})).statusCode).toBe(202);
+    expect((await waitJob(f.app, jobId)).error.code).toBe("issue_recovery_requires_review");
+    expect(f.disableUser).not.toHaveBeenCalled();
+    expect(f.createUser).toHaveBeenCalledTimes(1);
+    expect(f.store.getSubject(key.subjectId)?.state).toBe("active");
+  });
+
+  it.each(["binding-user", "binding-key", "restored-account", "new-credential"])(
+    "refuses compensation replay after %s changes, including after restart", async change => {
+      const f = fixture(); validation(f, false);
+      f.disableUser.mockRejectedValueOnce(new Error("upstream unavailable"));
+      const accepted = await f.app.inject({method: "POST", url: "/gateway/admin/billing/v1/real-user-issue", headers, payload});
+      const jobId = accepted.json().job_id;
+      const pending = await waitJob(f.app, jobId);
+      expect(pending.state).toBe("compensation_failed");
+      const subjectId = pending.subject_id;
+      if (change === "binding-user") f.store.database.prepare("UPDATE upstream_v2_bindings SET v2_user_id='replacement' WHERE subject_id=?").run(subjectId);
+      if (change === "binding-key") f.store.database.prepare("UPDATE upstream_v2_bindings SET v2_key_id='replacement' WHERE subject_id=?").run(subjectId);
+      if (change === "restored-account") { f.store.setSubjectState(subjectId, "active"); f.pay(subjectId); }
+      if (change === "new-credential") f.store.insertAccessCredential(issueAccessCredential({subjectId, label: "later operator key", scope: "code", expiresAt, now}).record);
+      const beforeSubject = f.store.getSubject(subjectId);
+      const beforeCredentials = f.store.listAccessCredentials({subjectId});
+      const beforeEntitlements = f.store.listEntitlements({subjectId});
+      const restarted = Fastify({logger: false}); registerBillingAdminRoutes(restarted, f.routeOptions);
+      try {
+        expect((await restarted.inject({method: "POST", url: `/gateway/admin/billing/v1/real-user-issue/${jobId}/retry-disable`, headers})).statusCode).toBe(202);
+        expect(await waitJob(restarted, jobId)).toMatchObject({state: "compensation_failed", requires_review: true,
+          compensation_error: {code: "issue_recovery_requires_review"}});
+        expect(f.disableUser).toHaveBeenCalledTimes(1);
+        expect(f.store.getSubject(subjectId)).toEqual(beforeSubject);
+        expect(f.store.listAccessCredentials({subjectId})).toEqual(beforeCredentials);
+        expect(f.store.listEntitlements({subjectId})).toEqual(beforeEntitlements);
+        expect((await restarted.inject({method: "POST", url: `/gateway/admin/billing/v1/real-user-issue/${jobId}/retry-disable`, headers})).statusCode).toBe(409);
+        await restarted.inject({method: "POST", url: `/gateway/admin/billing/v1/real-user-issue/${jobId}/retry-disable`, headers,
+          payload: {acknowledge_review: true}});
+        expect(await waitJob(restarted, jobId)).toMatchObject({requires_review: true});
+        expect(f.disableUser).toHaveBeenCalledTimes(1);
+      } finally { await restarted.close(); }
+    }
+  );
+
+  it.each(["phone-disabled", "phone-rebound", "expiry-extended", "rate-changed", "scope-changed"])(
+    "preserves an operator's %s change when resuming an interrupted task", async change => {
+      const f = fixture();
+      vi.stubGlobal("fetch", async () => { throw new Error("network interrupted"); });
+      const accepted = await f.app.inject({method: "POST", url: "/gateway/admin/billing/v1/real-user-issue", headers,
+        payload: {...payload, key_expires_at: new Date(now.getTime() + 90 * 86400_000).toISOString()}});
+      const jobId = accepted.json().job_id;
+      expect((await waitJob(f.app, jobId)).state).toBe("retryable");
+      const key = f.store.listUnifiedClientKeys()[0]!;
+      if (change === "phone-disabled") f.phoneAuth.setIdentityState(key.subjectId, "disabled", "operator-disable");
+      if (change === "phone-rebound") f.store.database.prepare("UPDATE phone_auth_identities SET phone_hash='operator-rebound' WHERE subject_id=?").run(key.subjectId);
+      if (change === "expiry-extended") {
+        const renewed = new Date(now.getTime() + 92 * 86400_000);
+        f.store.updateAccessCredentialByPrefix(key.codexCredentialPrefix, {expiresAt: renewed});
+        f.store.database.prepare("UPDATE unified_client_keys SET expires_at=? WHERE id=?").run(renewed.toISOString(), key.id);
+      }
+      if (change === "rate-changed") f.store.updateAccessCredentialByPrefix(key.codexCredentialPrefix,
+        {rate: {requestsPerMinute: 50, requestsPerDay: 400, concurrentRequests: 8}});
+      if (change === "scope-changed") f.store.updateAccessCredentialByPrefix(key.codexCredentialPrefix, {scope: "medical"});
+      const beforeKey = f.store.listUnifiedClientKeys();
+      const beforeCredentials = f.store.listAccessCredentials();
+      const beforePhone = f.store.getPhoneAuthIdentityBySubjectId(key.subjectId);
+      validation(f);
+      const restart = Fastify({logger: false}); registerBillingAdminRoutes(restart, f.routeOptions);
+      try {
+        await restart.inject({method: "POST", url: `/gateway/admin/billing/v1/real-user-issue/${jobId}/resume`, headers});
+        expect(await waitJob(restart, jobId)).toMatchObject({state: "retryable", requires_review: true, error: {code: "issue_recovery_requires_review"}});
+        expect(f.store.listUnifiedClientKeys()).toEqual(beforeKey);
+        expect(f.store.listAccessCredentials()).toEqual(beforeCredentials);
+        expect(f.store.getPhoneAuthIdentityBySubjectId(key.subjectId)).toEqual(beforePhone);
+        expect(f.disableUser).not.toHaveBeenCalled();
+        await restart.inject({method: "POST", url: `/gateway/admin/billing/v1/real-user-issue/${jobId}/resume`, headers,
+          payload: {acknowledge_review: true}});
+        expect(await waitJob(restart, jobId)).toMatchObject({requires_review: true});
+        expect(f.store.listAccessCredentials()).toEqual(beforeCredentials);
+        expect(f.store.getPhoneAuthIdentityBySubjectId(key.subjectId)).toEqual(beforePhone);
+        expect(f.disableUser).not.toHaveBeenCalled();
+      } finally { await restart.close(); }
+    }
+  );
+
+  it.each(["phone", "expiry"])("rechecks %s changes made while public validation is awaiting", async change => {
+    const f = fixture(); validation(f);
+    const fetch = globalThis.fetch;
+    vi.stubGlobal("fetch", async (...args: Parameters<typeof fetch>) => {
+      const response = await fetch(...args);
+      const key = f.store.listUnifiedClientKeys()[0]!;
+      if (change === "phone") f.phoneAuth.setIdentityState(key.subjectId, "disabled", "mid-await-disable");
+      else f.store.updateAccessCredentialByPrefix(key.codexCredentialPrefix, {expiresAt});
+      return response;
+    });
+    const accepted = await f.app.inject({method: "POST", url: "/gateway/admin/billing/v1/real-user-issue", headers, payload});
+    expect(await waitJob(f.app, accepted.json().job_id)).toMatchObject({requires_review: true, error: {code: "issue_recovery_requires_review"}});
+    expect(f.disableUser).not.toHaveBeenCalled();
+    const key = f.store.listUnifiedClientKeys()[0]!;
+    if (change === "phone") expect(f.store.getPhoneAuthIdentityBySubjectId(key.subjectId)?.state).toBe("disabled");
+    else expect(f.store.getAccessCredentialByPrefix(key.codexCredentialPrefix)?.expiresAt).toEqual(expiresAt);
+  });
+
+  it.each([401, 403, 409, 426, 429, 503])("classifies public HTTP %i without disabling the account or losing the error", async status => {
+    const f = fixture();
+    const code = status === 409 ? "account_migration_required" : status === 429 ? "rate_limited" : "issue_validation_failed";
+    vi.stubGlobal("fetch", async () => new Response(JSON.stringify({error: {code, message: "private upstream details"}}), {status}));
+    const accepted = await f.app.inject({method: "POST", url: "/gateway/admin/billing/v1/real-user-issue", headers, payload});
+    const jobId = accepted.json().job_id;
+    const failed = await waitJob(f.app, jobId);
+    const review = status < 500 && status !== 429;
+    expect(failed).toMatchObject({state: "retryable", requires_review: review, error: {code}});
+    expect(failed.error.message).not.toContain("private upstream details");
+    expect(f.disableUser).not.toHaveBeenCalled();
+    expect(f.store.listSubjects()[0]?.state).toBe("active");
+    if (review) expect((await f.app.inject({method: "POST", url: `/gateway/admin/billing/v1/real-user-issue/${jobId}/resume`, headers})).statusCode).toBe(409);
+    // Operator reconciliation followed by explicit acknowledgement still uses
+    // the original account/key/grant; the flag never bypasses the state fences.
+    validation(f);
+    expect((await f.app.inject({method: "POST", url: `/gateway/admin/billing/v1/real-user-issue/${jobId}/resume`, headers,
+      payload: {acknowledge_review: review}})).statusCode).toBe(202);
+    expect(await waitJob(f.app, jobId)).toMatchObject({state: "succeeded", requires_review: false});
+    expect(f.createUser).toHaveBeenCalledTimes(1);
+    expect(f.store.listEntitlements()).toHaveLength(1);
+  });
+
+  it("does not replace a later purchased entitlement when recovering an earlier task", async () => {
+    const f = fixture();
+    vi.stubGlobal("fetch", async () => { throw new Error("network interrupted"); });
+    const response = await f.app.inject({method: "POST", url: "/gateway/admin/billing/v1/real-user-issue", headers, payload});
+    const jobId = response.json().job_id;
+    expect((await waitJob(f.app, jobId)).state).toBe("retryable");
+    const subjectId = f.store.listSubjects()[0]!.id;
+    const original = f.store.listEntitlements({subjectId})[0]!;
+    f.store.cancelEntitlement({id: original.id, now});
+    const purchased = f.pay(subjectId);
+    await f.app.inject({method: "POST", url: `/gateway/admin/billing/v1/real-user-issue/${jobId}/resume`, headers});
+    expect((await waitJob(f.app, jobId)).error.code).toBe("issue_recovery_requires_review");
+    expect(f.store.getEntitlement(purchased.id)).toEqual(purchased);
+    expect(f.disableUser).not.toHaveBeenCalled();
+  });
+
+  it("isolates env token owners and rejects unsupported provider before provisioning", async () => {
+    const f = fixture(); validation(f);
+    f.routeOptions.access!.nextToken = "billing-admin-next-test-secret-only";
+    expect((await f.app.inject({method: "POST", url: "/gateway/admin/billing/v1/real-user-issue", headers,
+      payload: {...payload, provider: "medevidence_billing_test"}})).statusCode).toBe(400);
+    expect(f.createUser).not.toHaveBeenCalled();
+    const accepted = await f.app.inject({method: "POST", url: "/gateway/admin/billing/v1/real-user-issue", headers, payload});
+    const jobId = accepted.json().job_id;
+    expect((await waitJob(f.app, jobId)).unified_key).toMatch(/^cgu_live_/);
+    const nextHeaders = {authorization: `Bearer ${f.routeOptions.access!.nextToken}`};
+    const read = await f.app.inject({url: `/gateway/admin/billing/v1/real-user-issue/${jobId}`, headers: nextHeaders});
+    expect(read.json().unified_key).toBeUndefined();
+    expect((await f.app.inject({method: "POST", url: `/gateway/admin/billing/v1/real-user-issue/${jobId}/resume`, headers: nextHeaders})).statusCode).toBe(404);
+  });
+
+  it("fences in-flight creation while reconciling an orphan and retains its reservation", async () => {
+    const f = fixture();
+    await f.resolve("orphan");
+    const fault = vi.spyOn(f.store, "createBillingSubject").mockImplementationOnce(() => { throw new Error("local commit failed"); });
+    await f.create("orphan");
+    fault.mockRestore();
+    const base = `/gateway/admin/billing/v1/subject-registrations/${provider}/orphan`;
+    const registration = (await f.app.inject({url: base, headers})).json();
+    expect(registration).toMatchObject({state: "creating", compensation_state: "none"});
+    expect(registration.phone).toBeUndefined();
+    expect(registration.phone_number).toBeUndefined();
+    let release!: () => void, entered!: () => void;
+    const remote = new Promise<void>(resolve => { release = resolve; });
+    const began = new Promise<void>(resolve => { entered = resolve; });
+    f.createUser.mockImplementationOnce(async () => {
+      entered(); await remote;
+      return {status: "idempotent_replay", user: {id: "v2_test"}, key: {id: "v2_key_test", key: "test-original-key"}};
+    });
+    const pending = f.create("orphan").then(result => result);
+    await began;
+    const confirmation = {idempotency_key: registration.idempotency_key, upstream_user_id: registration.upstream_user_id, upstream_key_id: registration.upstream_key_id};
+    const call = () => f.app.inject({method: "POST", url: `${base}/retry-disable`, headers, payload: confirmation});
+    f.disableUser.mockRejectedValueOnce(new Error("network interrupted"));
+    try {
+      expect((await call()).statusCode).toBe(503);
+      expect(f.store.getExternalSubjectRegistration({provider, externalUserId: "orphan"})?.compensationState).toBe("pending");
+      expect((await call()).json()).toMatchObject({disabled: true, phone_reservation_retained: true});
+    } finally { release(); }
+    expect((await pending).statusCode).toBe(409);
+    expect(f.store.listSubjects()).toHaveLength(0);
+    expect(f.store.listUnifiedClientKeys()).toHaveLength(0);
+    expect(f.store.getExternalSubjectRegistration({provider, externalUserId: "orphan"})).toMatchObject({compensationState: "disabled", lastErrorCode: null});
+    expect((await f.create("orphan")).json().error.code).toBe("account_disabled");
+    expect(f.createUser).toHaveBeenCalledTimes(2);
+    expect(f.store.listAdminAuditEvents({action: "disable-user"}).length).toBeGreaterThanOrEqual(2);
+  });
+});
 
 describe("Billing phone-account coordination and key lifecycle", () => {
   it("keeps production and non-production external IDs separate in billing lookups", async () => {
@@ -312,7 +668,11 @@ describe("Billing phone-account coordination and key lifecycle", () => {
     expect((await f.create("22")).statusCode).toBe(200);
     expect(f.store.listSubjects()).toHaveLength(1);
     expect(f.store.listEntitlements()).toHaveLength(1);
-    expect(f.createUser.mock.calls[0]![0]).toEqual(f.createUser.mock.calls[1]![0]);
+    const {signal: firstSignal, ...firstRequest} = f.createUser.mock.calls[0]![0] as Record<string, unknown>;
+    const {signal: retrySignal, ...retryRequest} = f.createUser.mock.calls[1]![0] as Record<string, unknown>;
+    expect(firstRequest).toEqual(retryRequest);
+    expect(firstSignal).toBeInstanceOf(AbortSignal);
+    expect(retrySignal).toBeInstanceOf(AbortSignal);
   });
 
   it("does not re-enable a disabled identity or replace paid rights when signup is replayed", async () => {
@@ -507,11 +867,25 @@ describe("Billing phone-account coordination and key lifecycle", () => {
     const f = fixture();
     f.createUser.mockRejectedValueOnce(new Error("upstream test failure"));
     expect((await f.create("22", "direct:22", "13800138000")).statusCode).toBe(503);
+    expect(f.store.getExternalSubjectRegistration({ provider, externalUserId: "22" })).toMatchObject({
+      state: "creating",
+      upstreamUserId: null,
+      upstreamKeyId: null,
+      lastErrorCode: "upstream_create_failed",
+      lastErrorAt: now
+    });
     expect((await f.create("22", "different-event", "13800138000")).json().error.code).toBe("account_pending");
     expect((await f.create("22", "direct:22")).json().error.code).toBe("idempotency_conflict");
     expect((await f.create("22", "direct:22", "13800138000")).statusCode).toBe(200);
     expect(f.store.listSubjects()).toHaveLength(1);
     expect(f.store.listEntitlements()).toHaveLength(1);
+    expect(f.store.getExternalSubjectRegistration({ provider, externalUserId: "22" })).toMatchObject({
+      state: "linked",
+      upstreamUserId: "v2_test",
+      upstreamKeyId: "v2_key_test",
+      lastErrorCode: null,
+      lastErrorAt: null
+    });
   });
 
   it("does not consume a new phone reservation during an in-flight legacy create", async () => {
@@ -578,6 +952,13 @@ describe("Billing phone-account coordination and key lifecycle", () => {
     expect((await f.create("22")).json().error.code).toBe("identity_conflict");
     expect(f.store.listSubjects().map(subject => subject.id)).toEqual(["subj_existing"]);
     expect(f.store.listEntitlements()).toHaveLength(0);
+    expect(f.store.getExternalSubjectRegistration({ provider, externalUserId: "22" })).toMatchObject({
+      state: "creating",
+      upstreamUserId: "v2_test",
+      upstreamKeyId: "v2_key_test",
+      lastErrorCode: "identity_conflict",
+      lastErrorAt: now
+    });
   });
 
   it("does not disclose a second generated key during concurrent idempotent creation", async () => {
@@ -592,8 +973,8 @@ describe("Billing phone-account coordination and key lifecycle", () => {
       return { status: "created", user: { id: "v2_test" }, key: { id: "v2_key_test", key: "test-key", keyPrefix: "test-prefix" } };
     });
     const responses = await Promise.all([f.create("22"), f.create("22")]);
-    expect(responses.map(response => response.statusCode)).toEqual([200, 200]);
     const bodies = responses.map(response => response.json());
+    expect(responses.map(response => response.statusCode)).toEqual([200, 200]);
     expect(bodies.filter(body => typeof body.credential.key === "string")).toHaveLength(1);
     expect(bodies.filter(body => body.idempotent_replay)).toHaveLength(1);
     const current = f.store.listUnifiedClientKeys()[0]!;

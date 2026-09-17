@@ -10,7 +10,6 @@ runtime keys to disk.
 from __future__ import annotations
 
 import argparse
-import base64
 import hashlib
 import json
 import os
@@ -18,6 +17,7 @@ import re
 import stat
 import subprocess
 import sys
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -50,7 +50,6 @@ DEFAULT_COMPOSE_PROJECT = "codex_gateway_r760"
 DEFAULT_COMPOSE_FILE = "compose.azure.yml"
 DEFAULT_GATEWAY_SERVICE = "gateway"
 DEFAULT_GATEWAY_CONTAINER = "codex_gateway_r760-gateway-1"
-GATEWAY_DB_PATH = "/var/lib/codex-gateway/gateway.db"
 
 class IssueError(RuntimeError):
     pass
@@ -146,6 +145,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=True,
         help="Disable a newly created partial subject if a later step fails.",
     )
+    parser.add_argument("--resume-job", help="Resume the original durable task; never starts a new business event.")
     parser.add_argument("--what-if", action="store_true", help="Print planned safe settings only.")
     return parser.parse_args(argv)
 
@@ -175,13 +175,21 @@ def issue_key(args: argparse.Namespace) -> dict[str, Any]:
             "--skip-credential-validation is no longer permitted for real-user issuance; "
             "R760 validation is always mandatory."
         )
+    if not re.fullmatch(r"(?:\+86)?1[3-9][0-9]{9}", args.phone.strip()):
+        raise IssueError("phone must be 11 mainland China mobile digits, optionally prefixed by +86.")
+    args.phone = "+86" + args.phone.strip().removeprefix("+86")
+    if args.provider != DEFAULT_PROVIDER or args.scope != "code":
+        raise IssueError("Real-user issuance requires provider manual_trial and scope code.")
+    if not args.disable_on_failure:
+        raise IssueError("--no-disable-on-failure is no longer supported; compensation is Gateway-owned.")
     external_user_id = args.external_user_id or default_external_user_id(args.phone)
     validate_external_user_id(external_user_id)
     resolve_expiration_defaults(args)
     validate_iso_utc(args.entitlement_end, "entitlement-end")
     validate_iso_utc(args.key_expires_at, "key-expires-at")
-    validate_minimum_expiration(args.entitlement_end, "entitlement-end")
-    validate_minimum_expiration(args.key_expires_at, "key-expires-at")
+    if not getattr(args, "resume_job", None):
+        validate_minimum_expiration(args.entitlement_end, "entitlement-end")
+        validate_minimum_expiration(args.key_expires_at, "key-expires-at")
     stamp = utc_stamp()
     safe_user_slug = pseudonymous_slug(external_user_id)
     handoff_path = str(Path(args.output_dir) / f"real_user_cgu_{stamp}_{safe_user_slug}.json")
@@ -209,278 +217,67 @@ def issue_key(args: argparse.Namespace) -> dict[str, Any]:
             "handoff_path": handoff_path,
         }
 
-    subject_id: str | None = None
-    created_subject_this_run = False
-    completed = False
     billing_token = get_billing_admin_token(args)
-
-    try:
-        create = create_subject(args, base_url, billing_token, external_user_id, stamp)
-        if create.get("idempotent_replay") is True and not get_path(create, "credential", "key"):
-            raise IssueError(
-                "Billing subject create was an idempotent replay. The cgu_live key is only "
-                "returned once; use a new --external-user-id or rotate the existing subject key."
-            )
-
-        opaque_key = str(get_path(create, "credential", "key") or "")
-        if not opaque_key.startswith("cgu_live_"):
-            raise IssueError("Billing subject create did not return a cgu_live key.")
-
-        subject_id = str(get_path(create, "subject", "id") or "")
-        if not subject_id:
-            raise IssueError("Billing subject create did not return a subject id.")
-        created_subject_this_run = bool(create.get("created") is True and create.get("idempotent_replay") is not True)
-
-        entitlement = grant_entitlement(args, base_url, billing_token, subject_id, external_user_id, stamp)
-        entitlement_record = entitlement.get("entitlement") or {}
-        if not entitlement.get("applied") or entitlement_record.get("state") != "active":
-            raise IssueError("Entitlement grant did not become active.")
-
-        resolved = resolve_opaque_key(args, base_url, opaque_key)
-        if not resolved.get("valid") or get_path(resolved, "subject", "id") != subject_id:
-            raise IssueError("Opaque key resolve validation failed.")
-
-        codex_api_key = str(get_path(resolved, "codex_gateway", "api_key") or "")
-        public_gateway_prefix = str(get_path(resolved, "codex_gateway", "key_prefix") or "")
-        gateway_prefix = normalize_gateway_stored_prefix(public_gateway_prefix)
-        medevidence_prefix = get_path(resolved, "medevidence", "key_prefix")
-        if not codex_api_key or not public_gateway_prefix or not gateway_prefix:
-            raise IssueError("Opaque key resolve response did not include the backing Gateway key.")
-
-        label = f"medevidence-unified-{datetime.now(timezone.utc).strftime('%Y%m%d')}-{safe_user_slug[:32]}"
-        update_user(args, subject_id)
-        update_key(args, gateway_prefix, label)
-
-        current = current_credential(args, base_url, codex_api_key)
-        if not current.get("valid") or get_path(current, "subject", "id") != subject_id:
-            raise IssueError("R760 Gateway credential validation failed.")
-        if get_path(current, "entitlement", "state") != "active":
-            raise IssueError("R760 Gateway credential validation did not return an active entitlement.")
-        capabilities = list(get_path(current, "entitlement", "feature_policy", "capabilities") or [])
-        if not args.no_require_image_capability and "image_generation" not in capabilities:
-            raise IssueError("Issued credential does not include image_generation capability.")
-
-        validate_r760_resolution(
-            resolved,
-            base_url=base_url,
-            expected_subject_id=subject_id,
-        )
-
-        write_handoff(
-            args=args,
-            path=Path(handoff_path),
-            base_url=base_url,
-            opaque_key=opaque_key,
-            create=create,
-            entitlement=entitlement_record,
-            resolved=resolved,
-            current=current,
-            subject_id=subject_id,
-            external_user_id=external_user_id,
-            capabilities=capabilities,
-        )
-        completed = True
-        return {
-            "issued": "ok",
-            "key_type": "cgu_live",
-            "authority_mode": "r760_only",
-            "client_version": args.client_version,
-            "subject_id": subject_id,
-            "key_prefix": get_path(create, "credential", "key_prefix"),
-            "codex_gateway_prefix": public_gateway_prefix,
-            "medevidence_prefix": medevidence_prefix,
-            "plan_id": entitlement_record.get("plan_id"),
-            "entitlement_state": entitlement_record.get("state"),
-            "capabilities": capabilities,
-            "image_generation": "image_generation" in capabilities,
-            "rate": {
-                "requestsPerMinute": args.rpm,
-                "requestsPerDay": args.rpd,
-                "concurrentRequests": args.concurrent,
-            },
-            "backing_key_expires_at": args.key_expires_at,
-            "r760_validation": "ok",
-            "handoff_path": handoff_path,
-        }
-    finally:
-        if (
-            not completed
-            and args.disable_on_failure
-            and subject_id
-            and created_subject_this_run
-        ):
-            disable_subject_best_effort(args, base_url, billing_token, subject_id)
-
-
-def validate_r760_resolution(
-    resolved: dict[str, Any],
-    *,
-    base_url: str,
-    expected_subject_id: str,
-) -> None:
-    if not resolved.get("valid") or get_path(resolved, "subject", "id") != expected_subject_id:
-        raise IssueError("R760 unified key resolve validation failed.")
-    if not str(get_path(resolved, "codex_gateway", "api_key") or "").startswith("cgw."):
-        raise IssueError("R760 unified key resolve did not return a Gateway runtime key.")
-    public_prefix = str(get_path(resolved, "codex_gateway", "key_prefix") or "")
-    api_key = str(get_path(resolved, "codex_gateway", "api_key") or "")
-    if not public_prefix.startswith("cgw.") or not api_key.startswith(f"{public_prefix}."):
-        raise IssueError("R760 unified key resolve returned an inconsistent Gateway key prefix.")
-    if not str(get_path(resolved, "medevidence", "api_key") or ""):
-        raise IssueError("R760 unified key resolve did not return a MedEvidence runtime key.")
-    endpoint = get_path(resolved, "codex_gateway", "endpoint_base_url")
-    validation_url = get_path(resolved, "codex_gateway", "credential_validation_url")
-    if endpoint != f"{base_url}/v1":
-        raise IssueError("R760 unified key resolve returned an unexpected Gateway endpoint.")
-    if validation_url != f"{base_url}/gateway/credentials/current":
-        raise IssueError("R760 unified key resolve returned an unexpected credential validation URL.")
-
-
-def create_subject(
-    args: argparse.Namespace,
-    base_url: str,
-    billing_token: str,
-    external_user_id: str,
-    stamp: str,
-) -> dict[str, Any]:
-    body = {
-        "provider": args.provider,
-        "external_user_id": external_user_id,
-        "display_name": args.name,
-        "scope_allowlist": [args.scope],
-        "metadata": {
-            "purpose": "real_user_manual_trial",
-            "issued_by": "issue-real-user-cgu-key.py",
-            "created_at": now_iso(),
-        },
-    }
-    return http_json(
-        "POST",
-        f"{base_url}/gateway/admin/billing/v1/subjects",
-        bearer_headers(billing_token, f"{args.provider}:{external_user_id}:create_subject"),
-        body,
-        args.timeout_seconds,
+    headers = bearer_headers(billing_token)
+    headers[DESKTOP_VERSION_HEADER] = args.client_version
+    root = f"{base_url}/gateway/admin/billing/v1"
+    job_id = getattr(args, "resume_job", None)
+    if job_id:
+        if not re.fullmatch(r"rui_[a-f0-9]{32}", job_id):
+            raise IssueError("--resume-job must be an issuance task ID.")
+        job = http_json("GET", f"{root}/real-user-issue/{job_id}", headers, None, args.timeout_seconds)
+        if job.get("external_user_id") != external_user_id:
+            raise IssueError("Original task belongs to a different external identity.")
+        if job.get("state") != "succeeded":
+            if job.get("requires_review"):
+                raise IssueError(f"Task {job_id} requires manual review; reconcile it in the issuance console before acknowledging recovery.")
+            job = http_json("POST", f"{root}/real-user-issue/{job_id}/resume", headers, {}, args.timeout_seconds)
+    else:
+        job = http_json("POST", f"{root}/real-user-issue", headers, {
+            "name": args.name, "phone": args.phone, "provider": args.provider,
+            "external_user_id": external_user_id, "plan_id": args.plan_id, "scope": args.scope,
+            "entitlement_end": args.entitlement_end, "key_expires_at": args.key_expires_at,
+            "rpm": args.rpm, "rpd": args.rpd, "concurrent": args.concurrent,
+            "require_image_capability": not args.no_require_image_capability,
+        }, args.timeout_seconds)
+        job_id = job.get("job_id")
+    if not job_id:
+        raise IssueError("Gateway did not return a durable task ID; inspect recent tasks before retrying.")
+    print(f"Issuance task: {job_id}. Recovery uses --resume-job {job_id}.", file=sys.stderr)
+    deadline = time.monotonic() + 1200
+    while job.get("state") in ("queued", "running", "compensating"):
+        if time.monotonic() >= deadline:
+            raise IssueError(f"Task {job_id} is still pending; inspect the original task, do not create another.")
+        time.sleep(2)
+        job = http_json("GET", f"{root}/real-user-issue/{job_id}", headers, None, args.timeout_seconds)
+    if job.get("state") != "succeeded":
+        code = (job.get("compensation_error") or job.get("error") or {}).get("code", "unknown")
+        raise IssueError(f"Task {job_id}: {job.get('state')} ({code}); recovery action: {job.get('recovery_action')}.")
+    opaque_key = str(job.get("unified_key") or "")
+    if not opaque_key.startswith("cgu_live_"):
+        raise IssueError(f"Task {job_id} succeeded but its key reveal window is unavailable; use the established phone login/recovery path.")
+    result = job["result"]
+    # Use server-frozen settings, including when this invocation resumes an older task.
+    args.name = job.get("display_name", args.name)
+    if getattr(args, "resume_job", None):
+        args.phone = "****" + str(job.get("phone_tail") or "")
+    args.key_expires_at = result["backing_key_expires_at"]
+    args.rpm = result["rate"]["requestsPerMinute"]
+    args.rpd = result["rate"]["requestsPerDay"]
+    args.concurrent = result["rate"]["concurrentRequests"]
+    capabilities = result["capabilities"]
+    write_handoff(
+        args=args, path=Path(handoff_path), base_url=base_url, opaque_key=opaque_key,
+        create={"credential": {"key_prefix": result["key_prefix"], "issued_at": job["created_at"],
+                              "expires_at": result["backing_key_expires_at"]}},
+        entitlement={"plan_id": result["plan_id"], "period_end": result["entitlement_end"]},
+        resolved={"codex_gateway": {"key_prefix": result["codex_gateway_prefix"]},
+                  "medevidence": {"key_prefix": result["medevidence_prefix"]}},
+        subject_id=result["subject_id"], external_user_id=external_user_id,
+        capabilities=capabilities,
     )
-
-
-def grant_entitlement(
-    args: argparse.Namespace,
-    base_url: str,
-    billing_token: str,
-    subject_id: str,
-    external_user_id: str,
-    stamp: str,
-) -> dict[str, Any]:
-    body = {
-        "event_type": "purchase",
-        "apply_mode": "apply",
-        "provider": args.provider,
-        "external_order_id": f"manual_trial_{stamp}",
-        "external_event_id": f"evt_{stamp}",
-        "subject_id": subject_id,
-        "plan_id": args.plan_id,
-        "period_kind": "one_off",
-        "period_start": now_iso_minus_seconds(60),
-        "period_end": iso_millis_z(parse_iso_utc(args.entitlement_end)),
-        "replace_current": True,
-        "amount_minor": 0,
-        "currency": "USD",
-        "metadata": {
-            "purpose": "real_user_manual_trial",
-            "note": "No-charge internal real-user trial entitlement",
-        },
-    }
-    return http_json(
-        "POST",
-        f"{base_url}/gateway/admin/billing/v1/entitlement-events",
-        bearer_headers(billing_token, f"{args.provider}:{external_user_id}:purchase:{stamp}"),
-        body,
-        args.timeout_seconds,
-    )
-
-
-def resolve_opaque_key(args: argparse.Namespace, base_url: str, opaque_key: str) -> dict[str, Any]:
-    return http_json(
-        "POST",
-        f"{base_url}/gateway/unified-keys/resolve",
-        {
-            "Authorization": f"Bearer {opaque_key}",
-            "Content-Type": "application/json",
-            DESKTOP_VERSION_HEADER: args.client_version,
-        },
-        {},
-        args.timeout_seconds,
-    )
-
-
-def current_credential(args: argparse.Namespace, base_url: str, codex_api_key: str) -> dict[str, Any]:
-    return http_json(
-        "GET",
-        f"{base_url}/gateway/credentials/current",
-        {
-            "Authorization": f"Bearer {codex_api_key}",
-            DESKTOP_VERSION_HEADER: args.client_version,
-        },
-        None,
-        args.timeout_seconds,
-    )
-
-
-def update_user(args: argparse.Namespace, subject_id: str) -> dict[str, Any]:
-    return run_remote_admin(
-        args,
-        [
-            "update-user",
-            subject_id,
-            "--label",
-            args.name,
-            "--name",
-            args.name,
-            "--phone",
-            args.phone,
-        ],
-    )
-
-
-def update_key(args: argparse.Namespace, gateway_prefix: str, label: str) -> dict[str, Any]:
-    return run_remote_admin(
-        args,
-        [
-            "update-key",
-            gateway_prefix,
-            "--label",
-            label,
-            "--rpm",
-            str(args.rpm),
-            "--rpd",
-            str(args.rpd),
-            "--concurrent",
-            str(args.concurrent),
-            "--expires-at",
-            iso_millis_z(parse_iso_utc(args.key_expires_at)),
-        ],
-    )
-
-
-def disable_subject_best_effort(
-    args: argparse.Namespace,
-    base_url: str,
-    billing_token: str,
-    subject_id: str,
-) -> bool:
-    try:
-        http_json(
-            "POST",
-            f"{base_url}/gateway/admin/billing/v1/subjects/{subject_id}/disable",
-            bearer_headers(billing_token, f"{args.provider}:{subject_id}:disable_subject:issue_failed_cleanup"),
-            {"reason": "issue_real_user_cgu_key_failed_cleanup"},
-            args.timeout_seconds,
-        )
-        print(f"warning: disabled partial subject {subject_id} after issue failure", file=sys.stderr)
-        return True
-    except Exception as exc:
-        print(redact_secrets(f"warning: cleanup disable failed for {subject_id}: {exc}"), file=sys.stderr)
-        return False
+    return {"issued": "ok", "job_id": job_id, "key_type": "cgu_live", "authority_mode": "r760_only",
+            "client_version": args.client_version, **result, "r760_validation": "ok", "handoff_path": handoff_path}
 
 
 def write_handoff(
@@ -492,12 +289,10 @@ def write_handoff(
     create: dict[str, Any],
     entitlement: dict[str, Any],
     resolved: dict[str, Any],
-    current: dict[str, Any] | None,
     subject_id: str,
     external_user_id: str,
     capabilities: list[str],
 ) -> None:
-    current_credential_record = current.get("credential") if current else None
     handoff = {
         "key_type": "opaque_unified_cgu_live",
         "authority_mode": "r760_only",
@@ -529,7 +324,7 @@ def write_handoff(
             "requestsPerDay": args.rpd,
             "concurrentRequests": args.concurrent,
         },
-        "credential": public_credential_subset(current_credential_record),
+        "credential": None,
         "notes": [
             "Give Desktop this cgu_live key, not the underlying cgw or MedEvidence v2 keys.",
             "Desktop should call /gateway/unified-keys/resolve and then use returned runtime credentials.",
@@ -539,19 +334,6 @@ def write_handoff(
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(handoff, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     tighten_file_permissions(path)
-
-
-def public_credential_subset(value: Any) -> dict[str, Any] | None:
-    if not isinstance(value, dict):
-        return None
-    return {
-        "id": value.get("id"),
-        "prefix": value.get("prefix"),
-        "scope": value.get("scope"),
-        "expires_at": value.get("expires_at"),
-        "status": value.get("status"),
-        "rate": value.get("rate"),
-    }
 
 
 def http_json(
@@ -619,33 +401,6 @@ def get_billing_admin_token(args: argparse.Namespace) -> str:
     return token
 
 
-def run_remote_admin(args: argparse.Namespace, admin_args: list[str]) -> dict[str, Any]:
-    payload = base64.urlsafe_b64encode(json.dumps(admin_args, ensure_ascii=False).encode("utf-8")).decode(
-        "ascii"
-    )
-    node_script = (
-        'const {spawnSync}=require("node:child_process");'
-        'const b=process.env.ADMIN_ARGS_B64||"";'
-        'const args=JSON.parse(Buffer.from(b.replace(/-/g,"+").replace(/_/g,"/"),"base64").toString("utf8"));'
-        f'const r=spawnSync("node",["apps/admin-cli/dist/index.js","--db","{GATEWAY_DB_PATH}",...args],'
-        '{encoding:"utf8"});'
-        'if(r.stdout)process.stdout.write(r.stdout);'
-        'if(r.stderr)process.stderr.write(r.stderr);'
-        'process.exit(r.status===null?1:r.status);'
-    )
-    remote_command = (
-        f"{remote_docker_command(args)} exec -i -w /app "
-        f"-e ADMIN_ARGS_B64={payload} "
-        f"{shell_word(args.gateway_container)} node -e {shell_word(node_script)}"
-    )
-    completed = run_ssh(args, remote_command)
-    stdout = completed.stdout.strip()
-    try:
-        return json.loads(stdout) if stdout else {}
-    except json.JSONDecodeError as exc:
-        raise IssueError(redact_secrets(f"admin CLI returned non-JSON output: {stdout[:1000]}")) from exc
-
-
 def run_ssh(args: argparse.Namespace, remote_command: str) -> subprocess.CompletedProcess[str]:
     command = [
         "ssh",
@@ -693,15 +448,8 @@ def normalize_base_url(value: str) -> str:
     return normalized
 
 
-def normalize_gateway_stored_prefix(value: str) -> str:
-    parts = value.split(".")
-    if len(parts) == 2 and parts[0] == "cgw" and parts[1]:
-        return parts[1]
-    return value
-
-
 def default_external_user_id(phone: str) -> str:
-    digits = re.sub(r"\D+", "", phone)
+    digits = phone.strip().removeprefix("+86")
     if not digits:
         raise IssueError("phone must contain at least one digit when --external-user-id is omitted.")
     return f"phone_{digits}"
@@ -731,11 +479,6 @@ def validate_minimum_expiration(value: str, name: str) -> None:
         )
 
 
-def safe_slug(value: str) -> str:
-    slug = re.sub(r"[^A-Za-z0-9._-]+", "-", value).strip("-._")
-    return slug[:48] or "user"
-
-
 def pseudonymous_slug(value: str) -> str:
     return "user-" + hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
 
@@ -760,14 +503,6 @@ def validate_iso_utc(value: str, name: str) -> None:
 def iso_millis_z(value: datetime) -> str:
     value = value.astimezone(timezone.utc)
     return value.isoformat(timespec="milliseconds").replace("+00:00", "Z")
-
-
-def now_iso() -> str:
-    return iso_millis_z(datetime.now(timezone.utc))
-
-
-def now_iso_minus_seconds(seconds: int) -> str:
-    return iso_millis_z(datetime.now(timezone.utc) - timedelta(seconds=seconds))
 
 
 def utc_stamp() -> str:

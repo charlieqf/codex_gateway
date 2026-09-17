@@ -129,6 +129,7 @@ export class HttpUpstreamV2Client implements UpstreamV2Client {
     const timeout = setTimeout(() => controller.abort(new Error("upstream_timeout")), this.timeoutMs);
     const abortFromParent = () => controller.abort(input.signal?.reason);
     input.signal?.addEventListener("abort", abortFromParent, { once: true });
+    if (input.signal?.aborted) abortFromParent();
 
     try {
       const response = await fetch(`${this.baseUrl}${input.path}`, {
@@ -236,7 +237,8 @@ function parseDisableUserResult(payload: unknown): UpstreamV2DisableUserResult {
     throw invalidUpstreamPayload();
   }
   return {
-    disabled: payload.disabled !== false,
+    // A malformed/partial success response is not proof that credentials were disabled.
+    disabled: payload.disabled === true || (payload.disabled === undefined && userInput.state === "disabled"),
     user: {
       id: userInput.id,
       state: typeof userInput.state === "string" ? userInput.state : undefined

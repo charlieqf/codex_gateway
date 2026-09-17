@@ -6,6 +6,9 @@ import {
   normalizeMainlandChinaPhone,
   billingPayloadHash,
   encryptSecret,
+  decryptSecret,
+  verifyUnifiedClientKeyToken,
+  type IssuanceTaskStore,
   extractBillingAdminTokenPrefix,
   GatewayError,
   issueAccessCredential,
@@ -21,6 +24,7 @@ import {
   type AccessCredentialStore,
   type AdminAuditStore,
   type BillingAdminStore,
+  type BillingIssuanceInspection,
   type BillingAdminTokenStore,
   type BillingApplyMode,
   type BillingEventRecord,
@@ -57,6 +61,8 @@ import {
 import { desktopVersionHeader } from "./desktop-version-gate.js";
 import {
   defaultExternalUserId,
+  credentialLabel,
+  IssueValidationError,
   defaultRealUserIssueRate,
   defaultRealUserPlanId,
   defaultRealUserProvider,
@@ -66,9 +72,11 @@ import {
   publicRealUserIssueJob,
   RealUserIssueJobStore,
   runRealUserIssueJob,
+  retryRealUserIssueCompensation,
   type CreatedSubject,
   type CurrentCredential,
   type RealUserIssueInput,
+  type RealUserIssueJob,
   type RealUserIssueRunnerDeps,
   type ResolvedUnifiedKey
 } from "./real-user-issue.js";
@@ -566,7 +574,7 @@ export function registerBillingAdminRoutes(
           parsed.idempotencyKey,
           parsed.payloadHash
         );
-        if (replay) {
+        if (replay && replay.upstreamV2Binding?.state !== "pending") {
           return billingSecurityHeaders(reply).send(publicDisableSubjectResult(replay));
         }
 
@@ -578,12 +586,16 @@ export function registerBillingAdminRoutes(
           return sendBillingError(request, reply, serviceUnavailable("MedEvidence v2 provisioning is not configured."));
         }
         if (subject.upstreamV2Binding?.v2UserId && options.upstreamV2Client) {
-          await options.upstreamV2Client.disableUser({
+          const confirmed = await options.upstreamV2Client.disableUser({
             externalUserId: parsed.subjectId,
             userId: subject.upstreamV2Binding.v2UserId,
             reason: parsed.reason,
             idempotencyKey: `medevidence:${parsed.subjectId}:disable_user`
           });
+          if (!confirmed.disabled || confirmed.user.id !== subject.upstreamV2Binding.v2UserId ||
+              (confirmed.user.state && confirmed.user.state !== "disabled")) {
+            throw serviceUnavailable("Upstream disable was not confirmed for the original user.");
+          }
         }
 
         const result = options.billingStore.disableBillingSubject({
@@ -592,6 +604,10 @@ export function registerBillingAdminRoutes(
           subjectId: parsed.subjectId,
           reason: parsed.reason
         });
+        if (result.upstreamV2Binding?.state === "pending") {
+          options.billingStore.confirmBillingSubjectUpstreamDisabled(parsed.subjectId, result.upstreamV2Binding.v2UserId, billingNow(options));
+          result.upstreamV2Binding = options.billingStore.getBillingSubject(parsed.subjectId)!.upstreamV2Binding;
+        }
         return billingSecurityHeaders(reply).send(publicDisableSubjectResult(result));
       } catch (err) {
         return sendBillingError(request, reply, toBillingGatewayError(err));
@@ -840,8 +856,97 @@ export function registerBillingAdminRoutes(
     }
   );
 
+  app.get<{ Params: { provider: string; externalUserId: string } }>(
+    "/gateway/admin/billing/v1/subject-registrations/:provider/:externalUserId", billingRouteOptions(), async (request, reply) => {
+      const authError = billingRoutePreflight(request, reply, options);
+      if (authError) return authError;
+      const record = options.externalIdentityStore?.getExternalSubjectRegistration(request.params);
+      if (!record) return sendBillingError(request, reply, subjectNotFound());
+      return billingSecurityHeaders(reply).send({
+        provider: record.provider, external_user_id: record.externalUserId, phone_tail: record.phone.slice(-4),
+        state: record.state, subject_id: record.subjectId, idempotency_key: record.idempotencyKey,
+        upstream_user_id: record.upstreamUserId, upstream_key_id: record.upstreamKeyId,
+        last_error_code: record.lastErrorCode, last_error_at: record.lastErrorAt?.toISOString() ?? null,
+        compensation_state: record.compensationState, released_at: record.releasedAt?.toISOString() ?? null,
+        recovery_action: record.releasedAt ? null : record.state !== "creating" ? null : record.compensationState !== "none" ? "retry-disable"
+          : record.upstreamUserId ? "review_then_retry_original_request_or_disable_orphan" : "manual_review_or_retry_original_request"
+      });
+    });
+
+  app.post<{ Params: { provider: string; externalUserId: string }; Body: unknown }>(
+    "/gateway/admin/billing/v1/subject-registrations/:provider/:externalUserId/retry-disable", billingRouteOptions(), async (request, reply) => {
+      const authError = billingRoutePreflight(request, reply, options);
+      if (authError) return authError;
+      const store = options.externalIdentityStore;
+      if (!store || !options.upstreamV2Client) return sendBillingError(request, reply, serviceUnavailable("Identity reconciliation is not configured."));
+      const body = objectBody(request.body);
+      if (body instanceof GatewayError) return sendBillingError(request, reply, body);
+      const record = store.getExternalSubjectRegistration(request.params);
+      if (!record?.idempotencyKey || !record.payloadHash || !record.upstreamUserId || !record.upstreamKeyId) {
+        return sendBillingError(request, reply, invalidRequest("Recorded upstream identifiers are required; historical records need manual reconciliation."));
+      }
+      if (body.idempotency_key !== record.idempotencyKey || body.upstream_user_id !== record.upstreamUserId || body.upstream_key_id !== record.upstreamKeyId) {
+        return sendBillingError(request, reply, invalidRequest("Confirm the exact original event and upstream user/key IDs from the registration."));
+      }
+      const input = { ...request.params, idempotencyKey: record.idempotencyKey, payloadHash: record.payloadHash,
+        upstreamUserId: record.upstreamUserId, upstreamKeyId: record.upstreamKeyId, now: billingNow(options),
+        actorId: billingActorTokenPrefix(request)!, requestId: request.id };
+      let fenced = false;
+      try {
+        store.beginExternalSubjectCompensation(input);
+        fenced = true;
+        if (record.compensationState !== "disabled") {
+          const subjectId = deterministicBillingSubjectId(record.provider, record.externalUserId);
+          const response = await options.upstreamV2Client.disableUser({ externalUserId: subjectId,
+            userId: record.upstreamUserId, reason: "orphan_provisioning_reconciliation",
+            idempotencyKey: `medevidence:${subjectId}:disable_user`, signal: AbortSignal.timeout(60_000) });
+          if (!response.disabled || response.user.id !== record.upstreamUserId || (response.user.state && response.user.state !== "disabled")) throw serviceUnavailable("Original upstream user disable was not confirmed.");
+          store.completeExternalSubjectCompensation({ ...input, now: billingNow(options) });
+        }
+        return billingSecurityHeaders(reply).send({ disabled: true, phone_reservation_retained: true });
+      } catch (error) {
+        if (fenced) {
+          request.log.error({event: "orphan_compensation_pending", provider: record.provider,
+            external_user_id: record.externalUserId, upstream_user_id: record.upstreamUserId, recovery_action: "retry-disable"},
+          "Orphan upstream disable is unconfirmed; reconciliation is required.");
+          store.recordExternalSubjectCreateFailure({ ...input, errorCode: "orphan_disable_unconfirmed", now: billingNow(options) });
+        }
+        return sendBillingError(request, reply, toBillingGatewayError(error));
+      }
+    });
+
   const realUserIssueJobs =
-    options.realUserIssueJobStore ?? new RealUserIssueJobStore({ now: () => billingNow(options) });
+    options.realUserIssueJobStore ?? new RealUserIssueJobStore({
+      now: () => billingNow(options),
+      ...(issuancePersistence(options) && options.apiKeyEncryptionSecret ? {
+        persistence: issuancePersistence(options)!, encryptionSecret: options.apiKeyEncryptionSecret
+      } : {})
+    });
+
+  function launchIssuance(jobId: string, publicBaseUrl: string, action: "resume" | "retry-disable"): void {
+    const job = realUserIssueJobs.get(jobId)!;
+    const deps = buildRealUserIssueDeps(options, publicBaseUrl, () => realUserIssueJobs.assertOwner(jobId), job);
+    const run = action === "resume"
+      ? runRealUserIssueJob(realUserIssueJobs, jobId, deps, job.input!, true)
+      : retryRealUserIssueCompensation(realUserIssueJobs, jobId, deps, true);
+    void run.then(() => {
+      const finished = realUserIssueJobs.get(jobId)!;
+      if (finished.state === "compensation_failed") {
+        app.log.error({event: "issuance_compensation_pending", job_id: jobId, subject_id: finished.subjectId,
+          error_code: finished.compensationError?.code, recovery_action: "retry-disable"},
+        "Upstream disable is unconfirmed; local access is blocked, but upstream credentials may still be valid.");
+      }
+      recordRealUserIssueAudit(options, {
+        subjectId: finished.subjectId, externalUserId: job.externalUserId, jobId,
+        actorTokenPrefix: job.actorTokenPrefix, planId: job.input!.planId,
+        status: finished.state === "succeeded" ? "ok" : "error",
+        errorMessage: finished.compensationError?.message ?? finished.error?.message ?? null, phase: "finished"
+      });
+    }).catch(() => {
+      // Lease loss or persistence failure: do not guess a new state or expose keys.
+      app.log.error({ job_id: jobId }, "Issuance worker stopped; inspect durable task before recovery.");
+    });
+  }
 
   app.post<{ Body: unknown }>(
     "/gateway/admin/billing/v1/real-user-issue",
@@ -855,6 +960,7 @@ export function registerBillingAdminRoutes(
       if (ready instanceof GatewayError) {
         return sendBillingError(request, reply, ready);
       }
+      if (!realUserIssueJobs.durable) return sendBillingError(request, reply, serviceUnavailable("Durable issuance storage is required."));
 
       const parsed = parseRealUserIssueRequest(request, options);
       if (parsed instanceof GatewayError) {
@@ -868,8 +974,10 @@ export function registerBillingAdminRoutes(
           externalUserId: parsed.externalUserId,
           displayName: parsed.name,
           phone: parsed.phone,
-          actorTokenPrefix
+          actorTokenPrefix,
+          issuanceInput: parsed
         });
+        realUserIssueJobs.acquire(job.id);
       } catch (err) {
         return sendBillingError(request, reply, toBillingGatewayError(err));
       }
@@ -887,24 +995,7 @@ export function registerBillingAdminRoutes(
 
       // Fire and forget: the operator polls the job for progress. Issuance
       // takes tens of seconds, far longer than a request should stay open.
-      void runRealUserIssueJob(
-        realUserIssueJobs,
-        job.id,
-        buildRealUserIssueDeps(options, ready.publicBaseUrl),
-        parsed
-      ).then(() => {
-        const finished = realUserIssueJobs.get(job.id);
-        recordRealUserIssueAudit(options, {
-          subjectId: finished?.result?.subjectId ?? null,
-          externalUserId: parsed.externalUserId,
-          jobId: job.id,
-          actorTokenPrefix,
-          planId: parsed.planId,
-          status: finished?.state === "succeeded" ? "ok" : "error",
-          errorMessage: finished?.error?.message ?? null,
-          phase: "finished"
-        });
-      });
+      launchIssuance(job.id, ready.publicBaseUrl, "resume");
 
       reply.code(202);
       return billingSecurityHeaders(reply).send(publicRealUserIssueJob(job, { includeKey: false }));
@@ -936,6 +1027,33 @@ export function registerBillingAdminRoutes(
       return billingSecurityHeaders(reply).send(publicRealUserIssueJob(job, { includeKey }));
     }
   );
+
+  for (const action of ["resume", "retry-disable"] as const) {
+    app.post<{ Params: { jobId: string }; Body: { acknowledge_review?: boolean } | undefined }>(`/gateway/admin/billing/v1/real-user-issue/:jobId/${action}`,
+      billingRouteOptions(), async (request, reply) => {
+        const authError = billingRoutePreflight(request, reply, options);
+        if (authError) return authError;
+        const ready = realUserIssueReadiness(options);
+        if (ready instanceof GatewayError) return sendBillingError(request, reply, ready);
+        const job = realUserIssueJobs.get(request.params.jobId);
+        if (!job || job.actorTokenPrefix !== billingActorTokenPrefix(request)) {
+          return sendBillingError(request, reply, new GatewayError({ code: "issue_job_not_found", message: "Issuance task not found for this operator.", httpStatus: 404 }));
+        }
+        if (!realUserIssueJobs.durable || !job.input) return sendBillingError(request, reply, serviceUnavailable("This task has no recoverable original input."));
+        try {
+          realUserIssueJobs.acquire(job.id, action, request.body?.acknowledge_review === true);
+          recordRealUserIssueAudit(options, {
+            subjectId: job.subjectId, externalUserId: job.externalUserId, jobId: job.id,
+            actorTokenPrefix: job.actorTokenPrefix, planId: job.input.planId,
+            status: "ok", errorMessage: null, phase: job.requiresReview ? `reviewed_${action}` : action === "resume" ? "resumed" : "retry_disable"
+          });
+          launchIssuance(job.id, ready.publicBaseUrl, action);
+          return billingSecurityHeaders(reply).code(202).send(publicRealUserIssueJob(realUserIssueJobs.get(job.id)!, { includeKey: false }));
+        } catch (error) {
+          return sendBillingError(request, reply, toBillingGatewayError(error));
+        }
+      });
+  }
 
   app.get(
     "/gateway/admin/billing/v1/real-user-issues",
@@ -2498,9 +2616,15 @@ function billingActorTokenPrefix(request: FastifyRequest): string | null {
   if (scheme?.toLowerCase() !== "bearer" || !token) {
     return null;
   }
-  // Env-mode tokens carry no public prefix; group them under a stable label so
-  // the reveal check still distinguishes them from DB-backed tokens.
-  return extractBillingAdminTokenPrefix(token) ?? "env";
+  // Active and next env tokens are distinct owners, without storing either secret.
+  return extractBillingAdminTokenPrefix(token) ?? `env:${createHash("sha256").update(token).digest("hex")}`;
+}
+
+function issuancePersistence(options: BillingAdminRouteOptions): IssuanceTaskStore | undefined {
+  const candidate = options.billingStore as (BillingAdminStore & Partial<IssuanceTaskStore>) | undefined;
+  return candidate && [candidate.insertIssuanceTask, candidate.getIssuanceTask, candidate.listIssuanceTasks,
+    candidate.claimIssuanceTask, candidate.saveIssuanceTask, candidate.releaseIssuanceTask].every(fn => typeof fn === "function")
+    ? candidate as BillingAdminStore & IssuanceTaskStore : undefined;
 }
 
 function realUserIssueReadiness(
@@ -2524,6 +2648,14 @@ function realUserIssueReadiness(
   if (!options.apiKeyEncryptionSecret) {
     return serviceUnavailable("Gateway API key encryption secret is not configured.");
   }
+  if (!options.externalIdentityStore) {
+    return serviceUnavailable("External identity coordination is not configured.");
+  }
+  if (!options.unifiedKeyRecoverySecret || options.phoneAuthService?.mode !== "transition") {
+    return serviceUnavailable(
+      "Phone auth and unified key recovery must be configured before real-user issuance."
+    );
+  }
   const publicBaseUrl = options.publicBaseUrl?.trim().replace(/\/+$/, "");
   if (!publicBaseUrl) {
     return serviceUnavailable(
@@ -2545,12 +2677,15 @@ function parseRealUserIssueRequest(
   if (name instanceof GatewayError) {
     return name;
   }
-  const phone = requiredString(body.phone, "phone");
-  if (phone instanceof GatewayError) {
-    return phone;
+  const rawPhone = requiredString(body.phone, "phone");
+  if (rawPhone instanceof GatewayError) {
+    return rawPhone;
   }
-  if (!/^[0-9+\-\s]{6,20}$/.test(phone)) {
-    return invalidRealUserIssueRequest("phone must be 6-20 characters of digits, +, - or spaces.");
+  const phone = normalizeMainlandChinaPhone(rawPhone);
+  if (!phone) {
+    return invalidRealUserIssueRequest(
+      "phone must be a supported mainland China mobile number (11 digits or +86 followed by 11 digits)."
+    );
   }
   const externalUserId = optionalString(body.external_user_id) ?? defaultExternalUserId(phone);
   if (!/^[A-Za-z0-9._-]{1,128}$/.test(externalUserId)) {
@@ -2567,6 +2702,12 @@ function parseRealUserIssueRequest(
   }
 
   const scope = optionalString(body.scope) ?? plan.scopeAllowlist[0] ?? "code";
+  if (scope !== "code" || !plan.featurePolicy.capabilities.includes("chat")) {
+    return invalidRealUserIssueRequest(`Scope ${scope}: real-user issuance requires code scope and a chat-capable plan.`);
+  }
+  if (body.provider !== undefined && body.provider !== defaultRealUserProvider) {
+    return invalidRealUserIssueRequest("Real-user issuance provider must be manual_trial.");
+  }
   if (!plan.scopeAllowlist.includes(scope as Scope)) {
     return invalidRealUserIssueRequest(
       `Scope ${scope} is not allowed by plan ${planId}; allowed: ${plan.scopeAllowlist.join(", ")}`
@@ -2612,16 +2753,24 @@ function parseRealUserIssueRequest(
 
   const now = billingNow(options);
   const expiry = addDays(now, validityDays);
+  const entitlementEnd = body.entitlement_end === undefined ? expiry : new Date(String(body.entitlement_end));
+  const keyExpiresAt = body.key_expires_at === undefined ? expiry : new Date(String(body.key_expires_at));
+  if (![entitlementEnd, keyExpiresAt].every(date => Number.isFinite(date.getTime()) && date >= addDays(now, minRealUserValidityDays))) {
+    return invalidRealUserIssueRequest("entitlement_end and key_expires_at must be valid dates at least 90 days in the future.");
+  }
+  if (body.require_image_capability === true && !plan.featurePolicy.capabilities.includes("image_generation")) {
+    return invalidRealUserIssueRequest("The requested plan does not include image_generation.");
+  }
   return {
     name,
     phone,
     externalUserId,
-    provider: optionalString(body.provider) ?? defaultRealUserProvider,
+    provider: defaultRealUserProvider,
     planId,
     scope,
     rate: { requestsPerMinute, requestsPerDay, concurrentRequests },
-    entitlementEnd: expiry,
-    keyExpiresAt: expiry,
+    entitlementEnd,
+    keyExpiresAt,
     requireImageCapability: plan.featurePolicy.capabilities.includes("image_generation")
   };
 }
@@ -2643,13 +2792,36 @@ function invalidRealUserIssueRequest(message: string): GatewayError {
 
 function buildRealUserIssueDeps(
   options: BillingAdminRouteOptions,
-  publicBaseUrl: string
+  publicBaseUrl: string,
+  assertOwner: () => void,
+  job: RealUserIssueJob
 ): RealUserIssueRunnerDeps {
+  const taskId = job.id;
+  const originalInput = job.input!;
+  const inspect = (subjectId: string, extra: Pick<BillingIssuanceInspection, "disabled" | "normalize" | "requireEntitlement"> = {}) =>
+    options.billingStore!.inspectBillingIssuance({
+      ...originalInput, subjectId, taskId,
+      allowedPublicModels: realUserDesktopPublicModelIds,
+      phoneHash: options.phoneAuthService!.phoneHash(originalInput.phone),
+      periodStart: new Date(job.createdAt.getTime() - 60_000),
+      credentialLabel: credentialLabel(job.createdAt, originalInput.name),
+      now: billingNow(options), assertOwnership: assertOwner, ...extra
+    });
   return {
     publicBaseUrl,
     now: () => billingNow(options),
+    assertAccountUnchanged: subjectId => { inspect(subjectId); },
+    normalizeAccount: subjectId => { inspect(subjectId, {normalize: true, requireEntitlement: true}); },
+    canDiscardFailedCreate(input) {
+      const existing = options.billingStore!.getBillingSubjectByExternal(input.provider, input.externalUserId);
+      const registration = options.externalIdentityStore!.getExternalSubjectRegistration(input);
+      return Boolean(existing) || Boolean(registration?.releasedAt) || registration?.compensationState === "disabled" ||
+        (!options.billingStore!.hasBillingProvisioningAttempt(input) &&
+        registration?.state !== "creating" && !registration?.upstreamUserId && !registration?.upstreamKeyId);
+    },
 
     async createSubject(input): Promise<CreatedSubject> {
+      assertOwner();
       const billingStore = options.billingStore;
       if (!billingStore) {
         throw serviceUnavailable("Billing subject store is not configured.");
@@ -2657,23 +2829,39 @@ function buildRealUserIssueDeps(
       const payloadHash = billingPayloadHash({
         provider: input.provider,
         external_user_id: input.externalUserId,
+        phone: input.phone,
         display_name: input.displayName,
         scope_allowlist: [input.scope],
-        metadata: input.metadata
+        metadata: input.metadata,
+        key_expires_at: input.keyExpiresAt?.toISOString(), rate: input.rate
       });
       const replay = billingStore.replayBillingSubjectCreate(input.idempotencyKey, payloadHash);
       if (replay) {
+        inspect(replay.subject.id);
         return {
           subjectId: replay.subject.id,
-          opaqueKey: null,
+          opaqueKey: input.recoveryTaskId ? recoverIssuanceKey(options, replay, input) : null,
           created: false,
           idempotentReplay: true
         };
       }
+      const identityStore = options.externalIdentityStore;
+      if (!identityStore || !options.unifiedKeyRecoverySecret || options.phoneAuthService?.mode !== "transition") {
+        throw serviceUnavailable(
+          "Identity linking, phone auth and unified key recovery must be configured before issuance."
+        );
+      }
+      identityStore.resolveExternalSubject({
+        provider: input.provider,
+        externalUserId: input.externalUserId,
+        phone: input.phone,
+        requestId: `real-user-issue:${input.idempotencyKey}`,
+        now: billingNow(options)
+      }, {createOnly: true, phoneHash: options.phoneAuthService.phoneHash(input.phone)});
       if (billingStore.getBillingSubjectByExternal(input.provider, input.externalUserId)) {
         throw new GatewayError({
           code: "subject_already_exists",
-          message: "该手机号已存在计费主体，请改用轮换(rotate)或更换 external_user_id。",
+          message: "该手机号已存在计费主体，请查看已有账号；人工开户不会修改或轮换该账号。",
           httpStatus: 409
         });
       }
@@ -2684,22 +2872,28 @@ function buildRealUserIssueDeps(
         externalUserId: input.externalUserId,
         displayName: input.displayName,
         scopeAllowlist: [input.scope as Scope],
-        metadata: input.metadata
+        metadata: input.metadata,
+        phoneSignupGrantDefaultEntitlement: false,
+        keyExpiresAt: input.keyExpiresAt,
+        credentialRate: input.rate,
+        assertOwner
       });
       return {
         subjectId: provisioned.result.subject.id,
-        opaqueKey: provisioned.token,
+        opaqueKey: provisioned.token ?? (input.recoveryTaskId ? recoverIssuanceKey(options, provisioned.result, input) : null),
         created: provisioned.result.created,
         idempotentReplay: provisioned.result.idempotentReplay
       };
     },
 
     async grantEntitlement(input) {
+      assertOwner();
       const billingStore = options.billingStore;
       if (!billingStore) {
         throw serviceUnavailable("Billing event store is not configured.");
       }
       const result = billingStore.applyBillingEntitlementEvent({
+        assertOwnership: () => { inspect(input.subjectId); },
         idempotencyKey: input.idempotencyKey,
         eventType: "purchase",
         applyMode: "apply",
@@ -2711,7 +2905,7 @@ function buildRealUserIssueDeps(
         periodKind: "one_off",
         periodStart: input.periodStart,
         periodEnd: input.periodEnd,
-        replaceCurrent: true,
+        replaceCurrent: false,
         amountMinor: 0,
         currency: "USD",
         metadata: {
@@ -2725,6 +2919,9 @@ function buildRealUserIssueDeps(
           period_end: input.periodEnd.toISOString()
         })
       });
+      if (result.idempotentReplay && result.entitlement?.state !== "active") {
+        throw new GatewayError({code: "issue_recovery_requires_review", message: "Original issuance entitlement has changed; recovery must not replace later purchases or cancellations.", httpStatus: 409});
+      }
       return { applied: result.applied, entitlementState: result.entitlement?.state ?? null };
     },
 
@@ -2753,6 +2950,7 @@ function buildRealUserIssueDeps(
     },
 
     updateSubjectMetadata(subjectId, input) {
+      assertOwner();
       const store = options.subjectMetadataStore;
       if (!store) {
         throw serviceUnavailable("Subject metadata store is not configured.");
@@ -2765,6 +2963,7 @@ function buildRealUserIssueDeps(
     },
 
     updateCredential(prefix, input) {
+      assertOwner();
       const store = options.credentialStore;
       if (!store) {
         throw serviceUnavailable("Gateway credential store is not configured.");
@@ -2803,25 +3002,69 @@ function buildRealUserIssueDeps(
     },
 
     preparePhoneIdentity(input) {
-      if (!options.phoneAuthService) {
-        throw serviceUnavailable("Phone auth service is not configured.");
-      }
-      options.phoneAuthService.prepareIdentity(input);
+      // Identity/current key were enrolled in the create transaction. A resumed
+      // task must only verify them, never reactivate or repoint phone login.
+      inspect(input.subjectId, {requireEntitlement: true});
     },
 
     async disableSubject(subjectId, reason) {
+      assertOwner();
       const billingStore = options.billingStore;
       if (!billingStore) {
-        return;
+        throw serviceUnavailable("Billing store is not configured.");
       }
+      const idempotencyKey = `real-user-issue:${subjectId}:disable`;
+      const payloadHash = billingPayloadHash({subject_id: subjectId, reason});
+      const wasDisabled = () => Boolean(billingStore.replayBillingSubjectDisable(idempotencyKey, payloadHash));
+      const fenceDisable = () => inspect(subjectId, {disabled: wasDisabled()});
       billingStore.disableBillingSubject({
-        idempotencyKey: `real-user-issue:${subjectId}:disable`,
-        payloadHash: billingPayloadHash({ subject_id: subjectId, reason }),
+        assertOwnership: fenceDisable,
+        idempotencyKey,
+        payloadHash,
         subjectId,
-        reason
+        reason,
+        upstreamDisableConfirmed: false,
+        now: billingNow(options)
       });
+      // Recheck after commit, before the external effect. Target IDs come from
+      // the immutable creation registration, including on idempotent replay.
+      const {upstreamUserId: userId} = inspect(subjectId, {disabled: true});
+      if (!options.upstreamV2Client) throw serviceUnavailable("Original upstream disable target is unavailable.");
+      const response = await options.upstreamV2Client.disableUser({
+        externalUserId: subjectId, userId, reason, idempotencyKey: `medevidence:${subjectId}:disable_user`,
+        signal: AbortSignal.timeout(60_000)
+      });
+      inspect(subjectId, {disabled: true});
+      if (!response.disabled || response.user.id !== userId || (response.user.state && response.user.state !== "disabled")) throw serviceUnavailable("Upstream disable was not confirmed for the original user.");
+      billingStore.confirmBillingSubjectUpstreamDisabled(subjectId, userId, billingNow(options));
     }
   };
+}
+
+function recoverIssuanceKey(
+  options: BillingAdminRouteOptions,
+  replay: CreateBillingSubjectResult,
+  input: Parameters<RealUserIssueRunnerDeps["createSubject"]>[0]
+): string {
+  // Private, task-scoped recovery. Public create replay still never reveals keys.
+  const key = replay.unifiedClientKey;
+  const backing = replay.gatewayCredential;
+  const task = input.recoveryTaskId;
+  const now = billingNow(options);
+  const current = options.billingStore!.getBillingSubjectActiveUnifiedKey(replay.subject.id);
+  if (!task || input.idempotencyKey !== `${task}:create_subject` || input.metadata.issuance_task_id !== task ||
+      replay.subject.id !== deterministicBillingSubjectId(input.provider, input.externalUserId) ||
+      replay.subject.state !== "active" || replay.subject.externalProvider !== input.provider ||
+      replay.subject.externalUserId !== input.externalUserId || normalizeMainlandChinaPhone(replay.subject.phoneNumber ?? "") !== input.phone ||
+      replay.upstreamV2Binding?.state !== "active" || !key.isCurrent || current?.id !== key.id ||
+      key.codexCredentialId !== backing.id || backing.revokedAt || backing.expiresAt <= now ||
+      !key.tokenCiphertext || !options.unifiedKeyRecoverySecret) {
+    throw new GatewayError({ code: "issue_recovery_requires_review", message: "Original account or key has changed; automatic issuance recovery is refused.", httpStatus: 409 });
+  }
+  const token = decryptSecret(key.tokenCiphertext, options.unifiedKeyRecoverySecret);
+  const error = verifyUnifiedClientKeyToken(token, key, now);
+  if (error) throw error;
+  return token;
 }
 
 async function realUserIssueFetchJson(
@@ -2845,12 +3088,10 @@ async function realUserIssueFetchJson(
   }
   const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
   if (!response.ok) {
-    throw new GatewayError({
-      code: "issue_validation_failed",
-      message:
-        nestedString(payload ?? {}, "error", "message") ?? `校验请求失败：HTTP ${response.status}`,
-      httpStatus: 502
-    });
+    // Keep a bounded machine-readable code, never persist arbitrary upstream
+    // prose (which can include credentials). Preserve status for classification.
+    const code = nestedString(payload ?? {}, "error", "code");
+    throw new IssueValidationError(code && /^[a-z][a-z0-9_]{0,79}$/.test(code) ? code : "issue_validation_failed", response.status);
   }
   return payload ?? {};
 }
@@ -2881,7 +3122,7 @@ function recordRealUserIssueAudit(
     planId: string;
     status: "ok" | "error";
     errorMessage: string | null;
-    phase: "started" | "finished";
+    phase: "started" | "finished" | "resumed" | "retry_disable" | "reviewed_resume" | "reviewed_retry-disable";
   }
 ): void {
   if (!options.adminAuditStore) {
@@ -2923,6 +3164,11 @@ export interface ProvisionBillingSubjectInput {
   displayName: string | null;
   scopeAllowlist: Scope[];
   metadata: Record<string, unknown> | null;
+  phoneSignupGrantDefaultEntitlement?: boolean;
+  /** Fences a resumed manual worker before any post-await local commit. */
+  assertOwner?: () => void;
+  keyExpiresAt?: Date;
+  credentialRate?: RateLimitPolicy;
 }
 
 export interface ProvisionedBillingSubject {
@@ -2955,8 +3201,7 @@ async function provisionBillingSubject(
   let signupPhone: string | null = null;
   // May's create contract remains valid without a phone or a reservation.
   // A reservation comes from optional resolve or from create's phone field.
-  if (parsed.provider === options.externalIdentityProvider &&
-      options.externalIdentityStore?.getExternalSubjectRegistrationState(parsed) != null) {
+  if (options.externalIdentityStore?.getExternalSubjectRegistrationState(parsed) != null) {
     if (!options.externalIdentityStore || !options.unifiedKeyRecoverySecret || options.phoneAuthService?.mode !== "transition") {
       throw serviceUnavailable("Identity linking, phone auth and unified key recovery must be configured before signup.");
     }
@@ -2968,84 +3213,140 @@ async function provisionBillingSubject(
 
   const subjectId = deterministicBillingSubjectId(parsed.provider, parsed.externalUserId);
   const v2IdempotencyKey = `medevidence:${subjectId}:create_user`;
-  const upstream = await options.upstreamV2Client.createUser({
-    externalProvider: "medevidence_backend",
-    externalUserId: subjectId,
-    displayName: parsed.displayName ?? `internal:${subjectId}`,
-    metadata: {
-      source: "billing_signup",
-      billing_provider: parsed.provider
-    },
-    idempotencyKey: v2IdempotencyKey
-  });
-
-  const now = billingNow(options);
-  const expiresAt = addDays(now, 365);
-  const gatewayCredential = issueAccessCredential({
-    subjectId,
-    label: `Billing ${parsed.provider}`,
-    scope: parsed.scopeAllowlist[0] ?? "code",
-    expiresAt,
-    allowedPublicModels: realUserDesktopPublicModelIds,
-    knownPublicModelIds: realUserDesktopPublicModelIds,
-    credentialClass: options.unifiedKeyRecoverySecret && parsed.scopeAllowlist[0] === "code" ? "desktop" : "unknown",
-    ...(signupPhone ? { rate: defaultRealUserIssueRate } : {}),
-    now
-  });
-  const gatewayRecord = {
-    ...gatewayCredential.record,
-    tokenCiphertext: encryptSecret(gatewayCredential.token, options.apiKeyEncryptionSecret)
-  };
-  const unified = issueUnifiedClientKey({
-    subjectId,
-    label: `Billing ${parsed.provider}`,
-    expiresAt,
-    codexCredentialId: gatewayRecord.id,
-    codexCredentialPrefix: gatewayRecord.prefix,
-    codexKeyCiphertext: encryptSecret(gatewayCredential.token, options.apiKeyEncryptionSecret),
-    medevidenceKeyCiphertext: encryptSecret(upstream.key.key, options.apiKeyEncryptionSecret),
-    medevidenceKeyPrefix: upstream.key.keyPrefix,
-    metadata: { medevidence_base_url: phoneAuthMedevidenceOrigin },
-    credentialClass: gatewayRecord.credentialClass ?? "unknown",
-    isCurrent: Boolean(options.unifiedKeyRecoverySecret),
-    now
-  });
-  if (options.unifiedKeyRecoverySecret) {
-    unified.record.tokenCiphertext = encryptSecret(unified.token, options.unifiedKeyRecoverySecret);
-  }
-  const result = options.billingStore.createBillingSubject({
-    idempotencyKey: parsed.idempotencyKey,
-    payloadHash: parsed.payloadHash,
-    subjectId,
-    provider: parsed.provider,
-    externalUserId: parsed.externalUserId,
-    displayName: parsed.displayName,
-    scopeAllowlist: parsed.scopeAllowlist,
-    metadata: parsed.metadata,
-    gatewayCredential: gatewayRecord,
-    unifiedClientKey: unified.record,
-    upstreamV2Binding: {
-      subjectId,
-      v2UserId: upstream.user.id,
-      v2KeyId: upstream.key.id,
-      state: "active",
-      lastSyncedAt: now,
+  let upstream;
+  try {
+    parsed.assertOwner?.();
+    options.billingStore.recordBillingProvisioningAttempt(parsed, billingNow(options));
+    upstream = await options.upstreamV2Client.createUser({
+      externalProvider: "medevidence_backend",
+      externalUserId: subjectId,
+      displayName: parsed.displayName ?? `internal:${subjectId}`,
       metadata: {
-        idempotency_key: v2IdempotencyKey,
-        key_prefix: upstream.key.keyPrefix ?? null
+        source: "billing_signup",
+        billing_provider: parsed.provider
       },
-      createdAt: now,
-      updatedAt: now
-    },
-    ...(signupPhone ? {
-      phoneSignup: options.phoneAuthService!.identityPreparation({
-        phone: signupPhone, subjectId, unifiedKey: unified.token,
-        key: unified.record, requestId: `billing-signup:${parsed.idempotencyKey}`, now
-      })
-    } : {}),
-    now
-  });
-  return { result, token: result.idempotentReplay ? null : unified.token };
+      idempotencyKey: v2IdempotencyKey,
+      // Keep network work below the 120s issuance lease, even with a larger global timeout.
+      signal: AbortSignal.timeout(60_000)
+    });
+  } catch (error) {
+    recordProvisioningFailure(options, parsed, signupPhone, "upstream_create_failed");
+    throw error;
+  }
+
+  try {
+    parsed.assertOwner?.();
+    if (signupPhone) {
+      options.externalIdentityStore!.recordExternalSubjectUpstream({
+        ...parsed,
+        upstreamUserId: upstream.user.id,
+        upstreamKeyId: upstream.key.id,
+        now: billingNow(options)
+      });
+    }
+
+    if (upstream.user.state && upstream.user.state !== "active") {
+      throw new GatewayError({code: "account_disabled", message: "The original upstream account is not active; manual reconciliation is required.", httpStatus: 409});
+    }
+
+    const now = billingNow(options);
+    const expiresAt = parsed.keyExpiresAt ?? addDays(now, 365);
+    const gatewayCredential = issueAccessCredential({
+      subjectId,
+      label: `Billing ${parsed.provider}`,
+      scope: parsed.scopeAllowlist[0] ?? "code",
+      expiresAt,
+      allowedPublicModels: realUserDesktopPublicModelIds,
+      knownPublicModelIds: realUserDesktopPublicModelIds,
+      credentialClass: options.unifiedKeyRecoverySecret && parsed.scopeAllowlist[0] === "code" ? "desktop" : "unknown",
+      ...(parsed.credentialRate ? {rate: parsed.credentialRate} : signupPhone ? { rate: defaultRealUserIssueRate } : {}),
+      now
+    });
+    const gatewayRecord = {
+      ...gatewayCredential.record,
+      tokenCiphertext: encryptSecret(gatewayCredential.token, options.apiKeyEncryptionSecret)
+    };
+    const unified = issueUnifiedClientKey({
+      subjectId,
+      label: `Billing ${parsed.provider}`,
+      expiresAt,
+      codexCredentialId: gatewayRecord.id,
+      codexCredentialPrefix: gatewayRecord.prefix,
+      codexKeyCiphertext: encryptSecret(gatewayCredential.token, options.apiKeyEncryptionSecret),
+      medevidenceKeyCiphertext: encryptSecret(upstream.key.key, options.apiKeyEncryptionSecret),
+      medevidenceKeyPrefix: upstream.key.keyPrefix,
+      metadata: { medevidence_base_url: phoneAuthMedevidenceOrigin,
+        ...(parsed.metadata?.issuance_task_id ? {issuance_task_id: parsed.metadata.issuance_task_id} : {}) },
+      credentialClass: gatewayRecord.credentialClass ?? "unknown",
+      isCurrent: Boolean(options.unifiedKeyRecoverySecret),
+      now
+    });
+    if (options.unifiedKeyRecoverySecret) {
+      unified.record.tokenCiphertext = encryptSecret(unified.token, options.unifiedKeyRecoverySecret);
+    }
+    const result = options.billingStore.createBillingSubject({
+      assertOwnership: parsed.assertOwner,
+      idempotencyKey: parsed.idempotencyKey,
+      payloadHash: parsed.payloadHash,
+      subjectId,
+      provider: parsed.provider,
+      externalUserId: parsed.externalUserId,
+      displayName: parsed.displayName,
+      scopeAllowlist: parsed.scopeAllowlist,
+      metadata: parsed.metadata,
+      gatewayCredential: gatewayRecord,
+      unifiedClientKey: unified.record,
+      upstreamV2Binding: {
+        subjectId,
+        v2UserId: upstream.user.id,
+        v2KeyId: upstream.key.id,
+        state: "active",
+        lastSyncedAt: now,
+        metadata: {
+          idempotency_key: v2IdempotencyKey,
+          key_prefix: upstream.key.keyPrefix ?? null
+        },
+        createdAt: now,
+        updatedAt: now
+      },
+      ...(signupPhone ? {
+        phoneSignup: options.phoneAuthService!.identityPreparation({
+          phone: signupPhone, subjectId, unifiedKey: unified.token,
+          key: unified.record, requestId: `billing-signup:${parsed.idempotencyKey}`, now
+        }),
+        phoneSignupGrantDefaultEntitlement: parsed.phoneSignupGrantDefaultEntitlement
+      } : {}),
+      now
+    });
+    return { result, token: result.idempotentReplay ? null : unified.token };
+  } catch (error) {
+    recordProvisioningFailure(
+      options,
+      parsed,
+      signupPhone,
+      error instanceof GatewayError ? error.code : "local_provisioning_failed"
+    );
+    throw error;
+  }
+}
+
+function recordProvisioningFailure(
+  options: BillingAdminRouteOptions,
+  parsed: ProvisionBillingSubjectInput,
+  signupPhone: string | null,
+  errorCode: string
+): void {
+  if (!signupPhone || !options.externalIdentityStore) return;
+  try {
+    options.externalIdentityStore.recordExternalSubjectCreateFailure({
+      ...parsed,
+      errorCode,
+      now: billingNow(options)
+    });
+  } catch {
+    // Preserve the provisioning error. The registration remains in creating,
+    // so operators still know the event needs reconciliation.
+  }
 }
 
 function linkedPhoneOptions(options: BillingAdminRouteOptions, requestId: string): ResolveExternalSubjectOptions {

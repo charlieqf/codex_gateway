@@ -71,6 +71,7 @@ export function create(
 
   const now = input.now ?? new Date();
   return runInTransaction(db, "BEGIN IMMEDIATE", () => {
+    input.assertOwnership?.();
     const eventAfterLock = getEventByIdempotencyKey(db, input.idempotencyKey);
     if (eventAfterLock) {
       assertPayloadMatches(eventAfterLock, input.payloadHash);
@@ -112,16 +113,19 @@ export function create(
           input.phoneSignup.unifiedKeyId !== input.unifiedClientKey.id) {
         throw new GatewayError({ code: "identity_conflict", message: "Phone signup does not match the created subject.", httpStatus: 409 });
       }
-      // This branch is only reachable for an actual new Subject. Replays and
-      // links to an existing account never grant or replace an entitlement.
-      if (!plans.get(db, phoneSignupFreePlanId)) plans.create(db, phoneSignupFreePlan(now));
-      entitlements.grantInTransaction(db, {
-        subjectId: subject.id, planId: phoneSignupFreePlanId, periodKind: "unlimited",
-        notes: "Automatic phone signup: daily free token allowance (UTC).", now
-      }, {
-        getPlan: id => plans.get(db, id),
-        listAccessCredentials: filter => accessCredentials.list(db, filter)
-      }, now);
+      // Public signup gets the default Free allowance. Internal paid/trial
+      // issuance still enrolls the phone atomically, but grants its selected
+      // plan in the following workflow step.
+      if (input.phoneSignupGrantDefaultEntitlement !== false) {
+        if (!plans.get(db, phoneSignupFreePlanId)) plans.create(db, phoneSignupFreePlan(now));
+        entitlements.grantInTransaction(db, {
+          subjectId: subject.id, planId: phoneSignupFreePlanId, periodKind: "unlimited",
+          notes: "Automatic phone signup: daily free token allowance (UTC).", now
+        }, {
+          getPlan: id => plans.get(db, id),
+          listAccessCredentials: filter => accessCredentials.list(db, filter)
+        }, now);
+      }
       phoneAuth.prepareIdentityInTransaction(db, input.phoneSignup);
     }
     const event = insertCreateEvent(db, input, now);
@@ -265,15 +269,10 @@ export function disable(
   db: DatabaseSync,
   input: DisableBillingSubjectInput
 ): DisableBillingSubjectResult {
-  const existing = getEventByIdempotencyKey(db, input.idempotencyKey);
-  if (existing) {
-    assertEventType(existing, "disable_subject");
-    assertPayloadMatches(existing, input.payloadHash);
-    return replayDisableResult(db, existing);
-  }
-
   const now = input.now ?? new Date();
   return runInTransaction(db, "BEGIN IMMEDIATE", () => {
+    // Replay is not permission to disable a restored/rebound upstream account.
+    input.assertOwnership?.();
     const eventAfterLock = getEventByIdempotencyKey(db, input.idempotencyKey);
     if (eventAfterLock) {
       assertEventType(eventAfterLock, "disable_subject");
@@ -286,7 +285,18 @@ export function disable(
     const revokedUnifiedKeyIds = revokeActiveUnifiedClientKeys(db, subject.id, now);
     const cancelledEntitlementIds = cancelActiveEntitlements(db, subject.id, now, input.reason ?? "disabled");
     subjectsStore.setState(db, subject.id, "disabled");
-    disableV2Binding(db, subject.id, now);
+    disableV2Binding(db, subject.id, now, input.upstreamDisableConfirmed !== false);
+    phoneAuth.disableIdentityBySubjectInTransaction(db, subject.id, {
+      requestId: `billing-disable:${input.idempotencyKey}`,
+      action: "identity_state",
+      phoneHash: null,
+      subjectId: subject.id,
+      sessionId: null,
+      authMethod: null,
+      outcome: "ok",
+      reasonCode: input.reason ?? "billing_subject_disabled",
+      now
+    });
 
     const event = insertSubjectLifecycleEvent(db, {
       input,
@@ -597,14 +607,21 @@ function insertV2Binding(db: DatabaseSync, record: UpstreamV2BindingRecord): voi
   );
 }
 
-function disableV2Binding(db: DatabaseSync, subjectId: string, now: Date): void {
+function disableV2Binding(db: DatabaseSync, subjectId: string, now: Date, confirmed: boolean): void {
   db.prepare(
     `UPDATE upstream_v2_bindings
-     SET state = 'disabled',
-         last_synced_at = ?,
+     SET state = ?,
+         last_synced_at = CASE WHEN ? THEN ? ELSE last_synced_at END,
          updated_at = ?
      WHERE subject_id = ?`
-  ).run(now.toISOString(), now.toISOString(), subjectId);
+  ).run(confirmed ? 'disabled' : 'pending', confirmed ? 1 : 0, now.toISOString(), now.toISOString(), subjectId);
+}
+
+export function confirmUpstreamDisabled(db: DatabaseSync, subjectId: string, upstreamUserId: string, now = new Date()): void {
+  const changed = db.prepare(`UPDATE upstream_v2_bindings SET state = 'disabled', last_synced_at = ?, updated_at = ?
+    WHERE subject_id = ? AND v2_user_id = ? AND EXISTS (SELECT 1 FROM subjects WHERE id = ? AND state = 'disabled')`)
+    .run(now.toISOString(), now.toISOString(), subjectId, upstreamUserId, subjectId);
+  if (!changed.changes) throw new GatewayError({code: 'disable_target_changed', message: 'Disable target no longer matches the original subject.', httpStatus: 409});
 }
 
 function getV2Binding(db: DatabaseSync, subjectId: string): UpstreamV2BindingRecord | null {

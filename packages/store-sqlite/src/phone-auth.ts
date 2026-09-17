@@ -200,25 +200,49 @@ export function setIdentityState(
   state: PhoneAuthIdentityState,
   audit: PhoneAuthAuditInput
 ): PhoneAuthIdentity | null {
-  return runInTransaction(db, "BEGIN IMMEDIATE", () => {
-    const result = db
-      .prepare(
-        "UPDATE phone_auth_identities SET state = ?, updated_at = ? WHERE phone_hash = ?"
-      )
-      .run(state, audit.now.toISOString(), phoneHash);
-    if (state === "disabled") {
-      const sessions = db
-        .prepare(
-          "SELECT id FROM phone_auth_sessions WHERE phone_hash = ? AND state = 'active'"
-        )
-        .all(phoneHash) as Array<{ id: string }>;
-      for (const session of sessions) {
-        revokeSessionRows(db, session.id, audit.now);
-      }
-    }
-    insertAudit(db, audit);
-    return result.changes === 0 ? null : mustIdentityByPhoneHash(db, phoneHash);
+  return runInTransaction(db, "BEGIN IMMEDIATE", () =>
+    setIdentityStateInTransaction(db, phoneHash, state, audit)
+  );
+}
+
+/** Caller owns the write transaction, e.g. billing Subject disable. */
+export function disableIdentityBySubjectInTransaction(
+  db: DatabaseSync,
+  subjectId: string,
+  audit: PhoneAuthAuditInput
+): PhoneAuthIdentity | null {
+  const identity = getIdentityBySubjectId(db, subjectId);
+  if (!identity) return null;
+  return setIdentityStateInTransaction(db, identity.phoneHash, "disabled", {
+    ...audit,
+    phoneHash: identity.phoneHash,
+    subjectId
   });
+}
+
+function setIdentityStateInTransaction(
+  db: DatabaseSync,
+  phoneHash: string,
+  state: PhoneAuthIdentityState,
+  audit: PhoneAuthAuditInput
+): PhoneAuthIdentity | null {
+  const result = db
+    .prepare(
+      "UPDATE phone_auth_identities SET state = ?, updated_at = ? WHERE phone_hash = ?"
+    )
+    .run(state, audit.now.toISOString(), phoneHash);
+  if (state === "disabled") {
+    const sessions = db
+      .prepare(
+        "SELECT id FROM phone_auth_sessions WHERE phone_hash = ? AND state = 'active'"
+      )
+      .all(phoneHash) as Array<{ id: string }>;
+    for (const session of sessions) {
+      revokeSessionRows(db, session.id, audit.now);
+    }
+  }
+  insertAudit(db, audit);
+  return result.changes === 0 ? null : mustIdentityByPhoneHash(db, phoneHash);
 }
 
 export function getIdentityByPhoneHash(

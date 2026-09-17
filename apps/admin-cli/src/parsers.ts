@@ -23,6 +23,7 @@ const adminAuditActions = new Set<AdminAuditAction>([
   "billing-token-issue",
   "billing-token-revoke",
   "provision-user",
+  "registration-release",
   "update-key",
   "revoke",
   "rotate",

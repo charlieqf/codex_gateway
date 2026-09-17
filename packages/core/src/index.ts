@@ -3,6 +3,7 @@ export * from "./billing.js";
 export * from "./billing-admin-token.js";
 export * from "./errors.js";
 export * from "./external-identity.js";
+export * from "./issuance-task.js";
 export * from "./phone-signup.js";
 export * from "./feature-policy.js";
 export * from "./public-token.js";

@@ -25,7 +25,7 @@ SPEC.loader.exec_module(ISSUE)
 def arguments(output_dir: str, **overrides):
     values = {
         "name": "Test User",
-        "phone": "0400000000",
+        "phone": "13800138000",
         "external_user_id": "test-user-1",
         "provider": "manual_trial",
         "gateway_base_url": "https://goldencode.instmarket.com.au:1443",
@@ -58,65 +58,17 @@ def arguments(output_dir: str, **overrides):
     return SimpleNamespace(**values)
 
 
-def create_response():
+def job_response():
     return {
-        "created": True,
-        "idempotent_replay": False,
-        "subject": {"id": "subject-1"},
-        "credential": {
-            "key": "cgu_live_test-only-value",
-            "key_prefix": "safe-unified-prefix",
-            "issued_at": "2026-08-05T00:00:00.000Z",
-            "expires_at": "2027-01-15T00:00:00.000Z",
-        },
-    }
-
-
-def entitlement_response():
-    return {
-        "applied": True,
-        "entitlement": {
-            "id": "entitlement-1",
-            "plan_id": "plan_internal_high_quota_image_v1",
-            "state": "active",
-            "period_start": "2026-08-05T00:00:00.000Z",
-            "period_end": "2027-01-15T00:00:00.000Z",
-        },
-    }
-
-
-def resolved_response():
-    return {
-        "valid": True,
-        "subject": {"id": "subject-1"},
-        "codex_gateway": {
-            "api_key": "cgw.safe-cgw-prefix.test-only",
-            "key_prefix": "cgw.safe-cgw-prefix",
-            "endpoint_base_url": "https://goldencode.instmarket.com.au:1443/v1",
-            "credential_validation_url": (
-                "https://goldencode.instmarket.com.au:1443/gateway/credentials/current"
-            ),
-        },
-        "medevidence": {"api_key": "mev2_test-only", "key_prefix": "safe-med-prefix"},
-    }
-
-
-def current_response():
-    return {
-        "valid": True,
-        "subject": {"id": "subject-1"},
-        "credential": {
-            "id": "credential-1",
-            "prefix": "cgw.safe-cgw-prefix",
-            "scope": "code",
-            "expires_at": "2027-01-15T00:00:00.000Z",
-            "status": "active",
-            "rate": {},
-        },
-        "entitlement": {
-            "state": "active",
-            "feature_policy": {"capabilities": ["chat", "image_generation"]},
-        },
+        "job_id": "rui_" + "a" * 32, "state": "succeeded", "external_user_id": "test-user-1",
+        "display_name": "Test User", "created_at": "2026-09-17T00:00:00Z",
+        "unified_key": "cgu_live_test-only-value",
+        "result": {"subject_id": "subject-1", "key_prefix": "safe-unified-prefix",
+                   "codex_gateway_prefix": "cgw.safe-cgw-prefix", "medevidence_prefix": "safe-med-prefix",
+                   "plan_id": "plan_internal_high_quota_image_v1", "entitlement_state": "active",
+                   "backing_key_expires_at": "2027-01-15T00:00:00.000Z", "entitlement_end": "2027-01-15T00:00:00.000Z",
+                   "capabilities": ["chat", "image_generation"],
+                   "rate": {"requestsPerMinute": 20, "requestsPerDay": 200, "concurrentRequests": 4}}
     }
 
 
@@ -127,7 +79,7 @@ class IssueRealUserKeyTests(unittest.TestCase):
                 "--name",
                 "Test User",
                 "--phone",
-                "0400000000",
+                "13800138000",
                 "--client-version",
                 "1.2.3",
             ]
@@ -142,7 +94,7 @@ class IssueRealUserKeyTests(unittest.TestCase):
                         "--name",
                         "Test User",
                         "--phone",
-                        "0400000000",
+                        "13800138000",
                         "--client-version",
                         "1.2.3",
                         "--rpm",
@@ -150,59 +102,79 @@ class IssueRealUserKeyTests(unittest.TestCase):
                     ]
                 )
 
-    def test_success_validates_r760_and_writes_r760_handoff(self):
+    def test_success_uses_only_durable_gateway_task_and_writes_handoff(self):
         with tempfile.TemporaryDirectory() as directory:
             args = arguments(directory)
+            job = job_response()
             with (
                 mock.patch.object(ISSUE, "get_billing_admin_token", return_value="admin-token"),
-                mock.patch.object(ISSUE, "create_subject", return_value=create_response()),
-                mock.patch.object(ISSUE, "grant_entitlement", return_value=entitlement_response()),
-                mock.patch.object(ISSUE, "resolve_opaque_key", return_value=resolved_response()),
-                mock.patch.object(ISSUE, "current_credential", return_value=current_response()),
-                mock.patch.object(ISSUE, "update_user", return_value={}),
-                mock.patch.object(ISSUE, "update_key", return_value={}) as update_key,
+                mock.patch.object(ISSUE, "http_json", side_effect=[{"job_id": job["job_id"], "state": "running"}, job]) as http,
+                mock.patch.object(ISSUE.time, "sleep"),
                 mock.patch.object(ISSUE, "tighten_file_permissions"),
             ):
                 result = ISSUE.issue_key(args)
-
             self.assertEqual(result["issued"], "ok")
             self.assertEqual(result["authority_mode"], "r760_only")
             self.assertEqual(result["r760_validation"], "ok")
-            self.assertEqual(result["client_version"], "1.2.3")
             self.assertEqual(result["codex_gateway_prefix"], "cgw.safe-cgw-prefix")
-            update_key.assert_called_once()
-            self.assertEqual(update_key.call_args.args[1], "safe-cgw-prefix")
-            self.assertNotIn("azure", json.dumps(result).lower())
+            self.assertEqual(http.call_count, 2)
+            self.assertEqual(http.call_args_list[0].args[2][ISSUE.DESKTOP_VERSION_HEADER], "1.2.3")
+            self.assertTrue(http.call_args_list[0].args[1].endswith("/real-user-issue"))
+            self.assertEqual(http.call_args_list[0].args[3]["phone"], "+8613800138000")
             handoff = json.loads(Path(result["handoff_path"]).read_text(encoding="utf-8"))
-            self.assertEqual(handoff["authority_mode"], "r760_only")
-            self.assertEqual(handoff["client_version"], "1.2.3")
-            self.assertEqual(handoff["base_url"], "https://goldencode.instmarket.com.au:1443")
-            self.assertEqual(
-                handoff["openai_compatible_base_url"],
-                "https://goldencode.instmarket.com.au:1443/v1",
-            )
-            self.assertNotIn("0400000000", Path(result["handoff_path"]).name)
+            self.assertEqual(handoff["key"], job["unified_key"])
+            self.assertEqual(handoff["entitlement_period_end"], job["result"]["entitlement_end"])
+            self.assertNotIn("13800138000", Path(result["handoff_path"]).name)
 
-    def test_r760_resolution_failure_disables_new_subject_without_handoff(self):
+    def test_compensation_failure_leaves_gateway_as_recovery_owner(self):
         with tempfile.TemporaryDirectory() as directory:
             args = arguments(directory)
-            resolved = resolved_response()
-            resolved["codex_gateway"]["endpoint_base_url"] = "https://wrong.example/v1"
+            job = {"job_id": "rui_" + "a" * 32, "state": "compensation_failed",
+                   "compensation_error": {"code": "upstream_unavailable"}, "recovery_action": "retry-disable"}
             with (
                 mock.patch.object(ISSUE, "get_billing_admin_token", return_value="admin-token"),
-                mock.patch.object(ISSUE, "create_subject", return_value=create_response()),
-                mock.patch.object(ISSUE, "grant_entitlement", return_value=entitlement_response()),
-                mock.patch.object(ISSUE, "resolve_opaque_key", return_value=resolved),
-                mock.patch.object(ISSUE, "current_credential", return_value=current_response()),
-                mock.patch.object(ISSUE, "update_user", return_value={}),
-                mock.patch.object(ISSUE, "update_key", return_value={}),
-                mock.patch.object(ISSUE, "disable_subject_best_effort", return_value=True) as disable,
+                mock.patch.object(ISSUE, "http_json", return_value=job) as http,
             ):
-                with self.assertRaisesRegex(ISSUE.IssueError, "unexpected Gateway endpoint"):
+                with self.assertRaisesRegex(ISSUE.IssueError, "retry-disable"):
                     ISSUE.issue_key(args)
-
-            disable.assert_called_once()
+            http.assert_called_once()
             self.assertEqual(list(Path(directory).glob("*.json")), [])
+
+    def test_resume_does_not_create_a_second_task(self):
+        with tempfile.TemporaryDirectory() as directory:
+            job = job_response()
+            args = arguments(directory, resume_job=job["job_id"])
+            with (
+                mock.patch.object(ISSUE, "get_billing_admin_token", return_value="admin-token"),
+                mock.patch.object(ISSUE, "http_json", side_effect=[
+                    {**job, "state": "retryable"}, {**job, "state": "running"}, job]) as http,
+                mock.patch.object(ISSUE.time, "sleep"),
+                mock.patch.object(ISSUE, "tighten_file_permissions"),
+            ):
+                ISSUE.issue_key(args)
+            posts = [call for call in http.call_args_list if call.args[0] == "POST"]
+            self.assertEqual(len(posts), 1)
+            self.assertTrue(posts[0].args[1].endswith("/resume"))
+
+    def test_invalid_phone_or_provider_is_rejected_before_external_work(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for overrides in ({"phone": "138-0013-8000"}, {"provider": "medevidence_billing"}):
+                with mock.patch.object(ISSUE, "get_billing_admin_token") as token:
+                    with self.assertRaises(ISSUE.IssueError):
+                        ISSUE.issue_key(arguments(directory, **overrides))
+                    token.assert_not_called()
+
+    def test_resume_does_not_acknowledge_manual_review_automatically(self):
+        with tempfile.TemporaryDirectory() as directory:
+            job = {**job_response(), "state": "retryable", "requires_review": True}
+            with (
+                mock.patch.object(ISSUE, "get_billing_admin_token", return_value="admin-token"),
+                mock.patch.object(ISSUE, "http_json", return_value=job) as http,
+            ):
+                with self.assertRaisesRegex(ISSUE.IssueError, "requires manual review"):
+                    ISSUE.issue_key(arguments(directory, resume_job=job["job_id"]))
+            http.assert_called_once()
+            self.assertEqual(http.call_args.args[0], "GET")
 
     def test_skip_validation_is_rejected_before_issuance(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -230,16 +202,12 @@ class IssueRealUserKeyTests(unittest.TestCase):
                     ISSUE.issue_key(args)
             token.assert_not_called()
 
-    def test_desktop_validation_requests_send_the_client_version(self):
-        args = arguments("unused")
-        with mock.patch.object(ISSUE, "http_json", return_value={}) as http:
-            ISSUE.resolve_opaque_key(args, args.gateway_base_url, "cgu_live_test")
-            ISSUE.current_credential(args, args.gateway_base_url, "cgw.test")
-
-        resolve_headers = http.call_args_list[0].args[2]
-        current_headers = http.call_args_list[1].args[2]
-        self.assertEqual(resolve_headers[ISSUE.DESKTOP_VERSION_HEADER], "1.2.3")
-        self.assertEqual(current_headers[ISSUE.DESKTOP_VERSION_HEADER], "1.2.3")
+    def test_operator_cannot_disable_gateway_compensation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with mock.patch.object(ISSUE, "get_billing_admin_token") as token:
+                with self.assertRaisesRegex(ISSUE.IssueError, "Gateway-owned"):
+                    ISSUE.issue_key(arguments(directory, disable_on_failure=False))
+                token.assert_not_called()
 
 
 if __name__ == "__main__":

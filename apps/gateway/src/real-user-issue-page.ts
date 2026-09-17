@@ -331,7 +331,7 @@ export function renderRealUserIssuePage(input: {
       var name = els.name.value.trim();
       var phone = els.phone.value.trim();
       if (!name) { return notice(els.formNotice, "请填写姓名。", "err"); }
-      if (!/^[0-9+\\-\\s]{6,20}$/.test(phone)) { return notice(els.formNotice, "手机号格式不正确。", "err"); }
+      if (!/^(?:\\+86)?1[3-9][0-9]{9}$/.test(phone)) { return notice(els.formNotice, "请填写 11 位中国大陆手机号，可带 +86，不含连字符或内部空格。", "err"); }
       if (!fixedPlan) { return notice(els.formNotice, "套餐尚未确认，请先点「确认套餐」。", "err"); }
       var days = readValidityDays();
       if (!Number.isFinite(days) || days < CONFIG.minValidityDays) {
@@ -382,15 +382,15 @@ export function renderRealUserIssuePage(input: {
           var payload = await response.json();
           if (!response.ok) { throw new Error(errorMessage(payload)); }
           renderJob(payload);
-          if (payload.state === "queued" || payload.state === "running") { poll(); return; }
+          if (payload.state === "queued" || payload.state === "running" || payload.state === "compensating") { poll(); return; }
           resetSubmit();
           refreshJobs();
           if (payload.state === "succeeded") {
             setStatus("发放成功");
             renderResult(payload);
           } else {
-            setStatus("发放失败");
-            notice(els.jobNotice, (payload.error && payload.error.message) || "发放失败。", "err");
+            setStatus(payload.requires_review ? "需人工核查" : "发放失败");
+            notice(els.jobNotice, (payload.compensation_error && payload.compensation_error.message) || (payload.error && payload.error.message) || "发放失败。", "err");
           }
         } catch (error) {
           notice(els.jobNotice, error.message || String(error), "err");
@@ -423,7 +423,7 @@ export function renderRealUserIssuePage(input: {
         els.fullKey.textContent = job.unified_key;
         startCountdown(job.key_expires_at);
       } else {
-        els.fullKey.textContent = "（完整 key 已过可见窗口，无法找回，请让管理员轮换后重新发放）";
+        els.fullKey.textContent = "（完整 Key 显示窗口已结束或服务已重启；请使用已有手机号登录/恢复路径，不要重新开户。）";
         els.keyCountdown.textContent = "";
       }
       var rate = result.rate || {};
@@ -481,10 +481,30 @@ export function renderRealUserIssuePage(input: {
               return "<tr><td>" + escapeHtml(formatTime(job.created_at)) + "</td>" +
                 "<td>" + escapeHtml(job.display_name + " ****" + job.phone_tail) + "</td>" +
                 "<td class=\\"st-" + escapeAttr(job.state === "succeeded" ? "ok" : job.state === "failed" ? "failed" : "running") + "\\">" +
-                escapeHtml(stateLabel(job.state)) + "</td>" +
+                escapeHtml(job.requires_review ? "需人工核查" : stateLabel(job.state)) + "</td>" +
                 "<td class=\\"detail\\">" + escapeHtml((job.result && job.result.key_prefix) || "") + "</td></tr>";
             }).join("")
           : "<tr><td colspan=\\"4\\" class=\\"sub\\">暂无记录</td></tr>";
+        jobs.forEach(function (job, index) {
+          var button = document.createElement("button");
+          button.textContent = job.requires_review ? "核查后恢复" : job.recovery_action === "retry-disable" ? "重试禁用" : job.recovery_action ? "恢复原任务" : "查看";
+          button.addEventListener("click", async function () {
+            try {
+              if (job.recovery_action) {
+                if (job.requires_review && !window.confirm("请先核查并处理原任务的账号/上游冲突。确认已完成核查？恢复仍会执行全部安全检查，不会覆盖人工变更。")) { return; }
+                var response = await fetch(BASE + "/real-user-issue/" + encodeURIComponent(job.job_id) + "/" + job.recovery_action,
+                  { method: "POST", headers: authHeaders(), body: JSON.stringify({acknowledge_review: Boolean(job.requires_review)}) });
+                var payload = await response.json();
+                if (!response.ok) { throw new Error(errorMessage(payload)); }
+              }
+              currentJobId = job.job_id;
+              els.progressPanel.style.display = "";
+              els.resultWrap.style.display = "none";
+              poll();
+            } catch (error) { notice(els.formNotice, error.message || String(error), "err"); }
+          });
+          els.jobRows.children[index].lastElementChild.appendChild(button);
+        });
       } catch (error) {
         // Listing is advisory; failures must not disturb an in-flight issuance.
       }
@@ -494,6 +514,9 @@ export function renderRealUserIssuePage(input: {
       if (state === "succeeded") { return "成功"; }
       if (state === "failed") { return "失败"; }
       if (state === "running") { return "进行中"; }
+      if (state === "retryable") { return "待恢复"; }
+      if (state === "compensating") { return "禁用中"; }
+      if (state === "compensation_failed") { return "禁用待重试"; }
       return "排队中";
     }
 

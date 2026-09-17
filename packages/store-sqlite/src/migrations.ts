@@ -1079,6 +1079,64 @@ export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogge
     },
     logger
   );
+
+  applyMigration(
+    db,
+    31,
+    () => {
+      const columns: Array<[string, string]> = [
+        ["upstream_user_id", "TEXT"],
+        ["upstream_key_id", "TEXT"],
+        ["last_error_code", "TEXT"],
+        ["last_error_at", "TEXT"]
+      ];
+      for (const [column, type] of columns) {
+        if (!columnExists(db, "external_subject_registrations", column)) {
+          db.exec(`ALTER TABLE external_subject_registrations ADD COLUMN ${column} ${type}`);
+        }
+      }
+    },
+    logger
+  );
+  applyMigration(db, 32, `
+    CREATE TABLE real_user_issuance_tasks (
+      id TEXT PRIMARY KEY, provider TEXT NOT NULL, external_user_id TEXT NOT NULL,
+      actor_id TEXT NOT NULL, state TEXT NOT NULL CHECK (state IN ('queued', 'running', 'retryable', 'compensating', 'compensation_failed', 'succeeded', 'failed')),
+      snapshot_ciphertext TEXT NOT NULL,
+      lease_token TEXT, lease_expires_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+      UNIQUE(provider, external_user_id)
+    );
+    CREATE INDEX idx_real_user_issuance_actor_created ON real_user_issuance_tasks(actor_id, created_at DESC);
+    ALTER TABLE external_subject_registrations ADD COLUMN compensation_state TEXT NOT NULL DEFAULT 'none'
+    CHECK (compensation_state IN ('none', 'pending', 'disabled'));
+  `, logger);
+  applyMigration(db, 33, `
+    ALTER TABLE external_subject_registrations ADD COLUMN released_at TEXT;
+    ALTER TABLE external_subject_registrations ADD COLUMN release_reason TEXT;
+    ALTER TABLE external_subject_registrations ADD COLUMN release_actor TEXT;
+    ALTER TABLE external_subject_registrations ADD COLUMN release_eligible INTEGER NOT NULL DEFAULT 0;
+    DROP INDEX idx_external_subject_registration_pending_phone;
+    CREATE UNIQUE INDEX idx_external_subject_registration_pending_phone
+      ON external_subject_registrations(phone_number) WHERE state != 'linked' AND released_at IS NULL;
+    CREATE TABLE billing_provisioning_attempts (
+      provider TEXT NOT NULL, external_user_id TEXT NOT NULL, started_at TEXT NOT NULL,
+      PRIMARY KEY(provider, external_user_id)
+    );
+    CREATE TABLE real_user_issuance_tasks_v33 (
+      id TEXT PRIMARY KEY, provider TEXT NOT NULL, external_user_id TEXT NOT NULL,
+      actor_id TEXT NOT NULL, state TEXT NOT NULL CHECK (state IN ('queued', 'running', 'retryable', 'compensating', 'compensation_failed', 'succeeded', 'failed')),
+      snapshot_ciphertext TEXT NOT NULL, lease_token TEXT, lease_expires_at TEXT,
+      created_at TEXT NOT NULL, updated_at TEXT NOT NULL, retired_at TEXT
+    );
+    INSERT INTO real_user_issuance_tasks_v33
+      SELECT id, provider, external_user_id, actor_id, state, snapshot_ciphertext, lease_token, lease_expires_at, created_at, updated_at, NULL
+      FROM real_user_issuance_tasks;
+    DROP TABLE real_user_issuance_tasks;
+    ALTER TABLE real_user_issuance_tasks_v33 RENAME TO real_user_issuance_tasks;
+    CREATE UNIQUE INDEX idx_real_user_issuance_live_identity ON real_user_issuance_tasks(provider, external_user_id)
+      WHERE state != 'failed' AND retired_at IS NULL;
+    CREATE INDEX idx_real_user_issuance_actor_created ON real_user_issuance_tasks(actor_id, created_at DESC);
+  `, logger);
 }
 
 export function migrateClientEventsSchema(db: DatabaseSync): void {

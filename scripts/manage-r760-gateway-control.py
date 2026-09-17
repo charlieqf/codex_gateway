@@ -35,6 +35,7 @@ from gateway_state_sync import (
 GATEWAY_DB_PATH = "/var/lib/codex-gateway/gateway.db"
 BULK_USER_RPM_COMMAND = "ensure-user-rpm-minimum"
 PLAN_TOKEN_LIMITS_COMMAND = "set-plan-token-limits"
+REGISTRATION_RELEASE_COMMAND = "release-registration"
 USER_CREDENTIAL_CLASSES = {"desktop", "unknown"}
 SIMPLE_WRITE_COMMANDS = {
     "disable-user",
@@ -104,6 +105,14 @@ def validate_admin_args(admin_args: list[str]) -> tuple[str, str | None]:
     if not admin_args:
         raise ManagementError("An admin CLI write command is required after '--'.")
     command = admin_args[0]
+    if command == REGISTRATION_RELEASE_COMMAND:
+        if len(admin_args) not in (5, 6) or not all(
+            re.fullmatch(r"[A-Za-z0-9._-]{1,128}", value) for value in admin_args[1:4]
+        ) or not admin_args[4].strip() or len(admin_args[4]) > 500:
+            raise ManagementError("release-registration requires provider, external ID, actor, reason and optionally the preview revision.")
+        if len(admin_args) == 6 and not re.fullmatch(r"[a-f0-9]{64}", admin_args[5]):
+            raise ManagementError("Release revision must be the exact SHA-256 revision from --what-if.")
+        return command, None
     if command == PLAN_TOKEN_LIMITS_COMMAND:
         if len(admin_args) not in (4, 6) or not re.fullmatch(r"[A-Za-z0-9._-]{1,128}", admin_args[1]):
             raise ManagementError(
@@ -264,6 +273,13 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
     )
     bulk_plan: dict[str, Any] | None = None
     plan_policy = run_plan_token_policy(r760, args, apply=False) if command == PLAN_TOKEN_LIMITS_COMMAND else None
+    release_plan = None
+    release_args = None
+    if command == REGISTRATION_RELEASE_COMMAND:
+        release_args = [command, *args.admin_args[1:3], "--actor", args.admin_args[3], "--reason", args.admin_args[4]]
+        release_plan = run_remote_admin(r760, [*release_args, "--dry-run"], timeout_seconds=args.timeout_seconds)
+        if not args.what_if and (len(args.admin_args) != 6 or args.admin_args[5] != release_plan.get("revision")):
+            raise ManagementError("Release requires the unchanged revision from --what-if; preview again before applying.")
     if bulk_minimum_rpm is not None:
         inventory = run_remote_admin(r760, ["list"], timeout_seconds=args.timeout_seconds)
         bulk_plan, _ = user_rpm_plan(inventory, bulk_minimum_rpm)
@@ -277,6 +293,7 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
             "argument_count": len(args.admin_args),
             **({"plan": bulk_plan} if bulk_plan is not None else {}),
             **({"plan": plan_policy} if plan_policy is not None else {}),
+            **({"plan": release_plan} if release_plan is not None else {}),
         }
 
     helper_path = f"/tmp/gateway-control-state-transfer-{secrets.token_hex(6)}.cjs"
@@ -293,6 +310,11 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
         )
         if command == PLAN_TOKEN_LIMITS_COMMAND:
             authority_result = run_plan_token_policy(r760, args, apply=True)
+        elif release_args is not None:
+            authority_result = run_remote_admin(
+                r760, [*release_args, "--apply", "--expected-revision", args.admin_args[5]],
+                timeout_seconds=args.timeout_seconds,
+            )
         elif bulk_minimum_rpm is not None:
             authority_result = run_remote_admin(
                 r760,

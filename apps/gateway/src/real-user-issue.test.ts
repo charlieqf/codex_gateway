@@ -1,4 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { createSqliteStore, releaseExternalSubjectRegistration } from "@codex-gateway/store-sqlite";
+import { decryptSecret, GatewayError } from "@codex-gateway/core";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { Script } from "node:vm";
+import { renderRealUserIssuePage } from "./real-user-issue-page.js";
 import {
   defaultRealUserIssueRate,
   defaultExternalUserId,
@@ -8,6 +15,7 @@ import {
   redactIssueMessage,
   RealUserIssueJobStore,
   runRealUserIssueJob,
+  retryRealUserIssueCompensation,
   type CreatedSubject,
   type CurrentCredential,
   type RealUserIssueInput,
@@ -23,6 +31,126 @@ describe("real user issue defaults", () => {
       requestsPerDay: 200,
       concurrentRequests: 4
     });
+    const page = renderRealUserIssuePage({defaultPlanId: "test", defaultValidityDays: 92,
+      minValidityDays: 90, defaultRate: {requestsPerMinute: 20, requestsPerDay: 200, concurrentRequests: 4}, pollIntervalMs: 1500});
+    expect(() => new Script(page.match(/<script>([\s\S]*?)<\/script>/)![1]!)).not.toThrow();
+  });
+});
+
+describe("durable real-user issuance", () => {
+  const encryptionSecret = "issuance-snapshot-test-secret-only";
+  it.each(["subject_already_exists", "identity_conflict", "account_disabled", "account_migration_required"] as const)(
+    "terminates deterministic %s only with proof that no own upstream creation is pending", async code => {
+      const persistence = createSqliteStore({path: ":memory:"});
+      try {
+        const jobs = new RealUserIssueJobStore({persistence, encryptionSecret});
+        const input = issueInput();
+        const job = jobs.create({externalUserId: input.externalUserId, displayName: input.name, phone: input.phone,
+          actorTokenPrefix: "operator-a", issuanceInput: input});
+        const {deps, calls} = buildDeps({canDiscardFailedCreate: () => true,
+          createSubject: async () => {throw new GatewayError({code, message: "existing account", httpStatus: 409});}});
+        await runRealUserIssueJob(jobs, job.id, deps, input);
+        expect(jobs.get(job.id)?.state).toBe("failed");
+        expect(() => jobs.acquire(job.id)).toThrow(/cannot perform/);
+        expect(calls.disabled).toHaveLength(0);
+      } finally {persistence.close();}
+    }
+  );
+
+  it("shows an atomically retired task as failed and prevents an in-flight worker from continuing", () => {
+    const persistence = createSqliteStore({path: ":memory:"});
+    try {
+      const jobs = new RealUserIssueJobStore({persistence, encryptionSecret});
+      const input = issueInput();
+      const job = jobs.create({externalUserId: input.externalUserId, displayName: input.name, phone: input.phone,
+        actorTokenPrefix: "operator-a", issuanceInput: input});
+      jobs.acquire(job.id);
+      jobs.startStep(job.id, "create_subject");
+      persistence.resolveExternalSubject({...input, requestId: "test"});
+      const release = {...input, actor: "operator-a", reason: "cancel abandoned task"};
+      const preview = releaseExternalSubjectRegistration(persistence.database, {...release, dryRun: true});
+      releaseExternalSubjectRegistration(persistence.database, {...release, dryRun: false, expectedRevision: preview.revision});
+      expect(jobs.get(job.id)).toMatchObject({state: "failed", unifiedKey: null, error: {code: "registration_released"}});
+      expect(() => jobs.assertOwner(job.id)).toThrow(/ownership/);
+      expect(() => jobs.checkpointSubject(job.id, "late-subject")).toThrow(/ownership/);
+      expect(() => jobs.acquire(job.id)).toThrow(/cannot perform/);
+    } finally {persistence.close();}
+  });
+  it("survives a database reopen and reuses the original event, dates and request", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "gateway-issuance-test-"));
+    let persistence = createSqliteStore({path: join(directory, "test.db")});
+    let now = new Date("2026-08-20T00:00:00Z");
+    const openJobs = () => new RealUserIssueJobStore({persistence, encryptionSecret, now: () => now});
+    try {
+      let jobs = openJobs();
+      const input = issueInput();
+      const job = jobs.create({externalUserId: input.externalUserId, displayName: input.name,
+        phone: input.phone, actorTokenPrefix: "operator-a", issuanceInput: input});
+      const grants = vi.fn(async () => ({applied: true, entitlementState: "active"}));
+      const first = buildDeps({grantEntitlement: grants, resolveUnifiedKey: async () => { throw new Error("network interrupted"); }});
+      await runRealUserIssueJob(jobs, job.id, first.deps, input);
+      expect(jobs.get(job.id)?.state).toBe("retryable");
+      expect(first.calls.disabled).toHaveLength(0);
+      const snapshot = persistence.getIssuanceTask(job.id)!;
+      expect(snapshot.snapshotCiphertext).not.toContain(input.phone);
+      expect(JSON.parse(decryptSecret(snapshot.snapshotCiphertext, encryptionSecret)).unifiedKey).toBeNull();
+      persistence.close();
+      persistence = createSqliteStore({path: join(directory, "test.db")});
+      jobs = openJobs();
+      now = new Date("2026-08-21T00:00:00Z");
+      const second = buildDeps({grantEntitlement: grants});
+      await runRealUserIssueJob(jobs, job.id, second.deps, issueInput({name: "changed", entitlementEnd: new Date("2030-01-01Z")}));
+      expect(jobs.get(job.id)?.state).toBe("succeeded");
+      expect(grants.mock.calls[1]).toEqual(grants.mock.calls[0]);
+      expect(jobs.get(job.id)?.result?.entitlementEnd).toEqual(input.entitlementEnd);
+      expect(second.calls.subjectMetadata[0]?.name).toBe(input.name);
+      expect(jobs.get(job.id)?.unifiedKey).toBe(opaqueKey);
+      expect(openJobs().get(job.id)?.unifiedKey).toBeNull();
+      expect(() => jobs.acquire(job.id)).toThrow(/cannot perform/);
+    } finally { persistence.close(); rmSync(directory, {recursive: true, force: true}); }
+  });
+
+  it("fences an expired worker and prevents overlapping recovery", () => {
+    const persistence = createSqliteStore({path: ":memory:"});
+    let now = new Date("2026-08-20T00:00:00Z");
+    try {
+      const options = {persistence, encryptionSecret, now: () => now};
+      const first = new RealUserIssueJobStore(options), second = new RealUserIssueJobStore(options);
+      const input = issueInput();
+      const job = first.create({externalUserId: input.externalUserId, displayName: input.name, phone: input.phone,
+        actorTokenPrefix: "operator-a", issuanceInput: input});
+      first.acquire(job.id);
+      expect(() => second.acquire(job.id)).toThrow(/running/);
+      now = new Date(now.getTime() + 121_000);
+      second.acquire(job.id);
+      expect(() => first.checkpointSubject(job.id, subjectId)).toThrow(/ownership/);
+      first.release(job.id);
+      second.checkpointSubject(job.id, subjectId);
+      expect(second.get(job.id)?.subjectId).toBe(subjectId);
+      second.release(job.id);
+    } finally { persistence.close(); }
+  });
+
+  it("persists compensation direction and only retries disable after restart", async () => {
+    const persistence = createSqliteStore({path: ":memory:"});
+    try {
+      const options = {persistence, encryptionSecret};
+      let jobs = new RealUserIssueJobStore(options);
+      const input = issueInput();
+      const job = jobs.create({externalUserId: input.externalUserId, displayName: input.name, phone: input.phone,
+        actorTokenPrefix: "operator-a", issuanceInput: input});
+      const disable = vi.fn().mockRejectedValueOnce(new Error("network down")).mockResolvedValue(undefined);
+      const {deps} = buildDeps({currentCredential: async () => ({valid: false, subjectId, entitlementState: null, capabilities: []}), disableSubject: disable});
+      await runRealUserIssueJob(jobs, job.id, deps, input);
+      expect(jobs.get(job.id)?.state).toBe("compensation_failed");
+      jobs = new RealUserIssueJobStore(options);
+      expect(() => jobs.acquire(job.id)).toThrow(/cannot perform/);
+      await retryRealUserIssueCompensation(jobs, job.id, deps);
+      expect(jobs.get(job.id)?.state).toBe("failed");
+      expect(disable.mock.calls[1]).toEqual(disable.mock.calls[0]);
+      expect(disable).toHaveBeenCalledTimes(2);
+      expect(jobs.get(job.id)?.unifiedKey).toBeNull();
+    } finally { persistence.close(); }
   });
 });
 
@@ -37,7 +165,7 @@ function issueInput(overrides: Partial<RealUserIssueInput> = {}): RealUserIssueI
   const expiry = new Date("2026-11-20T00:00:00Z");
   return {
     name: "张三",
-    phone: "13800138000",
+    phone: "+8613800138000",
     externalUserId: "phone_13800138000",
     provider: "manual_trial",
     planId: "plan_internal_high_quota_image_v1",
@@ -51,6 +179,7 @@ function issueInput(overrides: Partial<RealUserIssueInput> = {}): RealUserIssueI
 }
 
 interface DepCalls {
+  creates: Array<{ phone: string; externalUserId: string }>;
   disabled: { subjectId: string; reason: string }[];
   subjectMetadata: { subjectId: string; label: string; name: string; phoneNumber: string }[];
   credentials: { prefix: string; label: string; rpm: number }[];
@@ -61,6 +190,7 @@ function buildDeps(
   overrides: Partial<RealUserIssueRunnerDeps> = {}
 ): { deps: RealUserIssueRunnerDeps; calls: DepCalls } {
   const calls: DepCalls = {
+    creates: [],
     disabled: [],
     subjectMetadata: [],
     credentials: [],
@@ -69,7 +199,8 @@ function buildDeps(
   const deps: RealUserIssueRunnerDeps = {
     publicBaseUrl,
     now: () => new Date("2026-08-20T00:00:00Z"),
-    async createSubject(): Promise<CreatedSubject> {
+    async createSubject(input): Promise<CreatedSubject> {
+      calls.creates.push({ phone: input.phone, externalUserId: input.externalUserId });
       return { subjectId, opaqueKey, created: true, idempotentReplay: false };
     },
     async grantEntitlement() {
@@ -149,17 +280,20 @@ describe("real user issuance job", () => {
     expect(job?.result?.keyPrefix).toBe(publicKeyPrefix(opaqueKey));
     expect(job?.unifiedKey).toBe(opaqueKey);
     expect(calls.disabled).toHaveLength(0);
+    expect(calls.creates).toEqual([
+      { phone: "+8613800138000", externalUserId: "phone_13800138000" }
+    ]);
 
     // Contact metadata and the capped rate must both be written.
     expect(calls.subjectMetadata).toEqual([
-      { subjectId, label: "张三", name: "张三", phoneNumber: "13800138000" }
+      { subjectId, label: "张三", name: "张三", phoneNumber: "+8613800138000" }
     ]);
     expect(calls.credentials[0]?.rpm).toBe(20);
     expect(calls.credentials[0]?.prefix).toBe(codexStoredPrefix);
     expect(job?.result?.codexGatewayPrefix).toBe(codexPublicPrefix);
     expect(calls.phoneIdentities).toEqual([
       {
-        phone: "13800138000",
+        phone: "+8613800138000",
         subjectId,
         unifiedKey: opaqueKey,
         requestId: expect.stringMatching(/^real-user-issue:rui_/u)
@@ -361,5 +495,6 @@ describe("real user issuance job", () => {
 
   it("derives a stable external user id from the phone number", () => {
     expect(defaultExternalUserId("138 0013-8000")).toBe("phone_13800138000");
+    expect(defaultExternalUserId("+8613800138000")).toBe("phone_13800138000");
   });
 });

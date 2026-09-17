@@ -162,6 +162,7 @@ export type AdminAuditAction =
   | "reveal-key"
   | "update-user"
   | "real-user-issue"
+  | "registration-release"
   | "disable-user"
   | "enable-user"
   | "prune-events"
