@@ -294,7 +294,8 @@ describe("internal phone auth v1 routes", () => {
       expect(upgradeRequired.json()).toEqual({
         error: {
           code: "client_upgrade_required",
-          message: "A newer MedEvidence Desktop version is required.",
+          message:
+            "A newer MedEvidence Desktop version is required. Download the latest version: https://updates.example/medevidence.exe",
           request_id: upgradeRequestId,
           minimum_version: clientVersion,
           download_url: "https://updates.example/medevidence.exe"
@@ -1054,10 +1055,12 @@ describe("internal phone auth v1 routes", () => {
     }
   });
 
-  it("enforces the disabled/auth_only/all and transition startup matrices before listen", async () => {
+  it("enforces the Desktop gate and transition startup matrices before listen", async () => {
     const fixture = createFixture();
     const createdApps: ReturnType<typeof buildGateway>[] = [];
-    const gateFor = (mode: "disabled" | "auth_only" | "all") => ({
+    const gateFor = (
+      mode: "disabled" | "auth_only" | "medevidence_all" | "all"
+    ) => ({
       mode,
       minimumVersion: mode === "disabled" ? null : clientVersion,
       downloadUrl:
@@ -1065,7 +1068,12 @@ describe("internal phone auth v1 routes", () => {
     });
     try {
       process.env.GATEWAY_PHONE_AUTH_MODE = "disabled";
-      for (const mode of ["disabled", "auth_only", "all"] as const) {
+      for (const mode of [
+        "disabled",
+        "auth_only",
+        "medevidence_all",
+        "all"
+      ] as const) {
         const matrixStore = createSqliteStore({ path: ":memory:" });
         createdApps.push(
           buildGateway({
@@ -1090,8 +1098,21 @@ describe("internal phone auth v1 routes", () => {
             desktopVersionGate: gateFor(mode),
             logger: false
           })
-        ).toThrow("GATEWAY_DESKTOP_VERSION_GATE=auth_only");
+        ).toThrow(
+          "GATEWAY_DESKTOP_VERSION_GATE=auth_only or medevidence_all"
+        );
       }
+      const transitionMatrixStore = createSqliteStore({ path: ":memory:" });
+      createdApps.push(
+        buildGateway({
+          authMode: "credential",
+          provider: new FakeProvider(),
+          sessionStore: transitionMatrixStore,
+          phoneAuthService: fixture.service,
+          desktopVersionGate: gateFor("medevidence_all"),
+          logger: false
+        })
+      );
       expect(fixture.app.server.listening).toBe(false);
 
       process.env.GATEWAY_DESKTOP_VERSION_GATE = "enabled";

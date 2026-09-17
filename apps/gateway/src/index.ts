@@ -798,12 +798,22 @@ export function buildGateway(options: GatewayOptions = {}) {
     if (!alwaysDesktop && !request.gatewayContext) {
       return;
     }
+    const credentialClass = alwaysDesktop
+      ? undefined
+      : request.gatewayContext?.credential.credentialClass;
     const error = desktopVersionGateError(
       request,
       desktopVersionGate,
-      alwaysDesktop
-        ? undefined
-        : request.gatewayContext?.credential.credentialClass
+      {
+        credentialClass,
+        hasMedevidenceIdentity: () =>
+          Boolean(
+            request.gatewayContext &&
+              phoneAuthStore?.getPhoneAuthIdentityBySubjectId(
+                request.gatewayContext.subject.id
+              )
+          )
+      }
     );
     if (error) {
       return sendDesktopVersionGateError(
@@ -1444,7 +1454,15 @@ export function buildGateway(options: GatewayOptions = {}) {
       const gateError = desktopVersionGateError(
         request,
         desktopVersionGate,
-        credentialClass
+        {
+          credentialClass,
+          hasMedevidenceIdentity: () =>
+            Boolean(
+              phoneAuthStore?.getPhoneAuthIdentityBySubjectId(
+                result.record.subjectId
+              )
+            )
+        }
       );
       if (gateError) {
         return sendDesktopVersionGateError(

@@ -6,6 +6,7 @@ import { readFileSync, writeFileSync, existsSync, unlinkSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 
 const origin = "https://goldencode.instmarket.com.au:1443";
+const clientVersion = process.env.MEDEVIDENCE_SMOKE_CLIENT_VERSION ?? "2.0.0-beta.76";
 const fixturePath = "/var/lib/codex-gateway/bounded-write-smoke-20260915.json";
 const command = process.env.BOUNDED_WRITE_SMOKE_COMMAND ?? "smoke";
 const admin = process.env.GATEWAY_BILLING_ADMIN_TOKEN;
@@ -16,7 +17,7 @@ let fixture = existsSync(fixturePath) ? JSON.parse(readFileSync(fixturePath, "ut
 const save = () => writeFileSync(fixturePath, JSON.stringify(fixture), { mode: 0o600 });
 async function api(path, { token = admin, body, method = body ? "POST" : "GET", status = 200, event } = {}) {
   const response = await fetch(origin + path, { method, redirect: "error", headers: {
-    authorization: `Bearer ${token}`, "content-type": "application/json", "x-medevidence-client-version": "2.0.0-beta.71",
+    authorization: `Bearer ${token}`, "content-type": "application/json", "x-medevidence-client-version": clientVersion,
     ...(event ? { "idempotency-key": event } : {})
   }, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(45000) });
   const json = response.status === 204 ? {} : await response.json();

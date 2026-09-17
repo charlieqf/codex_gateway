@@ -6,6 +6,7 @@ import { DatabaseSync } from "node:sqlite";
 import { setTimeout as delay } from "node:timers/promises";
 
 const origin = "https://goldencode.instmarket.com.au:1443";
+const clientVersion = process.env.MEDEVIDENCE_SMOKE_CLIENT_VERSION ?? "2.0.0-beta.76";
 const admin = process.env.GATEWAY_BILLING_ADMIN_TOKEN;
 const provider = process.env.GATEWAY_BILLING_IDENTITY_PROVIDER;
 assert.ok(admin && provider, "Billing configuration required");
@@ -30,7 +31,7 @@ function unusedPhone() {
 async function call(path, { method = "GET", token = admin, body, event, status = 200 } = {}) {
   const response = await fetch(origin + path, {
     method, headers: {
-      "x-medevidence-client-version": "2.0.0-beta.47",
+      "x-medevidence-client-version": clientVersion,
       ...(token ? { authorization: `Bearer ${token}` } : {}),
       ...(body ? { "content-type": "application/json" } : {}),
       ...(event ? { "idempotency-key": event } : {})

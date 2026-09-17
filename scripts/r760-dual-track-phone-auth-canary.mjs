@@ -15,6 +15,15 @@ const handoff = JSON.parse(await readFile(handoffPath, "utf8"));
 const opaqueKey = requiredString(handoff.key, "handoff key");
 const expectedSubjectId = requiredString(handoff.subject_id, "handoff subject_id");
 const baseUrl = requiredString(handoff.base_url, "handoff base_url").replace(/\/$/u, "");
+const clientVersion = process.env.MEDEVIDENCE_SMOKE_CLIENT_VERSION ?? "2.0.0-beta.76";
+const minimumDesktopVersion =
+  process.env.GATEWAY_MINIMUM_DESKTOP_VERSION ?? clientVersion;
+const expectedDesktopDownloadUrl =
+  process.env.GATEWAY_DESKTOP_DOWNLOAD_URL ??
+  "https://updates.instmarket.com.au/desktop-updates/download/?minimum=2.0.0-beta.76";
+const lowClientVersion =
+  process.env.MEDEVIDENCE_SMOKE_LOW_CLIENT_VERSION ?? "2.0.0-beta.75";
+const versionHeader = { "X-MedEvidence-Client-Version": clientVersion };
 if (!opaqueKey.startsWith("cgu_live_") || !baseUrl.startsWith("https://")) {
   throw new Error("protected handoff has an unexpected shape");
 }
@@ -58,7 +67,6 @@ try {
       process.env.GATEWAY_BILLING_ADMIN_TOKEN,
       "GATEWAY_BILLING_ADMIN_TOKEN"
     );
-    const versionHeader = { "X-MedEvidence-Client-Version": "2.0.0-beta.40" };
     const loginBody = {
       phone,
       client: "medevidence-desktop",
@@ -67,22 +75,22 @@ try {
     };
 
     for (const test of [
-      { name: "upgrade_missing", headers: {} },
+      { name: "upgrade_missing", headers: {}, includeClientVersion: false },
       { name: "upgrade_invalid", headers: { "X-MedEvidence-Client-Version": "not-semver" } },
-      { name: "upgrade_low", headers: { "X-MedEvidence-Client-Version": "2.0.0-beta.39" } }
+      { name: "upgrade_low", headers: { "X-MedEvidence-Client-Version": lowClientVersion } }
     ]) {
       const result = await requestJson({
         name: test.name,
         method: "POST",
         url: `${baseUrl}/gateway/auth/v1/login/start`,
         headers: test.headers,
+        includeClientVersion: test.includeClientVersion,
         body: loginBody
       });
       assertError(result, 426, "client_upgrade_required");
       if (
-        result.json?.error?.minimum_version !== "2.0.0-beta.40" ||
-        result.json?.error?.download_url !==
-          "https://updates.instmarket.com.au/desktop-updates/beta/medevidence-desktop-win-x64.exe"
+        result.json?.error?.minimum_version !== minimumDesktopVersion ||
+        result.json?.error?.download_url !== expectedDesktopDownloadUrl
       ) {
         throw new Error(`${test.name} returned an inconsistent upgrade contract`);
       }
@@ -551,13 +559,23 @@ async function deleteVision() {
   evidence.push(record("vision_delete", deleted));
 }
 
-async function requestJson({ name, method, url, bearer, body, headers = {}, timeoutMs = 60_000 }) {
+async function requestJson({
+  name,
+  method,
+  url,
+  bearer,
+  body,
+  headers = {},
+  includeClientVersion = true,
+  timeoutMs = 60_000
+}) {
   let response;
   try {
     response = await fetch(url, {
       method,
       headers: {
         Accept: "application/json",
+        ...(includeClientVersion ? versionHeader : {}),
         ...(body === undefined ? {} : { "Content-Type": "application/json" }),
         ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
         ...headers

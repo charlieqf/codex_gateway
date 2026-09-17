@@ -43,27 +43,182 @@ describe("Desktop version gate", () => {
 
   it("exempts only explicit service and operator credentials", () => {
     expect(
-      desktopVersionGateError(requestWithVersion(), gate, "service")
+      desktopVersionGateError(
+        requestWithVersion(undefined, "POST", "/v1/responses"),
+        gate,
+        {
+          credentialClass: "service"
+        }
+      )
     ).toBeNull();
     expect(
-      desktopVersionGateError(requestWithVersion(), gate, "operator")
+      desktopVersionGateError(
+        requestWithVersion(undefined, "POST", "/v1/responses"),
+        gate,
+        {
+          credentialClass: "operator"
+        }
+      )
     ).toBeNull();
     expect(
-      desktopVersionGateError(requestWithVersion(), gate, "unknown")?.code
+      desktopVersionGateError(
+        requestWithVersion(undefined, "POST", "/v1/responses"),
+        gate,
+        {
+          credentialClass: "unknown"
+        }
+      )?.code
     ).toBe("client_upgrade_required");
     expect(
-      desktopVersionGateError(requestWithVersion(), gate, "desktop")?.code
+      desktopVersionGateError(
+        requestWithVersion(undefined, "POST", "/v1/responses"),
+        gate,
+        {
+          credentialClass: "desktop"
+        }
+      )?.code
     ).toBe("client_upgrade_required");
     expect(
       desktopVersionGateError(
         requestWithVersion(),
         { ...gate, mode: "auth_only" },
-        "service"
+        { credentialClass: "service" }
       )?.code
     ).toBe("client_upgrade_required");
   });
 
-  it("uses one route policy source for disabled, auth_only and all", () => {
+  it("scopes medevidence_all to MedEvidence Desktop requests", () => {
+    const medevidenceGate: DesktopVersionGate = {
+      ...gate,
+      mode: "medevidence_all"
+    };
+    const route = "/v1/responses";
+
+    expect(
+      desktopVersionGateError(
+        requestWithVersion(undefined, "POST", route),
+        medevidenceGate,
+        { credentialClass: "unknown" }
+      )
+    ).toBeNull();
+    expect(
+      desktopVersionGateError(
+        requestWithVersion(undefined, "POST", route),
+        medevidenceGate,
+        { credentialClass: "desktop" }
+      )?.code
+    ).toBe("client_upgrade_required");
+    expect(
+      desktopVersionGateError(
+        requestWithVersion(undefined, "POST", route),
+        medevidenceGate,
+        {
+          credentialClass: "unknown",
+          hasMedevidenceIdentity: () => true
+        }
+      )?.code
+    ).toBe("client_upgrade_required");
+    expect(
+      desktopVersionGateError(
+        requestWithVersion("9.9.9-fixture.0", "POST", route),
+        medevidenceGate,
+        { credentialClass: "unknown" }
+      )?.code
+    ).toBe("client_upgrade_required");
+    expect(
+      desktopVersionGateError(
+        requestWithVersion("9.9.9-fixture.1", "POST", route),
+        medevidenceGate,
+        { credentialClass: "unknown" }
+      )
+    ).toBeNull();
+    expect(
+      desktopVersionGateError(
+        requestWithHeaders(
+          { "x-medcode-client-app-version": "1.9.116" },
+          "POST",
+          route
+        ),
+        medevidenceGate,
+        { credentialClass: "desktop" }
+      )?.code
+    ).toBe("client_upgrade_required");
+    expect(
+      desktopVersionGateError(
+        requestWithHeaders(
+          { "x-medcode-client-app-version": "9.9.9-fixture.1" },
+          "POST",
+          route
+        ),
+        medevidenceGate,
+        { credentialClass: "desktop" }
+      )
+    ).toBeNull();
+    expect(
+      desktopVersionGateError(
+        requestWithVersion(undefined, "POST", route),
+        medevidenceGate,
+        {
+          credentialClass: "service",
+          hasMedevidenceIdentity: () => true
+        }
+      )
+    ).toBeNull();
+  });
+
+  it("looks up Phone identity only for the legacy unknown-class edge", () => {
+    const medevidenceGate: DesktopVersionGate = {
+      ...gate,
+      mode: "medevidence_all"
+    };
+    let lookups = 0;
+    const hasMedevidenceIdentity = () => {
+      lookups += 1;
+      return false;
+    };
+    const check = (
+      request: FastifyRequest,
+      credentialClass: "unknown" | "desktop" | "service" | "operator",
+      selectedGate = medevidenceGate
+    ) =>
+      desktopVersionGateError(request, selectedGate, {
+        credentialClass,
+        hasMedevidenceIdentity
+      });
+
+    check(requestWithVersion(undefined, "POST", "/v1/responses"), "unknown");
+    expect(lookups).toBe(1);
+    check(
+      requestWithVersion("9.9.9-fixture.1", "POST", "/v1/responses"),
+      "unknown"
+    );
+    check(requestWithVersion(undefined, "POST", "/v1/responses"), "desktop");
+    check(requestWithVersion(undefined, "POST", "/v1/responses"), "service");
+    check(requestWithVersion(undefined, "POST", "/v1/responses"), "operator");
+    check(
+      requestWithVersion(undefined, "POST", "/v1/responses"),
+      "unknown",
+      gate
+    );
+    expect(lookups).toBe(1);
+  });
+
+  it("requires the explicit MedEvidence version header on Phone Session routes", () => {
+    const medevidenceGate: DesktopVersionGate = {
+      ...gate,
+      mode: "medevidence_all"
+    };
+    const loginRequest = requestWithHeaders(
+      { "x-medcode-client-app-version": "9.9.9" },
+      "POST",
+      "/gateway/auth/v1/login/start"
+    );
+    expect(desktopVersionGateError(loginRequest, medevidenceGate)?.code).toBe(
+      "client_upgrade_required"
+    );
+  });
+
+  it("uses one route policy source for every gate mode", () => {
     const phoneRoutes: Array<[string, string]> = [
       ["POST", "/gateway/auth/v1/login/start"],
       ["POST", "/gateway/auth/v1/token/refresh"],
@@ -91,6 +246,10 @@ describe("Desktop version gate", () => {
       expect(
         shouldGateDesktopRoute("all", method, path),
         `all ${method} ${path}`
+      ).toBe(true);
+      expect(
+        shouldGateDesktopRoute("medevidence_all", method, path),
+        `medevidence_all ${method} ${path}`
       ).toBe(true);
     }
     for (const [method, path] of phoneRoutes) {
@@ -121,13 +280,13 @@ describe("Desktop version gate", () => {
     ).toBe(false);
   });
 
-  it("accepts only disabled, auth_only and all configuration", () => {
+  it("accepts only documented configuration modes", () => {
     expect(resolveDesktopVersionGate({})).toEqual({
       mode: "disabled",
       minimumVersion: null,
       downloadUrl: null
     });
-    for (const mode of ["auth_only", "all"]) {
+    for (const mode of ["auth_only", "medevidence_all", "all"]) {
       expect(
         resolveDesktopVersionGate({
           GATEWAY_DESKTOP_VERSION_GATE: mode,
@@ -145,7 +304,7 @@ describe("Desktop version gate", () => {
     ).toThrow("legacy enabled value is invalid");
     expect(() =>
       resolveDesktopVersionGate({ GATEWAY_DESKTOP_VERSION_GATE: "unknown" })
-    ).toThrow("disabled, auth_only or all");
+    ).toThrow("disabled, auth_only, medevidence_all or all");
     expect(() =>
       resolveDesktopVersionGate({
         GATEWAY_DESKTOP_VERSION_GATE: "auth_only",
@@ -162,16 +321,23 @@ describe("Desktop version gate", () => {
     ).toThrow("absolute HTTPS URL");
   });
 
-  it("accepts transition only with auth_only before startup", () => {
-    expect(() =>
-      assertPhoneAuthVersionGateCompatibility("transition", "auth_only")
-    ).not.toThrow();
+  it("accepts transition with either MedEvidence-compatible gate", () => {
+    for (const mode of ["auth_only", "medevidence_all"] as const) {
+      expect(() =>
+        assertPhoneAuthVersionGateCompatibility("transition", mode)
+      ).not.toThrow();
+    }
     for (const mode of ["disabled", "all"] as const) {
       expect(() =>
         assertPhoneAuthVersionGateCompatibility("transition", mode)
-      ).toThrow("GATEWAY_DESKTOP_VERSION_GATE=auth_only");
+      ).toThrow("GATEWAY_DESKTOP_VERSION_GATE=auth_only or medevidence_all");
     }
-    for (const mode of ["disabled", "auth_only", "all"] as const) {
+    for (const mode of [
+      "disabled",
+      "auth_only",
+      "medevidence_all",
+      "all"
+    ] as const) {
       expect(() =>
         assertPhoneAuthVersionGateCompatibility("disabled", mode)
       ).not.toThrow();
@@ -191,4 +357,12 @@ function requestWithVersion(
       ? { "x-medevidence-client-version": version }
       : {}
   } as FastifyRequest;
+}
+
+function requestWithHeaders(
+  headers: Record<string, string>,
+  method: string,
+  url: string
+): FastifyRequest {
+  return { method, url, headers } as FastifyRequest;
 }

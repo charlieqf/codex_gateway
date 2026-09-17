@@ -13,7 +13,7 @@ db.exec("PRAGMA query_only=ON");
 const run = `signup_smoke_${Date.now()}`;
 const report = { checked_at: new Date().toISOString(), checks: [], cleanup: [] };
 const accounts = [];
-const version = "2.0.0-beta.47";
+const version = process.env.MEDEVIDENCE_SMOKE_CLIENT_VERSION ?? "2.0.0-beta.76";
 
 async function call(path, { method = "GET", token, body, event, status = 200 } = {}) {
   const response = await fetch(origin + path, {

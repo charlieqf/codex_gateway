@@ -30,6 +30,7 @@ documents.
 | One-off 1M Free allowance replacing daily resets; free_quota_exhausted upgrade code | [Contract v2](../outbox/medevidence-free-once-quota-contract-2026-09-11.zh-CN.md) (supersedes all daily Free entries below), [Release](./r760-free-once-release-2026-09-11.zh-CN.md) |
 | Paid plan quota adjustment: monthly 150M/month; yearly 6M/day plus 200M per UTC calendar month, no yearly cap | [2026-09-11 Adjustment](./medevidence-plan-quota-adjustment-2026-09-11.zh-CN.md) |
 | Internal phone authentication | [Internal Phone Auth v1](./internal-phone-auth-v1.zh-CN.md) |
+| MedEvidence Desktop minimum version, upgrade response and login-access recovery | [beta.76 Version Gate Rollout](./medevidence-minimum-version-beta76-2026-09-16.zh-CN.md) |
 | Historical: temporary new-user daily 10k free quota (superseded by the one-off allowance) | [2026-09-10 Release](./r760-phone-signup-free-10k-release-2026-09-10.zh-CN.md); active grants were migrated by the schema 30 release |
 | SMS login, new-user daily free quota and billing account linking | [Joint Test Contract](../outbox/medevidence-sms-phone-signup-gateway-joint-test-2026-09-09.zh-CN.md), [Compatibility Release](./r760-billing-create-compatibility-release-2026-09-09.zh-CN.md); May create preserved, resolve optional, phone-auth v1 reused |
 
