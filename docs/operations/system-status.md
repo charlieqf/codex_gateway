@@ -1,6 +1,6 @@
 # System Status
 
-Last verified: 2026-09-16 08:42 UTC (18:42 Sydney): MedEvidence Desktop beta.76 gate with the platform-neutral download page, public upgrade-contract smoke, active Phone identity readiness, all three databases and all six runtime containers.
+Last verified: 2026-09-18 08:39 UTC (18:39 Sydney): identity HTTP audit, schema 34, public 409/query recovery, phone lifecycle, rate-limit aggregation, model/upgrade checks and synthetic cleanup. Existing control rows were preserved; all three databases and six runtime containers passed checks. Read-only readiness: 300/300 active Phone identities ready, with no duplicate-phone groups.
 
 xAI proxy routing additionally verified 2026-09-14 03:03 UTC: dedicated
 `api.x.ai -> XAI-EGRESS` priority fallback with two tested leaf nodes, xAI HEAD
@@ -24,16 +24,18 @@ history retain implementation evidence; do not append incident history here.
 
 ## Production Runtime
 
-Gateway, Compose and container health verified on 2026-09-16; local inference behavior last verified on 2026-09-06:
+Gateway, Compose and container health verified on 2026-09-18; local inference behavior last verified on 2026-09-06:
 
 - `current`:
-  `3dcc3cc9517641a599faa61479cb50545c6abd3f` (pinned runtime source committed and pushed to `main`; `d29dcb1` only updates operator smoke scripts)
+  `71689e3012e7a5092bca09ca59bdd31f4f0a1b68` (pinned runtime source committed and pushed to `main`; schema 34)
 - `previous`:
-  `8f3e4b00447a5443cfc0433f991bd4047f68f2af` (schema 30 compatible previous Gateway release; Research Worker remains on `0bfb985`)
+  `1a37c0ca226536b5ac8ba798fb83ba6086982daf` (old program verified against an offline schema 34 copy; retain new tables during rollback)
 - Gateway release source: `origin/main`; pin and verify its latest commit before deployment.
 - Public Gateway: healthy, published only on
   `127.0.0.1:18787->8787`
 - Research Worker and Research LLM Gateway: healthy, without published host ports
+- Research Worker: independently deployed `2c561f5a1fe3250c99bbd5bc8c5c80adfb688f9a`; unchanged by this Gateway release.
+- Research maintenance: `44c7bdd76d47ea434e006e9ea4dc7d3482df4383`, healthy with zero restarts and unchanged by this Gateway release.
 - Research maintenance: healthy with zero restarts, checked 2026-09-11 01:04 UTC.
   Its missing temporary-smoke files were reproduced byte-for-byte from stored
   results and restored; the original container completed a verified backup at
@@ -41,31 +43,42 @@ Gateway, Compose and container health verified on 2026-09-16; local inference be
   did not change. See [recovery evidence](../../artifacts/doctor-research-agent-2026-09-10/maintenance-recovery-verified-20260911.json).
 - `qwen38-fp8-local`: healthy, private container port only
 
-Gateway runs `3dcc3cc`, schema 30, deployed 2026-09-16 00:08:41 UTC from a pinned
-`main` commit. At 00:14:44 UTC its Desktop gate was independently changed to
-`medevidence_all` with minimum `2.0.0-beta.76`. At 08:39:58 UTC a second config-only
-Gateway recreate replaced the Windows EXE URL with the platform-neutral page
+Gateway runs `71689e3`, schema 34, started 2026-09-18 08:35:57 UTC. Identity HTTP
+outcomes now have one final audit writer; phone/IP/device login rejections use
+fixed-cardinality minute counters. Transactional security audits, durable manual
+issuance, compensation/release safeguards and Pino operational alerts remain.
+The public response contracts are unchanged. Full phones are available only in
+controlled audit queries; raw bodies, keys and tokens are not collected.
+
+The pinned Linux image passed 1,477 tests (3 existing external-fixture tests
+skipped), and all 35 public acceptance checks passed, including 409 -> GET
+recovery, refresh/logout, two aggregated 429s and a 135-token GoldenCode call.
+Both synthetic accounts are disabled locally and upstream, with zero active
+credentials, keys, sessions or pending reservations. Existing control rows and
+all other service container IDs were preserved; database integrity/FKs passed.
+See the [identity audit release receipt](./r760-identity-request-audit-release-2026-09-18.zh-CN.md)
+for migration/rollback evidence, performance limits and the corrected first-run
+smoke assertion. Normal auth p95 overhead was 0.385 ms / 3.21%; attack-load tails
+were materially higher. Retention targets are 30/7 days, with bounded cleanup
+capacity of 720,000 rows per table per day, not an unlimited-load guarantee.
+
+Phone readiness reports 300/300 active identities passing identity/runtime
+checks, zero duplicate-phone groups and no new audit-write/prune errors. The
+read-only check deliberately excludes entitlement evaluation. New HTTP audit
+coverage begins with the first recorded request at 08:36:50 UTC; legacy events
+are not backfilled or treated as complete historical HTTP outcomes.
+
+The Desktop gate remains `medevidence_all`, minimum `2.0.0-beta.76`, using
 `https://updates.instmarket.com.au/desktop-updates/download/?minimum=2.0.0-beta.76`.
-The page currently enables Windows beta.76 and keeps macOS beta.67 disabled as
-“新版准备中”; publishing Mac beta.76 and `latest-mac.yml` will enable the DMG without
-another Gateway change.
+Platform availability is owned by that page's update manifests. This Gateway
+release leaves both the minimum and the platform-neutral URL unchanged; its
+public smoke verifies the upgrade response, not desktop package hashes.
 Phone Session routes require the explicit MedEvidence version header; identified
 Desktop credentials and registered Phone subjects are also gated on resolver,
 credentials/current, `/v1/*`, Research, image and Vision routes. Service/operator
 credentials and shared clients not identified as MedEvidence remain outside that
 product-scoped gate. Upgrade responses return both structured `download_url` and
 the full URL in the visible message for old-client compatibility.
-
-The pinned Linux image passed 28 quota tests and 595 Gateway/Store tests; the local
-full suite passed 1,381 tests with 3 skipped. Public acceptance proved two real
-Desktop-class `1.9.116` conversation requests receive 426, while beta.76 completed
-Phone enrollment, login, bootstrap, resolver/current and one 135-token model call.
-Both synthetic accounts were disabled with zero active credentials, sessions or
-unfinished reservations. The latest read-only aggregate found 295 active Phone identities
-and zero inactive Subject, unhealthy current Key/backing credential or missing active
-chat entitlement among them. All three databases passed integrity/FK checks, Gateway
-is healthy with zero restarts, and the other five containers were unchanged. See the
-[beta.76 rollout and recovery runbook](./medevidence-minimum-version-beta76-2026-09-16.zh-CN.md).
 
 The previous `8f3e4b0` release split the entrypoint into focused modules; A/S transport is
 configured only for the synthetic subject `subj_NWGR8SNzAnybXZPUro0S3k3p`, now
@@ -89,8 +102,8 @@ model call. All pre-existing subject, credential, key, plan, entitlement and pho
 identity rows were preserved; synthetic accounts were disabled and cleaned up.
 See the [phone enrollment release](./r760-phone-enrollment-release-2026-09-14.zh-CN.md),
 including the two in-flight requests without completion receipts during the authorized restart.
-The Research Worker remains on `0bfb985` with the practical-profile workflow;
-its container and the other four supporting services were unchanged and healthy.
+At that September 14 release the Research Worker remained on `0bfb985` with the
+practical-profile workflow. Its current independently deployed revision is listed above.
 New signups receive the one-off
 `plan_free_once_1m_v1` allowance (1,000,000 tokens for the account lifetime, no reset,
 no re-grant on purchase); the 25 active daily Free grants were migrated in place with

@@ -1,6 +1,6 @@
 # Gateway 身份请求审计：只读排查与覆盖边界
 
-适用于包含本次身份请求出口的程序及 schema 34。本文是操作说明，不表示生产已经部署；上线提交、时间及验证结果以发布验收记录为准。
+适用于包含本次身份请求出口的程序及 schema 34。`71689e3` 已于 2026-09-18 08:36 UTC 上线，详见[发布验收记录](./r760-identity-request-audit-release-2026-09-18.zh-CN.md)；后续实际运行版本仍需现场核对。
 
 ## 请求事实与安全事件
 
@@ -70,6 +70,20 @@ docker exec codex_gateway_r760-gateway-1 \
 - `identity_request_audit_recovered`：恢复后报告进程已知丢失次数，不补造缺失请求。
 - `identity_request_audit_prune_failed`：留存清理失败；检查实际最旧记录和积压，不能只相信配置期限。
 
-初始目标留存是明细 30 天、分钟计数 7 天。清理在定时维护中分批执行，不在请求路径清理，不自动 VACUUM。备份和导出同样包含完整手机号，应遵守受控权限和留存要求。
+初始目标留存是明细 30 天、分钟计数 7 天。清理每分钟最多处理每表 500 行，不在请求路径清理，不自动 VACUUM。每表每天最多 72 万行；持续过期明细超过约 8.33 行/秒时会形成积压，需复审清理容量，不能继续宣称实际留存严格为 30 天。备份和导出同样包含完整手机号，应遵守受控权限和留存要求。
+
+在受控只读连接中检查积压（不执行删除）：
+
+```sql
+SELECT MIN(completed_at) AS oldest,
+       COUNT(*) AS expired_requests
+FROM identity_request_events
+WHERE completed_at < strftime('%Y-%m-%dT%H:%M:%fZ','now','-30 days');
+
+SELECT MIN(minute_start) AS oldest,
+       COUNT(*) AS expired_buckets
+FROM identity_rate_limit_minutes
+WHERE minute_start < strftime('%Y-%m-%dT%H:%M:%fZ','now','-7 days');
+```
 
 部署／回滚遵循 [容器发布手册](./container-deploy.md)。审计为追加表迁移，优先回退已验证兼容的程序并保留新表；不得用旧整库备份覆盖持续增长的生产账本。
