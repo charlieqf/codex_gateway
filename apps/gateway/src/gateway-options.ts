@@ -7,6 +7,7 @@ import {
   GatewayError,
   type GatewayStore,
   type ObservationStore,
+  type IdentityRequestAuditStore,
   type PhoneAuthStore,
   type PlanEntitlementStore,
   type ProviderAdapter,
@@ -51,6 +52,7 @@ export interface GatewayOptions {
   upstreamAccount?: UpstreamAccount;
   rateLimiter?: CredentialRateLimiter;
   observationStore?: ObservationStore;
+  identityRequestAuditStore?: IdentityRequestAuditStore | null;
   clientEventsStore?: ClientMessageEventStore | null;
   clientEventsRateLimiter?: CredentialRateLimiter;
   clientEventsRatePolicy?: RateLimitPolicy;

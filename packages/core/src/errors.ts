@@ -1,4 +1,5 @@
 import type { ProviderFailureClassification } from "./provider-failure.js";
+import type { IdentityAuditFacts } from "./identity-request-audit.js";
 
 export const gatewayErrorCodes = [
   "missing_credential",
@@ -146,6 +147,7 @@ export interface ToolValidationDetails {
 }
 
 export class GatewayError extends Error {
+  readonly identityFailure?: IdentityAuditFacts;
   readonly code: GatewayErrorCode;
   readonly httpStatus: number;
   readonly retryAfterSeconds?: number;
@@ -165,6 +167,7 @@ export class GatewayError extends Error {
   readonly toolValidationDetails?: ToolValidationDetails;
 
   constructor(input: {
+    identityFailure?: IdentityAuditFacts;
     code: GatewayErrorCode;
     message: string;
     httpStatus: number;
@@ -186,6 +189,8 @@ export class GatewayError extends Error {
   }) {
     super(input.message);
     this.name = "GatewayError";
+    // Internal identity facts must not leak through generic error/Pino serialization.
+    Object.defineProperty(this, "identityFailure", { value: input.identityFailure, enumerable: false });
     this.code = input.code;
     this.httpStatus = input.httpStatus;
     this.retryAfterSeconds = input.retryAfterSeconds;

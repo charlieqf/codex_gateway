@@ -208,6 +208,7 @@ import {
   isCredentialAuthStore,
   isExternalIdentityStore,
   isObservationStore,
+  isIdentityRequestAuditStore,
   isPhoneAuthStore,
   isPlanEntitlementStore,
   isSubjectMetadataStore,
@@ -219,6 +220,7 @@ import {
   serializeSession,
   storeKind
 } from "./runtime/gateway-state.js";
+import { installIdentityRequestAudit } from "./http/identity-request-audit.js";
 import {
   assertUpstreamPoolAvailable,
   createPublicModelPoolRouters,
@@ -738,6 +740,10 @@ export function buildGateway(options: GatewayOptions = {}) {
     researchStore?.close?.();
   });
 
+  const identityAudit = installIdentityRequestAudit(app,
+    options.identityRequestAuditStore !== undefined ? options.identityRequestAuditStore
+      : isIdentityRequestAuditStore(sessions) ? sessions : undefined, clock);
+
   app.addHook("onRequest", async (request, reply) => {
     startObservation(request);
     reply.header("x-request-id", request.id);
@@ -746,6 +752,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       markClientAborted(request);
       releaseRateLimit(request);
       recordObservation(request, observationStore, 499);
+      identityAudit.complete(request, null);
     });
   });
 

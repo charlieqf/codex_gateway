@@ -2,6 +2,7 @@ import type { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
 import {
   GatewayError,
+  type IdentityFailureReason,
   normalizeMainlandChinaPhone,
   type ClaimExternalSubjectInput,
   type ExternalSubjectRegistration,
@@ -82,36 +83,38 @@ export function resolve(db: DatabaseSync, input: ResolveExternalSubjectInput, op
       const ids = new Set([...owners.map(subject => subject.id), ...(existing ? [existing.id] : []), ...(phoneOwner ? [phoneOwner.subject_id] : [])]);
       if (ids.size) throw new GatewayError({code: ids.size === 1 ? "subject_already_exists" : "identity_conflict",
         message: ids.size === 1 ? `手机号或外部身份已归属 Subject ${[...ids][0]}；人工开户不会关联、轮换或修改该账号。`
-          : "手机号与外部身份存在多个账号归属，请人工核对；未修改任何账号。", httpStatus: 409});
+          : "手机号与外部身份存在多个账号归属，请人工核对；未修改任何账号。", httpStatus: 409,
+        identityFailure: { reasonCode: ids.size === 1 ? "existing_subject" : "external_identity_binding_conflict",
+          conflictingSubjectId: ids.size === 1 ? [...ids][0] : null, stage: "identity_resolution" }});
     }
     if (existing) {
-      if (existing.state !== "active") throw disabled();
+      if (existing.state !== "active") throw disabled(existing.id);
       return { status: "linked", subject: enrollLinkedSubject(db, existing, phone, input, options) };
     }
     if (prior) {
-      if (prior.phone_number !== phone) throw conflict();
+      if (prior.phone_number !== phone) throw conflict("registration_phone_mismatch");
       if (prior.state === "creating") return { status: "account_pending", subject: null };
     }
     const candidates = subjects.list(db, { includeArchived: true }).filter(
       subject => normalizeMainlandChinaPhone(subject.phoneNumber ?? "") === phone
     );
-    if (candidates.length > 1) throw conflict();
+    if (candidates.length > 1) throw conflict("phone_multiple_subjects");
     const subject = candidates[0] ?? null;
-    if (subject && subject.state !== "active") throw disabled();
+    if (subject && subject.state !== "active") throw disabled(subject.id);
     if (subject) {
       const another = db.prepare(`SELECT 1 FROM external_subject_registrations
         WHERE provider = ? AND subject_id = ? AND external_user_id != ?`).get(
           input.provider, subject.id, input.externalUserId
         );
       if (another || (subject.externalProvider === input.provider && subject.externalUserId !== input.externalUserId)) {
-        throw conflict();
+        throw conflict("external_identity_binding_conflict", subject.id);
       }
     }
     // A different external identity must not reserve/create the same phone concurrently.
     const owner = db.prepare(`SELECT 1 FROM external_subject_registrations
       WHERE phone_number = ? AND (provider != ? OR external_user_id != ?)
         AND state != 'linked' AND released_at IS NULL`).get(phone, input.provider, input.externalUserId);
-    if (owner) throw conflict();
+    if (owner) throw conflict("phone_reserved_by_other_identity");
     const timestamp = (input.now ?? new Date()).toISOString();
     db.prepare(`INSERT INTO external_subject_registrations
       (provider, external_user_id, phone_number, state, subject_id, request_id, created_at, updated_at, release_eligible)
@@ -133,17 +136,17 @@ function enrollLinkedSubject(
 ): Subject {
   if (!options.prepareLinkedPhoneIdentity) return subject;
   // An established phone is never changed by SMS association or account creation.
-  if (subject.phoneNumber && normalizeMainlandChinaPhone(subject.phoneNumber) !== phone) throw conflict();
+  if (subject.phoneNumber && normalizeMainlandChinaPhone(subject.phoneNumber) !== phone) throw conflict("linked_subject_phone_mismatch", subject.id);
   if (subjects.list(db, { includeArchived:true }).some(
     candidate => candidate.id !== subject.id && normalizeMainlandChinaPhone(candidate.phoneNumber ?? "") === phone
-  )) throw conflict();
+  )) throw conflict("phone_multiple_subjects");
   if (db.prepare(`SELECT 1 FROM external_subject_registrations
-    WHERE phone_number=? AND released_at IS NULL AND (subject_id IS NULL OR subject_id!=?)`).get(phone,subject.id)) throw conflict();
+    WHERE phone_number=? AND released_at IS NULL AND (subject_id IS NULL OR subject_id!=?)`).get(phone,subject.id)) throw conflict("phone_reserved_by_other_identity");
   const prior = registration(db,input.provider,input.externalUserId);
-  if (prior && prior.phone_number !== phone) throw conflict();
+  if (prior && prior.phone_number !== phone) throw conflict("registration_phone_mismatch");
   const preparedSubject = subject.phoneNumber ? subject : { ...subject,phoneNumber:phone };
   const enrollment = options.prepareLinkedPhoneIdentity(preparedSubject);
-  if (enrollment.subjectId !== subject.id) throw conflict();
+  if (enrollment.subjectId !== subject.id) throw conflict("linked_identity_subject_mismatch", subject.id);
   // Runtime validation happened before contact changes; every write below rolls back together.
   if (!subject.phoneNumber) subjects.update(db,subject.id,{phoneNumber:phone});
   phoneAuth.enrollExistingIdentityInTransaction(db,enrollment);
@@ -159,7 +162,8 @@ export function claimCreate(db: DatabaseSync, input: ClaimExternalSubjectInput):
   return runInTransaction(db, "BEGIN IMMEDIATE", () => {
     const existing = subjects.getByExternal(db, input.provider, input.externalUserId);
     if (existing) {
-      throw new GatewayError({ code: "subject_already_exists", message: "External identity is already linked to a subject.", httpStatus: 409 });
+      throw new GatewayError({ code: "subject_already_exists", message: "External identity is already linked to a subject.", httpStatus: 409,
+        identityFailure: { reasonCode: "existing_subject", subjectId: existing.id, stage: "identity_resolution" } });
     }
     const prior = registration(db, input.provider, input.externalUserId);
     if (prior?.released_at) throw released();
@@ -296,12 +300,14 @@ function assertMatchingCreate(
   }
 }
 
-function conflict(): GatewayError {
-  return new GatewayError({ code: "identity_conflict", message: "External identity or phone account has a conflicting association.", httpStatus: 409 });
+function conflict(reasonCode: IdentityFailureReason = "registration_state_mismatch", conflictingSubjectId?: string): GatewayError {
+  return new GatewayError({ code: "identity_conflict", message: "External identity or phone account has a conflicting association.", httpStatus: 409,
+    identityFailure: { reasonCode, conflictingSubjectId } });
 }
 
-function disabled(): GatewayError {
-  return new GatewayError({ code: "account_disabled", message: "The account is disabled.", httpStatus: 403 });
+function disabled(subjectId?: string): GatewayError {
+  return new GatewayError({ code: "account_disabled", message: "The account is disabled.", httpStatus: 403,
+    identityFailure: { subjectId } });
 }
 
 function released(): GatewayError {

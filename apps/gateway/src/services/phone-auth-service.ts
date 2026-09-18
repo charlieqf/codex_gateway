@@ -21,8 +21,7 @@ import {
   verifyUnifiedClientKeyToken,
   type CredentialAuthStore,
   type EnrollExistingPhoneAuthIdentityInput,
-  type PhoneAuthAuditAction,
-  type PhoneAuthAuditInput,
+  type IdentityAuditFacts,
   type PhoneAuthIdentity,
   type PhoneAuthMethod,
   type PhoneAuthMode,
@@ -106,6 +105,12 @@ export interface PhoneAuthAccessContext {
   subjectId: string;
 }
 
+/** Internal result: routes send only response; identity never enters the public DTO. */
+export interface PhoneAuthResult<T> {
+  response: T;
+  identity: IdentityAuditFacts;
+}
+
 interface AccessTokenPayload {
   iss: string;
   aud: string;
@@ -120,10 +125,23 @@ interface AccessTokenPayload {
 }
 
 interface ReadyAccount {
+  phone: string;
   unifiedKey: UnifiedClientKeyRecord;
   planId: string;
   periodEnd: Date | null;
   capabilities: string[];
+}
+
+function phoneResult<T>(response: T, session: PhoneAuthSession, phone: string): PhoneAuthResult<T> {
+  return { response, identity: { subjectId: session.subjectId, sessionId: session.id, resolvedPhone: phone, stage: "response" } };
+}
+
+function identityError(error: unknown, facts: IdentityAuditFacts): unknown {
+  if (!(error instanceof GatewayError)) return error;
+  const annotated = new GatewayError({ ...error, message: error.message,
+    identityFailure: { ...facts, ...error.identityFailure } });
+  annotated.stack = error.stack;
+  return annotated;
 }
 
 const secondsPerDay = 86_400;
@@ -404,41 +422,18 @@ export class PhoneAuthService {
     });
   }
 
-  login(input: PhoneAuthLoginInput): PhoneAuthTokenResponse {
+  login(input: PhoneAuthLoginInput): PhoneAuthResult<PhoneAuthTokenResponse> {
     this.assertLoginEnabled();
     const now = this.now();
     const phoneHash = this.phoneHash(input.phone);
     const identity = this.store.getPhoneAuthIdentityByPhoneHash(phoneHash);
     if (!identity) {
-      this.auditFailure("login", input.requestId, phoneHash, null, null, "phone_not_registered", now);
       throw phoneNotRegistered();
     }
     if (identity.state !== "active") {
-      this.auditFailure(
-        "login",
-        input.requestId,
-        phoneHash,
-        identity.subjectId,
-        null,
-        "phone_login_disabled",
-        now
-      );
-      throw phoneLoginDisabled();
+      throw identityError(phoneLoginDisabled(), { subjectId: identity.subjectId, stage: "account_readiness" });
     }
-    try {
-      this.requireReadyAccountForIdentity(identity, now);
-    } catch (error) {
-      this.auditFailure(
-        "login",
-        input.requestId,
-        phoneHash,
-        identity.subjectId,
-        null,
-        error instanceof GatewayError ? error.code : "service_unavailable",
-        now
-      );
-      throw error;
-    }
+    const account = this.requireReadyAccountForIdentity(identity, now);
 
     const session: PhoneAuthSession = {
       id: `phas_${randomUUID().replaceAll("-", "")}`,
@@ -473,21 +468,12 @@ export class PhoneAuthService {
       },
       requestId: input.requestId
     });
-    return this.tokenResponse(session, refresh.token, refreshExpiresAt, now);
+    return phoneResult(this.tokenResponse(session, refresh.token, refreshExpiresAt, now), session, account.phone);
   }
 
-  refresh(input: PhoneAuthRefreshInput): PhoneAuthTokenResponse {
+  refresh(input: PhoneAuthRefreshInput): PhoneAuthResult<PhoneAuthTokenResponse> {
     this.assertLoginEnabled();
     if (!/^rft_[A-Za-z0-9_-]{64}$/u.test(input.refreshToken)) {
-      this.auditFailure(
-        "refresh",
-        input.requestId,
-        null,
-        null,
-        null,
-        "refresh_token_invalid",
-        this.now()
-      );
       throw refreshTokenInvalid();
     }
     const now = this.now();
@@ -511,6 +497,7 @@ export class PhoneAuthService {
     if (result.status !== "ok") {
       throw refreshTokenInvalid();
     }
+    let account: ReadyAccount;
     try {
       const identity = this.store.getPhoneAuthIdentityByPhoneHash(
         result.session.phoneHash
@@ -518,13 +505,13 @@ export class PhoneAuthService {
       if (!identity || identity.subjectId !== result.session.subjectId) {
         throw accountDisabled();
       }
-      this.requireReadyAccountForIdentity(identity, now);
+      account = this.requireReadyAccountForIdentity(identity, now);
     } catch (error) {
       this.revokeAfterFailedRefresh(result.session, input.requestId, now);
-      throw error;
+      throw identityError(error, { subjectId: result.session.subjectId, sessionId: result.session.id, stage: "account_readiness" });
     }
     const expiresAt = minDate(replacementExpiresAt, result.session.absoluteExpiresAt);
-    return this.tokenResponse(result.session, replacement.token, expiresAt, now);
+    return phoneResult(this.tokenResponse(result.session, replacement.token, expiresAt, now), result.session, account.phone);
   }
 
   authenticateAccessToken(
@@ -547,7 +534,7 @@ export class PhoneAuthService {
     return { session, subjectId: session.subjectId };
   }
 
-  logout(token: string, requestId: string): void {
+  logout(token: string, requestId: string): IdentityAuditFacts {
     const context = this.authenticateAccessToken(token, true);
     this.store.revokePhoneAuthSession(context.session.id, {
       requestId,
@@ -560,14 +547,17 @@ export class PhoneAuthService {
       reasonCode: "logout",
       now: this.now()
     });
+    return { subjectId: context.subjectId, sessionId: context.session.id, stage: "response" };
   }
 
-  bootstrap(token: string, requestId: string) {
+  bootstrap(token: string) {
     const context = this.authenticateAccessToken(token);
     const account = this.requireReadyAccountForSession(context.session, this.now());
-    const unifiedKey = this.recoverUnifiedKey(account.unifiedKey);
-    this.recordSuccess("bootstrap", requestId, context.session);
-    return {
+    let unifiedKey: string;
+    try { unifiedKey = this.recoverUnifiedKey(account.unifiedKey); }
+    catch (error) { throw identityError(error, { subjectId: context.subjectId, sessionId: context.session.id,
+      resolvedPhone: account.phone, stage: "credential_recovery" }); }
+    return phoneResult({
       contract_version: 1,
       subject: { id: context.subjectId, state: "active" as const },
       unified_key: {
@@ -577,14 +567,13 @@ export class PhoneAuthService {
       },
       resolver_url: `${this.publicGatewayBaseUrl}/gateway/unified-keys/resolve`,
       account_url: `${this.publicGatewayBaseUrl}/gateway/account/v1/current`
-    };
+    }, context.session, account.phone);
   }
 
-  accountCurrent(token: string, requestId: string) {
+  accountCurrent(token: string) {
     const context = this.authenticateAccessToken(token);
     const account = this.requireReadyAccountForSession(context.session, this.now());
-    this.recordSuccess("account_current", requestId, context.session);
-    return {
+    return phoneResult({
       subject: { id: context.subjectId, state: "active" as const },
       identity: {
         kind: "internal" as const,
@@ -594,19 +583,7 @@ export class PhoneAuthService {
       token_wallet: null,
       image_credits: null,
       capabilities: account.capabilities
-    };
-  }
-
-  recordLoginRateLimit(phoneHash: string, requestId: string): void {
-    this.auditFailure(
-      "login",
-      requestId,
-      phoneHash,
-      null,
-      null,
-      "auth_rate_limited",
-      this.now()
-    );
+    }, context.session, account.phone);
   }
 
   private tokenResponse(
@@ -711,14 +688,18 @@ export class PhoneAuthService {
     session: PhoneAuthSession,
     now: Date
   ): ReadyAccount {
-    const identity = this.store.getPhoneAuthIdentityByPhoneHash(session.phoneHash);
-    if (!identity || identity.subjectId !== session.subjectId) {
-      throw accountDisabled();
+    try {
+      const identity = this.store.getPhoneAuthIdentityByPhoneHash(session.phoneHash);
+      if (!identity || identity.subjectId !== session.subjectId) {
+        throw accountDisabled();
+      }
+      if (identity.state !== "active") {
+        throw phoneLoginDisabled();
+      }
+      return this.requireReadyAccountForIdentity(identity, now);
+    } catch (error) {
+      throw identityError(error, { subjectId: session.subjectId, sessionId: session.id, stage: "account_readiness" });
     }
-    if (identity.state !== "active") {
-      throw phoneLoginDisabled();
-    }
-    return this.requireReadyAccountForIdentity(identity, now);
   }
 
   private requireReadyAccountForIdentity(
@@ -727,7 +708,7 @@ export class PhoneAuthService {
   ): ReadyAccount {
     const subject = this.credentialStore.getSubject(identity.subjectId);
     if (!subject || subject.state !== "active") {
-      throw accountDisabled();
+      throw identityError(accountDisabled(), { subjectId: identity.subjectId, stage: "account_readiness" });
     }
     const normalizedPhone = normalizeMainlandChinaPhone(
       subject.phoneNumber ?? ""
@@ -737,7 +718,7 @@ export class PhoneAuthService {
       phoneLookupHash(normalizedPhone, this.requiredPhoneLookupSecret()) !==
         identity.phoneHash
     ) {
-      throw accountMigrationRequired();
+      throw identityError(accountMigrationRequired(), { subjectId: identity.subjectId, stage: "account_readiness" });
     }
     const matchingSubjects = this.credentialStore
       .listSubjects({ includeArchived: true })
@@ -750,7 +731,8 @@ export class PhoneAuthService {
       matchingSubjects.length !== 1 ||
       matchingSubjects[0]?.id !== identity.subjectId
     ) {
-      throw phoneIdentityConflict();
+      throw identityError(phoneIdentityConflict(), { subjectId: identity.subjectId, resolvedPhone: normalizedPhone,
+        reasonCode: "phone_multiple_subjects", stage: "account_readiness" });
     }
     const unifiedKey = this.store.getPhoneAuthUnifiedKey(identity.unifiedKeyId);
     if (
@@ -762,16 +744,16 @@ export class PhoneAuthService {
       unifiedKey.credentialClass !== "desktop" ||
       !unifiedKey.tokenCiphertext
     ) {
-      throw accountMigrationRequired();
+      throw identityError(accountMigrationRequired(), { subjectId: identity.subjectId, resolvedPhone: normalizedPhone, stage: "account_readiness" });
     }
-    this.requireRuntimeBundle(unifiedKey, now, true);
-    const entitlement = this.requireActiveInternalAccount(identity.subjectId, now);
-    return {
-      unifiedKey,
-      planId: entitlement.planId,
-      periodEnd: entitlement.periodEnd,
-      capabilities: entitlement.capabilities
-    };
+    try {
+      this.requireRuntimeBundle(unifiedKey, now, true);
+      const entitlement = this.requireActiveInternalAccount(identity.subjectId, now);
+      return { phone: normalizedPhone, unifiedKey, planId: entitlement.planId,
+        periodEnd: entitlement.periodEnd, capabilities: entitlement.capabilities };
+    } catch (error) {
+      throw identityError(error, { subjectId: identity.subjectId, resolvedPhone: normalizedPhone, stage: "account_readiness" });
+    }
   }
 
   private requireActiveInternalAccount(subjectId: string, now: Date) {
@@ -866,47 +848,6 @@ export class PhoneAuthService {
       throw accountMigrationRequired();
     }
     return token;
-  }
-
-  private recordSuccess(
-    action: PhoneAuthAuditAction,
-    requestId: string,
-    session: PhoneAuthSession
-  ): void {
-    this.store.recordPhoneAuthAudit({
-      requestId,
-      action,
-      phoneHash: session.phoneHash,
-      subjectId: session.subjectId,
-      sessionId: session.id,
-      authMethod: session.authMethod,
-      outcome: "ok",
-      reasonCode: null,
-      now: this.now()
-    });
-  }
-
-  private auditFailure(
-    action: PhoneAuthAuditAction,
-    requestId: string,
-    phoneHash: string | null,
-    subjectId: string | null,
-    sessionId: string | null,
-    reasonCode: string,
-    now: Date
-  ): void {
-    const audit: PhoneAuthAuditInput = {
-      requestId,
-      action,
-      phoneHash,
-      subjectId,
-      sessionId,
-      authMethod: "transition_phone_only",
-      outcome: "error",
-      reasonCode,
-      now
-    };
-    this.store.recordPhoneAuthAudit(audit);
   }
 
   private revokeAfterFailedRefresh(

@@ -6,6 +6,7 @@ import {
 } from "./sqlite-managed.js";
 import type { SqliteStoreLogger } from "./types.js";
 import { migrateDailyFreeAllowancesToOnce, paidPlanSql, recoverReplacedFreeAllowance } from "./free-allowance.js";
+import { identityRequestAuditSchema } from "./identity-request-audit.js";
 
 export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogger): void {
   db.exec(`
@@ -1137,6 +1138,7 @@ export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogge
       WHERE state != 'failed' AND retired_at IS NULL;
     CREATE INDEX idx_real_user_issuance_actor_created ON real_user_issuance_tasks(actor_id, created_at DESC);
   `, logger);
+  applyMigration(db, 34, identityRequestAuditSchema, logger);
 }
 
 export function migrateClientEventsSchema(db: DatabaseSync): void {

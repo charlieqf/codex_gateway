@@ -9,6 +9,7 @@ import {
   decryptSecret,
   verifyUnifiedClientKeyToken,
   type IssuanceTaskStore,
+  type IdentityAuditOperation,
   extractBillingAdminTokenPrefix,
   GatewayError,
   issueAccessCredential,
@@ -81,6 +82,8 @@ import {
   type ResolvedUnifiedKey
 } from "./real-user-issue.js";
 import { renderRealUserIssuePage } from "./real-user-issue-page.js";
+import { captureIdentityInput, markIdentityFacts } from "./http/identity-request-audit.js";
+import { markGatewayError } from "./http/observation.js";
 
 export const billingAdminTokenEnvName = "GATEWAY_BILLING_ADMIN_TOKEN";
 export const billingAdminNextTokenEnvName = "GATEWAY_BILLING_ADMIN_TOKEN_NEXT";
@@ -198,7 +201,7 @@ export function registerBillingAdminRoutes(
 ): void {
   app.post<{ Body: unknown }>(
     "/gateway/admin/billing/v1/phone-auth-identities",
-    billingRouteOptions(),
+    billingRouteOptions("phone_identity_prepare"),
     async (request, reply) => {
       const authError = billingRoutePreflight(request, reply, options);
       if (authError) {
@@ -220,6 +223,7 @@ export function registerBillingAdminRoutes(
           ...parsed,
           requestId: request.id
         });
+        markIdentityFacts(request, { subjectId: identity.subjectId, stage: "response" });
         return billingSecurityHeaders(reply).send({
           prepared: true,
           subject_id: identity.subjectId,
@@ -233,7 +237,7 @@ export function registerBillingAdminRoutes(
 
   app.patch<{ Params: { subjectId: string }; Body: unknown }>(
     "/gateway/admin/billing/v1/phone-auth-identities/:subjectId",
-    billingRouteOptions(),
+    billingRouteOptions("phone_identity_state"),
     async (request, reply) => {
       const authError = billingRoutePreflight(request, reply, options);
       if (authError) {
@@ -259,6 +263,7 @@ export function registerBillingAdminRoutes(
         if (!identity) {
           return sendBillingError(request, reply, subjectNotFound());
         }
+        markIdentityFacts(request, { subjectId: identity.subjectId, stage: "response" });
         return billingSecurityHeaders(reply).send({
           subject_id: identity.subjectId,
           state: identity.state
@@ -271,7 +276,7 @@ export function registerBillingAdminRoutes(
 
   app.post<{ Body: unknown }>(
     "/gateway/admin/billing/v1/subjects/resolve",
-    billingRouteOptions(),
+    billingRouteOptions("subject_resolve"),
     async (request, reply) => {
       const authError = billingRoutePreflight(request, reply, options);
       if (authError) return authError;
@@ -286,10 +291,12 @@ export function registerBillingAdminRoutes(
         return sendBillingError(request, reply, invalidRequest("Configured provider, external_user_id and verified phone are required."));
       }
       try {
+        markIdentityFacts(request, { stage: "identity_resolution" });
         const result = options.externalIdentityStore.resolveExternalSubject({
           provider: options.externalIdentityProvider, externalUserId: body.external_user_id,
           phone: body.phone, requestId: request.id, now: billingNow(options)
         }, linkedPhoneOptions(options, request.id));
+        markIdentityFacts(request, { subjectId: result.subject?.id, resolvedPhone: result.subject?.phoneNumber });
         return billingSecurityHeaders(reply).send({
           status: result.status,
           subject: result.subject ? { id: result.subject.id, state: result.subject.state } : null,
@@ -303,7 +310,7 @@ export function registerBillingAdminRoutes(
 
   app.post<{ Body: unknown }>(
     "/gateway/admin/billing/v1/subjects",
-    billingRouteOptions(),
+    billingRouteOptions("subject_create"),
     async (request, reply) => {
       const authError = billingRoutePreflight(request, reply, options);
       if (authError) {
@@ -324,6 +331,7 @@ export function registerBillingAdminRoutes(
           parsed.payloadHash
         );
         if (replay) {
+          markIdentityFacts(request, { subjectId: replay.subject.id, resolvedPhone: replay.subject.phoneNumber, stage: "response" });
           return billingSecurityHeaders(reply).send(publicCreateSubjectResult(replay, null));
         }
         if (parsed.phone) {
@@ -338,12 +346,17 @@ export function registerBillingAdminRoutes(
           }
           // A single create request can coordinate its phone internally. Keep
           // existing-subject 409/query recovery and all legacy response fields.
-          options.externalIdentityStore.resolveExternalSubject({
+          markIdentityFacts(request, { stage: "identity_resolution" });
+          const resolution = options.externalIdentityStore.resolveExternalSubject({
             provider: parsed.provider, externalUserId: parsed.externalUserId,
             phone: parsed.phone, requestId: request.id, now: billingNow(options)
           }, linkedPhoneOptions(options, request.id));
+          markIdentityFacts(request, { subjectId: resolution.subject?.id, resolvedPhone: resolution.subject?.phoneNumber });
         }
-        if (options.billingStore.getBillingSubjectByExternal(parsed.provider, parsed.externalUserId)) {
+        const existing = options.billingStore.getBillingSubjectByExternal(parsed.provider, parsed.externalUserId);
+        if (existing) {
+          markIdentityFacts(request, { subjectId: existing.subject.id, resolvedPhone: existing.subject.phoneNumber,
+            reasonCode: "existing_subject", stage: "identity_resolution" });
           return sendBillingError(
             request,
             reply,
@@ -359,7 +372,9 @@ export function registerBillingAdminRoutes(
       }
 
       try {
+        markIdentityFacts(request, { stage: "provisioning" });
         const provisioned = await provisionBillingSubject(options, parsed);
+        markIdentityFacts(request, { subjectId: provisioned.result.subject.id, resolvedPhone: provisioned.result.subject.phoneNumber });
         return billingSecurityHeaders(reply).send(
           publicCreateSubjectResult(provisioned.result, provisioned.token)
         );
@@ -371,7 +386,7 @@ export function registerBillingAdminRoutes(
 
   app.get<{ Querystring: BillingSubjectQuery }>(
     "/gateway/admin/billing/v1/subjects",
-    billingRouteOptions(),
+    billingRouteOptions("subject_lookup"),
     async (request, reply) => {
       const authError = billingRoutePreflight(request, reply, options);
       if (authError) {
@@ -389,13 +404,14 @@ export function registerBillingAdminRoutes(
       if (!subject) {
         return sendBillingError(request, reply, subjectNotFound());
       }
+      markIdentityFacts(request, { subjectId: subject.subject.id, resolvedPhone: subject.subject.phoneNumber, stage: "response" });
       return billingSecurityHeaders(reply).send(publicSubjectDetails(subject));
     }
   );
 
   app.get<{ Params: { subjectId: string } }>(
     "/gateway/admin/billing/v1/subjects/:subjectId",
-    billingRouteOptions(),
+    billingRouteOptions("subject_get"),
     async (request, reply) => {
       const authError = billingRoutePreflight(request, reply, options);
       if (authError) {
@@ -408,13 +424,14 @@ export function registerBillingAdminRoutes(
       if (!subject) {
         return sendBillingError(request, reply, subjectNotFound());
       }
+      markIdentityFacts(request, { subjectId: subject.subject.id, resolvedPhone: subject.subject.phoneNumber, stage: "response" });
       return billingSecurityHeaders(reply).send(publicSubjectDetails(subject));
     }
   );
 
   app.post<{ Params: { subjectId: string }; Body: unknown }>(
     "/gateway/admin/billing/v1/subjects/:subjectId/keys",
-    billingRouteOptions(),
+    billingRouteOptions("subject_rotate"),
     async (request, reply) => {
       const authError = billingRoutePreflight(request, reply, options);
       if (authError) {
@@ -442,6 +459,7 @@ export function registerBillingAdminRoutes(
           parsed.payloadHash
         );
         if (replay) {
+          markIdentityFacts(request, { subjectId: replay.subject.id, resolvedPhone: replay.subject.phoneNumber, stage: "response" });
           return billingSecurityHeaders(reply).send(publicRotateSubjectResult(replay, null));
         }
 
@@ -449,6 +467,7 @@ export function registerBillingAdminRoutes(
         if (!subject || subject.subject.state !== "active") {
           return sendBillingError(request, reply, subjectNotFound());
         }
+        markIdentityFacts(request, { subjectId: subject.subject.id, resolvedPhone: subject.subject.phoneNumber, stage: "credential_recovery" });
         const activeUnifiedKey = options.billingStore.getBillingSubjectActiveUnifiedKey(parsed.subjectId);
         if (!activeUnifiedKey) {
           return sendBillingError(
@@ -554,7 +573,7 @@ export function registerBillingAdminRoutes(
 
   app.post<{ Params: { subjectId: string }; Body: unknown }>(
     "/gateway/admin/billing/v1/subjects/:subjectId/disable",
-    billingRouteOptions(),
+    billingRouteOptions("subject_disable"),
     async (request, reply) => {
       const authError = billingRoutePreflight(request, reply, options);
       if (authError) {
@@ -575,6 +594,7 @@ export function registerBillingAdminRoutes(
           parsed.payloadHash
         );
         if (replay && replay.upstreamV2Binding?.state !== "pending") {
+          markIdentityFacts(request, { subjectId: replay.subject.id, resolvedPhone: replay.subject.phoneNumber, stage: "response" });
           return billingSecurityHeaders(reply).send(publicDisableSubjectResult(replay));
         }
 
@@ -582,6 +602,7 @@ export function registerBillingAdminRoutes(
         if (!subject) {
           return sendBillingError(request, reply, subjectNotFound());
         }
+        markIdentityFacts(request, { subjectId: subject.subject.id, resolvedPhone: subject.subject.phoneNumber });
         if (subject.upstreamV2Binding?.v2UserId && !options.upstreamV2Client) {
           return sendBillingError(request, reply, serviceUnavailable("MedEvidence v2 provisioning is not configured."));
         }
@@ -857,11 +878,12 @@ export function registerBillingAdminRoutes(
   );
 
   app.get<{ Params: { provider: string; externalUserId: string } }>(
-    "/gateway/admin/billing/v1/subject-registrations/:provider/:externalUserId", billingRouteOptions(), async (request, reply) => {
+    "/gateway/admin/billing/v1/subject-registrations/:provider/:externalUserId", billingRouteOptions("registration_get"), async (request, reply) => {
       const authError = billingRoutePreflight(request, reply, options);
       if (authError) return authError;
       const record = options.externalIdentityStore?.getExternalSubjectRegistration(request.params);
       if (!record) return sendBillingError(request, reply, subjectNotFound());
+      markIdentityFacts(request, { subjectId: record.subjectId, resolvedPhone: record.phone, stage: "response" });
       return billingSecurityHeaders(reply).send({
         provider: record.provider, external_user_id: record.externalUserId, phone_tail: record.phone.slice(-4),
         state: record.state, subject_id: record.subjectId, idempotency_key: record.idempotencyKey,
@@ -874,7 +896,7 @@ export function registerBillingAdminRoutes(
     });
 
   app.post<{ Params: { provider: string; externalUserId: string }; Body: unknown }>(
-    "/gateway/admin/billing/v1/subject-registrations/:provider/:externalUserId/retry-disable", billingRouteOptions(), async (request, reply) => {
+    "/gateway/admin/billing/v1/subject-registrations/:provider/:externalUserId/retry-disable", billingRouteOptions("registration_retry_disable"), async (request, reply) => {
       const authError = billingRoutePreflight(request, reply, options);
       if (authError) return authError;
       const store = options.externalIdentityStore;
@@ -882,6 +904,7 @@ export function registerBillingAdminRoutes(
       const body = objectBody(request.body);
       if (body instanceof GatewayError) return sendBillingError(request, reply, body);
       const record = store.getExternalSubjectRegistration(request.params);
+      if (record) markIdentityFacts(request, { subjectId: record.subjectId, resolvedPhone: record.phone });
       if (!record?.idempotencyKey || !record.payloadHash || !record.upstreamUserId || !record.upstreamKeyId) {
         return sendBillingError(request, reply, invalidRequest("Recorded upstream identifiers are required; historical records need manual reconciliation."));
       }
@@ -950,7 +973,7 @@ export function registerBillingAdminRoutes(
 
   app.post<{ Body: unknown }>(
     "/gateway/admin/billing/v1/real-user-issue",
-    billingRouteOptions(),
+    billingRouteOptions("issuance_create"),
     async (request, reply) => {
       const authError = billingRoutePreflight(request, reply, options);
       if (authError) {
@@ -997,6 +1020,7 @@ export function registerBillingAdminRoutes(
       // takes tens of seconds, far longer than a request should stay open.
       launchIssuance(job.id, ready.publicBaseUrl, "resume");
 
+      markIdentityFacts(request, { jobId: job.id, stage: "response" });
       reply.code(202);
       return billingSecurityHeaders(reply).send(publicRealUserIssueJob(job, { includeKey: false }));
     }
@@ -1004,7 +1028,7 @@ export function registerBillingAdminRoutes(
 
   app.get<{ Params: { jobId: string } }>(
     "/gateway/admin/billing/v1/real-user-issue/:jobId",
-    billingRouteOptions(),
+    billingRouteOptions("issuance_get"),
     async (request, reply) => {
       const authError = billingRoutePreflight(request, reply, options);
       if (authError) {
@@ -1023,6 +1047,7 @@ export function registerBillingAdminRoutes(
         );
       }
       // The full key is only ever handed back to the token that started the job.
+      markIdentityFacts(request, { jobId: job.id, subjectId: job.subjectId, stage: "response" });
       const includeKey = job.actorTokenPrefix === billingActorTokenPrefix(request);
       return billingSecurityHeaders(reply).send(publicRealUserIssueJob(job, { includeKey }));
     }
@@ -1030,7 +1055,7 @@ export function registerBillingAdminRoutes(
 
   for (const action of ["resume", "retry-disable"] as const) {
     app.post<{ Params: { jobId: string }; Body: { acknowledge_review?: boolean } | undefined }>(`/gateway/admin/billing/v1/real-user-issue/:jobId/${action}`,
-      billingRouteOptions(), async (request, reply) => {
+      billingRouteOptions(action === "resume" ? "issuance_resume" : "issuance_retry_disable"), async (request, reply) => {
         const authError = billingRoutePreflight(request, reply, options);
         if (authError) return authError;
         const ready = realUserIssueReadiness(options);
@@ -1040,6 +1065,7 @@ export function registerBillingAdminRoutes(
           return sendBillingError(request, reply, new GatewayError({ code: "issue_job_not_found", message: "Issuance task not found for this operator.", httpStatus: 404 }));
         }
         if (!realUserIssueJobs.durable || !job.input) return sendBillingError(request, reply, serviceUnavailable("This task has no recoverable original input."));
+        markIdentityFacts(request, { jobId: job.id, subjectId: job.subjectId });
         try {
           realUserIssueJobs.acquire(job.id, action, request.body?.acknowledge_review === true);
           recordRealUserIssueAudit(options, {
@@ -1100,9 +1126,10 @@ export function registerBillingAdminRoutes(
   );
 }
 
-function billingRouteOptions() {
+function billingRouteOptions(identityAuditOperation?: IdentityAuditOperation) {
   return {
     config: {
+      identityAuditOperation,
       public: true,
       skipRateLimit: true,
       skipObservation: true
@@ -1133,6 +1160,7 @@ function billingRoutePreflight(
   if (authError) {
     return sendBillingError(request, reply, authError);
   }
+  captureIdentityInput(request);
   if (options.rateLimiter && options.ratePolicy) {
     const permit = options.rateLimiter.acquire({
       credentialId: "billing-admin",
@@ -3466,6 +3494,7 @@ function sendBillingError(
   reply: FastifyReply,
   error: GatewayError
 ): FastifyReply {
+  markGatewayError(request, error);
   return billingSecurityHeaders(reply).code(error.httpStatus).send({
     error: {
       code: error.code,

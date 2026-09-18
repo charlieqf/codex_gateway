@@ -14,6 +14,8 @@ import { migrateGatewaySchema } from "./migrations.js";
 import * as plansStore from "./plans.js";
 import * as phoneAuthStore from "./phone-auth.js";
 import * as requestEvents from "./request-events.js";
+import * as identityAudit from "./identity-request-audit.js";
+import type { IdentityRequestAuditStore, IdentityRequestEvent, IdentityRateLimitEvent } from "@codex-gateway/core";
 import * as sessionsStore from "./sessions.js";
 import {
   openConfiguredSqliteDatabase,
@@ -94,7 +96,7 @@ import {
 
 export type { SqliteStoreLogger, SqliteStoreOptions, UpdateSubjectInput } from "./types.js";
 
-export class SqliteGatewayStore implements GatewayStore {
+export class SqliteGatewayStore implements GatewayStore, IdentityRequestAuditStore {
   readonly kind = "sqlite";
   readonly path: string;
   private readonly db: DatabaseSync;
@@ -110,6 +112,18 @@ export class SqliteGatewayStore implements GatewayStore {
 
   get database(): DatabaseSync {
     return this.db;
+  }
+
+  recordIdentityRequestEvent(event: IdentityRequestEvent): void {
+    identityAudit.recordRequest(this.db, event);
+  }
+
+  recordIdentityRateLimit(event: IdentityRateLimitEvent): void {
+    identityAudit.recordRateLimit(this.db, event);
+  }
+
+  pruneIdentityRequestAudit(now: Date, batchSize?: number) {
+    return identityAudit.prune(this.db, now, batchSize);
   }
 
   upsertSubject(subject: Subject): void {
@@ -246,10 +260,6 @@ export class SqliteGatewayStore implements GatewayStore {
     audit: PhoneAuthAuditInput
   ): PhoneAuthSession | null {
     return phoneAuthStore.revokeSession(this.db, id, audit);
-  }
-
-  recordPhoneAuthAudit(input: PhoneAuthAuditInput): void {
-    phoneAuthStore.recordAudit(this.db, input);
   }
 
   insertBillingAdminToken(record: BillingAdminTokenRecord): BillingAdminTokenRecord {

@@ -459,7 +459,7 @@ describe("Billing phone-account coordination and key lifecycle", () => {
     expect((await f.create("21")).json().error.code).toBe("subject_already_exists");
     expect(f.createUser).not.toHaveBeenCalled();
     const session = f.phoneAuth.login({phone:"13800138000",deviceId:"linked-old-device",requestId:"linked-old-login"});
-    expect(f.phoneAuth.bootstrap(session.access_token,"linked-old-bootstrap").unified_key.key).toBe(old.unified.token);
+    expect(f.phoneAuth.bootstrap(session.response.access_token).response.unified_key.key).toBe(old.unified.token);
   });
 
   it("enrolls a legacy Billing subject atomically and preserves keys, entitlement snapshots and usage", async () => {
@@ -495,7 +495,7 @@ describe("Billing phone-account coordination and key lifecycle", () => {
     expect(f.store.getPhoneAuthIdentityBySubjectId(subject.id)).toEqual(identity);
     expect(f.store.database.prepare("SELECT * FROM phone_auth_audit_events WHERE subject_id=? ORDER BY id").all(subject.id)).toEqual(audit);
     const session = f.phoneAuth.login({phone:"13800138000",deviceId:"legacy-recovered-device",requestId:"legacy-recovered-login"});
-    expect(f.phoneAuth.bootstrap(session.access_token,"legacy-recovered-bootstrap").unified_key.key).toBe(credential.key);
+    expect(f.phoneAuth.bootstrap(session.response.access_token).response.unified_key.key).toBe(credential.key);
     expect(f.createUser).toHaveBeenCalledTimes(1);
   });
 
@@ -508,7 +508,7 @@ describe("Billing phone-account coordination and key lifecycle", () => {
     expect(result.statusCode).toBe(409);
     expect(result.json().error.code).toBe("subject_already_exists");
     const session = f.phoneAuth.login({phone:"13800138000",deviceId:"direct-device",requestId:"direct-login"});
-    expect(f.phoneAuth.bootstrap(session.access_token,"direct-bootstrap").unified_key.key).toBe(credential.key);
+    expect(f.phoneAuth.bootstrap(session.response.access_token).response.unified_key.key).toBe(credential.key);
     expect(f.store.listSubjects()).toHaveLength(1);
     expect(f.createUser).toHaveBeenCalledTimes(1);
     expect((await f.create("legacy-direct","signup:legacy-direct","13800138000")).json().error.code).toBe("idempotency_conflict");
@@ -643,7 +643,7 @@ describe("Billing phone-account coordination and key lifecycle", () => {
     expect(grants[0]).toMatchObject({ planId: phoneSignupFreePlanId, periodKind: "unlimited", periodEnd: null,
       policySnapshot: { tokensPerDay: null, tokensPerMonth: null, tokensTotal: 1_000_000 }, state: "active" });
     const session = f.phoneAuth.login({ phone: "13800138000", deviceId: "sms-desktop-test-device", requestId: "login" });
-    expect(f.phoneAuth.bootstrap(session.access_token, "bootstrap").unified_key.key).toBe(credential.key);
+    expect(f.phoneAuth.bootstrap(session.response.access_token).response.unified_key.key).toBe(credential.key);
     expect(f.store.listUnifiedClientKeys({ subjectId: subject.id })).toEqual([current]);
     const replay = await f.create("22");
     expect(replay.json()).toMatchObject({ idempotent_replay: true, subject: { id: subject.id } });
@@ -705,7 +705,7 @@ describe("Billing phone-account coordination and key lifecycle", () => {
     expect(f.store.listEntitlements({ subjectId, state: "cancelled" })[0]?.planId).toBe(phoneSignupFreePlanId);
     expect((await f.create("22")).json().idempotent_replay).toBe(true);
     const session = f.phoneAuth.login({ phone: "13800138000", deviceId: "paid-desktop-test-device", requestId: "paid-login" });
-    expect(f.phoneAuth.bootstrap(session.access_token, "paid-bootstrap").unified_key.key).toBe(created.credential.key);
+    expect(f.phoneAuth.bootstrap(session.response.access_token).response.unified_key.key).toBe(created.credential.key);
     expect(f.store.listEntitlements({ subjectId, state: "active" })[0]?.planId).toBe("plan_test");
   });
 
@@ -732,7 +732,7 @@ describe("Billing phone-account coordination and key lifecycle", () => {
     }
     expect((await f.create("22")).json().idempotent_replay).toBe(true);
     const session = f.phoneAuth.login({ phone: "13800138000", deviceId: "second-desktop-device", requestId: "relogin" });
-    expect(session.subject.id).toBe(subjectId);
+    expect(session.response.subject.id).toBe(subjectId);
     const rotated = await f.app.inject({ method: "POST", url: `/gateway/admin/billing/v1/subjects/${subjectId}/keys`,
       headers: { authorization: `Bearer ${adminToken}`, "idempotency-key": "signup-budget-rotate" },
       payload: { revoke_previous: true, grace_period_seconds: 0 } });
@@ -798,7 +798,7 @@ describe("Billing phone-account coordination and key lifecycle", () => {
     expect(grants).toHaveLength(1);
     expect(grants[0]).toMatchObject({ planId: phoneSignupFreePlanId, policySnapshot: { tokensTotal: 1_000_000, tokensPerDay: null }, state: "active" });
     const session = f.phoneAuth.login({ phone: "13800138000", deviceId: "direct-phone-test-device", requestId: "login-direct" });
-    expect(f.phoneAuth.bootstrap(session.access_token, "bootstrap-direct").unified_key.key).toBe(credential.key);
+    expect(f.phoneAuth.bootstrap(session.response.access_token).response.unified_key.key).toBe(credential.key);
     const replay = (await f.create("22", "direct:22", "13800138000")).json();
     expect(replay.idempotent_replay).toBe(true);
     expect(replay.credential.key).toBeUndefined();

@@ -11,6 +11,7 @@ import type {
   TokenUsage
 } from "@codex-gateway/core";
 import { summarizeUpstreamAttemptPurposes } from "@codex-gateway/core";
+import { markIdentityFacts } from "./identity-request-audit.js";
 
 export function startObservation(request: FastifyRequest): void {
   request.gatewayObservationStartedAt = new Date();
@@ -18,6 +19,7 @@ export function startObservation(request: FastifyRequest): void {
 
 export function markGatewayError(request: FastifyRequest, error: GatewayError): void {
   request.gatewayErrorCode = error.code;
+  if (error.identityFailure) markIdentityFacts(request, error.identityFailure);
   if (error.providerFailure) {
     request.gatewayProviderFailure = error.providerFailure;
   }

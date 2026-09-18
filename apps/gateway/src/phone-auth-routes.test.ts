@@ -832,7 +832,7 @@ describe("internal phone auth v1 routes", () => {
     }
   });
 
-  it("rate limits login by phone hash without auditing the raw phone", async () => {
+  it("rate limits by phone hash and records only bounded private minute samples", async () => {
     const fixture = createFixture({ phoneRequestsPerMinute: 1 });
     try {
       await fixture.app.inject({
@@ -871,8 +871,11 @@ describe("internal phone auth v1 routes", () => {
           )
           .all()
       );
-      expect(audit).toContain("hmac-sha256:");
-      expect(audit).not.toContain("13800138000");
+      expect(audit).toBe("[]");
+      const minutes = fixture.store.database.prepare("SELECT rejection_count,limit_dimension,first_phone_input FROM identity_rate_limit_minutes").all();
+      expect(minutes).toEqual([{ rejection_count: 1, limit_dimension: "phone", first_phone_input: "13800138000" }]);
+      const security = JSON.stringify(fixture.store.database.prepare("SELECT * FROM phone_auth_audit_events").all());
+      expect(security).not.toContain("13800138000");
     } finally {
       await fixture.app.close();
     }

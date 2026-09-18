@@ -34,7 +34,7 @@ describe("PhoneAuthService", () => {
       deviceId: "desktop-device-example-01",
       requestId: "req_login"
     });
-    expect(login).toMatchObject({
+    expect(login.response).toMatchObject({
       status: "authenticated",
       auth_method: "transition_phone_only",
       expires_in_seconds: 900,
@@ -42,13 +42,13 @@ describe("PhoneAuthService", () => {
       subject: { id: fixture.subjectId, state: "active" }
     });
     const accessPayload = JSON.parse(
-      Buffer.from(login.access_token.split(".")[1]!, "base64url").toString("utf8")
+      Buffer.from(login.response.access_token.split(".")[1]!, "base64url").toString("utf8")
     ) as Record<string, unknown>;
     expect(accessPayload.nbf).toBe(accessPayload.iat);
 
-    const bootstrap = fixture.service.bootstrap(login.access_token, "req_bootstrap");
-    const account = fixture.service.accountCurrent(login.access_token, "req_account");
-    expect(bootstrap).toMatchObject({
+    const bootstrap = fixture.service.bootstrap(login.response.access_token);
+    const account = fixture.service.accountCurrent(login.response.access_token);
+    expect(bootstrap.response).toMatchObject({
       subject: { id: fixture.subjectId },
       unified_key: {
         key: fixture.unified.token,
@@ -58,13 +58,13 @@ describe("PhoneAuthService", () => {
       resolver_url: `${phoneAuthGatewayOrigin}/gateway/unified-keys/resolve`,
       account_url: `${phoneAuthGatewayOrigin}/gateway/account/v1/current`
     });
-    expect(account).toMatchObject({
+    expect(account.response).toMatchObject({
       subject: { id: fixture.subjectId },
       identity: { kind: "internal", plan_id: "plan_internal" },
       token_wallet: null,
       image_credits: null
     });
-    expect(account.capabilities).toContain("chat");
+    expect(account.response.capabilities).toContain("chat");
     const auditText = JSON.stringify(
       fixture.store.database
         .prepare("SELECT * FROM phone_auth_audit_events ORDER BY created_at")
@@ -75,8 +75,8 @@ describe("PhoneAuthService", () => {
         "13800138000",
         "desktop-device-example-01",
         fixture.unified.token,
-        login.access_token,
-        login.refresh_token
+        login.response.access_token,
+        login.response.refresh_token
       ].some((sensitiveValue) => auditText.includes(sensitiveValue))
     ).toBe(false);
     fixture.store.close();
@@ -97,27 +97,27 @@ describe("PhoneAuthService", () => {
     });
     fixture.setNow(new Date("2026-08-21T00:00:00.000Z"));
     const refreshed = fixture.service.refresh({
-      refreshToken: login.refresh_token,
+      refreshToken: login.response.refresh_token,
       deviceId: "desktop-device-example-01",
       requestId: "req_refresh"
     });
-    expect(refreshed.refresh_token).not.toBe(login.refresh_token);
+    expect(refreshed.response.refresh_token).not.toBe(login.response.refresh_token);
     expect(() =>
       fixture.service.refresh({
-        refreshToken: login.refresh_token,
+        refreshToken: login.response.refresh_token,
         deviceId: "desktop-device-example-01",
         requestId: "req_replay"
       })
     ).toThrowError(expect.objectContaining({ code: "refresh_token_invalid" }));
     expect(() =>
       fixture.service.refresh({
-        refreshToken: refreshed.refresh_token,
+        refreshToken: refreshed.response.refresh_token,
         deviceId: "desktop-device-example-01",
         requestId: "req_after_replay"
       })
     ).toThrowError(expect.objectContaining({ code: "refresh_token_invalid" }));
     expect(() =>
-      fixture.service.bootstrap(refreshed.access_token, "req_bootstrap")
+      fixture.service.bootstrap(refreshed.response.access_token)
     ).toThrowError(expect.objectContaining({ code: "access_token_invalid" }));
     fixture.store.close();
   });
@@ -135,10 +135,10 @@ describe("PhoneAuthService", () => {
       deviceId: "desktop-device-example-01",
       requestId: "req_login"
     });
-    expect(() => fixture.service.logout(login.access_token, "req_logout_1")).not.toThrow();
-    expect(() => fixture.service.logout(login.access_token, "req_logout_2")).not.toThrow();
+    expect(() => fixture.service.logout(login.response.access_token, "req_logout_1")).not.toThrow();
+    expect(() => fixture.service.logout(login.response.access_token, "req_logout_2")).not.toThrow();
     expect(() =>
-      fixture.service.bootstrap(login.access_token, "req_bootstrap")
+      fixture.service.bootstrap(login.response.access_token)
     ).toThrowError(expect.objectContaining({ code: "access_token_invalid" }));
     fixture.store.close();
   });
@@ -159,19 +159,19 @@ describe("PhoneAuthService", () => {
       requestId: "req_replay_login"
     });
     const refreshed = fixture.service.refresh({
-      refreshToken: replayLogin.refresh_token,
+      refreshToken: replayLogin.response.refresh_token,
       deviceId: "desktop-device-example-01",
       requestId: "req_refresh"
     });
     expect(() =>
       fixture.service.refresh({
-        refreshToken: replayLogin.refresh_token,
+        refreshToken: replayLogin.response.refresh_token,
         deviceId: "desktop-device-example-01",
         requestId: "req_replay"
       })
     ).toThrowError(expect.objectContaining({ code: "refresh_token_invalid" }));
     expect(() =>
-      fixture.service.bootstrap(refreshed.access_token, "req_replayed_session")
+      fixture.service.bootstrap(refreshed.response.access_token)
     ).toThrowError(expect.objectContaining({ code: "access_token_invalid" }));
     expect(accountInvariantSnapshot(fixture.store.database)).toEqual(before);
 
@@ -180,7 +180,7 @@ describe("PhoneAuthService", () => {
       deviceId: "desktop-device-example-02",
       requestId: "req_logout_login"
     });
-    fixture.service.logout(logoutLogin.access_token, "req_logout");
+    fixture.service.logout(logoutLogin.response.access_token, "req_logout");
     expect(accountInvariantSnapshot(fixture.store.database)).toEqual(before);
 
     const disabledLogin = fixture.service.login({
@@ -190,7 +190,7 @@ describe("PhoneAuthService", () => {
     });
     fixture.service.setIdentityState(fixture.subjectId, "disabled", "req_disable");
     expect(() =>
-      fixture.service.bootstrap(disabledLogin.access_token, "req_disabled_session")
+      fixture.service.bootstrap(disabledLogin.response.access_token)
     ).toThrowError(expect.objectContaining({ code: "access_token_invalid" }));
     expect(() =>
       fixture.service.login({

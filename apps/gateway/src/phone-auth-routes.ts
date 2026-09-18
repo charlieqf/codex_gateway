@@ -12,7 +12,8 @@ import {
   sendDesktopVersionGateError,
   type DesktopVersionGate
 } from "./desktop-version-gate.js";
-import { markGatewayError } from "./http/observation.js";
+import { markGatewayError, markRateLimitRejection } from "./http/observation.js";
+import { captureIdentityInput, markIdentityFacts } from "./http/identity-request-audit.js";
 import type { CredentialRateLimiter } from "./services/rate-limiter.js";
 import type { PhoneAuthService } from "./services/phone-auth-service.js";
 
@@ -47,7 +48,7 @@ export function registerPhoneAuthRoutes(
   app.post<{ Body: unknown }>(
     "/gateway/auth/v1/login/start",
     {
-      config: routeConfig,
+      config: { ...routeConfig, identityAuditOperation: "phone_login" },
       bodyLimit: 4_096,
       errorHandler: phoneAuthContractErrorHandler
     },
@@ -78,19 +79,16 @@ export function registerPhoneAuthRoutes(
         options
       );
       if (permits instanceof GatewayError) {
-        try {
-          service.recordLoginRateLimit(phoneHash, request.id);
-        } catch (error) {
-          return sendPhoneAuthFailure(request, reply, error);
-        }
         return sendPhoneAuthError(request, reply, permits);
       }
       try {
-        return service.login({
+        const result = service.login({
           phone: body.phone,
           deviceId: body.deviceId,
           requestId: request.id
         });
+        markIdentityFacts(request, result.identity);
+        return result.response;
       } catch (error) {
         return sendPhoneAuthFailure(request, reply, error);
       } finally {
@@ -102,7 +100,7 @@ export function registerPhoneAuthRoutes(
   app.post<{ Body: unknown }>(
     "/gateway/auth/v1/token/refresh",
     {
-      config: routeConfig,
+      config: { ...routeConfig, identityAuditOperation: "phone_refresh" },
       bodyLimit: 4_096,
       errorHandler: phoneAuthContractErrorHandler
     },
@@ -120,11 +118,13 @@ export function registerPhoneAuthRoutes(
         return sendPhoneAuthError(request, reply, phoneAuthUnavailable());
       }
       try {
-        return service.refresh({
+        const result = service.refresh({
           refreshToken: body.refreshToken,
           deviceId: body.deviceId,
           requestId: request.id
         });
+        markIdentityFacts(request, result.identity);
+        return result.response;
       } catch (error) {
         return sendPhoneAuthFailure(request, reply, error);
       }
@@ -134,7 +134,7 @@ export function registerPhoneAuthRoutes(
   app.post<{ Body: unknown }>(
     "/gateway/auth/v1/logout",
     {
-      config: routeConfig,
+      config: { ...routeConfig, identityAuditOperation: "phone_logout" },
       bodyLimit: 128,
       errorHandler: phoneAuthContractErrorHandler
     },
@@ -156,7 +156,7 @@ export function registerPhoneAuthRoutes(
         return sendPhoneAuthError(request, reply, phoneAuthUnavailable());
       }
       try {
-        service.logout(token, request.id);
+        markIdentityFacts(request, service.logout(token, request.id));
         return reply.code(204).send();
       } catch (error) {
         return sendPhoneAuthFailure(request, reply, error);
@@ -167,7 +167,7 @@ export function registerPhoneAuthRoutes(
   app.post<{ Body: unknown }>(
     "/gateway/auth/v1/session/bootstrap",
     {
-      config: routeConfig,
+      config: { ...routeConfig, identityAuditOperation: "phone_bootstrap" },
       bodyLimit: 128,
       errorHandler: phoneAuthContractErrorHandler
     },
@@ -189,7 +189,9 @@ export function registerPhoneAuthRoutes(
         return sendPhoneAuthError(request, reply, phoneAuthUnavailable());
       }
       try {
-        return service.bootstrap(token, request.id);
+        const result = service.bootstrap(token);
+        markIdentityFacts(request, result.identity);
+        return result.response;
       } catch (error) {
         return sendPhoneAuthFailure(request, reply, error);
       }
@@ -198,7 +200,7 @@ export function registerPhoneAuthRoutes(
 
   app.get(
     "/gateway/account/v1/current",
-    { config: routeConfig, errorHandler: phoneAuthContractErrorHandler },
+    { config: { ...routeConfig, identityAuditOperation: "phone_account" }, errorHandler: phoneAuthContractErrorHandler },
     async (request, reply) => {
       const preflight = phoneAuthPreflight(request, reply, options);
       if (preflight) {
@@ -213,7 +215,9 @@ export function registerPhoneAuthRoutes(
         return sendPhoneAuthError(request, reply, phoneAuthUnavailable());
       }
       try {
-        return service.accountCurrent(token, request.id);
+        const result = service.accountCurrent(token);
+        markIdentityFacts(request, result.identity);
+        return result.response;
       } catch (error) {
         return sendPhoneAuthFailure(request, reply, error);
       }
@@ -266,9 +270,9 @@ function phoneAuthPreflight(
 ): FastifyReply | null {
   applyPrivateResponseHeaders(reply);
   const gateError = desktopVersionGateError(request, options.versionGate);
-  return gateError
-    ? sendDesktopVersionGateError(request, reply, options.versionGate, gateError)
-    : null;
+  if (gateError) return sendDesktopVersionGateError(request, reply, options.versionGate, gateError);
+  captureIdentityInput(request);
+  return null;
 }
 
 function parseLoginBody(value: unknown): LoginBody | GatewayError {
@@ -354,6 +358,8 @@ function acquireLoginPermits(
     policy: loginPolicy(options.phoneRequestsPerMinute)
   });
   if (!("release" in phonePermit)) {
+    markRateLimitRejection(request, phonePermit);
+    if (request.gatewayIdentityAudit) request.gatewayIdentityAudit.limitDimension = "phone";
     return authRateLimited(phonePermit.error.retryAfterSeconds ?? 60);
   }
   const ipHash = createHash("sha256").update(request.ip).digest("base64url");
@@ -362,6 +368,8 @@ function acquireLoginPermits(
     policy: loginPolicy(options.ipRequestsPerMinute)
   });
   if (!("release" in ipPermit)) {
+    markRateLimitRejection(request, ipPermit);
+    if (request.gatewayIdentityAudit) request.gatewayIdentityAudit.limitDimension = "ip";
     phonePermit.release();
     return authRateLimited(ipPermit.error.retryAfterSeconds ?? 60);
   }
@@ -371,6 +379,8 @@ function acquireLoginPermits(
     policy: loginPolicy(options.deviceRequestsPerMinute)
   });
   if (!("release" in devicePermit)) {
+    markRateLimitRejection(request, devicePermit);
+    if (request.gatewayIdentityAudit) request.gatewayIdentityAudit.limitDimension = "device";
     phonePermit.release();
     ipPermit.release();
     return authRateLimited(devicePermit.error.retryAfterSeconds ?? 60);

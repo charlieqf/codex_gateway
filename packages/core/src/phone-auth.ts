@@ -115,7 +115,6 @@ export interface PhoneAuthStore {
     input: RotatePhoneAuthRefreshTokenInput
   ): RotatePhoneAuthRefreshTokenResult;
   revokePhoneAuthSession(id: string, audit: PhoneAuthAuditInput): PhoneAuthSession | null;
-  recordPhoneAuthAudit(input: PhoneAuthAuditInput): void;
 }
 
 export interface PhoneAuthSubjectSnapshot {

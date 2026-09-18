@@ -19,6 +19,8 @@ import type {
 } from "@codex-gateway/core";
 import type { ClientDisconnectHandle } from "./client-disconnect.js";
 import type { VisionRequestRecovery } from "../services/vision-request-recovery.js";
+import type { IdentityAuditOperation } from "@codex-gateway/core";
+import type { IdentityRequestAuditContext } from "./identity-request-audit.js";
 
 export type GatewayResponseDialect = "gateway" | "openai" | "research";
 
@@ -44,6 +46,7 @@ export type GatewayRequest = FastifyRequest & {
 
 declare module "fastify" {
   interface FastifyContextConfig {
+    identityAuditOperation?: IdentityAuditOperation;
     public?: boolean;
     skipAuth?: boolean;
     skipRateLimit?: boolean;
@@ -52,6 +55,7 @@ declare module "fastify" {
   }
 
   interface FastifyRequest {
+    gatewayIdentityAudit?: IdentityRequestAuditContext;
     gatewayContext?: GatewayRequestContext;
     gatewayClientDisconnect?: ClientDisconnectHandle;
     gatewayRateLimitRelease?: () => void;

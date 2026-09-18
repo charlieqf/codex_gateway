@@ -10,6 +10,10 @@ import * as credentials from '/app/packages/store-sqlite/dist/access-credentials
 const db = new DatabaseSync('/var/lib/codex-gateway/gateway.db', { readOnly: true });
 db.exec('PRAGMA query_only=ON; BEGIN');
 const now = new Date();
+const hasIdentityAudit = Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='identity_request_events'").get());
+const latestLogin = hasIdentityAudit
+  ? db.prepare("SELECT request_id,operation,outcome,reason_code,completed_at FROM identity_request_events WHERE subject_id=? AND operation='phone_login' ORDER BY completed_at DESC,request_id DESC LIMIT 1")
+  : db.prepare("SELECT action,outcome,reason_code,created_at FROM phone_auth_audit_events WHERE subject_id=? AND action='login' ORDER BY created_at DESC LIMIT 1");
 const reachedEntitlement = Symbol('identity-and-runtime-checks-passed');
 const readStore = {
   getSubject: id => subjects.get(db, id),
@@ -50,9 +54,12 @@ for (const { subject_id } of rows) {
       key: key ? {expires_at:key.expiresAt, revoked_at:key.revokedAt, is_current:key.isCurrent, credential_class:key.credentialClass, recoverable:Boolean(key.tokenCiphertext)} : null,
       backing_credential: credential ? {expires_at:credential.expiresAt, revoked_at:credential.revokedAt, scope:credential.scope, credential_class:credential.credentialClass} : null,
       entitlements: db.prepare('SELECT plan_id,state,period_start,period_end FROM entitlements WHERE subject_id=? ORDER BY created_at DESC LIMIT 3').all(subject_id),
-      latest_login: db.prepare("SELECT action,outcome,reason_code,created_at FROM phone_auth_audit_events WHERE subject_id=? AND action='login' ORDER BY created_at DESC LIMIT 1").get(subject_id) ?? null
+      latest_login: { source: hasIdentityAudit ? 'identity_http_requests' : 'legacy_security_events', event: latestLogin.get(subject_id) ?? null }
     });
   }
 }
-console.log(JSON.stringify({inspected_at_utc:now.toISOString(), active_identities_checked:rows.length, counts, problems, limit:'Deployed identity and runtime readiness checks only; entitlement evaluation is deliberately not executed because it may write state transitions. No login sessions created.'}));
+console.log(JSON.stringify({inspected_at_utc:now.toISOString(), active_identities_checked:rows.length, counts, problems,
+  identity_audit_source: hasIdentityAudit ? 'identity_http_requests' : 'legacy_security_events',
+  coverage_note: 'Missing observations do not prove no failures; check cutover/restart/write-failure gaps. Legacy session creation is not final HTTP success.',
+  limit:'Deployed identity and runtime readiness checks only; entitlement evaluation is deliberately not executed because it may write state transitions. No login sessions created.'}));
 db.exec('ROLLBACK'); db.close();

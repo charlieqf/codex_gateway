@@ -8,6 +8,7 @@ import {
   type GatewaySession,
   type GatewayStore,
   type ObservationStore,
+  type IdentityRequestAuditStore,
   type PhoneAuthStore,
   type PlanEntitlementStore,
   type Subject,
@@ -269,9 +270,15 @@ export function isPhoneAuthStore(
     typeof candidate.createPhoneAuthSession === "function" &&
     typeof candidate.getPhoneAuthSession === "function" &&
     typeof candidate.rotatePhoneAuthRefreshToken === "function" &&
-    typeof candidate.revokePhoneAuthSession === "function" &&
-    typeof candidate.recordPhoneAuthAudit === "function"
+    typeof candidate.revokePhoneAuthSession === "function"
   );
+}
+
+export function isIdentityRequestAuditStore(store: GatewayStore): store is GatewayStore & IdentityRequestAuditStore {
+  const candidate = store as Partial<IdentityRequestAuditStore>;
+  return typeof candidate.recordIdentityRequestEvent === "function" &&
+    typeof candidate.recordIdentityRateLimit === "function" &&
+    typeof candidate.pruneIdentityRequestAudit === "function";
 }
 
 export function isExternalIdentityStore(store: GatewayStore): store is GatewayStore & ExternalIdentityStore {
