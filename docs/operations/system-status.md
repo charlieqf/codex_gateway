@@ -1,6 +1,6 @@
 # System Status
 
-Last verified: 2026-09-18 08:39 UTC (18:39 Sydney): identity HTTP audit, schema 34, public 409/query recovery, phone lifecycle, rate-limit aggregation, model/upgrade checks and synthetic cleanup. Existing control rows were preserved; all three databases and six runtime containers passed checks. Read-only readiness: 300/300 active Phone identities ready, with no duplicate-phone groups.
+Last verified: 2026-09-20 03:52 UTC (13:52 Sydney): independent image read-URL budgets, schema 34, 204 public HTTP response assertions and one cancellation passed; synthetic cleanup completed. All three databases and six runtime containers passed checks; 3,715 existing control records were unchanged. Phone readiness was last checked on 2026-09-18: 300/300 active identities ready, with no duplicate-phone groups.
 
 xAI proxy routing additionally verified 2026-09-14 03:03 UTC: dedicated
 `api.x.ai -> XAI-EGRESS` priority fallback with two tested leaf nodes, xAI HEAD
@@ -24,12 +24,12 @@ history retain implementation evidence; do not append incident history here.
 
 ## Production Runtime
 
-Gateway, Compose and container health verified on 2026-09-18; local inference behavior last verified on 2026-09-06:
+Gateway activation and public health verified on 2026-09-20; local inference behavior last verified on 2026-09-06:
 
 - `current`:
-  `71689e3012e7a5092bca09ca59bdd31f4f0a1b68` (pinned runtime source committed and pushed to `main`; schema 34)
+  `4b1dc8fa4f0f5a3e9d6e97ef83dc9f2921c862c2` (pinned runtime source committed and pushed to `main`; schema 34)
 - `previous`:
-  `1a37c0ca226536b5ac8ba798fb83ba6086982daf` (old program verified against an offline schema 34 copy; retain new tables during rollback)
+  `71689e3012e7a5092bca09ca59bdd31f4f0a1b68` (same schema 34; program-only rollback preserves production data)
 - Gateway release source: `origin/main`; pin and verify its latest commit before deployment.
 - Public Gateway: healthy, published only on
   `127.0.0.1:18787->8787`
@@ -43,24 +43,32 @@ Gateway, Compose and container health verified on 2026-09-18; local inference be
   did not change. See [recovery evidence](../../artifacts/doctor-research-agent-2026-09-10/maintenance-recovery-verified-20260911.json).
 - `qwen38-fp8-local`: healthy, private container port only
 
-Gateway runs `71689e3`, schema 34, started 2026-09-18 08:35:57 UTC. Identity HTTP
-outcomes now have one final audit writer; phone/IP/device login rejections use
-fixed-cardinality minute counters. Transactional security audits, durable manual
-issuance, compensation/release safeguards and Pino operational alerts remain.
-The public response contracts are unchanged. Full phones are available only in
-controlled audit queries; raw bodies, keys and tokens are not collected.
+Gateway runs `4b1dc8f`, schema 34, started 2026-09-20 03:37:32 UTC. Only
+`POST /gateway/vision/assets/:assetId/read-url` uses the independent subject
+budget: 20 concurrent requests, 1,920 per fixed UTC minute and 80,000 per UTC day.
+Keys and sessions belonging to the same subject share this budget; ordinary
+credential counters remain separate. Cancelled refreshes retain capacity until
+their asynchronous storage work settles. These are in-memory single-process
+protection windows, cleared by restart, not billing ledgers.
 
-The pinned Linux image passed 1,477 tests (3 existing external-fixture tests
-skipped), and all 35 public acceptance checks passed, including 409 -> GET
-recovery, refresh/logout, two aggregated 429s and a 135-token GoldenCode call.
-Both synthetic accounts are disabled locally and upstream, with zero active
-credentials, keys, sessions or pending reservations. Existing control rows and
-all other service container IDs were preserved; database integrity/FKs passed.
-See the [identity audit release receipt](./r760-identity-request-audit-release-2026-09-18.zh-CN.md)
-for migration/rollback evidence, performance limits and the corrected first-run
-smoke assertion. Normal auth p95 overhead was 0.385 ms / 3.21%; attack-load tails
-were materially higher. Retention targets are 30/7 days, with bounded cleanup
-capacity of 720,000 rows per table per day, not an unlimited-load guarantee.
+The pinned Linux image passed 1,522 tests (3 existing external-fixture tests
+skipped). Public acceptance passed 204 HTTP response assertions, a client abort,
+8/20/40-refresh batches, ordinary-limit isolation and a 135-token GoldenCode call.
+All 16 synthetic public-test assets were deleted and verified absent; the earlier
+storage preflight also deleted all 40 assets. Both test subjects are disabled,
+all three credentials revoked, both entitlements cancelled, and no reservations
+remain pending. Temporary plaintext credential files were removed. See the
+[image read-URL release receipt](./r760-vision-read-url-release-2026-09-20.zh-CN.md)
+for cleanup, backup, capacity and rollback evidence. Refresh operational logs
+use route templates; Docker retains at most five 50 MB log files, not a fixed
+number of days.
+
+Identity HTTP outcomes retain one final audit writer; phone/IP/device rejections
+use fixed-cardinality minute counters. Durable manual issuance and transactional
+security audits are unchanged. The
+[identity audit release receipt](./r760-identity-request-audit-release-2026-09-18.zh-CN.md)
+records its separate validation and performance limits. Identity retention
+targets remain 30/7 days with bounded cleanup of 720,000 rows per table per day.
 
 Phone readiness reports 300/300 active identities passing identity/runtime
 checks, zero duplicate-phone groups and no new audit-write/prune errors. The
