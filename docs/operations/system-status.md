@@ -1,6 +1,6 @@
 # System Status
 
-Last verified: 2026-09-20 03:52 UTC (13:52 Sydney): independent image read-URL budgets, schema 34, 204 public HTTP response assertions and one cancellation passed; synthetic cleanup completed. All three databases and six runtime containers passed checks; 3,715 existing control records were unchanged. Phone readiness was last checked on 2026-09-18: 300/300 active identities ready, with no duplicate-phone groups.
+Last verified: 2026-09-20 04:27 UTC (14:27 Sydney): image asset request-log redaction, schema 34, all eight public request-log checks passed. All three databases and six runtime containers passed checks; 3,722 existing control records were unchanged. This smoke created no accounts, credentials or assets. Phone readiness was last checked on 2026-09-18: 300/300 active identities ready, with no duplicate-phone groups.
 
 xAI proxy routing additionally verified 2026-09-14 03:03 UTC: dedicated
 `api.x.ai -> XAI-EGRESS` priority fallback with two tested leaf nodes, xAI HEAD
@@ -27,9 +27,9 @@ history retain implementation evidence; do not append incident history here.
 Gateway activation and public health verified on 2026-09-20; local inference behavior last verified on 2026-09-06:
 
 - `current`:
-  `4b1dc8fa4f0f5a3e9d6e97ef83dc9f2921c862c2` (pinned runtime source committed and pushed to `main`; schema 34)
+  `07a650429bd828dc2390a7b747c4fd252743ccaa` (pinned runtime source committed and pushed to `main`; schema 34)
 - `previous`:
-  `71689e3012e7a5092bca09ca59bdd31f4f0a1b68` (same schema 34; program-only rollback preserves production data)
+  `4b1dc8fa4f0f5a3e9d6e97ef83dc9f2921c862c2` (same schema 34; program-only rollback preserves production data)
 - Gateway release source: `origin/main`; pin and verify its latest commit before deployment.
 - Public Gateway: healthy, published only on
   `127.0.0.1:18787->8787`
@@ -43,7 +43,7 @@ Gateway activation and public health verified on 2026-09-20; local inference beh
   did not change. See [recovery evidence](../../artifacts/doctor-research-agent-2026-09-10/maintenance-recovery-verified-20260911.json).
 - `qwen38-fp8-local`: healthy, private container port only
 
-Gateway runs `4b1dc8f`, schema 34, started 2026-09-20 03:37:32 UTC. Only
+Gateway runs `07a6504`, schema 34, started 2026-09-20 04:27:05 UTC. Only
 `POST /gateway/vision/assets/:assetId/read-url` uses the independent subject
 budget: 20 concurrent requests, 1,920 per fixed UTC minute and 80,000 per UTC day.
 Keys and sessions belonging to the same subject share this budget; ordinary
@@ -51,8 +51,15 @@ credential counters remain separate. Cancelled refreshes retain capacity until
 their asynchronous storage work settles. These are in-memory single-process
 protection windows, cleared by restart, not billing ledgers.
 
-The pinned Linux image passed 1,522 tests (3 existing external-fixture tests
-skipped). Public acceptance passed 204 HTTP response assertions, a client abort,
+The pinned Linux image passed 1,535 tests (3 existing external-fixture tests
+skipped). Root request logging now redacts asset identifiers, queries and unknown
+tails for image asset paths, including wrong methods, encoded paths and unmatched
+routes; actual routing and admission remain unchanged. All eight unauthenticated
+public request-log checks passed, with no test fixtures created. See the
+[asset log redaction receipt](./r760-vision-log-redaction-release-2026-09-20.zh-CN.md)
+for authenticated integration coverage and the application-log scope.
+
+The preceding image-budget release passed 204 public HTTP response assertions, a client abort,
 8/20/40-refresh batches, ordinary-limit isolation and a 135-token GoldenCode call.
 All 16 synthetic public-test assets were deleted and verified absent; the earlier
 storage preflight also deleted all 40 assets. Both test subjects are disabled,
