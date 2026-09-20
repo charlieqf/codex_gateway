@@ -1,3 +1,4 @@
+import type { FastifyServerOptions } from "fastify";
 import {
   type AdminAuditStore,
   type BillingAdminStore,
@@ -107,7 +108,7 @@ export interface GatewayOptions {
   activeRequestRegistry?: ActiveRequestRegistry;
   localContextAdmissionMode?: LocalContextAdmissionMode;
   now?: () => Date;
-  logger?: boolean;
+  logger?: FastifyServerOptions["logger"];
 }
 
 export interface ImageGenerationBillingFallbackInput {

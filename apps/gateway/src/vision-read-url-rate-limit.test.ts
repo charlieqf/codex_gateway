@@ -7,6 +7,7 @@ import { goldencodePoolConfig } from "./test-support.js";
 import { InMemoryRequestRateLimiter } from "./services/rate-limiter.js";
 import { R2VisionAssetService, type VisionAssetReadGrant, type VisionAssetService } from "./services/vision-asset-service.js";
 import type { VisionReadUrlPolicy } from "./services/vision-read-url-policy.js";
+import type { GatewayOptions } from "./gateway-options.js";
 
 function deferred() {
   let resolve!: () => void;
@@ -59,7 +60,7 @@ afterEach(async () => {
   vi.restoreAllMocks(); vi.unstubAllEnvs();
 });
 
-function fixture(rate: RateLimitPolicy = ordinaryPolicy, vision: VisionReadUrlPolicy = imagePolicy) {
+function fixture(rate: RateLimitPolicy = ordinaryPolicy, vision: VisionReadUrlPolicy = imagePolicy, logger: GatewayOptions["logger"] = false) {
   let now = new Date("2026-09-20T02:00:00Z");
   const store = createSqliteStore({ path: ":memory:" });
   const images = new Barrier(), ordinary = new Barrier();
@@ -88,7 +89,7 @@ function fixture(rate: RateLimitPolicy = ordinaryPolicy, vision: VisionReadUrlPo
   };
   const app = buildGateway({ authMode: "credential", sessionStore: store, provider,
     visionAssetService: service, rateLimiter: modelLimiter, visionReadUrlRateLimiter: imageLimiter,
-    visionReadUrlRatePolicy: vision, now: () => now, logger: false });
+    visionReadUrlRatePolicy: vision, now: () => now, logger });
   app.post("/test/ordinary", async () => { await ordinary.enter(); return { ok: true }; });
   const headers = (key = first) => ({ authorization: `Bearer ${key.token}` });
   const read = (key = first, assetId = "synthetic-asset") => app.inject({ method: "POST", url: `/gateway/vision/assets/${assetId}/read-url`, headers: headers(key), payload: {} });
@@ -196,6 +197,50 @@ describe("read URL independent budget through the real Gateway", () => {
     const event = info.mock.calls.find((call) => (call[0] as Record<string, unknown>)?.rate_limit_profile === "vision_read_url")?.[0];
     expect(event).toMatchObject({ route: "/gateway/vision/assets/:assetId/read-url", status_code: 200, rejected: false, cancelled: false });
     expect(JSON.stringify(event)).not.toContain("synthetic-asset");
+  });
+
+  it.each([
+    { method: "POST", path: refreshPath, status: 200, calls: 1 },
+    { method: "GET", path: refreshPath, status: 404, calls: 0 },
+    { method: "HEAD", path: refreshPath, status: 404, calls: 0 },
+    { method: "POST", path: refreshPath + "/", status: 404, calls: 0 },
+    { method: "POST", path: refreshPath + "/private-tail", status: 404, calls: 0 },
+    { method: "GET", path: refreshPath.replace("/assets/", "/%61ssets/"), status: 404, calls: 0 },
+    { method: "POST", path: refreshPath.replace("synthetic-asset", "synthetic-asset".repeat(1000)), status: 404, calls: 0 },
+    { method: "POST", path: refreshPath, status: 401, calls: 0, invalidAuth: true },
+    { method: "POST", path: refreshPath, status: 400, calls: 0, malformedJson: true },
+    { method: "POST", path: refreshPath.replace("read-url", "complete"), status: 200, calls: 0 },
+    { method: "DELETE", path: refreshPath.replace("/read-url", ""), status: 204, calls: 0 },
+    { method: "GET", path: "/gateway/vision/assets", status: 404, calls: 0 }
+  ] as const)("redacts asset request logs through the full Gateway: $method $status", async (scenario) => {
+    const logs: string[] = [];
+    const f = fixture(ordinaryPolicy, imagePolicy, { stream: { write: (line: string) => { logs.push(line); } } });
+    f.images.open();
+    const response = await f.app.inject({
+      method: scenario.method, url: scenario.path + "?signature=private-query",
+      headers: "invalidAuth" in scenario ? { authorization: "Bearer invalid" } : { ...f.headers(), ...(scenario.method === "POST" ? { "content-type": "application/json" } : {}) },
+      ...("malformedJson" in scenario ? { payload: "{" } : scenario.method === "POST" ? { payload: {} } : {})
+    });
+    expect(response.statusCode).toBe(scenario.status);
+    const incoming = logs.map((line) => JSON.parse(line)).find((entry) => entry.msg === "incoming request");
+    expect(incoming?.req.url).toMatch(/^\/gateway\/vision\/assets(?:\/:assetId(?:\/(?:read-url|complete))?)?$/u);
+    const logged = logs.join("\n");
+    for (const secret of ["synthetic-asset", "private-tail", "private-query"]) expect(logged).not.toContain(secret);
+    expect(f.service.createReadUrl).toHaveBeenCalledTimes(scenario.calls);
+    if (scenario.calls) expect(f.service.createReadUrl).toHaveBeenCalledWith("alice", "synthetic-asset", expect.any(AbortSignal));
+    expect(snapshot(f.imageLimiter, "alice")?.minuteCount ?? 0).toBe(scenario.calls);
+  });
+
+  it("preserves unrelated request log serializers and actual request URLs", async () => {
+    const logs: string[] = [];
+    const f = fixture(ordinaryPolicy, imagePolicy, {
+      stream: { write: (line: string) => { logs.push(line); } },
+      serializers: { req: (request) => ({ custom: true, url: request.url }) }
+    });
+    expect((await f.app.inject({ method: "GET", url: "/gateway/status?visible=value", headers: f.headers() })).statusCode).toBe(200);
+    const incoming = logs.map((line) => JSON.parse(line)).find((entry) => entry.msg === "incoming request");
+    expect(incoming.req).toEqual({ custom: true, url: "/gateway/status?visible=value" });
+    expect(snapshot(f.imageLimiter, "alice")).toBeNull();
   });
 
   it("holds a disconnected socket's slot until asynchronous refresh work actually settles", async () => {

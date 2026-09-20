@@ -108,18 +108,7 @@ export function registerVisionAssetRoutes(
     visionReadUrlRoute,
     {
       bodyLimit: routeBodyLimitBytes,
-      config: { rateLimitProfile: "vision_read_url" },
-      childLoggerFactory: (logger, bindings, options) => logger.child(bindings, {
-        ...options,
-        serializers: {
-          ...options.serializers,
-          req: (request: FastifyRequest) => ({
-            method: request.method, url: visionReadUrlRoute,
-            version: request.headers["accept-version"], host: request.host,
-            remoteAddress: request.ip, remotePort: request.socket.remotePort
-          })
-        }
-      })
+      config: { rateLimitProfile: "vision_read_url" }
     },
     async (request, reply) => withRateLimitWork(request, async () => {
       try {

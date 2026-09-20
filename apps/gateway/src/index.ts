@@ -89,6 +89,7 @@ import {
   startObservation
 } from "./http/observation.js";
 import { rateLimitHook, releaseRateLimit, recordRateLimitOutcome } from "./http/rate-limit.js";
+import { gatewayChildLoggerFactory } from "./http/request-logging.js";
 import { resolveVisionReadUrlPolicy, validateRateLimitProfile } from "./services/vision-read-url-policy.js";
 import { setupSseResponse } from "./http/sse.js";
 import {
@@ -345,6 +346,7 @@ export function buildGateway(options: GatewayOptions = {}) {
   const writeDeliveryAdmission = new WriteDeliveryAdmission(boundedWritePolicy.maxConcurrent ?? 4);
   const app = Fastify({
     logger: options.logger ?? true,
+    childLoggerFactory: gatewayChildLoggerFactory,
     genReqId: () => `req-${randomUUID()}`,
     trustProxy: ["loopback", "linklocal", "uniquelocal"],
     routerOptions: {

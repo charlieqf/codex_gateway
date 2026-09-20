@@ -8,6 +8,7 @@ import type {
   VisionAssetReadGrant
 } from "./services/vision-asset-service.js";
 import { registerVisionAssetRoutes } from "./vision-asset-routes.js";
+import { gatewayChildLoggerFactory } from "./http/request-logging.js";
 
 const apps: ReturnType<typeof Fastify>[] = [];
 
@@ -185,7 +186,10 @@ function testApp(
   authorize?: () => GatewayError | null,
   logs?: string[]
 ) {
-  const app = Fastify({ logger: logs ? { stream: { write: (line: string) => { logs.push(line); } } } : false });
+  const app = Fastify({
+    logger: logs ? { stream: { write: (line: string) => { logs.push(line); } } } : false,
+    childLoggerFactory: gatewayChildLoggerFactory
+  });
   apps.push(app);
   app.addHook("onRequest", async (request) => {
     request.gatewayContext = {
