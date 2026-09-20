@@ -103,7 +103,8 @@ describe("vision asset routes", () => {
     expect(read.headers["cache-control"]).toBe("no-store");
     expect(service.createReadUrl).toHaveBeenCalledWith(
       "subject-test",
-      "va1.test.signature"
+      "va1.test.signature",
+      undefined
     );
 
     const deleted = await app.inject({
@@ -163,14 +164,28 @@ describe("vision asset routes", () => {
     });
     expect(deniedResponse.statusCode).toBe(402);
     expect(deniedResponse.json().error.code).toBe("plan_inactive");
+    const deniedRead = await denied.inject({ method: "POST", url: "/gateway/vision/assets/va1.test.signature/read-url" });
+    expect(deniedRead.statusCode).toBe(402);
+    expect(service.createReadUrl).not.toHaveBeenCalled();
+  });
+
+  it("redacts the asset token from Fastify request logs as well as operational logs", async () => {
+    const logs: string[] = [];
+    const app = testApp(fakeService(), undefined, logs);
+    const response = await app.inject({ method: "POST", url: "/gateway/vision/assets/va1.test.signature/read-url?secret=hidden" });
+    expect(response.statusCode).toBe(200);
+    expect(logs.join("\n")).toContain("/gateway/vision/assets/:assetId/read-url");
+    expect(logs.join("\n")).not.toContain("va1.test.signature");
+    expect(logs.join("\n")).not.toContain("hidden");
   });
 });
 
 function testApp(
   service: VisionAssetService | null,
-  authorize?: () => GatewayError | null
+  authorize?: () => GatewayError | null,
+  logs?: string[]
 ) {
-  const app = Fastify({ logger: false });
+  const app = Fastify({ logger: logs ? { stream: { write: (line: string) => { logs.push(line); } } } : false });
   apps.push(app);
   app.addHook("onRequest", async (request) => {
     request.gatewayContext = {

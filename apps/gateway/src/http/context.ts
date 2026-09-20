@@ -18,6 +18,7 @@ import type {
   ToolLoopGuardDiagnostic
 } from "@codex-gateway/core";
 import type { ClientDisconnectHandle } from "./client-disconnect.js";
+import type { RateLimitLease } from "./rate-limit-lease.js";
 import type { VisionRequestRecovery } from "../services/vision-request-recovery.js";
 import type { IdentityAuditOperation } from "@codex-gateway/core";
 import type { IdentityRequestAuditContext } from "./identity-request-audit.js";
@@ -50,6 +51,7 @@ declare module "fastify" {
     public?: boolean;
     skipAuth?: boolean;
     skipRateLimit?: boolean;
+    rateLimitProfile?: "vision_read_url";
     skipObservation?: boolean;
     responseDialect?: GatewayResponseDialect;
   }
@@ -59,6 +61,9 @@ declare module "fastify" {
     gatewayContext?: GatewayRequestContext;
     gatewayClientDisconnect?: ClientDisconnectHandle;
     gatewayRateLimitRelease?: () => void;
+    gatewayRateLimitLease?: RateLimitLease;
+    gatewayRateLimitStartedAt?: number;
+    gatewayRateLimitObserved?: boolean;
     gatewayObservationStartedAt?: Date;
     gatewayObservationFirstByteAt?: Date;
     gatewayObservationRecorded?: boolean;

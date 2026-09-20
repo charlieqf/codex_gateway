@@ -28,7 +28,8 @@ import { PhoneAuthService } from "./services/phone-auth-service.js";
 import { type ResearchIdentityRegistryEntry } from "./research-routes.js";
 import { type UpstreamV2Client } from "./upstream-v2-client.js";
 import { type BoundedWritePolicy } from "./services/write-delivery.js";
-import { type CredentialRateLimiter } from "./services/rate-limiter.js";
+import { type RequestRateLimiter } from "./services/rate-limiter.js";
+import type { VisionReadUrlPolicy } from "./services/vision-read-url-policy.js";
 import { type ImageGenerationProvider } from "./image-generation.js";
 import { type UpstreamAccountRuntimeInput } from "./services/upstream-account-router.js";
 import { ActiveRequestRegistry } from "./services/active-request-registry.js";
@@ -50,11 +51,13 @@ export interface GatewayOptions {
   sessionStore?: GatewayStore;
   subject?: Subject;
   upstreamAccount?: UpstreamAccount;
-  rateLimiter?: CredentialRateLimiter;
+  rateLimiter?: RequestRateLimiter;
+  visionReadUrlRateLimiter?: RequestRateLimiter;
+  visionReadUrlRatePolicy?: VisionReadUrlPolicy;
   observationStore?: ObservationStore;
   identityRequestAuditStore?: IdentityRequestAuditStore | null;
   clientEventsStore?: ClientMessageEventStore | null;
-  clientEventsRateLimiter?: CredentialRateLimiter;
+  clientEventsRateLimiter?: RequestRateLimiter;
   clientEventsRatePolicy?: RateLimitPolicy;
   adminMessagesToken?: string;
   adminMessagesAuthMode?: AdminMessagesAuthMode;
@@ -63,9 +66,9 @@ export interface GatewayOptions {
   billingAdminTokenMode?: BillingAdminTokenMode;
   billingAdminTokenStore?: BillingAdminTokenStore;
   billingAdminStore?: BillingAdminStore;
-  billingAdminRateLimiter?: CredentialRateLimiter;
+  billingAdminRateLimiter?: RequestRateLimiter;
   billingAdminRatePolicy?: RateLimitPolicy;
-  researchRateLimiter?: CredentialRateLimiter;
+  researchRateLimiter?: RequestRateLimiter;
   researchReadRatePolicy?: RateLimitPolicy;
   researchMutationRatePolicy?: RateLimitPolicy;
   researchWorkerHealthStore?: Pick<
@@ -91,7 +94,7 @@ export interface GatewayOptions {
   unifiedKeyRecoverySecret?: string | null;
   desktopVersionGate?: DesktopVersionGate;
   medevidenceOriginPolicy?: MedevidenceOriginPolicy;
-  phoneAuthLoginRateLimiter?: CredentialRateLimiter;
+  phoneAuthLoginRateLimiter?: RequestRateLimiter;
   phoneAuthPhoneRequestsPerMinute?: number;
   phoneAuthIpRequestsPerMinute?: number;
   phoneAuthDeviceRequestsPerMinute?: number;

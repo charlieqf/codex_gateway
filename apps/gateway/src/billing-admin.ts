@@ -50,7 +50,7 @@ import {
   verifyBillingAdminToken
 } from "@codex-gateway/core";
 import type {
-  CredentialRateLimiter,
+  RequestRateLimiter,
   RateLimitResetResult,
   RateLimitResetWindow
 } from "./services/rate-limiter.js";
@@ -103,9 +103,9 @@ export interface BillingAdminRouteOptions {
   planEntitlementStore?: PlanEntitlementStore;
   credentialStore?: AccessCredentialStore;
   adminAuditStore?: AdminAuditStore;
-  credentialRateLimiter?: CredentialRateLimiter;
+  credentialRateLimiter?: RequestRateLimiter;
   tokenBudgetLimiter?: TokenBudgetLimiter;
-  rateLimiter?: CredentialRateLimiter;
+  rateLimiter?: RequestRateLimiter;
   ratePolicy?: RateLimitPolicy;
   upstreamV2Client?: UpstreamV2Client | null;
   apiKeyEncryptionSecret?: string | null;
@@ -1163,7 +1163,8 @@ function billingRoutePreflight(
   captureIdentityInput(request);
   if (options.rateLimiter && options.ratePolicy) {
     const permit = options.rateLimiter.acquire({
-      credentialId: "billing-admin",
+      scope: "credential",
+      key: "billing-admin",
       policy: options.ratePolicy
     });
     if (!("release" in permit)) {
@@ -2481,7 +2482,7 @@ function resetRequestQuota(
       credential_prefix: credential.prefix,
       reset: publicRateLimitResetResult(
         options.credentialRateLimiter!.reset!({
-          credentialId: credential.id,
+          key: credential.id,
           windows
         })
       )

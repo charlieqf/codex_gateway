@@ -6,6 +6,8 @@ import type {
 import { GatewayError } from "@codex-gateway/core";
 import { getGatewayContext } from "./http/context.js";
 import { markGatewayError } from "./http/observation.js";
+import { withRateLimitWork } from "./http/rate-limit.js";
+import { visionReadUrlRoute } from "./services/vision-read-url-policy.js";
 import { visionDefaultRequestBodyBytes, visionMaximumInlineBytes } from "./services/vision-input-policy.js";
 import {
   visionAssetMaximumBytes,
@@ -103,33 +105,51 @@ export function registerVisionAssetRoutes(
   );
 
   app.post<{ Params: { assetId: string }; Body: unknown }>(
-    "/gateway/vision/assets/:assetId/read-url",
-    { bodyLimit: routeBodyLimitBytes },
-    async (request, reply) => {
-      applyPrivateResponseHeaders(reply);
-      const service = availableService(options.service);
-      if (service instanceof GatewayError) {
-        return sendVisionAssetError(request, reply, service);
-      }
-      const authorizationError = await authorize(request, options.authorize);
-      if (authorizationError) {
-        return sendVisionAssetError(request, reply, authorizationError);
-      }
-      const bodyError = validateEmptyBody(request.body);
-      if (bodyError) {
-        return sendVisionAssetError(request, reply, bodyError);
-      }
+    visionReadUrlRoute,
+    {
+      bodyLimit: routeBodyLimitBytes,
+      config: { rateLimitProfile: "vision_read_url" },
+      childLoggerFactory: (logger, bindings, options) => logger.child(bindings, {
+        ...options,
+        serializers: {
+          ...options.serializers,
+          req: (request: FastifyRequest) => ({
+            method: request.method, url: visionReadUrlRoute,
+            version: request.headers["accept-version"], host: request.host,
+            remoteAddress: request.ip, remotePort: request.socket.remotePort
+          })
+        }
+      })
+    },
+    async (request, reply) => withRateLimitWork(request, async () => {
       try {
+        applyPrivateResponseHeaders(reply);
+        const service = availableService(options.service);
+        if (service instanceof GatewayError) {
+          return sendVisionAssetError(request, reply, service);
+        }
+        const authorizationError = await authorize(request, options.authorize);
+        request.gatewayClientDisconnect?.signal.throwIfAborted();
+        if (authorizationError) {
+          return sendVisionAssetError(request, reply, authorizationError);
+        }
+        const bodyError = validateEmptyBody(request.body);
+        if (bodyError) {
+          return sendVisionAssetError(request, reply, bodyError);
+        }
         const { subject } = getGatewayContext(request);
         const grant = await service.createReadUrl(
           subject.id,
-          request.params.assetId
+          request.params.assetId,
+          request.gatewayClientDisconnect?.signal
         );
+        request.gatewayClientDisconnect?.signal.throwIfAborted();
         return reply.send(readGrantResponse(grant));
       } catch (error) {
+        if (request.gatewayClientDisconnect?.signal.aborted) return;
         return handleVisionAssetFailure(request, reply, error);
       }
-    }
+    })
   );
 
   app.delete<{ Params: { assetId: string } }>(

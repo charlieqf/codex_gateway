@@ -1,7 +1,8 @@
-import { GatewayError, type LimitKind, type LimitRejection, type RateLimitPolicy } from "@codex-gateway/core";
+import { GatewayError, type LimitDetails, type LimitKind, type LimitRejection, type RateLimitPolicy } from "@codex-gateway/core";
 
 export interface RateLimitInput {
-  credentialId: string;
+  key: string;
+  scope: LimitDetails["scope"];
   policy: RateLimitPolicy;
 }
 
@@ -12,7 +13,7 @@ export interface RateLimitPermit {
 export type RateLimitResetWindow = "minute" | "day";
 
 export interface RateLimitResetInput {
-  credentialId: string;
+  key: string;
   windows: RateLimitResetWindow[];
 }
 
@@ -25,14 +26,14 @@ export interface RateLimitResetSnapshot {
 }
 
 export interface RateLimitResetResult {
-  credentialId: string;
+  key: string;
   windows: RateLimitResetWindow[];
   found: boolean;
   before: RateLimitResetSnapshot | null;
   after: RateLimitResetSnapshot | null;
 }
 
-export interface CredentialRateLimiter {
+export interface RequestRateLimiter {
   acquire(input: RateLimitInput): RateLimitPermit | LimitRejection;
   reset?(input: RateLimitResetInput): RateLimitResetResult;
 }
@@ -41,7 +42,7 @@ interface RateLimiterOptions {
   now?: () => Date;
 }
 
-interface CredentialRateState {
+interface RequestRateState {
   minuteWindow: number;
   minuteCount: number;
   dayWindow: string;
@@ -50,8 +51,8 @@ interface CredentialRateState {
   retainThroughDay: boolean;
 }
 
-export class InMemoryCredentialRateLimiter implements CredentialRateLimiter {
-  private readonly states = new Map<string, CredentialRateState>();
+export class InMemoryRequestRateLimiter implements RequestRateLimiter {
+  private readonly states = new Map<string, RequestRateState>();
   private readonly now: () => Date;
   private lastPrunedMinuteWindow: number | null = null;
 
@@ -62,7 +63,7 @@ export class InMemoryCredentialRateLimiter implements CredentialRateLimiter {
   acquire(input: RateLimitInput): RateLimitPermit | LimitRejection {
     const now = this.now();
     this.pruneIdleStates(now);
-    const state = this.state(input.credentialId, now);
+    const state = this.state(input.key, now);
     state.retainThroughDay ||= input.policy.requestsPerDay !== null;
     const concurrencyLimit = input.policy.concurrentRequests;
     if (concurrencyLimit !== null && state.active >= concurrencyLimit) {
@@ -71,7 +72,7 @@ export class InMemoryCredentialRateLimiter implements CredentialRateLimiter {
         `Concurrent request limit reached: ${state.active} of ${concurrencyLimit} requests are active.`,
         1,
         {
-          scope: "credential",
+          scope: input.scope,
           window: "concurrency",
           limit: concurrencyLimit,
           used: state.active,
@@ -96,7 +97,7 @@ export class InMemoryCredentialRateLimiter implements CredentialRateLimiter {
         `Request frequency limit reached: ${state.minuteCount} of ${input.policy.requestsPerMinute} requests used in the current minute. Retry in ${retryAfterSeconds} seconds.`,
         retryAfterSeconds,
         {
-          scope: "credential",
+          scope: input.scope,
           window: "minute",
           limit: input.policy.requestsPerMinute,
           used: state.minuteCount,
@@ -123,7 +124,7 @@ export class InMemoryCredentialRateLimiter implements CredentialRateLimiter {
         `Daily request quota reached: ${state.dayCount} of ${input.policy.requestsPerDay} requests used in the current UTC day. Retry in ${retryAfterSeconds} seconds.`,
         retryAfterSeconds,
         {
-          scope: "credential",
+          scope: input.scope,
           window: "day",
           limit: input.policy.requestsPerDay,
           used: state.dayCount,
@@ -145,18 +146,18 @@ export class InMemoryCredentialRateLimiter implements CredentialRateLimiter {
         released = true;
         state.active = Math.max(0, state.active - 1);
         const releasedAt = this.now();
-        this.pruneIdleState(input.credentialId, state, releasedAt);
+        this.pruneIdleState(input.key, state, releasedAt);
       }
     };
   }
 
   reset(input: RateLimitResetInput): RateLimitResetResult {
     const now = this.now();
-    const state = this.states.get(input.credentialId);
+    const state = this.states.get(input.key);
     const windows = normalizeResetWindows(input.windows);
     if (!state) {
       return {
-        credentialId: input.credentialId,
+        key: input.key,
         windows,
         found: false,
         before: null,
@@ -174,7 +175,7 @@ export class InMemoryCredentialRateLimiter implements CredentialRateLimiter {
       state.dayCount = 0;
     }
     return {
-      credentialId: input.credentialId,
+      key: input.key,
       windows,
       found: true,
       before,
@@ -182,8 +183,8 @@ export class InMemoryCredentialRateLimiter implements CredentialRateLimiter {
     };
   }
 
-  private state(credentialId: string, now: Date): CredentialRateState {
-    const existing = this.states.get(credentialId);
+  private state(key: string, now: Date): RequestRateState {
+    const existing = this.states.get(key);
     if (existing) {
       return existing;
     }
@@ -196,13 +197,13 @@ export class InMemoryCredentialRateLimiter implements CredentialRateLimiter {
       active: 0,
       retainThroughDay: false
     };
-    this.states.set(credentialId, state);
+    this.states.set(key, state);
     return state;
   }
 
-  private pruneIdleState(credentialId: string, state: CredentialRateState, now: Date): void {
+  private pruneIdleState(key: string, state: RequestRateState, now: Date): void {
     if (state.active === 0 && stateWindowExpired(state, now)) {
-      this.states.delete(credentialId);
+      this.states.delete(key);
     }
   }
 
@@ -212,13 +213,13 @@ export class InMemoryCredentialRateLimiter implements CredentialRateLimiter {
       return;
     }
     this.lastPrunedMinuteWindow = minuteWindow;
-    for (const [credentialId, state] of this.states) {
-      this.pruneIdleState(credentialId, state, now);
+    for (const [key, state] of this.states) {
+      this.pruneIdleState(key, state, now);
     }
   }
 }
 
-function stateWindowExpired(state: CredentialRateState, now: Date): boolean {
+function stateWindowExpired(state: RequestRateState, now: Date): boolean {
   return state.retainThroughDay
     ? state.dayWindow !== utcDayWindow(now)
     : state.minuteWindow !== Math.floor(now.getTime() / 60_000);
@@ -228,7 +229,7 @@ function normalizeResetWindows(windows: RateLimitResetWindow[]): RateLimitResetW
   return Array.from(new Set(windows));
 }
 
-function resetSnapshot(state: CredentialRateState): RateLimitResetSnapshot {
+function resetSnapshot(state: RequestRateState): RateLimitResetSnapshot {
   return {
     minuteWindow: state.minuteWindow,
     minuteCount: state.minuteCount,

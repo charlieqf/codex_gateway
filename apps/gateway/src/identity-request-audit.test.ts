@@ -7,7 +7,7 @@ import { createSqliteStore } from "@codex-gateway/store-sqlite";
 import { registerBillingAdminRoutes } from "./billing-admin.js";
 import { registerPhoneAuthRoutes } from "./phone-auth-routes.js";
 import { PhoneAuthService, phoneAuthGatewayOrigin } from "./services/phone-auth-service.js";
-import { InMemoryCredentialRateLimiter } from "./services/rate-limiter.js";
+import { InMemoryRequestRateLimiter } from "./services/rate-limiter.js";
 import { installIdentityRequestAudit, captureIdentityInput } from "./http/identity-request-audit.js";
 import { markGatewayError } from "./http/observation.js";
 import { buildGateway } from "./index.js";
@@ -51,7 +51,7 @@ function fixture(limits: { phone?: number; ip?: number; device?: number } = {}) 
     unifiedKeyRecoverySecret: "audit-recovery-integration-test-secret", apiKeyEncryptionSecret: "audit-api-integration-test-secret",
     upstreamV2Client: { createUser, disableUser: async () => ({ disabled: true, user: { id: "test" } }),
       revokeKey: async () => ({ revoked: true, key: { id: "test" } }) }, now });
-  registerPhoneAuthRoutes(app, { service, loginRateLimiter: new InMemoryCredentialRateLimiter({ now }),
+  registerPhoneAuthRoutes(app, { service, loginRateLimiter: new InMemoryRequestRateLimiter({ now }),
     phoneRequestsPerMinute: limits.phone ?? 100, ipRequestsPerMinute: limits.ip ?? 100,
     deviceRequestsPerMinute: limits.device ?? 100,
     versionGate: { mode: "auth_only", minimumVersion: "2.0.0-beta.76", downloadUrl: "https://example.test/download/" } });

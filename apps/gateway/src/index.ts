@@ -88,7 +88,8 @@ import {
   recordObservation,
   startObservation
 } from "./http/observation.js";
-import { rateLimitHook, releaseRateLimit } from "./http/rate-limit.js";
+import { rateLimitHook, releaseRateLimit, recordRateLimitOutcome } from "./http/rate-limit.js";
+import { resolveVisionReadUrlPolicy, validateRateLimitProfile } from "./services/vision-read-url-policy.js";
 import { setupSseResponse } from "./http/sse.js";
 import {
   boundedWritePolicyFromEnv,
@@ -111,7 +112,7 @@ import {
   type OpenAIChatToolCall,
   type OpenAIChatUsage
 } from "./openai-compat.js";
-import { InMemoryCredentialRateLimiter } from "./services/rate-limiter.js";
+import { InMemoryRequestRateLimiter } from "./services/rate-limiter.js";
 import {
   createResponsesFailedEvent,
   createResponsesResult,
@@ -351,6 +352,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     }
   });
   const accessToken = options.accessToken ?? process.env.GATEWAY_DEV_ACCESS_TOKEN;
+  app.addHook("onRoute", validateRateLimitProfile);
   const clock = options.now ?? (() => new Date());
   const activeRequestRegistry =
     options.activeRequestRegistry ??
@@ -496,7 +498,14 @@ export function buildGateway(options: GatewayOptions = {}) {
     credentialStore
   });
   validateAuthModeForEnvironment(authMode, process.env.NODE_ENV);
-  const rateLimiter = options.rateLimiter ?? new InMemoryCredentialRateLimiter({ now: clock });
+  const rateLimiter = options.rateLimiter ?? new InMemoryRequestRateLimiter({ now: clock });
+  const visionReadUrlRateLimit = {
+    limiter: options.visionReadUrlRateLimiter ?? new InMemoryRequestRateLimiter({ now: clock }),
+    policy: resolveVisionReadUrlPolicy(process.env, options.visionReadUrlRatePolicy)
+  };
+  if (visionReadUrlRateLimit.limiter === rateLimiter) {
+    throw new Error("Vision read URL and ordinary request limiters must be independent instances.");
+  }
   const observationStore =
     options.observationStore ?? (isObservationStore(sessions) ? sessions : undefined);
   const tokenBudgetLimiter =
@@ -570,7 +579,7 @@ export function buildGateway(options: GatewayOptions = {}) {
   }
   const phoneAuthLoginRateLimiter =
     options.phoneAuthLoginRateLimiter ??
-    new InMemoryCredentialRateLimiter({ now: clock });
+    new InMemoryRequestRateLimiter({ now: clock });
   const phoneAuthPhoneRequestsPerMinute =
     options.phoneAuthPhoneRequestsPerMinute ??
     parsePositiveIntegerEnv(
@@ -602,7 +611,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       : options.researchStore ?? undefined;
   const researchRateLimiter =
     options.researchRateLimiter ??
-    new InMemoryCredentialRateLimiter({ now: clock });
+    new InMemoryRequestRateLimiter({ now: clock });
   const researchReadRatePolicy =
     options.researchReadRatePolicy ??
     defaultResearchRuntime?.readRatePolicy ??
@@ -673,7 +682,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       ? createDefaultClientEventsStore()
       : options.clientEventsStore ?? undefined;
   const clientEventsRateLimiter =
-    options.clientEventsRateLimiter ?? new InMemoryCredentialRateLimiter({ now: clock });
+    options.clientEventsRateLimiter ?? new InMemoryRequestRateLimiter({ now: clock });
   const clientEventsRatePolicy =
     options.clientEventsRatePolicy ?? resolveClientEventsRatePolicy(process.env);
   const clientEventsRateLimitLogState = new Map<
@@ -704,7 +713,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     options.billingAdminTokenMode ?? process.env.GATEWAY_BILLING_ADMIN_TOKEN_MODE
   );
   const billingAdminRateLimiter =
-    options.billingAdminRateLimiter ?? new InMemoryCredentialRateLimiter({ now: clock });
+    options.billingAdminRateLimiter ?? new InMemoryRequestRateLimiter({ now: clock });
   const billingAdminRatePolicy =
     options.billingAdminRatePolicy ?? resolveBillingAdminRatePolicy(process.env);
   const upstreamV2Client =
@@ -752,7 +761,9 @@ export function buildGateway(options: GatewayOptions = {}) {
       markClientAborted(request);
       releaseRateLimit(request);
       recordObservation(request, observationStore, 499);
+      recordRateLimitOutcome(request, 499);
       identityAudit.complete(request, null);
+      request.gatewayClientDisconnect?.cleanup();
     });
   });
 
@@ -839,7 +850,7 @@ export function buildGateway(options: GatewayOptions = {}) {
   });
 
   app.addHook("preHandler", async (request, reply) =>
-    rateLimitHook(request, reply, rateLimiter)
+    rateLimitHook(request, reply, rateLimiter, visionReadUrlRateLimit)
   );
 
   app.addHook("preHandler", async (request) => {
@@ -852,6 +863,7 @@ export function buildGateway(options: GatewayOptions = {}) {
   app.addHook("onResponse", async (request, reply) => {
     releaseRateLimit(request);
     recordObservation(request, observationStore, reply.statusCode);
+    recordRateLimitOutcome(request, reply.statusCode);
     request.gatewayClientDisconnect?.cleanup();
   });
 
@@ -1839,7 +1851,8 @@ export function buildGateway(options: GatewayOptions = {}) {
       }
 
       const permit = clientEventsRateLimiter.acquire({
-        credentialId: clientEventsRateLimitKey(credential.id, "messages"),
+        scope: "credential",
+        key: clientEventsRateLimitKey(credential.id, "messages"),
         policy: clientEventsRatePolicy
       });
       if (!("release" in permit)) {
@@ -1965,7 +1978,8 @@ export function buildGateway(options: GatewayOptions = {}) {
       }
 
       const permit = clientEventsRateLimiter.acquire({
-        credentialId: clientEventsRateLimitKey(credential.id, "diagnostics"),
+        scope: "credential",
+        key: clientEventsRateLimitKey(credential.id, "diagnostics"),
         policy: clientEventsRatePolicy
       });
       if (!("release" in permit)) {

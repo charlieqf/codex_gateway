@@ -40,8 +40,8 @@ import {
 } from "./services/phone-auth-service.js";
 import { chatMessagesToPrompt, type ChatCompletionRequest } from "./openai-compat.js";
 import {
-  InMemoryCredentialRateLimiter,
-  type CredentialRateLimiter
+  InMemoryRequestRateLimiter,
+  type RequestRateLimiter
 } from "./services/rate-limiter.js";
 import { ActiveRequestRegistry } from "./services/active-request-registry.js";
 import { OpenAICompatibleProviderAdapter } from "./services/openai-compatible-provider.js";
@@ -2631,7 +2631,7 @@ describe("gateway phase 1 routes", () => {
       concurrentRequests: 1
     });
     const fixedNow = () => new Date("2026-05-21T12:00:00Z");
-    const rateLimiter = new InMemoryCredentialRateLimiter({
+    const rateLimiter = new InMemoryRequestRateLimiter({
       now: fixedNow
     });
     store.createPlan({
@@ -11523,9 +11523,9 @@ describe("gateway phase 1 routes", () => {
           const provider = new HangingThenSuccessChatProvider();
           const account = testUpstreamAccount("codex-pro-1");
           const activeRequests = new ActiveRequestRegistry();
-          const delegateRateLimiter = new InMemoryCredentialRateLimiter();
+          const delegateRateLimiter = new InMemoryRequestRateLimiter();
           let rateReleaseCalls = 0;
-          const rateLimiter: CredentialRateLimiter = {
+          const rateLimiter: RequestRateLimiter = {
             acquire: (input) => {
               const result = delegateRateLimiter.acquire(input);
               if (!("release" in result)) {

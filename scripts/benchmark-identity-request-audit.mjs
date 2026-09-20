@@ -11,7 +11,7 @@ import { createSqliteStore } from '@codex-gateway/store-sqlite';
 import { issueAccessCredential } from '@codex-gateway/core';
 import { buildGateway } from '../apps/gateway/dist/index.js';
 import { PhoneAuthService, phoneAuthGatewayOrigin } from '../apps/gateway/dist/services/phone-auth-service.js';
-import { InMemoryCredentialRateLimiter } from '../apps/gateway/dist/services/rate-limiter.js';
+import { InMemoryRequestRateLimiter } from '../apps/gateway/dist/services/rate-limiter.js';
 
 const seconds = Number(process.env.AUDIT_BENCH_SECONDS ?? 10);
 const rounds = Number(process.env.AUDIT_BENCH_ROUNDS ?? 3);
@@ -59,14 +59,14 @@ async function fixture(enabled) {
   // Keep the controlled rejection mix stable if a run crosses a wall-clock
   // minute. The audit store still buckets by actual completion time.
   const rateWindow = new Date();
-  const limiter = new InMemoryCredentialRateLimiter({ now: () => rateWindow });
+  const limiter = new InMemoryRequestRateLimiter({ now: () => rateWindow });
   const attackedBucket = `phone-auth:device:${createHash('sha256').update(attackDevice).digest('base64url')}`;
   app = buildGateway({ authMode: 'credential', logger: false, sessionStore: store, observationStore: store,
     identityRequestAuditStore: enabled ? store : null, phoneAuthService: service,
     billingAdminToken: admin, billingAdminTokenMode: 'env', externalIdentityProvider: 'offline_benchmark',
     unifiedKeyRecoverySecret: secret, phoneAuthPhoneRequestsPerMinute: 100_000,
     phoneAuthIpRequestsPerMinute: 100_000, phoneAuthDeviceRequestsPerMinute: 100_000,
-    phoneAuthLoginRateLimiter: { acquire(input) { return limiter.acquire(input.credentialId === attackedBucket
+    phoneAuthLoginRateLimiter: { acquire(input) { return limiter.acquire(input.key === attackedBucket
       ? { ...input, policy: { ...input.policy, requestsPerMinute: 1 } } : input); } },
     desktopVersionGate: { mode: 'auth_only', minimumVersion: '2.0.0-beta.76', downloadUrl: 'https://example.test/download/' },
     upstreamV2Client: { createUser: async () => ({ status: 'created', user: { id: 'offline-upstream' },

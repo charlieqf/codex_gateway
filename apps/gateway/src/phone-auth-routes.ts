@@ -14,13 +14,13 @@ import {
 } from "./desktop-version-gate.js";
 import { markGatewayError, markRateLimitRejection } from "./http/observation.js";
 import { captureIdentityInput, markIdentityFacts } from "./http/identity-request-audit.js";
-import type { CredentialRateLimiter } from "./services/rate-limiter.js";
+import type { RequestRateLimiter } from "./services/rate-limiter.js";
 import type { PhoneAuthService } from "./services/phone-auth-service.js";
 
 export interface PhoneAuthRouteOptions {
   service: PhoneAuthService | null;
   versionGate: DesktopVersionGate;
-  loginRateLimiter: CredentialRateLimiter;
+  loginRateLimiter: RequestRateLimiter;
   phoneRequestsPerMinute: number;
   ipRequestsPerMinute: number;
   deviceRequestsPerMinute: number;
@@ -354,7 +354,8 @@ function acquireLoginPermits(
   options: PhoneAuthRouteOptions
 ): { release(): void } | GatewayError {
   const phonePermit = options.loginRateLimiter.acquire({
-    credentialId: `phone-auth:phone:${phoneHash}`,
+    scope: "credential",
+    key: `phone-auth:phone:${phoneHash}`,
     policy: loginPolicy(options.phoneRequestsPerMinute)
   });
   if (!("release" in phonePermit)) {
@@ -364,7 +365,8 @@ function acquireLoginPermits(
   }
   const ipHash = createHash("sha256").update(request.ip).digest("base64url");
   const ipPermit = options.loginRateLimiter.acquire({
-    credentialId: `phone-auth:ip:${ipHash}`,
+    scope: "credential",
+    key: `phone-auth:ip:${ipHash}`,
     policy: loginPolicy(options.ipRequestsPerMinute)
   });
   if (!("release" in ipPermit)) {
@@ -375,7 +377,8 @@ function acquireLoginPermits(
   }
   const deviceHash = createHash("sha256").update(deviceId).digest("base64url");
   const devicePermit = options.loginRateLimiter.acquire({
-    credentialId: `phone-auth:device:${deviceHash}`,
+    scope: "credential",
+    key: `phone-auth:device:${deviceHash}`,
     policy: loginPolicy(options.deviceRequestsPerMinute)
   });
   if (!("release" in devicePermit)) {

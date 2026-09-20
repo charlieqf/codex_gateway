@@ -23,7 +23,7 @@ import {
 } from "@codex-gateway/core";
 import { normalizePracticalResultWarnings, openVerifiedResearchArtifactStream } from "@codex-gateway/research-agent";
 import { getGatewayContext, researchRouteConfig } from "./http/context.js";
-import type { CredentialRateLimiter } from "./services/rate-limiter.js";
+import type { RequestRateLimiter } from "./services/rate-limiter.js";
 import {
   applyGatewayErrorHeaders,
   researchErrorPayload,
@@ -41,7 +41,7 @@ const cursorLifetimeMs = 60 * 60 * 1000;
 export interface ResearchRouteOptions {
   store: ResearchStore;
   planEntitlementStore?: PlanEntitlementStore;
-  rateLimiter: CredentialRateLimiter;
+  rateLimiter: RequestRateLimiter;
   readRatePolicy: RateLimitPolicy;
   mutationRatePolicy: RateLimitPolicy;
   workerHealthStore?: Pick<ResearchWorkerStore, "listWorkerHeartbeats">;
@@ -955,7 +955,8 @@ function researchControlRateLimitError(
   const permits: Array<{ release(): void }> = [];
   for (const key of keys) {
     const result = options.rateLimiter.acquire({
-      credentialId: key,
+      scope: "credential",
+      key,
       policy
     });
     if ("release" in result) {

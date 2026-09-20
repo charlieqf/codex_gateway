@@ -26,7 +26,7 @@ import {
   phoneAuthGatewayOrigin,
   phoneAuthMedevidenceOrigin
 } from "./services/phone-auth-service.js";
-import { InMemoryCredentialRateLimiter } from "./services/rate-limiter.js";
+import { InMemoryRequestRateLimiter } from "./services/rate-limiter.js";
 import type {
   VisionAssetReadGrant,
   VisionAssetService,
@@ -1252,7 +1252,7 @@ function createFixture(
     apiKeyEncryptionSecret: encryptionSecret,
     now: () => start
   });
-  const loginRateLimiter = new InMemoryCredentialRateLimiter({ now: () => start });
+  const loginRateLimiter = new InMemoryRequestRateLimiter({ now: () => start });
   const researchStore = createResearchSqliteStore({
     path: ":memory:",
     limits: {
