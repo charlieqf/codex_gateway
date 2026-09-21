@@ -1,0 +1,152 @@
+{
+  "activated_at": "2026-09-21T06:43:22.271627+00:00",
+  "runtime_revision": "a06d5221b1ced1c91d4a1b4fbd2f968ec6b3b131",
+  "image": "sha256:1488bb3ded67e76fd356c489bd6a6c1a4c7554d419a7001ed1a873e7a951135b",
+  "phone_masked": "186****0006",
+  "mode": "pilot",
+  "pilot_subjects": [
+    "subj_yBZBxNUHIVszGz4BKXaltrw5"
+  ],
+  "daily_jobs": 10,
+  "active_jobs": 1,
+  "default_for_unlisted_subjects": "unavailable",
+  "backup": "/opt/codex-gateway-r760/backups/imaging-real-pilot-20260921T064300Z",
+  "previous_config_sha256": "fda30920b3729064d20160d1a61bcb75bf4bb24251d6d42c23b263d6762b99fc",
+  "active_config_sha256": "6a1661c8e3c4f6480b53bc509e60ff5d034e2fe4d578929502257ebcc027626a",
+  "database_backups": {
+    "gateway.db": {
+      "sha256": "d23b8b950f52788b518ee43a5e31d649fda249c9838fdca9eec17ebfa35b6ae7",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    "client-events.db": {
+      "sha256": "b9b9cb0ade32b374c1e268b53e41697e798a4c70c18ce54d3022762c187057a2",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    "imaging-control.db": {
+      "sha256": "cf412dd0a4321cd2364716bafefc566b3cdbf8989cf8e3f2222b12f195f9fe28",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    "research.db": {
+      "sha256": "ad01cb4292cb3188ecf8e0fff50695b9e1d74d1ec4f5056d70e73c7f25165a7e",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    }
+  },
+  "database_checks": {
+    "gateway.db": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    "client-events.db": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    "imaging-control.db": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    "research.db": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    }
+  },
+  "before": {
+    "subject_id": "subj_yBZBxNUHIVszGz4BKXaltrw5",
+    "available": false,
+    "capabilities": {
+      "schema_version": 1,
+      "profile": "radar-abdominal-research-v1",
+      "available": false,
+      "input_formats": [
+        "nifti",
+        "dicom_zip"
+      ],
+      "max_upload_bytes": 536870912,
+      "chunk_bytes": 8388608,
+      "retention_seconds": 86400,
+      "poll_after_ms": 2000
+    },
+    "existing_unified_key_resolved": true,
+    "credentials_valid": true,
+    "ordinary_models_available": true,
+    "secrets_readable_only": false,
+    "checks": [
+      {
+        "path": "/gateway/unified-keys/resolve",
+        "status": 200,
+        "request_id": "req-2103de8a-7e08-4e79-a193-18fa31633e4a"
+      },
+      {
+        "path": "/gateway/imaging/v1/capabilities",
+        "status": 200,
+        "request_id": "req-99c1f16a-9f94-4823-a547-8095d54b8505"
+      },
+      {
+        "path": "/gateway/credentials/current",
+        "status": 200,
+        "request_id": "req-c737bb8a-63ca-4a8c-9f68-0173db66c52b"
+      },
+      {
+        "path": "/v1/models",
+        "status": 200,
+        "request_id": "req-ba803999-09e8-4747-838c-f1ce1a76281a"
+      }
+    ]
+  },
+  "after": {
+    "subject_id": "subj_yBZBxNUHIVszGz4BKXaltrw5",
+    "available": true,
+    "capabilities": {
+      "schema_version": 1,
+      "profile": "radar-abdominal-research-v1",
+      "available": true,
+      "input_formats": [
+        "nifti",
+        "dicom_zip"
+      ],
+      "max_upload_bytes": 536870912,
+      "chunk_bytes": 8388608,
+      "retention_seconds": 86400,
+      "poll_after_ms": 2000
+    },
+    "existing_unified_key_resolved": true,
+    "credentials_valid": true,
+    "ordinary_models_available": true,
+    "secrets_readable_only": true,
+    "checks": [
+      {
+        "path": "/gateway/unified-keys/resolve",
+        "status": 200,
+        "request_id": "req-3c496867-94a3-45eb-bd3c-1741a2ebf8ca"
+      },
+      {
+        "path": "/gateway/imaging/v1/capabilities",
+        "status": 200,
+        "request_id": "req-3d6d0472-bcd5-47e3-8697-a6ba465534db"
+      },
+      {
+        "path": "/gateway/credentials/current",
+        "status": 200,
+        "request_id": "req-8ac65ad0-74ca-47b2-9b11-56ed7ea18eee"
+      },
+      {
+        "path": "/v1/models",
+        "status": 200,
+        "request_id": "req-0efed5bc-c691-40bf-adbf-33d6fa4bb698"
+      }
+    ]
+  },
+  "gateway_healthy": true,
+  "gateway_restarts": 0,
+  "other_containers_unchanged": true,
+  "nginx_preserved": true,
+  "single_file_readonly_mounts": true,
+  "no_new_keys_or_entitlements": true,
+  "metering": {
+    "gpu_seconds_non_null": 0,
+    "subject_job_records": 0
+  }
+}

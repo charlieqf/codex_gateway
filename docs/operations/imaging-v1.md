@@ -26,7 +26,7 @@ service credential, runtime acceptance and explicit Subject allowlist:
 | `GATEWAY_IMAGING_MODE` | `off` (default) or `pilot` |
 | `GATEWAY_IMAGING_SUBJECT_IDS` | Comma-separated authoritative Subject IDs; empty permits nobody; no wildcard |
 | `GATEWAY_IMAGING_SQLITE_PATH` | Required independent persistent path, e.g. `/var/lib/codex-gateway/imaging/control.db` |
-| `GATEWAY_IMAGING_STAR_URL` | Final verified HTTPS endpoint; proposed `https://192.168.77.7:8786/internal/imaging/v1` |
+| `GATEWAY_IMAGING_STAR_URL` | Verified HTTPS endpoint `https://192.168.77.7:8786/internal/imaging/v1` |
 | `GATEWAY_IMAGING_STAR_CA_FILE` | Read-only private mount of the trusted CA/server certificate |
 | `GATEWAY_IMAGING_STAR_TOKEN_FILE` | Read-only private mount of the dedicated service bearer token |
 | `GATEWAY_IMAGING_DAILY_JOBS` | 10 admitted job submissions per Subject per UTC day |
