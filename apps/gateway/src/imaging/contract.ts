@@ -11,7 +11,7 @@ export type Json = Record<string, unknown>;
 export type StudyInput = { format: "nifti" | "dicom_zip"; size: number; sha256: string; session_id: string; data_policy: "public_or_deidentified" };
 export type JobInput = { study_id: string; study_revision: 1; series_id: string; analysis_profile: typeof imagingProfile; session_id: string };
 export type CreateInput = StudyInput | JobInput;
-export type Series = { series_id: string; modality: "CT"; shape_xyz: number[]; spacing_xyz: number[]; phase: null; eligible: boolean; reason?: string };
+export type Series = { series_id: string; modality: "CT"; shape_xyz?: number[]; spacing_xyz?: number[]; phase: null; eligible: boolean; reason?: string };
 export type Study = { study_id: string; study_revision: 1; state: string; format: string; size: number; sha256: string; chunk_bytes: number; expires_at: number; series: Series[]; error?: Json };
 export type Job = { job_id: string; study_id: string; series_id: string; state: string; stage: string; result_revision: 1 | null; created_at: number; updated_at: number; expires_at: number; error?: Json };
 export type Resource = Study | Job;
@@ -110,10 +110,14 @@ export function parseResource(kind: Kind, value: unknown): Resource {
       typeof b.sha256 === "string" && hashPattern.test(b.sha256) && b.chunk_bytes === chunkBytes && Array.isArray(b.series) && b.series.length <= 10000, 503, "upstream_protocol_error");
     const series = (b.series as unknown[]).map(item => {
       const s = object(item);
+      const geometry = [s.shape_xyz, s.spacing_xyz].every(a => Array.isArray(a) && a.length === 3 && a.every(n => numeric(n) && n > 0)) &&
+        (s.shape_xyz as number[]).every(Number.isSafeInteger);
       requireImaging(safeToken(s.series_id) && s.modality === "CT" && s.phase === null && typeof s.eligible === "boolean" &&
-        [s.shape_xyz, s.spacing_xyz].every(a => Array.isArray(a) && a.length === 3 && a.every(n => numeric(n) && n > 0)), 503, "upstream_protocol_error");
-      return { series_id: s.series_id as string, modality: "CT" as const, shape_xyz: s.shape_xyz as number[], spacing_xyz: s.spacing_xyz as number[], phase: null, eligible: s.eligible,
-        ...(s.reason === undefined ? {} : { reason: "Series is not eligible for this profile." }) };
+        (geometry || (s.eligible === false && s.shape_xyz === undefined && s.spacing_xyz === undefined)), 503, "upstream_protocol_error");
+      const reasons = ["slice_count_out_of_range", "non_ct_localizer_multiframe_or_inconsistent_geometry", "unsupported_volume_geometry"];
+      return { series_id: s.series_id as string, modality: "CT" as const,
+        ...(geometry ? { shape_xyz: s.shape_xyz as number[], spacing_xyz: s.spacing_xyz as number[] } : {}), phase: null, eligible: s.eligible,
+        ...(s.reason === undefined ? {} : { reason: reasons.includes(String(s.reason)) ? String(s.reason) : "unsupported_series" }) };
     });
     requireImaging(new Set(series.map(s => s.series_id)).size === series.length, 503, "upstream_protocol_error");
     return { study_id: b.study_id as string, study_revision: 1, state: String(b.state), format: String(b.format), size: Number(b.size), sha256: b.sha256 as string, chunk_bytes: chunkBytes, expires_at: b.expires_at, series, ...(error ? { error } : {}) };

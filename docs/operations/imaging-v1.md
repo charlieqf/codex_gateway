@@ -5,6 +5,12 @@ private prefix `/internal/imaging/v1`. Profile `radar-abdominal-research-v1`.
 This runbook describes implementation and activation, not proof of deployment or
 real CT acceptance. Record those separately with the tested commit and actual IDs.
 
+Contract clarification proposed to the Desktop/star owner: current star returns
+ineligible series without `shape_xyz` / `spacing_xyz`. Gateway preserves these
+omissions only when `eligible:false`; eligible series require both valid vectors.
+It never fills in geometry. Public timestamps follow star's Unix seconds. The
+pending GPU-duration addition remains outside v1; the local field stays NULL.
+
 ## Configuration and pilot admission
 
 The default is **off**. `GET /capabilities` still requires the existing Gateway

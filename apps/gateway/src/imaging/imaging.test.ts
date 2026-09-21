@@ -277,4 +277,14 @@ describe("imaging public v1", () => {
     expect(result.body).not.toContain("/private/path");
     expect(t.star.resources.size).toBe(2);
   });
+  it("preserves rejected series without invented geometry, while eligible series require validated dimensions", async () => {
+    const t = setup(); const id = (await t.create()).json().study_id; t.star.ready(id);
+    const study = t.star.resources.get(id)!.value as Study;
+    study.series.push({ series_id: "series_0002", modality: "CT", phase: null, eligible: false, reason: "slice_count_out_of_range" });
+    const read = await t.request("GET", `/studies/${id}`);
+    expect(read.statusCode).toBe(200);
+    expect(read.json().series[1]).toEqual(study.series[1]);
+    study.series[1]!.eligible = true;
+    expect((await t.request("GET", `/studies/${id}`)).statusCode).toBe(503);
+  });
 });
