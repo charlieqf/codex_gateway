@@ -117,6 +117,24 @@ function setup(path = ":memory:", limits = defaultImagingLimits, logs?: string[]
 }
 
 describe("imaging public v1", () => {
+  it("persists successful and rejected HTTP operations in the independent audit database", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "imaging-audit-"));
+    cleanup.push(() => rmSync(directory, { recursive: true, force: true }));
+    const path = join(directory, "imaging.db"), logs: string[] = [];
+    const t = setup(path, defaultImagingLimits, logs);
+    const created = await t.create();
+    const id = created.json().study_id;
+    const denied = await t.request("GET", `/studies/${id}`, undefined, 1);
+    await t.app.close();
+    const db = new DatabaseSync(path, { readOnly: true });
+    try {
+      expect(db.prepare("SELECT subject,request_id,operation,resource_id,status,error_code FROM imaging_audit ORDER BY id").all()).toEqual([
+        { subject: subjectA, request_id: created.headers["x-request-id"], operation: `POST ${prefix}/studies`, resource_id: null, status: 201, error_code: null },
+        { subject: subjectB, request_id: denied.headers["x-request-id"], operation: `GET ${prefix}/studies/:id`, resource_id: id, status: 404, error_code: "not_found" }
+      ]);
+      expect(logs.some(line => line.includes("Imaging audit write failed"))).toBe(false);
+    } finally { db.close(); }
+  });
   it("uses authoritative credentials, isolates owners despite the same session, and refuses forged service headers", async () => {
     const t = setup();
     const anonymous = await t.app.inject({ url: prefix + "/capabilities" });

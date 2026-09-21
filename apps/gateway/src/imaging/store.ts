@@ -172,7 +172,7 @@ export class ImagingStore {
     this.db.prepare("INSERT OR IGNORE INTO imaging_results VALUES(?,?)").run(id, json);
   }
   audit(subject: string | null, requestId: string, operation: string, id: string | null, status: number, code: string | null, now: number): void {
-    this.db.prepare("INSERT INTO imaging_audit(at,subject,request_id,operation,resource_id,status,error_code) VALUES(?,?,?,?,?,?,?,?)")
+    this.db.prepare("INSERT INTO imaging_audit(at,subject,request_id,operation,resource_id,status,error_code) VALUES(?,?,?,?,?,?,?)")
       .run(now, subject, requestId, operation, id, status, code);
   }
   prune(now: number): void {
