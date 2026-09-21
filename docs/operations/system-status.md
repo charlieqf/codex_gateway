@@ -1,6 +1,6 @@
 # System Status
 
-Last verified: 2026-09-20 04:27 UTC (14:27 Sydney): image asset request-log redaction, schema 34, all eight public request-log checks passed. All three databases and six runtime containers passed checks; 3,722 existing control records were unchanged. This smoke created no accounts, credentials or assets. Phone readiness was last checked on 2026-09-18: 300/300 active identities ready, with no duplicate-phone groups.
+Last verified: 2026-09-21 06:23 UTC: imaging v1 deployed with the feature disabled after real CT and source-client acceptance; schema 34. Temporary test studies were deleted, test Subjects disabled, credentials revoked and test entitlements cancelled. Final revocation, database and container evidence is recorded in the [joint audit](../../artifacts/imaging-gateway-20260921/joint-final-audit.json). Phone readiness was last checked on 2026-09-18: 300/300 active identities ready, with no duplicate-phone groups.
 
 xAI proxy routing additionally verified 2026-09-14 03:03 UTC: dedicated
 `api.x.ai -> XAI-EGRESS` priority fallback with two tested leaf nodes, xAI HEAD
@@ -24,12 +24,12 @@ history retain implementation evidence; do not append incident history here.
 
 ## Production Runtime
 
-Gateway activation and public health verified on 2026-09-20; local inference behavior last verified on 2026-09-06:
+Gateway activation and public health verified on 2026-09-21; local inference behavior last verified on 2026-09-06:
 
 - `current`:
-  `07a650429bd828dc2390a7b747c4fd252743ccaa` (pinned runtime source committed and pushed to `main`; schema 34)
+  `a06d5221b1ced1c91d4a1b4fbd2f968ec6b3b131` (pinned runtime source committed and pushed to `main`; schema 34)
 - `previous`:
-  `4b1dc8fa4f0f5a3e9d6e97ef83dc9f2921c862c2` (same schema 34; program-only rollback preserves production data)
+  `ca07c41b4f7adaf9c938cc301212d969e9ba1d32` (same schema 34; program-only rollback preserves production data; lacks the imaging audit INSERT fix, so keep imaging off on rollback)
 - Gateway release source: `origin/main`; pin and verify its latest commit before deployment.
 - Public Gateway: healthy, published only on
   `127.0.0.1:18787->8787`
@@ -43,16 +43,28 @@ Gateway activation and public health verified on 2026-09-20; local inference beh
   did not change. See [recovery evidence](../../artifacts/doctor-research-agent-2026-09-10/maintenance-recovery-verified-20260911.json).
 - `qwen38-fp8-local`: healthy, private container port only
 
-Gateway runs `07a6504`, schema 34, started 2026-09-20 04:27:05 UTC. Only
-`POST /gateway/vision/assets/:assetId/read-url` uses the independent subject
+Gateway runs `a06d522`, schema 34. Imaging v1 remains off after temporary pilot
+acceptance. Full public CT upload, new inference, 15 verified artifacts, owner
+isolation, resume, cancellation and deletion passed through the public Gateway.
+The source client also completed ordinary-chat tools, inference, verified download
+and HTML generation/browser review. This does not certify a newly installed Desktop
+release. The audit INSERT defect found during the first run was fixed and the full
+CT flow repeated on the final revision. The dedicated Nginx imaging configuration
+passed syntax validation and awaits explicit approval. See the
+[Gateway imaging receipt](../outbox/medevidence-imaging-gateway-receipt-2026-09-21.zh-CN.md)
+and [activation runbook](./imaging-v1.md).
+
+The vision refresh route
+`POST /gateway/vision/assets/:assetId/read-url` uses its independent subject
 budget: 20 concurrent requests, 1,920 per fixed UTC minute and 80,000 per UTC day.
 Keys and sessions belonging to the same subject share this budget; ordinary
 credential counters remain separate. Cancelled refreshes retain capacity until
 their asynchronous storage work settles. These are in-memory single-process
 protection windows, cleared by restart, not billing ledgers.
 
-The pinned Linux image passed 1,535 tests (3 existing external-fixture tests
-skipped). Root request logging now redacts asset identifiers, queries and unknown
+The pinned Linux image passed 1,553 tests (3 existing external-fixture tests
+skipped), including 18 imaging tests. Root request logging redacts the entire
+imaging path/query and also redacts image asset identifiers, queries and unknown
 tails for image asset paths, including wrong methods, encoded paths and unmatched
 routes; actual routing and admission remain unchanged. All eight unauthenticated
 public request-log checks passed, with no test fixtures created. See the

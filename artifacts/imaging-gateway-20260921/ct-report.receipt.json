@@ -1,0 +1,15 @@
+{
+  "status": "passed",
+  "report_id": "radar-0a8586fc1e99566b1e102c10",
+  "score_count": 146,
+  "preview_count": 12,
+  "report_sha256": "8922966c146886b93e7183b1213c0641283e9bfad4eec357d9220c8a51157908",
+  "bytes": 350925,
+  "scope": "artifact source consistency; not clinical or browser validation",
+  "template_version": "0.1.1",
+  "template_sha256": "2bf480ab86aec3b3aef44154ad4bd665302c4f560df374c4304f3524745c0ac2",
+  "narrative_sha256": "bdc3cdbcb5dd9f1838bc2bd28dee7a7b6a5d99ad1108d73f34a9d116da489c33",
+  "bundle_sha256": "1913339a5e0fef178fb70ae66ff521bedde86437e98c741cf13490584bd320fa",
+  "review_imported": false,
+  "report_path": "C:\\work\\code\\medevidence-opencode-stable\\.tmp\\radar-skill-trial\\gateway-public-20260921-v7\\workspace\\output\\CT_辅助阅片报告.html"
+}

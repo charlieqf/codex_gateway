@@ -1,0 +1,90 @@
+{
+  "checked_at": "2026-09-21T06:23:56.168136+00:00",
+  "revision": "a06d5221b1ced1c91d4a1b4fbd2f968ec6b3b131",
+  "image": "sha256:1488bb3ded67e76fd356c489bd6a6c1a4c7554d419a7001ed1a873e7a951135b",
+  "mode": "off",
+  "pilot_subjects": [],
+  "healthy": true,
+  "restarts": 0,
+  "other_containers_unchanged": true,
+  "cleanup": [
+    {
+      "subject_id": "subj_K2e2zGnnhts0fMVOW6VMfJH3",
+      "disabled": true,
+      "active_credentials": 0,
+      "active_unified_keys": 0,
+      "active_test_entitlements": 0,
+      "unfinished_reservations": 0,
+      "revoked_http_status": 401,
+      "request_id": "req-3e0ce2f9-5450-4d01-af09-c4fbeb4297e8"
+    },
+    {
+      "subject_id": "subj_NYwjdpSFSlQiz3uDk0CX5A3r",
+      "disabled": true,
+      "active_credentials": 0,
+      "active_unified_keys": 0,
+      "active_test_entitlements": 0,
+      "unfinished_reservations": 0,
+      "revoked_http_status": 401,
+      "request_id": "req-792f5b7f-2cb6-42ee-9910-a12f4deefd5f"
+    }
+  ],
+  "databases": {
+    "gateway.db": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    "client-events.db": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    "control.db": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    "research.db": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    }
+  },
+  "imaging": {
+    "audit_rows": 88,
+    "audit_status_counts": [
+      [
+        200,
+        65
+      ],
+      [
+        201,
+        2
+      ],
+      [
+        202,
+        8
+      ],
+      [
+        404,
+        11
+      ],
+      [
+        409,
+        1
+      ],
+      [
+        429,
+        1
+      ]
+    ],
+    "gpu_seconds_non_null": 0,
+    "pending_actions": 0,
+    "unrevoked_resources": 0,
+    "permissions": {
+      "control.db-shm": "0o600",
+      "control.db": "0o600",
+      "control.db-wal": "0o600"
+    }
+  },
+  "nginx_sha256": "6ac9bc35b07ab81e3c7c044e31f0e25daa71fbea3aa01148fc0bebbb015075c0",
+  "nginx_unchanged": true,
+  "r760_temporary_credential_file_removed": true
+}

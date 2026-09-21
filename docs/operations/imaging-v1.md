@@ -5,9 +5,10 @@ private prefix `/internal/imaging/v1`. Profile `radar-abdominal-research-v1`.
 This runbook describes implementation and activation, not proof of deployment or
 real CT acceptance. Record those separately with the tested commit and actual IDs.
 
-Contract clarification proposed to the Desktop/star owner: current star returns
-ineligible series without `shape_xyz` / `spacing_xyz`. Gateway preserves these
-omissions only when `eligible:false`; eligible series require both valid vectors.
+Contract clarification confirmed by the Desktop/star owner on 2026-09-21:
+Gateway preserves omitted `shape_xyz` / `spacing_xyz` only when `eligible:false`.
+Eligible series require both valid vectors. Supplied geometry must always be a
+complete valid pair; partial or invalid values are upstream protocol errors.
 It never fills in geometry. Public timestamps follow star's Unix seconds. The
 pending GPU-duration addition remains outside v1; the local field stays NULL.
 

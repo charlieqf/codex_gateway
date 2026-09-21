@@ -1,0 +1,163 @@
+{
+  "checked_at": "2026-09-21T05:12:38.990796+00:00",
+  "deployed_at": "2026-09-21T05:11:09.067327+00:00",
+  "revision": "ca07c41b4f7adaf9c938cc301212d969e9ba1d32",
+  "image_id": "sha256:742315bec26de081cd36c2f72501d797248088e9527eb14639cf1f81f19d92bc",
+  "previous_revision": "aca6325bf65f1781a1b9fa876076c8ed9e5d2605",
+  "public_health": "ready",
+  "imaging_mode": "off",
+  "restarts": 0,
+  "other_services": {
+    "codex_gateway_r760-research-worker-1": {
+      "unchanged": true,
+      "health": "healthy"
+    },
+    "codex_gateway_r760-research-llm-gateway-1": {
+      "unchanged": true,
+      "health": "healthy"
+    },
+    "codex_gateway_r760-research-maintenance-1": {
+      "unchanged": true,
+      "health": "healthy"
+    },
+    "codex_gateway_r760-mihomo-1": {
+      "unchanged": true,
+      "health": "healthy"
+    },
+    "qwen38-fp8-local": {
+      "unchanged": true,
+      "health": "healthy"
+    }
+  },
+  "public_auth_checks": [
+    {
+      "method": "GET",
+      "operation": "/capabilities",
+      "status": 401,
+      "request_id": "req-81a496cf-f275-447e-ac36-d0d14f71396c"
+    },
+    {
+      "method": "POST",
+      "operation": "/studies",
+      "status": 401,
+      "request_id": "req-8ff41814-197e-4cd1-8d02-793f4fd9a638"
+    },
+    {
+      "method": "GET",
+      "operation": "/studies/:study",
+      "status": 401,
+      "request_id": "req-c9fcb99d-33cf-49e9-af15-17ff085124ee"
+    },
+    {
+      "method": "GET",
+      "operation": "/studies/:study/upload",
+      "status": 401,
+      "request_id": "req-6e4b6dab-55ed-4d65-af93-ba5537f977a5"
+    },
+    {
+      "method": "PUT",
+      "operation": "/studies/:study/upload/parts/0",
+      "status": 401,
+      "request_id": "req-03c874d4-f365-4d0c-9a03-c63fc335a83d"
+    },
+    {
+      "method": "POST",
+      "operation": "/studies/:study/complete",
+      "status": 401,
+      "request_id": "req-a5cb7650-4cf9-4d86-9003-f94b64116895"
+    },
+    {
+      "method": "POST",
+      "operation": "/jobs",
+      "status": 401,
+      "request_id": "req-1e40aa96-8908-4191-981d-7f59ed6844d2"
+    },
+    {
+      "method": "GET",
+      "operation": "/jobs/:job",
+      "status": 401,
+      "request_id": "req-ead3a4ad-f94f-41c3-b995-1e79009fefdb"
+    },
+    {
+      "method": "POST",
+      "operation": "/jobs/:job/cancel",
+      "status": 401,
+      "request_id": "req-ad5f1da3-b55a-4c41-8f2b-5d6eba602f53"
+    },
+    {
+      "method": "GET",
+      "operation": "/jobs/:job/result",
+      "status": 401,
+      "request_id": "req-0c4ac5fc-06aa-43db-bd4b-d6d622636545"
+    },
+    {
+      "method": "GET",
+      "operation": "/jobs/:job/artifacts",
+      "status": 401,
+      "request_id": "req-0b294693-f21d-4e3f-84b9-a93525b3bc0c"
+    },
+    {
+      "method": "DELETE",
+      "operation": "/studies/:study",
+      "status": 401,
+      "request_id": "req-dc013ccf-4e34-48d0-ba9a-92ec8e22e2b2"
+    }
+  ],
+  "app_log_redaction": "passed",
+  "databases": {
+    "research.db": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    "gateway.db": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    "client-events.db": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    }
+  },
+  "existing_control_rows": {
+    "subjects": {
+      "checked": 1033,
+      "changed": 0
+    },
+    "access_credentials": {
+      "checked": 1044,
+      "changed": 0
+    },
+    "unified_client_keys": {
+      "checked": 541,
+      "changed": 0
+    },
+    "plans": {
+      "checked": 16,
+      "changed": 0
+    },
+    "entitlements": {
+      "checked": 770,
+      "changed": 0
+    },
+    "phone_auth_identities": {
+      "checked": 323,
+      "changed": 0
+    }
+  },
+  "temporary_accounts_created": 0,
+  "real_ct_e2e": "not_run_waiting_for_service_credential_handoff",
+  "nginx_candidate": "validated_not_applied",
+  "identity_schema": 34,
+  "linux_tests": [
+    "Test Files  82 passed | 1 skipped (83)",
+    "Tests  1552 passed | 3 skipped (1555)",
+    "Duration  73.18s (transform 12.38s, setup 0ms, import 32.54s, tests 139.68s, environment 10ms)"
+  ],
+  "star_tls": {
+    "r760_to_star_tls_verified": true,
+    "certificate_sha256": "4e5c7d1916f850b7c449fca4bfe9867b0c056fcadf46d4e2b0dc4fe3a96c9482",
+    "unauthenticated_status": 401,
+    "service_credentials_delivered": false
+  },
+  "assertions": "passed"
+}

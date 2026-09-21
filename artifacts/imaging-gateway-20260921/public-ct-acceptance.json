@@ -1,0 +1,539 @@
+{
+  "started_at": "2026-09-21T05:39:49.564724+00:00",
+  "checks": [
+    "authenticated capabilities",
+    "study replay",
+    "changed idempotency 409",
+    "cross-Subject study read/delete 404",
+    "interrupted chunk not accepted",
+    "full CT resumed upload",
+    "identical chunk replay",
+    "valid full CT geometry",
+    "lost job response durable submission",
+    "Gateway restart preserved job identity",
+    "same-key retry produced one GPU job",
+    "real GPU completed",
+    "cross-Subject job/result/artifact/cancel 404",
+    "all artifact sizes and SHA256",
+    "unlisted asset rejected",
+    "active job limit 1",
+    "explicit cancellation reached cancelled",
+    "delete immediately revokes study/job/assets",
+    "star cleanup acknowledged"
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "route": "/capabilities",
+      "status": 200,
+      "request_id": "req-25cb2d97-6e49-4e33-8a35-a94caec420bb"
+    },
+    {
+      "method": "GET",
+      "route": "/capabilities",
+      "status": 200,
+      "request_id": "req-501e28d5-712d-4ce5-9c79-b9b70e1382d2"
+    },
+    {
+      "method": "POST",
+      "route": "/studies",
+      "status": 201,
+      "request_id": "req-41d40027-d509-4e24-9f27-a08ad679a667"
+    },
+    {
+      "method": "POST",
+      "route": "/studies",
+      "status": 200,
+      "request_id": "req-ab69ec82-ce01-4f5c-b58f-cef83916c797"
+    },
+    {
+      "method": "POST",
+      "route": "/studies",
+      "status": 409,
+      "request_id": "req-a33e84c8-b783-45c5-8825-5c2a338f3b3b"
+    },
+    {
+      "method": "GET",
+      "route": "/studies/study_9a25bd1be0ab4912a77eaf3b7d151226",
+      "status": 404,
+      "request_id": "req-ee48cf1a-129f-41c0-9a18-044903e6b7b3"
+    },
+    {
+      "method": "DELETE",
+      "route": "/studies/study_9a25bd1be0ab4912a77eaf3b7d151226",
+      "status": 404,
+      "request_id": "req-93011e55-6c6a-475d-9613-390d6c11f6ae"
+    },
+    {
+      "method": "GET",
+      "route": "/studies/study_9a25bd1be0ab4912a77eaf3b7d151226/upload",
+      "status": 200,
+      "request_id": "req-42edb6bf-fba1-44c9-b439-4d88b1dbaa7b"
+    },
+    {
+      "method": "PUT",
+      "route": "/studies/study_9a25bd1be0ab4912a77eaf3b7d151226/upload/parts/0",
+      "status": 200,
+      "request_id": "req-fe2a7e01-4bb4-4238-a965-73b9e89be7e2"
+    },
+    {
+      "method": "PUT",
+      "route": "/studies/study_9a25bd1be0ab4912a77eaf3b7d151226/upload/parts/1",
+      "status": 200,
+      "request_id": "req-fa6069c3-bcf3-47a6-a563-5dbb06734598"
+    },
+    {
+      "method": "GET",
+      "route": "/studies/study_9a25bd1be0ab4912a77eaf3b7d151226/upload",
+      "status": 200,
+      "request_id": "req-e83fd029-3155-4bb8-898f-3477267c3aa5"
+    },
+    {
+      "method": "PUT",
+      "route": "/studies/study_9a25bd1be0ab4912a77eaf3b7d151226/upload/parts/1",
+      "status": 200,
+      "request_id": "req-f6f76924-f602-4be0-93c3-ce85ac697013"
+    },
+    {
+      "method": "PUT",
+      "route": "/studies/study_9a25bd1be0ab4912a77eaf3b7d151226/upload/parts/2",
+      "status": 200,
+      "request_id": "req-621fe7d0-de74-4695-a5d6-2c84c0f89a32"
+    },
+    {
+      "method": "PUT",
+      "route": "/studies/study_9a25bd1be0ab4912a77eaf3b7d151226/upload/parts/3",
+      "status": 200,
+      "request_id": "req-ad2c398c-ab80-43e6-81fd-248c9e6b6c8c"
+    },
+    {
+      "method": "PUT",
+      "route": "/studies/study_9a25bd1be0ab4912a77eaf3b7d151226/upload/parts/4",
+      "status": 200,
+      "request_id": "req-b5a5ca2f-c7ce-427a-867e-f38a78cdd396"
+    },
+    {
+      "method": "PUT",
+      "route": "/studies/study_9a25bd1be0ab4912a77eaf3b7d151226/upload/parts/5",
+      "status": 200,
+      "request_id": "req-8381db6b-9be9-4795-b7f7-ed42352ed771"
+    },
+    {
+      "method": "PUT",
+      "route": "/studies/study_9a25bd1be0ab4912a77eaf3b7d151226/upload/parts/6",
+      "status": 200,
+      "request_id": "req-a2679f12-bc1f-42f1-af0e-5da6c527de6f"
+    },
+    {
+      "method": "PUT",
+      "route": "/studies/study_9a25bd1be0ab4912a77eaf3b7d151226/upload/parts/7",
+      "status": 200,
+      "request_id": "req-4688509d-8815-48d2-842a-314cb8bb1486"
+    },
+    {
+      "method": "PUT",
+      "route": "/studies/study_9a25bd1be0ab4912a77eaf3b7d151226/upload/parts/8",
+      "status": 200,
+      "request_id": "req-ec27958d-c03d-4ebd-b868-723350777e5b"
+    },
+    {
+      "method": "PUT",
+      "route": "/studies/study_9a25bd1be0ab4912a77eaf3b7d151226/upload/parts/9",
+      "status": 200,
+      "request_id": "req-16aeece3-db42-4bd8-8cc8-510f11d96a45"
+    },
+    {
+      "method": "PUT",
+      "route": "/studies/study_9a25bd1be0ab4912a77eaf3b7d151226/upload/parts/10",
+      "status": 200,
+      "request_id": "req-6d99cfc2-08f0-4d11-a4f5-419240bb868c"
+    },
+    {
+      "method": "PUT",
+      "route": "/studies/study_9a25bd1be0ab4912a77eaf3b7d151226/upload/parts/11",
+      "status": 200,
+      "request_id": "req-935ff78d-afc6-4924-b4c2-bb438570a337"
+    },
+    {
+      "method": "POST",
+      "route": "/studies/study_9a25bd1be0ab4912a77eaf3b7d151226/complete",
+      "status": 202,
+      "request_id": "req-e4d88c4b-690a-4c41-82bb-5bdb28d82b7c"
+    },
+    {
+      "method": "GET",
+      "route": "/studies/study_9a25bd1be0ab4912a77eaf3b7d151226",
+      "status": 200,
+      "request_id": "req-affa31cc-2089-477d-917e-83aee7e16ae2"
+    },
+    {
+      "method": "GET",
+      "route": "/studies/study_9a25bd1be0ab4912a77eaf3b7d151226",
+      "status": 200,
+      "request_id": "req-463b50fb-d496-4b3e-ba70-541503cf373f"
+    },
+    {
+      "method": "GET",
+      "route": "/studies/study_9a25bd1be0ab4912a77eaf3b7d151226",
+      "status": 200,
+      "request_id": "req-f73bb347-7fde-473c-81ec-f5f139f2dc9d"
+    },
+    {
+      "method": "POST",
+      "route": "/jobs",
+      "status": 200,
+      "request_id": "req-7ae2a57b-7295-4b95-9886-a54c5161eb86"
+    },
+    {
+      "method": "POST",
+      "route": "/jobs",
+      "status": 200,
+      "request_id": "req-67aa7d8e-2283-4b65-8120-2934270e380f"
+    },
+    {
+      "method": "GET",
+      "route": "/jobs/job_c70a40f8efde44508dd8a2aa85324353",
+      "status": 200,
+      "request_id": "req-7b12efee-c3ee-4bc2-9d28-4422f876739d"
+    },
+    {
+      "method": "GET",
+      "route": "/jobs/job_c70a40f8efde44508dd8a2aa85324353",
+      "status": 404,
+      "request_id": "req-8814d57e-46e2-4ca3-9e06-d77241abe710"
+    },
+    {
+      "method": "GET",
+      "route": "/jobs/job_c70a40f8efde44508dd8a2aa85324353/result",
+      "status": 404,
+      "request_id": "req-3ea679e8-ffbc-40e7-9f87-7e86e2b7e0cc"
+    },
+    {
+      "method": "GET",
+      "route": "/jobs/job_c70a40f8efde44508dd8a2aa85324353/artifacts?path=bundle.json",
+      "status": 404,
+      "request_id": "req-476bb368-a9de-4d17-b4f1-dabb1d3b69fd"
+    },
+    {
+      "method": "POST",
+      "route": "/jobs/job_c70a40f8efde44508dd8a2aa85324353/cancel",
+      "status": 404,
+      "request_id": "req-6b7b686f-6fc7-4ef0-ab80-fbbd7cdff3ea"
+    },
+    {
+      "method": "GET",
+      "route": "/jobs/job_c70a40f8efde44508dd8a2aa85324353/result",
+      "status": 200,
+      "request_id": "req-325877b0-6ae9-42d3-be42-4088a9f55d71"
+    },
+    {
+      "method": "GET",
+      "route": "/jobs/job_c70a40f8efde44508dd8a2aa85324353/artifacts?path=bundle.json",
+      "status": 200,
+      "request_id": "req-4f817d10-d2a3-4963-aa47-94ae171eb0f1"
+    },
+    {
+      "method": "GET",
+      "route": "/jobs/job_c70a40f8efde44508dd8a2aa85324353/artifacts?path=images%2Faxial-01-z018.png",
+      "status": 200,
+      "request_id": "req-4a058769-55f3-4ff4-8422-6ef37b8cb0e5"
+    },
+    {
+      "method": "GET",
+      "route": "/jobs/job_c70a40f8efde44508dd8a2aa85324353/artifacts?path=images%2Faxial-02-z048.png",
+      "status": 200,
+      "request_id": "req-092fa968-590d-4301-be2b-165c6d1cf6c5"
+    },
+    {
+      "method": "GET",
+      "route": "/jobs/job_c70a40f8efde44508dd8a2aa85324353/artifacts?path=images%2Faxial-03-z078.png",
+      "status": 200,
+      "request_id": "req-11b26bdc-4b2f-4c79-82c7-991ee5e8b79c"
+    },
+    {
+      "method": "GET",
+      "route": "/jobs/job_c70a40f8efde44508dd8a2aa85324353/artifacts?path=images%2Faxial-04-z108.png",
+      "status": 200,
+      "request_id": "req-a2b6fb4d-7bee-4fd2-876c-e4084f7932e2"
+    },
+    {
+      "method": "GET",
+      "route": "/jobs/job_c70a40f8efde44508dd8a2aa85324353/artifacts?path=images%2Faxial-05-z138.png",
+      "status": 200,
+      "request_id": "req-e44fd26c-397b-4992-830d-3c5d6e426097"
+    },
+    {
+      "method": "GET",
+      "route": "/jobs/job_c70a40f8efde44508dd8a2aa85324353/artifacts?path=images%2Faxial-06-z168.png",
+      "status": 200,
+      "request_id": "req-be74b2b4-8aa3-4d27-8175-200cd079d9a5"
+    },
+    {
+      "method": "GET",
+      "route": "/jobs/job_c70a40f8efde44508dd8a2aa85324353/artifacts?path=images%2Faxial-07-z199.png",
+      "status": 200,
+      "request_id": "req-cc90798c-1f75-4cf5-ae85-946870231890"
+    },
+    {
+      "method": "GET",
+      "route": "/jobs/job_c70a40f8efde44508dd8a2aa85324353/artifacts?path=images%2Faxial-08-z229.png",
+      "status": 200,
+      "request_id": "req-718f3280-ab93-4f9a-9615-9d7a8d45aea8"
+    },
+    {
+      "method": "GET",
+      "route": "/jobs/job_c70a40f8efde44508dd8a2aa85324353/artifacts?path=images%2Faxial-09-z259.png",
+      "status": 200,
+      "request_id": "req-889c54cb-3e95-4878-9cb9-d613b7ef9d2f"
+    },
+    {
+      "method": "GET",
+      "route": "/jobs/job_c70a40f8efde44508dd8a2aa85324353/artifacts?path=images%2Faxial-10-z289.png",
+      "status": 200,
+      "request_id": "req-4fe0d5ee-9770-4b31-afbe-fee6f09767ea"
+    },
+    {
+      "method": "GET",
+      "route": "/jobs/job_c70a40f8efde44508dd8a2aa85324353/artifacts?path=images%2Faxial-11-z319.png",
+      "status": 200,
+      "request_id": "req-f8614d67-5856-40c8-bb36-a50639422f11"
+    },
+    {
+      "method": "GET",
+      "route": "/jobs/job_c70a40f8efde44508dd8a2aa85324353/artifacts?path=images%2Faxial-12-z349.png",
+      "status": 200,
+      "request_id": "req-40ad163f-0480-4bab-a049-349ec6f6f33a"
+    },
+    {
+      "method": "GET",
+      "route": "/jobs/job_c70a40f8efde44508dd8a2aa85324353/artifacts?path=manifest.json",
+      "status": 200,
+      "request_id": "req-1038b687-0976-4c14-a886-caabff38712b"
+    },
+    {
+      "method": "GET",
+      "route": "/jobs/job_c70a40f8efde44508dd8a2aa85324353/artifacts?path=scores.csv",
+      "status": 200,
+      "request_id": "req-73b3484f-9ce3-41f3-9d8b-1b3bfd043b9b"
+    },
+    {
+      "method": "GET",
+      "route": "/jobs/job_c70a40f8efde44508dd8a2aa85324353/artifacts?path=unlisted.json",
+      "status": 404,
+      "request_id": "req-5ee54847-8b29-42f7-b63d-082be1c3b15c"
+    },
+    {
+      "method": "POST",
+      "route": "/jobs",
+      "status": 202,
+      "request_id": "req-d70b66d5-be54-443b-8fd4-1d024e7d1498"
+    },
+    {
+      "method": "POST",
+      "route": "/jobs",
+      "status": 429,
+      "request_id": "req-51316b64-6b63-4726-8ce2-f0aa481cbeba"
+    },
+    {
+      "method": "POST",
+      "route": "/jobs/job_aa9f7aac9002440f9a5fe3b21cfc86e5/cancel",
+      "status": 202,
+      "request_id": "req-efdd4ff3-2467-4b19-b073-39d2f4416f86"
+    },
+    {
+      "method": "GET",
+      "route": "/jobs/job_aa9f7aac9002440f9a5fe3b21cfc86e5",
+      "status": 200,
+      "request_id": "req-c70bcb16-8aab-4a6f-af70-820d40430f33"
+    },
+    {
+      "method": "DELETE",
+      "route": "/studies/study_9a25bd1be0ab4912a77eaf3b7d151226",
+      "status": 202,
+      "request_id": "req-17b012ab-350a-469e-be81-5472930ac0bb"
+    },
+    {
+      "method": "GET",
+      "route": "/studies/study_9a25bd1be0ab4912a77eaf3b7d151226",
+      "status": 404,
+      "request_id": "req-11c679ae-b3d5-42ce-a092-809dd896073d"
+    },
+    {
+      "method": "GET",
+      "route": "/jobs/job_c70a40f8efde44508dd8a2aa85324353",
+      "status": 404,
+      "request_id": "req-f965f66a-c203-448f-b2d8-afa00aaf6892"
+    },
+    {
+      "method": "GET",
+      "route": "/jobs/job_c70a40f8efde44508dd8a2aa85324353/artifacts?path=bundle.json",
+      "status": 404,
+      "request_id": "req-d76d1c96-2f81-4f24-b791-5136d1a6a7ad"
+    }
+  ],
+  "subject_ids": [
+    "subj_K2e2zGnnhts0fMVOW6VMfJH3",
+    "subj_NYwjdpSFSlQiz3uDk0CX5A3r"
+  ],
+  "study_id": "study_9a25bd1be0ab4912a77eaf3b7d151226",
+  "input_bytes": 98330067,
+  "input_sha256": "8e0e52551b675cb64907bb74506cd9393f195454a6ee7ebf56163e2c136fbabf",
+  "study_request": {
+    "format": "nifti",
+    "size": 98330067,
+    "sha256": "8e0e52551b675cb64907bb74506cd9393f195454a6ee7ebf56163e2c136fbabf",
+    "session_id": "imaging_joint_1789968798189",
+    "data_policy": "public_or_deidentified"
+  },
+  "study_key": "imaging_joint_1789968798189:full-ct",
+  "observed_states": {
+    "/studies/study_9a25bd1be0ab4912a77eaf3b7d151226": [
+      "validating",
+      "ready"
+    ],
+    "/jobs/job_c70a40f8efde44508dd8a2aa85324353": [
+      "completed"
+    ],
+    "/jobs/job_aa9f7aac9002440f9a5fe3b21cfc86e5": [
+      "cancelled"
+    ]
+  },
+  "series": [
+    {
+      "series_id": "series_0001",
+      "modality": "CT",
+      "shape_xyz": [
+        512,
+        512,
+        368
+      ],
+      "spacing_xyz": [
+        0.703125,
+        0.703125,
+        1.25
+      ],
+      "phase": null,
+      "eligible": true
+    }
+  ],
+  "job_request": {
+    "study_id": "study_9a25bd1be0ab4912a77eaf3b7d151226",
+    "study_revision": 1,
+    "series_id": "series_0001",
+    "analysis_profile": "radar-abdominal-research-v1",
+    "session_id": "imaging_joint_1789968798189"
+  },
+  "job_key": "imaging_joint_1789968798189:full-ct:job",
+  "job_id": "job_c70a40f8efde44508dd8a2aa85324353",
+  "job": {
+    "job_id": "job_c70a40f8efde44508dd8a2aa85324353",
+    "study_id": "study_9a25bd1be0ab4912a77eaf3b7d151226",
+    "series_id": "series_0001",
+    "state": "completed",
+    "stage": "completed",
+    "result_revision": 1,
+    "created_at": 1789969198.2040548,
+    "updated_at": 1789969214.867524,
+    "expires_at": 1790055589.847
+  },
+  "manifest": {
+    "schema_version": 1,
+    "job_id": "job_c70a40f8efde44508dd8a2aa85324353",
+    "result_revision": 1,
+    "bundle_path": "bundle.json",
+    "artifacts": [
+      {
+        "path": "bundle.json",
+        "size": 3012,
+        "sha256": "b238ca1228ea54f72a20f54083573942512b9743b21f8187c35d9a5285949b2f"
+      },
+      {
+        "path": "images/axial-01-z018.png",
+        "size": 157009,
+        "sha256": "42f5a3164d798b6da02abdd4a7fff4dbe02392eb9e98d4e3c295090d844f5816"
+      },
+      {
+        "path": "images/axial-02-z048.png",
+        "size": 170464,
+        "sha256": "41183aafaacd08c618744e9b24fa0000c004f57ddcb9cbe5dea2d1a4411588f9"
+      },
+      {
+        "path": "images/axial-03-z078.png",
+        "size": 164699,
+        "sha256": "a7b159d08d61949b9a557c85bb3c711aeadc0685cf6e819fc5c1c38edd1bacdc"
+      },
+      {
+        "path": "images/axial-04-z108.png",
+        "size": 164476,
+        "sha256": "51f5bb9bfc13aab30f1387c3332f0128165ec143278965f71e3228ed1ceb6ef9"
+      },
+      {
+        "path": "images/axial-05-z138.png",
+        "size": 163700,
+        "sha256": "142fa338b2e7515c79309de5824e9777c6872356d1cf82798f34591d19265200"
+      },
+      {
+        "path": "images/axial-06-z168.png",
+        "size": 155751,
+        "sha256": "7c2241ed77e7bbdaec5a9f7b54dc68af8a40d1981080a37130dd03eaca1d4b8a"
+      },
+      {
+        "path": "images/axial-07-z199.png",
+        "size": 157268,
+        "sha256": "ba452b6dbd06c57e02270110e9c713e4d344f49b8cd12d5f6fa622494aacf5e0"
+      },
+      {
+        "path": "images/axial-08-z229.png",
+        "size": 158246,
+        "sha256": "0db56eae324dd6fec0659a25f96485a72dd70cd5e8cb522c44a6e52a905c3dce"
+      },
+      {
+        "path": "images/axial-09-z259.png",
+        "size": 170507,
+        "sha256": "f6dd32dfeb60846fe124f48cee1f2efca57bb547b016b9bf71c7fdfedb08bcad"
+      },
+      {
+        "path": "images/axial-10-z289.png",
+        "size": 174737,
+        "sha256": "0daf5c24f6fcc11bb58e4e2c3df4290f8127eafd3b1d65686f87fee75afb7083"
+      },
+      {
+        "path": "images/axial-11-z319.png",
+        "size": 183212,
+        "sha256": "6e19d11cefc8d9465a1fe5c718bba4ab03f8ddcb825f30c3d519665d41497aa0"
+      },
+      {
+        "path": "images/axial-12-z349.png",
+        "size": 211581,
+        "sha256": "d321fcc9876fdba3b570f6251594e67c2820b55cc319c8f64b6da99a0e77c37d"
+      },
+      {
+        "path": "manifest.json",
+        "size": 1786,
+        "sha256": "22dd0b8a0d847a14abdb8564e09041fa987a27bfcf92fbaff53aafc97d7b6494"
+      },
+      {
+        "path": "scores.csv",
+        "size": 10020,
+        "sha256": "d44ffd37fed263ae8e89edb75b895f474dcbddb038ba23c986fdb970e8ba5d53"
+      }
+    ]
+  },
+  "cancel_job_id": "job_aa9f7aac9002440f9a5fe3b21cfc86e5",
+  "cancel_job": {
+    "job_id": "job_aa9f7aac9002440f9a5fe3b21cfc86e5",
+    "study_id": "study_9a25bd1be0ab4912a77eaf3b7d151226",
+    "series_id": "series_0001",
+    "state": "cancelled",
+    "stage": "cancelled",
+    "result_revision": null,
+    "created_at": 1789969281.369862,
+    "updated_at": 1789969281.4458086,
+    "expires_at": 1790055589.847
+  },
+  "status": "passed",
+  "finished_at": "2026-09-21T05:41:21.489733+00:00",
+  "post_restart_verified_at": "2026-09-21T05:43:30.933419+00:00",
+  "post_restart_request_id": "req-f632decf-6112-446f-98df-58e03f20414f",
+  "cleanup_at": "2026-09-21T05:46:18.683268+00:00"
+}

@@ -1,0 +1,20 @@
+{
+  "passed": true,
+  "source": "C:\\work\\code\\medevidence-opencode-stable\\.tmp\\radar-skill-trial\\gateway-public-20260921-v7\\workspace\\output\\CT_辅助阅片报告.html",
+  "page_errors": [],
+  "external_requests": [],
+  "checks": [
+    "146 rendered rows",
+    "real preview decoded",
+    "slice keyboard navigation",
+    "zoom",
+    "review sync",
+    "browser draft reload",
+    "organ search",
+    "review filter",
+    "review JSON export",
+    "CSV export",
+    "HTML snapshot roundtrip in fresh browser",
+    "390px layout"
+  ]
+}
