@@ -1,6 +1,6 @@
 # MedEvidence Imaging Gateway 开发、部署与真实 CT 联调回执
 
-日期：2026-09-21。Gateway 已开发并部署，完整公开 CT 经正式 Gateway 的新推理，以及客户端源码普通聊天→影像工具→报告→浏览器复核均通过。原临时测试 Subject 已撤销；随后按用户明确授权应用 Nginx 配置，并只为手机号 186****0006 对应的现有 Subject 开放试点。新版 Desktop EXE 安装包不属于本回执的通过范围。
+日期：2026-09-21。Gateway 已开发并部署，完整公开 CT 经正式 Gateway 的新推理，以及客户端源码普通聊天→影像工具→报告→浏览器复核均通过。原临时测试 Subject 已撤销；随后按用户明确授权应用 Nginx 配置，并为手机号 186****0006 对应账号和王文晟两个现有 Subject 开放试点。新版 Desktop EXE 安装包不属于本回执的通过范围。
 
 ## 生产版本与策略
 
@@ -8,12 +8,12 @@
 - 镜像：`sha256:1488bb3ded67e76fd356c489bd6a6c1a4c7554d419a7001ed1a873e7a951135b`。
 - 部署时间：2026-09-21T05:59:01.308087+00:00；previous 为 `ca07c41b4f7adaf9c938cc301212d969e9ba1d32`，身份库 schema 仍为 34。
 - 公网：`https://goldencode.instmarket.com.au:1443/gateway/imaging/v1`。
-- 代码默认 off；当前模式 pilot，白名单仅 `subj_yBZBxNUHIVszGz4BKXaltrw5`，其他 Subject 不可用。测试限额每 Subject 每 UTC 日 10 个任务、同时 1 个未完成任务，不新增收费规则。
+- 代码默认 off；当前模式 pilot，白名单仅 `subj_yBZBxNUHIVszGz4BKXaltrw5` 和 `subj__3nJpw9INwhmK4k8Qq4K4jlI`，其他 Subject 不可用。测试限额按 Subject 独立计算：每 UTC 日 10 个任务、同时 1 个未完成任务，不新增收费规则。
 - `gpu_seconds` 可空，保持 NULL；未用请求/任务墙钟时间估算 GPU 用时。
 - 只切换 Gateway，其他五个容器保持原 ID；未修改 star 服务、模型、驱动或其他应用。
 - 保留原有 25 个 tracked 文件的未提交修改及既有 untracked 文件；只在原 main 工作区开发，没有新分支/worktree/开发副本。
 
-当前状态见 [真实账号开通记录](../../artifacts/imaging-gateway-20260921/real-pilot-activation.json)，核验时间为 2026-09-21 06:43 UTC。此前临时联调关闭、撤销、健康与数据库检查见 [联调结束审计](../../artifacts/imaging-gateway-20260921/joint-final-audit.json)，对应 06:23 UTC 的关闭状态。[关闭后鉴权检查](../../artifacts/imaging-gateway-20260921/default-off-after-joint.json) 记录撤销测试 Key 前，两名已登录 Subject 均得到 available:false。[首轮发布审计](../../artifacts/imaging-gateway-20260921/final-audit.json) 保留较早的 ca07c41 默认关闭发布证据，不代表最终时点。
+当前状态见 [王文晟开通及两账号复验](../../artifacts/imaging-gateway-20260921/pilot-wang-activation.json)，核验时间为 2026-09-21 07:04 UTC。[首次真实账号开通](../../artifacts/imaging-gateway-20260921/real-pilot-activation.json) 对应 06:43 UTC 的单账号白名单。此前临时联调关闭、撤销、健康与数据库检查见 [联调结束审计](../../artifacts/imaging-gateway-20260921/joint-final-audit.json)，对应 06:23 UTC 的关闭状态。[关闭后鉴权检查](../../artifacts/imaging-gateway-20260921/default-off-after-joint.json) 记录撤销测试 Key 前，两名已登录 Subject 均得到 available:false。[首轮发布审计](../../artifacts/imaging-gateway-20260921/final-audit.json) 保留较早的 ca07c41 默认关闭发布证据，不代表最终时点。
 
 ## 实现与契约
 
@@ -79,7 +79,9 @@ Windows 脏工作区全量运行曾有 1607 通过、7 失败（计时/性能及
 
 用户随后指定手机号 186****0006，唯一匹配到 `subj_yBZBxNUHIVszGz4BKXaltrw5`。06:43 UTC 只为该 Subject 启用 pilot，保持每日 10、同时 1 的限额。等待既有请求完成后仅重建 Gateway，继续运行同一 a06d522 镜像；其他五个容器未变，Nginx 配置保留。开通备份 `/opt/codex-gateway-r760/backups/imaging-real-pilot-20260921T064300Z` 包含关闭配置和四个已校验数据库备份。回退开通配置时使用其中 `off.override.yml`，不恢复旧业务数据库，也不移除 Nginx 的日志隔离。
 
-现有统一 Key 解析、账号凭据及普通模型列表均为 200；影像 capabilities 由开通前 available:false 变为 available:true，request ID 为 `req-3d6d0472-bcd5-47e3-8697-a6ba465534db`。证书和专用凭据按文件只读挂载，容器 UID 999 可读不可写；四库完整性及外键检查通过。未新建 Key、entitlement 或推理任务，未占用该账号的影像任务额度；GPU 用时仍为空。其他 Subject 仍不在白名单中。
+首次开通时，现有统一 Key 解析、账号凭据及普通模型列表均为 200；影像 capabilities 由开通前 available:false 变为 available:true，request ID 为 `req-3d6d0472-bcd5-47e3-8697-a6ba465534db`。证书和专用凭据按文件只读挂载，容器 UID 999 可读不可写；四库完整性及外键检查通过。未新建 Key、entitlement 或推理任务，未占用该账号的影像任务额度；GPU 用时仍为空。
+
+07:04 UTC 按用户追加授权，为唯一匹配的王文晟（`subj__3nJpw9INwhmK4k8Qq4K4jlI`）追加权限。仅变更 `GATEWAY_IMAGING_SUBJECT_IDS`，保留原 Subject 与每用户 10/1 限额；确认普通预约和活动影像任务均为 0 后，只重建同一版本的 Gateway。备份为 `/opt/codex-gateway-r760/backups/imaging-pilot-add-wang-20260921T070402Z`，其中 `previous.override.yml` 可回退到此前单账号名单。两名用户均用现有凭据实测 available:true，王文晟 request ID 为 `req-ba1d55ca-9ea3-49b8-a4d1-be7829074c34`；普通模型列表也正常。四库检查通过，五个其他容器、Nginx 与挂载不变，未新建 Key、entitlement 或任务。
 
 ## 尚待事项
 

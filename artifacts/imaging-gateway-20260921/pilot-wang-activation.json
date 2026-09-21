@@ -1,0 +1,240 @@
+{
+  "activated_at": "2026-09-21T07:04:20.467936+00:00",
+  "runtime_revision": "a06d5221b1ced1c91d4a1b4fbd2f968ec6b3b131",
+  "image": "sha256:1488bb3ded67e76fd356c489bd6a6c1a4c7554d419a7001ed1a873e7a951135b",
+  "added_subject_id": "subj__3nJpw9INwhmK4k8Qq4K4jlI",
+  "mode": "pilot",
+  "pilot_subjects": [
+    "subj_yBZBxNUHIVszGz4BKXaltrw5",
+    "subj__3nJpw9INwhmK4k8Qq4K4jlI"
+  ],
+  "daily_jobs_per_subject": 10,
+  "active_jobs_per_subject": 1,
+  "default_for_unlisted_subjects": "unavailable",
+  "backup": "/opt/codex-gateway-r760/backups/imaging-pilot-add-wang-20260921T070402Z",
+  "previous_config_sha256": "6a1661c8e3c4f6480b53bc509e60ff5d034e2fe4d578929502257ebcc027626a",
+  "active_config_sha256": "827e3e2f5da6ddc6cda8516710c946a797a9869d5135c05f6f97f3e588dc3889",
+  "database_backups": {
+    "gateway.db": {
+      "sha256": "ab66f682b97dbda0f3059df80ef1b2ae5b1243be2f183e088c5280abf115ac0e",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    "client-events.db": {
+      "sha256": "84f25aad030b4c7d875edf05991738a5531cb4ea1f37a191b2bfaa8cace9d4e6",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    "imaging-control.db": {
+      "sha256": "8b6a3037570c82b4fc1b17539047613965e03bcd4e529777afc97e49ea3a7af8",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    "research.db": {
+      "sha256": "ddc049bebdee5c3bfd057ac5885435e6776fb6760ed2055ad3c72ab8e2ec1a59",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    }
+  },
+  "database_checks": {
+    "gateway.db": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    "client-events.db": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    "imaging-control.db": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    "research.db": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    }
+  },
+  "before": {
+    "subj__3nJpw9INwhmK4k8Qq4K4jlI": {
+      "subject_id": "subj__3nJpw9INwhmK4k8Qq4K4jlI",
+      "available": false,
+      "capabilities": {
+        "schema_version": 1,
+        "profile": "radar-abdominal-research-v1",
+        "available": false,
+        "input_formats": [
+          "nifti",
+          "dicom_zip"
+        ],
+        "max_upload_bytes": 536870912,
+        "chunk_bytes": 8388608,
+        "retention_seconds": 86400,
+        "poll_after_ms": 2000
+      },
+      "existing_unified_key_resolved": true,
+      "credentials_valid": true,
+      "ordinary_models_available": true,
+      "secrets_readable_only": false,
+      "checks": [
+        {
+          "path": "/gateway/unified-keys/resolve",
+          "status": 200,
+          "request_id": "req-a3b93ab6-af70-4c42-9599-148c3a2a4143"
+        },
+        {
+          "path": "/gateway/imaging/v1/capabilities",
+          "status": 200,
+          "request_id": "req-1896a1d5-efc2-4091-a7f5-35657076bbed"
+        },
+        {
+          "path": "/gateway/credentials/current",
+          "status": 200,
+          "request_id": "req-c63fd61b-39ba-4d1f-acd8-e992599e88ac"
+        },
+        {
+          "path": "/v1/models",
+          "status": 200,
+          "request_id": "req-48544c9b-c243-4687-a137-b9031a02645f"
+        }
+      ]
+    },
+    "subj_yBZBxNUHIVszGz4BKXaltrw5": {
+      "subject_id": "subj_yBZBxNUHIVszGz4BKXaltrw5",
+      "available": true,
+      "capabilities": {
+        "schema_version": 1,
+        "profile": "radar-abdominal-research-v1",
+        "available": true,
+        "input_formats": [
+          "nifti",
+          "dicom_zip"
+        ],
+        "max_upload_bytes": 536870912,
+        "chunk_bytes": 8388608,
+        "retention_seconds": 86400,
+        "poll_after_ms": 2000
+      },
+      "existing_unified_key_resolved": true,
+      "credentials_valid": true,
+      "ordinary_models_available": true,
+      "secrets_readable_only": true,
+      "checks": [
+        {
+          "path": "/gateway/unified-keys/resolve",
+          "status": 200,
+          "request_id": "req-3dab13a9-2bd7-4d03-8390-774ff121892f"
+        },
+        {
+          "path": "/gateway/imaging/v1/capabilities",
+          "status": 200,
+          "request_id": "req-f1e1e4dd-eb3d-4de8-8165-54700327cdca"
+        },
+        {
+          "path": "/gateway/credentials/current",
+          "status": 200,
+          "request_id": "req-2f9ebd94-78fc-4c28-9a05-745448fefcc2"
+        },
+        {
+          "path": "/v1/models",
+          "status": 200,
+          "request_id": "req-25446dbc-07a6-4269-81e2-cc2710d90c8e"
+        }
+      ]
+    }
+  },
+  "after": {
+    "subj__3nJpw9INwhmK4k8Qq4K4jlI": {
+      "subject_id": "subj__3nJpw9INwhmK4k8Qq4K4jlI",
+      "available": true,
+      "capabilities": {
+        "schema_version": 1,
+        "profile": "radar-abdominal-research-v1",
+        "available": true,
+        "input_formats": [
+          "nifti",
+          "dicom_zip"
+        ],
+        "max_upload_bytes": 536870912,
+        "chunk_bytes": 8388608,
+        "retention_seconds": 86400,
+        "poll_after_ms": 2000
+      },
+      "existing_unified_key_resolved": true,
+      "credentials_valid": true,
+      "ordinary_models_available": true,
+      "secrets_readable_only": true,
+      "checks": [
+        {
+          "path": "/gateway/unified-keys/resolve",
+          "status": 200,
+          "request_id": "req-f855637a-15e3-4233-a486-caee4da2ad2f"
+        },
+        {
+          "path": "/gateway/imaging/v1/capabilities",
+          "status": 200,
+          "request_id": "req-ba1d55ca-9ea3-49b8-a4d1-be7829074c34"
+        },
+        {
+          "path": "/gateway/credentials/current",
+          "status": 200,
+          "request_id": "req-d5d9b5bf-0d5b-466d-82b4-75695d754919"
+        },
+        {
+          "path": "/v1/models",
+          "status": 200,
+          "request_id": "req-9f0c8b08-ddf0-4be6-9ffb-fc42d70e7658"
+        }
+      ]
+    },
+    "subj_yBZBxNUHIVszGz4BKXaltrw5": {
+      "subject_id": "subj_yBZBxNUHIVszGz4BKXaltrw5",
+      "available": true,
+      "capabilities": {
+        "schema_version": 1,
+        "profile": "radar-abdominal-research-v1",
+        "available": true,
+        "input_formats": [
+          "nifti",
+          "dicom_zip"
+        ],
+        "max_upload_bytes": 536870912,
+        "chunk_bytes": 8388608,
+        "retention_seconds": 86400,
+        "poll_after_ms": 2000
+      },
+      "existing_unified_key_resolved": true,
+      "credentials_valid": true,
+      "ordinary_models_available": true,
+      "secrets_readable_only": true,
+      "checks": [
+        {
+          "path": "/gateway/unified-keys/resolve",
+          "status": 200,
+          "request_id": "req-2af9b574-0a4f-4778-9e8e-e0b4ff13fa63"
+        },
+        {
+          "path": "/gateway/imaging/v1/capabilities",
+          "status": 200,
+          "request_id": "req-fca34e07-79c7-43c6-bb60-8c56da59399b"
+        },
+        {
+          "path": "/gateway/credentials/current",
+          "status": 200,
+          "request_id": "req-d08bdc1b-fcfb-4e25-b31b-f5ff682fedb2"
+        },
+        {
+          "path": "/v1/models",
+          "status": 200,
+          "request_id": "req-85d38c37-5e63-41b1-bfda-512fbd120e3f"
+        }
+      ]
+    }
+  },
+  "gateway_healthy": true,
+  "gateway_restarts": 0,
+  "other_containers_unchanged": true,
+  "nginx_preserved": true,
+  "mounts_unchanged": true,
+  "only_allowlist_changed": true,
+  "no_new_keys_entitlements_or_jobs": true
+}

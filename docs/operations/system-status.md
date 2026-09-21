@@ -1,6 +1,6 @@
 # System Status
 
-Last verified: 2026-09-21 06:43 UTC: imaging v1 is enabled only for the explicitly approved Subject `subj_yBZBxNUHIVszGz4BKXaltrw5`; schema 34. Its existing credential returns available:true, with 10 jobs per UTC day and one unfinished job. Other Subjects remain unavailable. See [activation evidence](../../artifacts/imaging-gateway-20260921/real-pilot-activation.json). Earlier temporary test studies, credentials and entitlements were cleaned up as recorded in the [joint audit](../../artifacts/imaging-gateway-20260921/joint-final-audit.json). Phone readiness was last checked on 2026-09-18: 300/300 active identities ready, with no duplicate-phone groups.
+Last verified: 2026-09-21 07:04 UTC: imaging v1 admits only the explicitly approved Subjects `subj_yBZBxNUHIVszGz4BKXaltrw5` and `subj__3nJpw9INwhmK4k8Qq4K4jlI`; schema 34. Both existing credentials return available:true, with independent limits of 10 jobs per UTC day and one unfinished job per Subject. Other Subjects remain unavailable. See [latest allowlist verification](../../artifacts/imaging-gateway-20260921/pilot-wang-activation.json). Earlier temporary test studies, credentials and entitlements were cleaned up as recorded in the [joint audit](../../artifacts/imaging-gateway-20260921/joint-final-audit.json). Phone readiness was last checked on 2026-09-18: 300/300 active identities ready, with no duplicate-phone groups.
 
 xAI proxy routing additionally verified 2026-09-14 03:03 UTC: dedicated
 `api.x.ai -> XAI-EGRESS` priority fallback with two tested leaf nodes, xAI HEAD
@@ -44,7 +44,7 @@ Gateway activation and public health verified on 2026-09-21; local inference beh
 - `qwen38-fp8-local`: healthy, private container port only
 
 Gateway runs `a06d522`, schema 34. Imaging v1 defaults off in code and currently
-admits only the one approved Subject above. Full public CT upload, new inference, 15 verified artifacts, owner
+admits only the two approved Subjects above. Full public CT upload, new inference, 15 verified artifacts, owner
 isolation, resume, cancellation and deletion passed through the public Gateway.
 The source client also completed ordinary-chat tools, inference, verified download
 and HTML generation/browser review. This does not certify a newly installed Desktop
