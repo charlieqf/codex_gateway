@@ -180,6 +180,9 @@ import {
   visionAssetMaximumIdCharacters
 } from "./services/vision-asset-service.js";
 import { registerVisionAssetRoutes } from "./vision-asset-routes.js";
+import { registerImagingRoutes } from "./imaging/routes.js";
+import { resolveImagingService } from "./imaging/runtime.js";
+import { imagingPrefix } from "./imaging/contract.js";
 import {
   modelNotFoundError,
   openAIModelObject,
@@ -846,7 +849,7 @@ export function buildGateway(options: GatewayOptions = {}) {
   });
 
   app.addHook("preHandler", async (request) => {
-    if (!request.routeOptions.config?.public) {
+    if (!request.routeOptions.config?.public && !request.url.startsWith(`${imagingPrefix}/`)) {
       applyClientTurnHeaders(request);
     }
   });
@@ -856,7 +859,7 @@ export function buildGateway(options: GatewayOptions = {}) {
   );
 
   app.addHook("preHandler", async (request) => {
-    if (request.routeOptions.config?.public) {
+    if (request.routeOptions.config?.public || request.url.startsWith(`${imagingPrefix}/`)) {
       return;
     }
     await cleanupExpiredTokenReservations(tokenBudgetLimiter, request.log, clock());
@@ -877,6 +880,9 @@ export function buildGateway(options: GatewayOptions = {}) {
     ipRequestsPerMinute: phoneAuthIpRequestsPerMinute,
     deviceRequestsPerMinute: phoneAuthDeviceRequestsPerMinute
   });
+
+  registerImagingRoutes(app, options.imagingService === undefined
+    ? resolveImagingService(process.env, app.log) : options.imagingService);
 
   registerVisionAssetRoutes(app, {
     maximumRequestBodyBytes: visionRequestBodyLimitBytes,
