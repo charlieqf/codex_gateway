@@ -30,7 +30,7 @@ export function resolveImagingService(env: NodeJS.ProcessEnv, logger: { warn: (m
     star = new HttpsStarClient({ baseUrl: env.GATEWAY_IMAGING_STAR_URL,
       token: readFileSync(env.GATEWAY_IMAGING_STAR_TOKEN_FILE, "utf8").trim(), ca: readFileSync(env.GATEWAY_IMAGING_STAR_CA_FILE),
       controlTimeoutMs: positive("GATEWAY_IMAGING_CONTROL_TIMEOUT_MS", 15000, 60000),
-      transferTimeoutMs: positive("GATEWAY_IMAGING_TRANSFER_TIMEOUT_MS", 120000, 300000) });
+      transferTimeoutMs: positive("GATEWAY_IMAGING_TRANSFER_TIMEOUT_MS", 300000, 300000) });
     store = new ImagingStore(path);
     return new ImagingService(store, star, { subjects, limits,
       onRecoveryError: () => logger.warn("Imaging recovery is unavailable; durable records are retained.") });

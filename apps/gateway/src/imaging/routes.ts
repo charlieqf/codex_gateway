@@ -37,7 +37,7 @@ export function registerImagingRoutes(root: FastifyInstance, service: ImagingSer
       } else if (["POST", "PUT"].includes(request.method)) {
         requireImaging(request.headers["content-type"]?.split(";", 1)[0] === "application/json");
       }
-      state.timer = setTimeout(() => request.raw.destroy(), transfer ? 120000 : 20000);
+      state.timer = setTimeout(() => request.raw.destroy(), transfer ? 300000 : 20000);
       state.timer.unref();
       reply.raw.once("close", () => {
         state.disconnected = true;

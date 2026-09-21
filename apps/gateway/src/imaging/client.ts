@@ -54,7 +54,7 @@ export class HttpsStarClient implements StarClient {
     const abort = () => controller.abort();
     options.signal?.addEventListener("abort", abort, { once: true });
     if (options.signal?.aborted) abort();
-    const timer = setTimeout(abort, transfer ? this.options.transferTimeoutMs ?? 120_000 : this.options.controlTimeoutMs ?? 15_000);
+    const timer = setTimeout(abort, transfer ? this.options.transferTimeoutMs ?? 300_000 : this.options.controlTimeoutMs ?? 15_000);
     timer.unref();
     const cleanup = () => { clearTimeout(timer); options.signal?.removeEventListener("abort", abort); };
     const payload = options.body ? Buffer.from(JSON.stringify(options.body)) : undefined;

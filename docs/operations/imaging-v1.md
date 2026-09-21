@@ -33,7 +33,7 @@ service credential, runtime acceptance and explicit Subject allowlist:
 | `GATEWAY_IMAGING_DAILY_STUDIES` | 20 study submissions per Subject per UTC day |
 | `GATEWAY_IMAGING_ACTIVE_STUDIES` | 4 uploading/validating/pending studies per Subject |
 | `GATEWAY_IMAGING_CONTROL_TIMEOUT_MS` | 15000, maximum 60000 |
-| `GATEWAY_IMAGING_TRANSFER_TIMEOUT_MS` | 120000, maximum 300000; public route maximum remains 120000 |
+| `GATEWAY_IMAGING_TRANSFER_TIMEOUT_MS` | 300000 maximum/default; public transfer route maximum is also 300000 |
 
 Bad/missing imaging configuration disables imaging without preventing Gateway
 startup. Never print config values, service tokens or client keys. The SQLite
@@ -44,6 +44,8 @@ Never point this component at `gateway.db` or `client-events.db`.
 Runtime HTTP admission is separate from chat: 240 requests per Subject per UTC
 minute, four concurrent requests per Subject/eight globally, and two transfers
 per Subject/four globally. It is process-local protection, not a billing ledger.
+The 300-second transfer ceiling accommodates the Desktop acceptance link at
+about 67 KB/s, where an 8 MiB chunk already takes more than 120 seconds.
 Job/study submission allowances and ambiguous reservations persist across restart.
 Rejected/failed submissions can consume the conservative daily submission
 allowance; replays never consume a second allowance. No token deduction or new
