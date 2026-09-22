@@ -90,6 +90,60 @@ describe("archive-unreferenced-codex-rollouts", () => {
     });
   });
 
+  it("plans nothing when an account has never created its sessions directory", () => {
+    // Production hits this on every start: an account with no Codex session yet
+    // has no sessions directory. Treating it as an error made the entrypoint log
+    // the archive-failed warning the monitoring runbook classifies as Critical.
+    const fixture = createFixture({ withReference: false });
+    rmSync(join(fixture.home, "sessions"), { recursive: true, force: true });
+
+    const plan = createArchivePlan({
+      dbPath: fixture.dbPath,
+      accounts: [{ id: fixture.accountId, codexHome: fixture.home }],
+      archiveRoot: fixture.archiveRoot,
+      minAgeHours: 24,
+      nowMs: fixture.nowMs
+    });
+
+    expect(plan.totals).toMatchObject({ totalFiles: 0, candidateFiles: 0 });
+    expect(plan.accounts[0].sessionsRoot).toBeNull();
+    expect(() => applyArchivePlan(plan)).not.toThrow();
+  });
+
+  it("still fails closed when the sessions directory is gone but a session is referenced", () => {
+    // Absent-and-unreferenced is benign; absent-while-referenced means the
+    // database expects files that are not there, which must keep failing closed.
+    const fixture = createFixture();
+    rmSync(join(fixture.home, "sessions"), { recursive: true, force: true });
+
+    expect(() =>
+      createArchivePlan({
+        dbPath: fixture.dbPath,
+        accounts: [{ id: fixture.accountId, codexHome: fixture.home }],
+        archiveRoot: fixture.archiveRoot,
+        minAgeHours: 24,
+        nowMs: fixture.nowMs
+      })
+    ).toThrow(/referenced provider session file/);
+  });
+
+  it("still rejects a sessions path that exists but is not a real directory", () => {
+    const fixture = createFixture();
+    const sessions = join(fixture.home, "sessions");
+    rmSync(sessions, { recursive: true, force: true });
+    writeFileSync(sessions, "not a directory");
+
+    expect(() =>
+      createArchivePlan({
+        dbPath: fixture.dbPath,
+        accounts: [{ id: fixture.accountId, codexHome: fixture.home }],
+        archiveRoot: fixture.archiveRoot,
+        minAgeHours: 24,
+        nowMs: fixture.nowMs
+      })
+    ).toThrow(/must be a real directory/);
+  });
+
   it("fails closed when a referenced provider session file is missing", () => {
     const fixture = createFixture();
     writeRollout(fixture.home, "rollout-unrelated.jsonl", "old", 72);

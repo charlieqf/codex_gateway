@@ -170,6 +170,9 @@ export function applyArchivePlan(plan, { manifestPath } = {}) {
     throw new Error(`Archive root must be a real directory: ${plan.archiveRoot}`);
   }
   for (const account of plan.accounts) {
+    // No sessions directory means no file can be moved, so there is no
+    // cross-filesystem move to guard against.
+    if (account.sessionsRoot === null) continue;
     const accountDevice = lstatSync(account.sessionsRoot).dev;
     if (accountDevice !== archiveStats.dev) {
       throw new Error(
@@ -363,7 +366,11 @@ function normalizeAccounts(accounts) {
     }
     seen.add(account.id);
     const codexHome = requireAbsoluteExistingDirectory(account.codexHome, "CODEX_HOME");
-    const sessionsRoot = requireAbsoluteExistingDirectory(
+    // An account that has never held a Codex session has no sessions directory.
+    // That is nothing to archive, not a failure: treating it as one made the
+    // entrypoint emit its archive-failed warning on every start, and that string
+    // is classified Critical by the monitoring runbook.
+    const sessionsRoot = optionalAbsoluteExistingDirectory(
       join(codexHome, "sessions"),
       `sessions directory for '${account.id}'`
     );
@@ -372,6 +379,7 @@ function normalizeAccounts(accounts) {
 }
 
 function listRolloutFiles(sessionsRoot) {
+  if (sessionsRoot === null) return [];
   const files = [];
   const stack = [sessionsRoot];
   while (stack.length > 0) {
@@ -420,6 +428,12 @@ function requireAbsoluteExistingDirectory(value, label) {
     throw new Error(`${label} must be a real directory: ${path}`);
   }
   return realpathSync(path);
+}
+
+/** Absent path -> null. An existing one keeps the full real-directory check. */
+function optionalAbsoluteExistingDirectory(value, label) {
+  const path = requireAbsolutePath(value, label);
+  return existsSync(path) ? requireAbsoluteExistingDirectory(path, label) : null;
 }
 
 function requireAbsolutePath(value, label) {
