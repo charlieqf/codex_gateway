@@ -81,22 +81,25 @@ def public(output):
         fixture=smoke.admin('issue','--user',label,'--user-label','Qwen dual controlled smoke','--label',label,'--scope','code','--credential-class','service','--expires-days','1','--rpm','10','--rpd','20','--concurrent','2','--tokens-per-minute','300000','--tokens-per-day','1000000','--tokens-per-month','10000000','--max-prompt-tokens','24576','--max-total-tokens','32768','--reserve-tokens','8192','--missing-usage-charge','reserve')
         token=fixture['token']; prefix=fixture['credential']['prefix']
         entitlement=smoke.admin('entitlement','grant','--user',label,'--plan','plan_paid_monthly_v1','--period','one_off','--duration','1h','--replace')['entitlement']['id']
-        def one(fmt):
+        def one(case):
+            fmt, size = case
             started=time.monotonic()
-            status,headers,payload=smoke.request('/gateway/images/generations',token,{'model':'medcode-image-default','prompt':PROMPT,'size':'1024x1024','quality':'low','output_format':fmt,'metadata':{'client':'qwen-dual-acceptance'}})
+            status,headers,payload=smoke.request('/gateway/images/generations',token,{'model':'medcode-image-default','prompt':PROMPT,'size':size,'quality':'low','output_format':fmt,'metadata':{'client':'qwen-dual-acceptance'}})
             assert status==200, {'status':status,'error':payload.get('error')}
             rid=next(v for k,v in headers.items() if k.lower()=='x-request-id')
             item=payload['data'][0]; raw=base64.b64decode(item['b64_json'],validate=True)
             assert item['mime_type']=='image/'+fmt
-            assert (fmt=='jpeg' and raw[:3]==b'\xff\xd8\xff' and raw[-2:]==b'\xff\xd9') or (fmt=='webp' and raw[:4]==b'RIFF' and raw[8:12]==b'WEBP')
+            assert (fmt=='jpeg' and raw[:3]==b'\xff\xd8\xff' and raw[-2:]==b'\xff\xd9') or (fmt=='webp' and raw[:4]==b'RIFF' and raw[8:12]==b'WEBP') or (fmt=='png' and raw[:8]==b'\x89PNG\r\n\x1a\n')
             (output/('public-'+fmt+'.'+('jpg' if fmt=='jpeg' else fmt))).write_bytes(raw)
             events=smoke.admin('events','--request-id',rid,'--limit','5')['events']
             assert any(e['provider']=='qwen-image' and e['upstream_model']=='qwen-image-2.1' and e['status']=='ok' for e in events)
-            return {'status':status,'request_id':rid,'seconds':time.monotonic()-started,'provider':'qwen-image','upstream_model':'qwen-image-2.1','mime_type':item['mime_type'],'sha256':hashlib.sha256(raw).hexdigest()}
+            return {'status':status,'request_id':rid,'size':size,'seconds':time.monotonic()-started,'provider':'qwen-image','upstream_model':'qwen-image-2.1','mime_type':item['mime_type'],'sha256':hashlib.sha256(raw).hexdigest()}
         started=time.monotonic()
         with ThreadPoolExecutor(max_workers=2) as pool:
-            result['images']=list(pool.map(one,['jpeg','webp']))
+            result['images']=list(pool.map(one,[('jpeg','1024x1024'),('png','1536x1024')]))
         result['pair_wall_seconds']=time.monotonic()-started
+        print(json.dumps({'parallel_images':result['images']},indent=2),flush=True)
+        result['images'].append(one(('webp','1024x1536')))
         status,headers,payload=smoke.request('/v1/chat/completions',token,{'model':'goldencode','messages':[{'role':'user','content':'Reply exactly TEXT_CONTROL_OK.'}],'max_tokens':256,'reasoning_effort':'low','stream':False})
         assert status==200 and payload['choices'][0]['message']['content']
         result['text']={'status':status,'request_id':next(v for k,v in headers.items() if k.lower()=='x-request-id')}
