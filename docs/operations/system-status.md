@@ -1,5 +1,13 @@
 # System Status
 
+Image generation last verified: 2026-09-22 01:39 UTC. The public model
+`medcode-image-default` now uses the locally deployed `qwen-image-2.1` on star
+through a private authenticated SSH tunnel. LLaDA remains the first fallback.
+Public JPEG generation returned 200 in 57.3 seconds and ordinary text also
+passed. Installed MedEvidence client acceptance is pending; the user will
+forward the [client test notice](../outbox/medevidence-qwen-image-21-primary-test-notice-2026-09-22.zh-CN.md).
+See the [release receipt](./qwen-image-primary-release-2026-09-22.zh-CN.md).
+
 Last verified: 2026-09-21 07:04 UTC: imaging v1 admits only the explicitly approved Subjects `subj_yBZBxNUHIVszGz4BKXaltrw5` and `subj__3nJpw9INwhmK4k8Qq4K4jlI`; schema 34. Both existing credentials return available:true, with independent limits of 10 jobs per UTC day and one unfinished job per Subject. Other Subjects remain unavailable. See [latest allowlist verification](../../artifacts/imaging-gateway-20260921/pilot-wang-activation.json). Earlier temporary test studies, credentials and entitlements were cleaned up as recorded in the [joint audit](../../artifacts/imaging-gateway-20260921/joint-final-audit.json). Phone readiness was last checked on 2026-09-18: 300/300 active identities ready, with no duplicate-phone groups.
 
 xAI proxy routing additionally verified 2026-09-14 03:03 UTC: dedicated
@@ -24,12 +32,12 @@ history retain implementation evidence; do not append incident history here.
 
 ## Production Runtime
 
-Gateway activation and public health verified on 2026-09-21; local inference behavior last verified on 2026-09-06:
+Gateway activation and public health verified on 2026-09-22 01:39 UTC; local Qwen image inference verified on the same date:
 
 - `current`:
-  `a06d5221b1ced1c91d4a1b4fbd2f968ec6b3b131` (pinned runtime source committed and pushed to `main`; schema 34)
+  `f8c1a943d31769125fb80574b22eab6f6c74b06f` (pinned runtime source committed and pushed to `main`; schema 34)
 - `previous`:
-  `ca07c41b4f7adaf9c938cc301212d969e9ba1d32` (same schema 34; program-only rollback preserves production data; lacks the imaging audit INSERT fix, so keep imaging off on rollback)
+  `a06d5221b1ced1c91d4a1b4fbd2f968ec6b3b131` (same schema 34; retains the imaging audit INSERT fix; rollback also restores the saved image-provider environment and Compose override)
 - Gateway release source: `origin/main`; pin and verify its latest commit before deployment.
 - Public Gateway: healthy, published only on
   `127.0.0.1:18787->8787`
@@ -43,7 +51,7 @@ Gateway activation and public health verified on 2026-09-21; local inference beh
   did not change. See [recovery evidence](../../artifacts/doctor-research-agent-2026-09-10/maintenance-recovery-verified-20260911.json).
 - `qwen38-fp8-local`: healthy, private container port only
 
-Gateway runs `a06d522`, schema 34. Imaging v1 defaults off in code and currently
+Gateway runs `f8c1a94`, schema 34. Imaging v1 defaults off in code and currently
 admits only the two approved Subjects above. Full public CT upload, new inference, 15 verified artifacts, owner
 isolation, resume, cancellation and deletion passed through the public Gateway.
 The source client also completed ordinary-chat tools, inference, verified download
@@ -64,7 +72,7 @@ credential counters remain separate. Cancelled refreshes retain capacity until
 their asynchronous storage work settles. These are in-memory single-process
 protection windows, cleared by restart, not billing ledgers.
 
-The pinned Linux image passed 1,553 tests (3 existing external-fixture tests
+The pinned Linux image passed 1,558 tests (3 existing external-fixture tests
 skipped), including 18 imaging tests. Root request logging redacts the entire
 imaging path/query and also redacts image asset identifiers, queries and unknown
 tails for image asset paths, including wrong methods, encoded paths and unmatched
@@ -226,9 +234,12 @@ The [terminal retry contract](./goldencode-terminal-retry-contract-2026-09-07.zh
 is deployed and publicly verified: final provider failures explicitly stop supported
 clients from automatically replaying the request.
 
-Image generation remains separate under client model
-`medcode-image-default`; its primary upstream is the external
-`llada-image-turbo-fp8` API, with `gpt-image-2` retained as the first fallback.
+Image generation remains separate under client model `medcode-image-default`.
+Its primary upstream is local `qwen-image-2.1` on star GPU 1, followed by
+`llada-image-turbo-fp8`, then the existing `gpt-image-2` fallback chain.
+Qwen listens only on star loopback; R760 reaches it through an authenticated,
+restricted-key SSH tunnel bound to its private Docker bridge. Both the Qwen
+service and tunnel are enabled at boot. No new public port was opened.
 
 ## GoldenCode Local Context Admission
 
