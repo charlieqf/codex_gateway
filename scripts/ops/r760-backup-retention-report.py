@@ -1,21 +1,23 @@
 #!/usr/bin/env python3
-"""Report-only retention review for R760 Gateway backups. It deletes nothing.
+"""Retention review for R760 Gateway backups; prunes only expired control snapshots.
 
 Reviews three roots and writes a dated JSON report plus latest.json:
 
-- release: pre-change backups made by release/operation scripts. Protected: the
-  newest --release-keep entries, entries younger than --release-min-age-days,
-  backups whose name or top-level receipt names the current or previous Gateway
-  release, and any entry that a symlink in the root points into (the
-  2026-09-11 cold archive is such a container).
-- control: pre-write snapshots from the local control wrapper. A snapshot and
-  its -wal/-shm/-journal companions form one group. Protected: the newest
-  --control-keep groups and groups younger than --control-min-age-days.
+- release: pre-change backups made by release/operation scripts. Report-only.
+  Protected: the newest --release-keep entries, entries younger than
+  --release-min-age-days, backups whose name or top-level receipt names the
+  current or previous Gateway release, and any entry that a symlink in the root
+  points into (the 2026-09-11 cold archive is such a container).
+- control: full-database snapshots that gateway_state_sync.py takes before each
+  control write. A snapshot and its -wal/-shm/-journal companions form one
+  group, dated by the timestamp in its name. Protected: the newest
+  --control-keep groups and groups younger than --control-min-age-days. Names
+  that are not recognised snapshots, directories and symlinks are never
+  candidates. With --prune-control the candidate groups are deleted.
 - daily: the scheduled database backups (their own retention prunes them);
   reported for size and last-run status only.
 
-Candidates are what a future apply mode would remove under these rules. Runs on
-the R760 host (Python 3.10); prints and records names, sizes and ages only.
+Runs on the R760 host (Python 3.10); prints and records names, sizes and ages only.
 """
 from __future__ import annotations
 
@@ -37,6 +39,12 @@ DEFAULT_DAILY_ROOT = Path("/data/backups/codex-gateway-daily")
 DEFAULT_OUTPUT = Path("/data/backups/codex-gateway-retention")
 STAMP_RE = re.compile(r"(\d{8}T\d{4}(?:\d{2})?Z)")
 COMPANION_RE = re.compile(r"-(wal|shm|journal)$")
+COMPANION_SUFFIXES = ("-wal", "-shm", "-journal")
+# gateway_state_sync.py: f"{label}-pre-control-state-sync-{stamp}-{token_hex(4)}.db";
+# the 2026-08-05 key sync used the same stamp without the random suffix.
+CONTROL_SNAPSHOT_RE = re.compile(
+    r"^[a-z0-9][a-z0-9-]*-pre-(?:control-state|key)-sync-(\d{8}T\d{6}Z)(?:-[0-9a-f]{8})?\.db$"
+)
 RECEIPT_NAMES = ("deployment.json", "receipt.json")
 MAX_RECEIPT_BYTES = 1 << 20
 
@@ -177,21 +185,61 @@ def review_release(root: Path, gateway_root: Path, now: dt.datetime,
     return {"path": str(root), "symlinks": links, "live_revisions": sorted(live), **result}
 
 
+def snapshot_members(root: Path, name: str) -> list[Path] | None:
+    """The files of one recognised snapshot group, or None if it is not one."""
+    match = CONTROL_SNAPSHOT_RE.match(name)
+    anchor = root / name
+    if not match or anchor.is_symlink() or not anchor.is_file():
+        return None
+    members = [anchor]
+    for suffix in COMPANION_SUFFIXES:
+        companion = root / (name + suffix)
+        if os.path.lexists(companion):
+            if companion.is_symlink() or not companion.is_file():
+                return None
+            members.append(companion)
+    return members
+
+
 def review_control(root: Path, now: dt.datetime, keep_newest: int, min_age_days: float) -> dict[str, Any]:
     if not root.is_dir():
         return {"path": str(root), "missing": True}
     groups: dict[str, list[Path]] = {}
     for entry in root.iterdir():
-        if entry.name.startswith(".") or entry.is_symlink():
+        if entry.name.startswith("."):
             continue
         groups.setdefault(COMPANION_RE.sub("", entry.name), []).append(entry)
-    items = []
+    items, unmanaged = [], []
     for name, members in groups.items():
-        anchor = next((m for m in members if m.name == name), members[0])
-        moment = entry_time(anchor)
-        items.append({"name": name, "time": moment, "age_days": age_days(moment, now),
-                      "bytes": sum(disk_bytes(m) for m in members)})
-    return {"path": str(root), **classify(items, keep_newest, min_age_days, {})}
+        size = sum(disk_bytes(m) for m in members)
+        if snapshot_members(root, name) is None:
+            unmanaged.append({"name": name, "bytes": size, "members": len(members)})
+            continue
+        moment = dt.datetime.strptime(CONTROL_SNAPSHOT_RE.match(name).group(1),
+                                      "%Y%m%dT%H%M%SZ").replace(tzinfo=dt.timezone.utc)
+        items.append({"name": name, "time": moment, "age_days": age_days(moment, now), "bytes": size})
+    return {"path": str(root), **classify(items, keep_newest, min_age_days, {}),
+            "unmanaged": sorted(unmanaged, key=lambda item: item["name"])}
+
+
+def prune_control(root: Path, review: dict[str, Any], now: dt.datetime, min_age_days: float) -> dict[str, Any]:
+    """Delete the candidate snapshot groups of `review`, re-checking each on disk."""
+    cutoff = now - dt.timedelta(days=min_age_days)
+    deleted, skipped, freed = [], [], 0
+    for candidate in review.get("candidates", []):
+        name = candidate["name"]
+        members = snapshot_members(root, name)
+        stamp = CONTROL_SNAPSHOT_RE.match(name)
+        if members is None or stamp is None or dt.datetime.strptime(
+                stamp.group(1), "%Y%m%dT%H%M%SZ").replace(tzinfo=dt.timezone.utc) >= cutoff:
+            skipped.append(name)
+            continue
+        size = sum(disk_bytes(m) for m in members)
+        for member in members:
+            member.unlink()
+        deleted.append(name)
+        freed += size
+    return {"deleted_groups": len(deleted), "freed_bytes": freed, "deleted": deleted, "skipped": skipped}
 
 
 def review_daily(root: Path) -> dict[str, Any]:
@@ -219,19 +267,24 @@ def disk_usage(paths: list[str]) -> dict[str, Any]:
 
 
 def build_report(args: argparse.Namespace, now: dt.datetime) -> dict[str, Any]:
+    control = review_control(args.control_root, now, args.control_keep, args.control_min_age_days)
+    pruned = (prune_control(args.control_root, control, now, args.control_min_age_days)
+              if args.prune_control and not control.get("missing") else None)
     return {
         "producer": PRODUCER,
-        "mode": "report-only",
+        "mode": "prune-control" if args.prune_control else "report-only",
         "generated_at": now.isoformat(),
         "policy": {
             "release": {"keep_newest": args.release_keep, "min_age_days": args.release_min_age_days,
-                        "always": ["current-or-previous-release", "symlink-target"]},
-            "control": {"keep_newest": args.control_keep, "min_age_days": args.control_min_age_days},
+                        "always": ["current-or-previous-release", "symlink-target"], "prune": False},
+            "control": {"keep_newest": args.control_keep, "min_age_days": args.control_min_age_days,
+                        "prune": args.prune_control},
         },
         "disk": disk_usage(["/", "/data"]),
         "release": review_release(args.release_root, args.gateway_root, now,
                                   args.release_keep, args.release_min_age_days),
-        "control": review_control(args.control_root, now, args.control_keep, args.control_min_age_days),
+        "control": control,
+        "control_pruned": pruned,
         "daily": review_daily(args.daily_root),
     }
 
@@ -259,7 +312,10 @@ def summary(report: dict[str, Any], path: Path | None) -> dict[str, Any]:
         "report": str(path) if path else None,
         "disk": {k: v["used_percent"] for k, v in report["disk"].items()},
         "release": brief(report["release"]),
-        "control": brief(report["control"]),
+        "control": {**brief(report["control"]),
+                    "unmanaged_count": len(report["control"].get("unmanaged", []))},
+        "control_pruned": ({k: report["control_pruned"][k] for k in ("deleted_groups", "freed_bytes", "skipped")}
+                           if report["control_pruned"] else None),
         "daily": {k: report["daily"].get(k) for k in ("backups", "total_bytes", "last_run", "missing")},
     }
 
@@ -273,10 +329,17 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--release-keep", type=int, default=10)
     parser.add_argument("--release-min-age-days", type=float, default=14)
-    parser.add_argument("--control-keep", type=int, default=20)
-    parser.add_argument("--control-min-age-days", type=float, default=30)
+    parser.add_argument("--control-keep", type=int, default=1)
+    parser.add_argument("--control-min-age-days", type=float, default=7)
+    parser.add_argument("--prune-control", action="store_true",
+                        help="delete control snapshot groups that are candidates under the control policy")
     parser.add_argument("--stdout-only", action="store_true", help="print the summary without writing files")
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if args.prune_control and (args.control_keep < 1 or args.control_min_age_days < 1):
+        parser.error("--prune-control requires --control-keep >= 1 and --control-min-age-days >= 1")
+    if args.prune_control and args.stdout_only:
+        parser.error("--prune-control must write its report; do not combine it with --stdout-only")
+    return args
 
 
 def main(argv: list[str] | None = None) -> int:

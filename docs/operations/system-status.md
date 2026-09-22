@@ -1,5 +1,14 @@
 # System Status
 
+Scheduled Gateway database backups enabled: 2026-09-22 23:42 UTC. The
+`codex-gateway-db-backup.timer` backs up gateway, client-events and imaging
+databases daily at 18:30 UTC into `/data/backups/codex-gateway-daily`, keeping 7
+daily and 4 weekly copies. The first backup was verified: 2.03 GB, schema 35.
+`/opt/codex-gateway-r760/backups` is now a symlink to
+`/data/codex-gateway-r760/backups`; the root disk fell to 53.9%. The 19:30 UTC
+report keeps release backups report-only and prunes control snapshots older than
+7 days. See [backup operations](./r760-backup-operations.zh-CN.md).
+
 Gateway vision structural observation released: 2026-09-22 22:55:35 UTC;
 verified 23:03–23:10 UTC. R760 Gateway runs `95e724c`, schema 35, healthy with
 zero restarts; public health ready. Parse-time image positions, detail counts and

@@ -1,5 +1,5 @@
 [Unit]
-Description=Codex Gateway R760 backup retention report (report-only, deletes nothing)
+Description=Codex Gateway R760 backup retention report; prunes control snapshots older than 7 days
 Documentation=file:///opt/codex-gateway-r760/ops/INSTALLED_REVISION
 
 [Service]
@@ -7,7 +7,8 @@ Type=oneshot
 User=root
 Group=root
 UMask=0077
-ExecStart=/usr/bin/python3 /opt/codex-gateway-r760/ops/r760-backup-retention-report.py
+# Release backups stay report-only; control snapshots keep 7 days and the newest.
+ExecStart=/usr/bin/python3 /opt/codex-gateway-r760/ops/r760-backup-retention-report.py --prune-control
 TimeoutStartSec=15min
 Nice=10
 IOSchedulingClass=best-effort
@@ -23,4 +24,4 @@ ProtectControlGroups=true
 RestrictSUIDSGID=true
 LockPersonality=true
 RestrictRealtime=true
-ReadWritePaths=/data/backups/codex-gateway-retention
+ReadWritePaths=/data/backups/codex-gateway-retention /data/backups/codex-gateway

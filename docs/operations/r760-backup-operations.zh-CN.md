@@ -7,7 +7,7 @@
 | 组件 | 位置 | 行为 |
 | --- | --- | --- |
 | 每日数据库备份 | `codex-gateway-db-backup.timer`，每天 18:30 UTC | 备份 `gateway.db`、`client-events.db`、`imaging/control.db`，写到 `/data/backups/codex-gateway-daily/<UTC 时间戳>/` |
-| 保留审查报告 | `codex-gateway-backup-report.timer`，每天 19:30 UTC | **只出报告，不删除任何东西**；写到 `/data/backups/codex-gateway-retention/` |
+| 保留审查与控制快照清理 | `codex-gateway-backup-report.timer`，每天 19:30 UTC | 删除超过 7 天的控制快照（最新一组永远保留）；发布备份**只出报告**；报告写到 `/data/backups/codex-gateway-retention/` |
 | 发布备份目录 | `/opt/codex-gateway-r760/backups` 是指向 `/data/codex-gateway-r760/backups` 的软链 | 发布和运维脚本仍写 `backups/<名称>`，但数据落在 `/data`，不占 98G 根盘 |
 
 安装后的脚本在 `/opt/codex-gateway-r760/ops/`，所装的提交及每个文件的 sha256 记录在同目录的 `INSTALLED_REVISION`。
@@ -39,26 +39,39 @@ python3 -c "import json;r=json.load(open('/data/backups/codex-gateway-retention/
 
 每日备份是独立的 SQLite 文件，可以直接以只读方式打开核对。用它**覆盖**线上库是另一项需要单独批准的操作：备份时间点之后的计费、预约和客户端消息都会丢失。执行前先确认这些数据怎么处理，并按发布流程受控停止和重建 Gateway，恢复文件的属主和权限要与原库一致。
 
-## 保留审查报告（只读）
+## 保留审查与控制快照清理
 
-报告按以下规则列出“将来启用删除时会删掉什么”，但本身不删除任何文件。
+每天的报告按以下规则分类。
 
-- **发布备份**（`/data/codex-gateway-r760/backups`）
-  - 保留最新 10 个。
-  - 保留 14 天内的。
-  - 保留名称或 `deployment.json` / `receipt.json` 指向当前或上一个 Gateway 版本的。
-  - 保留被软链指向的目录，例如 2026-09-11 的冷归档 `opt-archive-20260911`。
-  - 软链本身不计。
-- **控制脚本快照**（`/data/backups/codex-gateway`）
-  - 同一份快照与它的 `-wal` / `-shm` / `-journal` 算一组。
-  - 保留最新 20 组和 30 天内的。
-- **每日备份**：只报告大小和上一次运行的状态。
+**发布备份**（`/data/codex-gateway-r760/backups`）只出报告，不删除：
+- 保留最新 10 个。
+- 保留 14 天内的。
+- 保留名称或 `deployment.json` / `receipt.json` 指向当前或上一个 Gateway 版本的。
+- 保留被软链指向的目录，例如 2026-09-11 的冷归档 `opt-archive-20260911`。
+- 软链本身不计。
 
-先看一周报告，确认列为可删的都确实可以删，再单独开发并批准删除模式。
+报告里列为可删的，等看过报告、单独批准后再处理。
 
-2026-09-23 安装前的只读演练结果：
-- 控制快照 151 组，约 48 GB，其中约 47 GB 在 30 天以内。每次控制操作前都会做一次整库快照，是增长最快的一类。
-- `/data` 上的发布备份 78 项，约 78 GB。
+**控制快照**（`/data/backups/codex-gateway`）会**自动清理**。用户于 2026-09-23 决定只保留最近一周：
+- 这些快照是 `gateway_state_sync.py` 在每次控制写操作前做的整库副本，文件名格式为 `<标签>-pre-control-state-sync-<时间戳>-<8位hex>.db`，另有 2026-08-05 的 `r760-pre-(control-state|key)-sync-<时间戳>.db`。
+- 同一份快照与它的 `-wal` / `-shm` / `-journal` 算一组，按**文件名里的时间戳**判断新旧。
+- 超过 7 天的整组删除，最新一组无论多旧都保留。
+- 删除前逐组在磁盘上重新核对。文件名不符合上述格式的文件、目录、软链和孤立的 `-wal` 一律不动，只在报告的 `unmanaged` 里列出。
+
+删除清单写在当天报告的 `control_pruned` 字段里。
+
+**每日备份**：由它自己的保留策略清理，报告只记录大小和上一次运行的状态。
+
+## 安装记录
+
+2026-09-22 23:42 UTC，由用户在终端执行 `211e72f` 的安装脚本：
+- 主机测试：23 个通过（Python 3.10.12）。
+- 两个定时器已启用。
+- 首次备份 `20260922T234253Z`：2.03 GB，用时 6.6 秒；`gateway.db` 为 schema 35，三个库都校验通过。
+- 发布备份迁移：25 个条目、6.38 GB。根盘从 60% 降到 53.9%；`/opt/.../backups` 已是软链，旧路径全部可访问，没有断链或残留。
+- 首份报告：控制快照 151 组、约 48 GB；`/data` 上的发布备份 85 项、约 85 GB，其中列为可删的 71 项、约 54 GB。只报告，未删除。
+
+2026-09-23 起，控制快照改为只保留 7 天，由后续提交安装。
 
 ## 发布备份迁出根盘（一次性）
 

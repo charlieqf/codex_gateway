@@ -121,25 +121,75 @@ class ReleaseReviewTests(unittest.TestCase):
         self.assertEqual(result["candidates"], [])
 
 
+def snapshot(root: Path, label: str, stamp: str, companions: bool = False, size: int = 100) -> str:
+    name = f"{label}-pre-control-state-sync-{stamp}-0123abcd.db"
+    (root / name).write_bytes(b"x" * size)
+    if companions:
+        (root / f"{name}-wal").write_bytes(b"y" * 10)
+        (root / f"{name}-shm").write_bytes(b"z" * 10)
+    return name
+
+
 class ControlReviewTests(unittest.TestCase):
-    def test_companion_files_form_one_group(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            for day in range(1, 6):
-                stem = f"r760-control-pre-sync-202607{day:02d}T000000Z-abc.db"
-                (root / stem).write_bytes(b"x" * 100)
-                (root / f"{stem}-wal").write_bytes(b"y" * 10)
-                (root / f"{stem}-shm").write_bytes(b"z" * 10)
-            recent = "r760-control-pre-sync-20260920T000000Z-def.db"
-            (root / recent).write_bytes(b"x")
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        self.old = [snapshot(self.root, "r760-control", f"202609{day:02d}T061917Z", companions=True)
+                    for day in (1, 5, 10)]
+        self.legacy = "r760-pre-key-sync-20260805T024027Z.db"  # 2026-08-05 form, no random suffix
+        (self.root / self.legacy).write_bytes(b"k")
+        self.recent = snapshot(self.root, "billing-token-rotation", "20260918T221826Z")
+        self.newest = snapshot(self.root, "r760-control", "20260921T061917Z")
+        # Never managed: unknown names, directories, orphan companions.
+        (self.root / "notes.db").write_bytes(b"n")
+        (self.root / "test262-reset-20260910T000000Z-7faf9a1d").mkdir()
+        (self.root / "r760-control-pre-control-state-sync-20260801T000000Z-deadbeef.db-wal").write_bytes(b"w")
 
-            result = MODULE.review_control(root, NOW, keep_newest=2, min_age_days=30)
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
 
-            self.assertEqual(result["entries"], 6)
-            self.assertEqual([p["name"] for p in result["protected"]],
-                             [recent, "r760-control-pre-sync-20260705T000000Z-abc.db"])
-            self.assertEqual(len(result["candidates"]), 4)
-            self.assertTrue(all(not c["name"].endswith(("-wal", "-shm")) for c in result["candidates"]))
+    def test_only_recognised_snapshots_are_dated_by_name_and_classified(self) -> None:
+        result = MODULE.review_control(self.root, NOW, keep_newest=1, min_age_days=7)
+
+        self.assertEqual(sorted(c["name"] for c in result["candidates"]), sorted(self.old + [self.legacy]))
+        protected = {p["name"]: p["reasons"] for p in result["protected"]}
+        self.assertEqual(protected[self.newest], ["newest-1", "younger-than-7d"])
+        self.assertEqual(protected[self.recent], ["younger-than-7d"])
+        self.assertEqual(sorted(u["name"] for u in result["unmanaged"]), sorted([
+            "notes.db", "test262-reset-20260910T000000Z-7faf9a1d",
+            "r760-control-pre-control-state-sync-20260801T000000Z-deadbeef.db",
+        ]))
+        self.assertEqual(result["entries"], 6)
+
+    def test_prune_deletes_expired_groups_with_companions_and_nothing_else(self) -> None:
+        review = MODULE.review_control(self.root, NOW, keep_newest=1, min_age_days=7)
+        pruned = MODULE.prune_control(self.root, review, NOW, 7)
+
+        self.assertEqual(pruned["deleted_groups"], 4)
+        self.assertEqual(pruned["skipped"], [])
+        remaining = sorted(p.name for p in self.root.iterdir())
+        self.assertEqual(remaining, sorted([
+            self.recent, self.newest, "notes.db", "test262-reset-20260910T000000Z-7faf9a1d",
+            "r760-control-pre-control-state-sync-20260801T000000Z-deadbeef.db-wal",
+        ]))
+
+    def test_prune_rechecks_each_group_on_disk(self) -> None:
+        review = MODULE.review_control(self.root, NOW, keep_newest=1, min_age_days=7)
+        victim = self.old[0]
+        (self.root / victim).unlink()  # changed after the review
+        (self.root / victim).mkdir()
+        pruned = MODULE.prune_control(self.root, review, NOW, 7)
+        self.assertIn(victim, pruned["skipped"])
+        self.assertTrue((self.root / victim).is_dir())
+        self.assertTrue((self.root / f"{victim}-wal").exists())
+
+    def test_the_newest_group_is_kept_even_when_expired(self) -> None:
+        for path in (self.root / self.recent, self.root / self.newest):
+            path.unlink()
+        review = MODULE.review_control(self.root, NOW, keep_newest=1, min_age_days=7)
+        MODULE.prune_control(self.root, review, NOW, 7)
+        self.assertTrue((self.root / self.old[-1]).exists())
+        self.assertFalse((self.root / self.old[0]).exists())
 
 
 class MainTests(unittest.TestCase):
@@ -170,7 +220,42 @@ class MainTests(unittest.TestCase):
             self.assertNotIn("secret", latest["daily"]["last_run"])
             printed = json.loads(out.getvalue())
             self.assertEqual(printed["release"]["candidate_count"], 2)
+            self.assertIsNone(printed["control_pruned"])
             self.assertEqual(len(list((base / "reports").glob("report-*.json"))), 1)
+
+    def run_main(self, args: list[str]) -> dict:
+        out = io.StringIO()
+        with redirect_stdout(out):
+            self.assertEqual(MODULE.main(args), 0)
+        return json.loads(out.getvalue())
+
+    def test_control_snapshots_are_deleted_only_with_prune_control(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            control = base / "control"
+            control.mkdir()
+            expired = snapshot(control, "r760-control", "20260801T000000Z", companions=True)
+            newest = snapshot(control, "r760-control", "20260922T000000Z")
+            common = ["--gateway-root", str(base / "gateway"), "--release-root", str(base / "release"),
+                      "--control-root", str(control), "--daily-root", str(base / "daily"),
+                      "--output", str(base / "reports")]
+
+            report_only = self.run_main(common)
+            self.assertIsNone(report_only["control_pruned"])
+            self.assertTrue((control / expired).exists())
+
+            pruned = self.run_main(common + ["--prune-control"])
+            self.assertEqual(pruned["control_pruned"]["deleted_groups"], 1)
+            self.assertEqual(sorted(p.name for p in control.iterdir()), [newest])
+            latest = json.loads((base / "reports" / "latest.json").read_text())
+            self.assertEqual(latest["mode"], "prune-control")
+            self.assertEqual(latest["control_pruned"]["deleted"], [expired])
+
+    def test_prune_control_refuses_unsafe_settings(self) -> None:
+        with self.assertRaises(SystemExit):
+            MODULE.parse_args(["--prune-control", "--control-keep", "0"])
+        with self.assertRaises(SystemExit):
+            MODULE.parse_args(["--prune-control", "--stdout-only"])
 
 
 if __name__ == "__main__":
