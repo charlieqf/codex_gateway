@@ -1,0 +1,36 @@
+[Unit]
+Description=Private Qwen-Image-2.1 worker on GPU %i
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/data/apps/qwen-image-21-eval/current/scripts/experiments/qwen-image-21-eval
+Environment=CUDA_VISIBLE_DEVICES=%i
+Environment=QWEN_GPU_ID=%i
+Environment=QWEN_ADMISSION_TEMPERATURE=80
+Environment=QWEN_STOP_TEMPERATURE=88
+Environment=HF_HOME=/data/apps/qwen-image-21-eval/cache/huggingface
+Environment=HF_HUB_OFFLINE=1
+Environment=TRANSFORMERS_OFFLINE=1
+Environment=TRITON_CACHE_DIR=/data/apps/qwen-image-21-eval/cache/triton-%i
+Environment=TORCHINDUCTOR_CACHE_DIR=/data/apps/qwen-image-21-eval/cache/inductor-%i
+Environment=PYTORCH_KERNEL_CACHE_PATH=/data/apps/qwen-image-21-eval/cache/torch-%i
+Environment=PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+Environment=OMP_NUM_THREADS=8
+EnvironmentFile=/data/apps/qwen-image-21-eval/api.env
+ExecStart=/data/apps/qwen-image-21-eval/env/bin/python -m uvicorn qwen_eval_api:app --host 127.0.0.1 --port 820%i --workers 1 --no-access-log
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=180
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/data/apps/qwen-image-21-eval/state /data/apps/qwen-image-21-eval/cache
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+MemoryMax=56G
+CPUQuota=800%
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,24 @@
+[Unit]
+Description=Private two-GPU Qwen image queue
+After=network.target qwen-image-worker@0.service qwen-image-worker@1.service
+Wants=qwen-image-worker@0.service qwen-image-worker@1.service
+
+[Service]
+Type=simple
+WorkingDirectory=/data/apps/qwen-image-21-eval/current/scripts/experiments/qwen-image-21-eval
+EnvironmentFile=/data/apps/qwen-image-21-eval/api.env
+ExecStart=/data/apps/qwen-image-21-eval/env/bin/python -m uvicorn qwen_pool:app --host 127.0.0.1 --port 8191 --workers 1 --no-access-log --timeout-graceful-shutdown 180
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=190
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+MemoryMax=1G
+CPUQuota=200%
+
+[Install]
+WantedBy=default.target

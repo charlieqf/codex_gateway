@@ -45,3 +45,39 @@ Final shared-suite means were 13.64 seconds for LLaDA and 58.52 seconds for Qwen
 ## Gateway promotion
 
 The API now requires `QWEN_IMAGE_API_KEY` from protected `api.env`, generates a random seed when absent, and uses the existing temperature/memory/concurrency guards. The unit is enabled on boot during promotion and restarts on failure. `test_qwen_api.py` validates authentication and admission without loading the model. `scripts/ops/prepare-qwen-image-link.py` provisions the restricted, pinned SSH link; `activate-qwen-image-r760.py` performs the backed-up Gateway cutover and public smoke with automatic config/image rollback. LLaDA becomes the first fallback before the existing external providers.
+
+## Authorized replacement with two Qwen workers
+
+The user subsequently approved replacing LLaDA with two independent Qwen replicas.
+`qwen-image-worker@0` and `@1` bind physical GPUs 0 and 1 and loopback ports
+8200/8201. `qwen-image-pool` preserves the existing authenticated loopback 8191
+contract and SSH tunnel. Its single-process FIFO scheduler runs at most two
+requests and retains up to two more pending jobs; queue wait is capped at 80
+seconds within a 170-second total request budget. Busy, cooling or unavailable
+workers are not assigned work. Dispatched requests are never internally retried;
+client cancellation or transport timeout does not make a still-running GPU free.
+
+Both workers use the verified BF16/40-step CPU-offload profile, with separate
+compiler caches and 56 GiB per-process system-memory limits. IndexTTS is retained.
+The user requested relaxed thermal admission: these units admit at up to 80 C
+and abort generation at 88 C. The original evaluation unit defaults remain
+60/85 C. Live nvidia-smi on 2026-09-22 reported target 85 C and a T.Limit margin
+corresponding to maximum operating temperature 91 C on both cards. No power,
+fan or driver setting is changed. See NVIDIA's T.Limit definition:
+https://docs.nvidia.com/deploy/nvidia-smi/.
+
+`retire-llada-gateway.py` removes only `MEDCODE_IMAGE_LLADA_*` settings after a
+protected backup; it reuses the existing committed Gateway image, validates
+Qwen followed by GPT Image 2, and preserves all other containers/configuration.
+`activate-qwen-dual-star.py` backs up and disables the old Qwen unit, LLaDA API
+and its dedicated Cloudflare tunnel, then starts the workers and pool from a
+committed immutable release. It automatically restores the old source/unit
+states if activation fails. Keep LLaDA files and venv for rollback and the
+Qwen environment's inherited Torch dependency.
+
+Run `test_qwen_api` and `test_qwen_pool` in the existing Python environment
+without loading GPU models. After activation, `verify-qwen-dual.py private`
+measures a serial baseline, a simultaneous pair and a four-request queued burst;
+`public` checks two actual Gateway requests, formats/provider attribution,
+ordinary text and temporary-identity cleanup. These scripts write no credentials
+to output. Installed-client acceptance remains a separate handoff.

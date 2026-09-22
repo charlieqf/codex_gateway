@@ -23,9 +23,15 @@ state = 'loading'
 load_error = None
 lock = threading.Lock()
 api_key = os.environ.get('QWEN_IMAGE_API_KEY', '')
+GPU_ID = int(os.environ.get('QWEN_GPU_ID', '1'))
+ADMISSION_TEMPERATURE = int(os.environ.get('QWEN_ADMISSION_TEMPERATURE', '60'))
+STOP_TEMPERATURE = int(os.environ.get('QWEN_STOP_TEMPERATURE', '85'))
+assert GPU_ID in (0, 1)
+assert 40 <= ADMISSION_TEMPERATURE <= 80
+assert ADMISSION_TEMPERATURE < STOP_TEMPERATURE <= 88
 
 def gpu_stats():
-    raw = subprocess.check_output(['nvidia-smi','--id=1','--query-gpu=temperature.gpu,memory.used,memory.free,utilization.gpu','--format=csv,noheader,nounits'],text=True,timeout=5)
+    raw = subprocess.check_output(['nvidia-smi',f'--id={GPU_ID}','--query-gpu=temperature.gpu,memory.used,memory.free,utilization.gpu','--format=csv,noheader,nounits'],text=True,timeout=5)
     return dict(zip(['temperature_c','memory_used_mib','memory_free_mib','utilization_percent'],[int(x.strip()) for x in raw.strip().split(',')]))
 
 def load():
@@ -33,14 +39,15 @@ def load():
     try:
         import torch
         from diffusers import QwenImage21Pipeline
-        assert torch.cuda.device_count() == 1, 'Use only designated GPU 1'
+        assert os.environ.get('CUDA_VISIBLE_DEVICES') == str(GPU_ID), 'GPU binding mismatch'
+        assert torch.cuda.device_count() == 1, 'Use only the designated GPU'
         torch.set_num_threads(8)
         torch.cuda.set_per_process_memory_fraction(0.58)
         pipeline = QwenImage21Pipeline.from_pretrained(str(ROOT/'model'),torch_dtype=torch.bfloat16,local_files_only=True,low_cpu_mem_usage=True)
         pipeline.enable_model_cpu_offload(gpu_id=0)
         pipeline.set_progress_bar_config(disable=True)
         state = 'ready'
-        LOG.warning('Qwen-Image-2.1 ready; BF16, model CPU offload, GPU1, allocator cap 58%%')
+        LOG.warning('Qwen-Image-2.1 ready; BF16, model CPU offload, GPU%s, allocator cap 58%%', GPU_ID)
     except Exception as exc:
         state = 'error'
         load_error = f'{type(exc).__name__}: {exc}'
@@ -68,7 +75,9 @@ class Generate(BaseModel):
 
 @app.get('/healthz')
 def health():
-    return {'status':state,'model':'qwen-image-2.1','purpose':'research-evaluation','profile':'BF16 / model CPU offload / 40 steps / CFG 1','busy':lock.locked(),'error':load_error,'gpu':gpu_stats()}
+    stats = gpu_stats()
+    busy = lock.locked()
+    return {'status':state,'model':'qwen-image-2.1','purpose':'research-evaluation','profile':'BF16 / model CPU offload / 40 steps / CFG 1','busy':busy,'error':load_error,'gpu_id':GPU_ID,'admission_temperature_c':ADMISSION_TEMPERATURE,'stop_temperature_c':STOP_TEMPERATURE,'accepting':state=='ready' and not busy and stats['temperature_c']<=ADMISSION_TEMPERATURE and stats['memory_free_mib']>=30000,'gpu':stats}
 
 @app.get('/v1/models')
 def models():
@@ -101,7 +110,7 @@ def generate(request: Generate, authorization: str | None = Header(default=None)
             try:
                 sample=gpu_stats()
                 samples.append(sample)
-                if sample['temperature_c']>=85:
+                if sample['temperature_c']>=STOP_TEMPERATURE:
                     hot.set()
             except Exception:
                 hot.set()
@@ -115,7 +124,7 @@ def generate(request: Generate, authorization: str | None = Header(default=None)
     watcher=None
     try:
         before=gpu_stats()
-        if before['temperature_c']>60 or before['memory_free_mib']<30000:
+        if before['temperature_c']>ADMISSION_TEMPERATURE or before['memory_free_mib']<30000:
             raise HTTPException(503,'GPU not idle/cool enough for controlled evaluation')
         torch.cuda.reset_peak_memory_stats()
         watcher=threading.Thread(target=monitor,daemon=True)
@@ -138,7 +147,7 @@ def generate(request: Generate, authorization: str | None = Header(default=None)
         output=io.BytesIO()
         result.save(output,format='PNG')
         alpha=result.getchannel('A').getextrema() if result.mode=='RGBA' else None
-        return {'created':int(time.time()),'model':request.model,'data':[{'b64_json':base64.b64encode(output.getvalue()).decode(),'mime_type':'image/png','seed':request.seed}],'evaluation':{'inference_seconds':inference,'torch_peak_allocated_mib':torch.cuda.max_memory_allocated()/2**20,'torch_peak_reserved_mib':torch.cuda.max_memory_reserved()/2**20,'gpu_peak_used_mib':max([x['memory_used_mib'] for x in samples] or [before['memory_used_mib']]),'gpu_max_temperature_c':max([x['temperature_c'] for x in samples] or [before['temperature_c']]),'steps':request.num_inference_steps,'cfg':1,'mode':result.mode,'alpha_extrema':alpha,'profile':'bf16-model-cpu-offload'}}
+        return {'created':int(time.time()),'model':request.model,'data':[{'b64_json':base64.b64encode(output.getvalue()).decode(),'mime_type':'image/png','seed':request.seed}],'evaluation':{'gpu_id':GPU_ID,'inference_seconds':inference,'torch_peak_allocated_mib':torch.cuda.max_memory_allocated()/2**20,'torch_peak_reserved_mib':torch.cuda.max_memory_reserved()/2**20,'gpu_peak_used_mib':max([x['memory_used_mib'] for x in samples] or [before['memory_used_mib']]),'gpu_max_temperature_c':max([x['temperature_c'] for x in samples] or [before['temperature_c']]),'steps':request.num_inference_steps,'cfg':1,'mode':result.mode,'alpha_extrema':alpha,'profile':'bf16-model-cpu-offload'}}
     except HTTPException:
         raise
     except Exception as exc:
