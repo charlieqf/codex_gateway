@@ -1,0 +1,29 @@
+[Unit]
+Description=Codex Gateway R760 scheduled SQLite backup
+Documentation=file:///opt/codex-gateway-r760/ops/INSTALLED_REVISION
+After=docker.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+UMask=0077
+ExecStart=/usr/bin/python3 /opt/codex-gateway-r760/ops/r760-db-backup.py
+TimeoutStartSec=30min
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictRealtime=true
+# The read-only SQLite connections still take WAL shared-memory locks in the
+# live state directory; nothing else there is written.
+ReadWritePaths=/data/docker/volumes/codex_gateway_r760_gateway_state/_data /data/backups/codex-gateway-daily /run/lock

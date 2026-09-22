@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Codex Gateway R760 SQLite backup (18:30 UTC, outside model traffic)
+
+[Timer]
+OnCalendar=*-*-* 18:30:00 UTC
+Persistent=true
+AccuracySec=1min
+Unit=codex-gateway-db-backup.service
+
+[Install]
+WantedBy=timers.target

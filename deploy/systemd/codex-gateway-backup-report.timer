@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Codex Gateway R760 backup retention report (19:30 UTC)
+
+[Timer]
+OnCalendar=*-*-* 19:30:00 UTC
+Persistent=true
+AccuracySec=5min
+Unit=codex-gateway-backup-report.service
+
+[Install]
+WantedBy=timers.target

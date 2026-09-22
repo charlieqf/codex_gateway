@@ -49,6 +49,7 @@ documents.
 | R760 image egress | [R760 Mihomo Image Egress](./r760-mihomo-image-egress.md) |
 | Runtime config classification | [Runtime Configuration Matrix](./runtime-configuration-change-matrix.md) |
 | Container deployment | [Container Deployment](./container-deploy.md) |
+| Scheduled database backup, release backup location, retention report | [R760 Backup Operations](./r760-backup-operations.zh-CN.md) |
 
 ## Documentation Roles
 
