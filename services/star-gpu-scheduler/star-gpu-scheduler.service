@@ -1,0 +1,27 @@
+[Unit]
+Description=Private Qwen and RADAR resource scheduler
+After=network.target
+StartLimitIntervalSec=600
+StartLimitBurst=3
+
+[Service]
+Type=simple
+ExecStart=/data/apps/star-gpu-scheduler/env/bin/python -I -m star_gpu_scheduler.server --config /data/apps/star-gpu-scheduler/config/service.json
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=15
+MemoryMax=512M
+CPUQuota=100%
+UMask=0077
+RuntimeDirectory=star-gpu-arbiter
+RuntimeDirectoryMode=0700
+RuntimeDirectoryPreserve=yes
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/data/apps/star-gpu-scheduler/state /run/user/%U/star-gpu-arbiter
+RestrictAddressFamilies=AF_UNIX AF_NETLINK
+
+[Install]
+WantedBy=default.target

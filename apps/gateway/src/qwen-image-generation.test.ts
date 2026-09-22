@@ -33,12 +33,12 @@ describe("Qwen image primary", () => {
     await expect(provider.generate({ request, upstreamModel: "qwen-image-2.1" })).rejects.toMatchObject({ upstreamStatus: status });
   });
 
-  it("selects Qwen and keeps LLaDA followed by the existing OpenAI fallbacks", () => {
+  it("selects Qwen and ignores stale LLaDA credentials in the fallback chain", () => {
     const env = { MEDCODE_IMAGE_GENERATION_ENABLED: "1", MEDCODE_IMAGE_PRIMARY_PROVIDER: "qwen", MEDCODE_IMAGE_QWEN_API_KEY: "test", MEDCODE_IMAGE_QWEN_BASE_URL: "http://private-qwen:8191", MEDCODE_IMAGE_LLADA_API_KEY: "llada", MEDCODE_IMAGE_OPENAI_API_KEY: "openai", MEDCODE_IMAGE_BILLING_FALLBACK_OPENAI_API_KEY: "last" };
     expect(parseImagePrimaryProvider(" Qwen ")).toBe("qwen");
     expect(createDefaultImageGenerationProvider(env)?.providerKind).toBe("qwen-image");
     const chain = resolveImageGenerationBillingFallbacks({}, env, { info() {} });
-    expect(chain.map(item => [item.provider.providerKind, item.upstreamModel])).toEqual([["llada-image", "llada-image-turbo-fp8"], ["openai-api", "gpt-image-2"], ["openai-api", "gpt-image-1.5"]]);
+    expect(chain.map(item => [item.provider.providerKind, item.upstreamModel])).toEqual([["openai-api", "gpt-image-2"], ["openai-api", "gpt-image-1.5"]]);
     expect(() => createDefaultImageGenerationProvider({ ...env, MEDCODE_IMAGE_QWEN_API_KEY: "" })).toThrow("QWEN_API_KEY");
     expect(() => validateRuntimeEnvironment({ ...env, NODE_ENV: "production", GATEWAY_AUTH_MODE: "credential", GATEWAY_SQLITE_PATH: "/db", CODEX_HOME: "/codex", MEDCODE_IMAGE_QWEN_BASE_URL: "" })).toThrow("QWEN_BASE_URL");
   });

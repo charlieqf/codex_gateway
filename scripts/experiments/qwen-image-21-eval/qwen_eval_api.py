@@ -26,6 +26,8 @@ api_key = os.environ.get('QWEN_IMAGE_API_KEY', '')
 GPU_ID = int(os.environ.get('QWEN_GPU_ID', '1'))
 ADMISSION_TEMPERATURE = int(os.environ.get('QWEN_ADMISSION_TEMPERATURE', '60'))
 STOP_TEMPERATURE = int(os.environ.get('QWEN_STOP_TEMPERATURE', '85'))
+scheduled = bool(os.environ.get('GPU_SCHEDULER_SOCKET') or os.environ.get('GPU_SCHEDULER_REQUIRED') == '1')
+quarantined_leases = []
 assert GPU_ID in (0, 1)
 assert 40 <= ADMISSION_TEMPERATURE <= 80
 assert ADMISSION_TEMPERATURE < STOP_TEMPERATURE <= 88
@@ -36,7 +38,15 @@ def gpu_stats():
 
 def load():
     global pipeline, state, load_error
+    lease = None
     try:
+        if scheduled:
+            from star_gpu_scheduler.client import Client, Lease
+            client = Client.from_env('qwen_worker_'+str(GPU_ID))
+            payload = {'gpu_id': GPU_ID, 'profile': 'qwen_initialize_v1', 'model': 'Qwen-Image-2.1'}
+            task = client.register('image_init', client.instance+':initialize', payload, queue_ms=300000, budget_ms=480000)
+            ticket = client.wait(task['task_id'])
+            lease = Lease(client, ticket, payload, hard_stop=lambda: os._exit(75)).acquire()
         import torch
         from diffusers import QwenImage21Pipeline
         assert os.environ.get('CUDA_VISIBLE_DEVICES') == str(GPU_ID), 'GPU binding mismatch'
@@ -46,12 +56,22 @@ def load():
         pipeline = QwenImage21Pipeline.from_pretrained(str(ROOT/'model'),torch_dtype=torch.bfloat16,local_files_only=True,low_cpu_mem_usage=True)
         pipeline.enable_model_cpu_offload(gpu_id=0)
         pipeline.set_progress_bar_config(disable=True)
+        if lease:
+            torch.cuda.synchronize()
+            torch.cuda.empty_cache()
+            lease.finish()
         state = 'ready'
         LOG.warning('Qwen-Image-2.1 ready; BF16, model CPU offload, GPU%s, allocator cap 58%%', GPU_ID)
     except Exception as exc:
         state = 'error'
         load_error = f'{type(exc).__name__}: {exc}'
         LOG.exception('Model load failed')
+        if lease:
+            # Initialization failures can leave a partially loaded model on the device.
+            lease.finish('failed', 'execution_failed', cleanup_ok=False)
+            quarantined_leases.append(lease)
+        if scheduled:
+            os._exit(75)  # systemd bounds restart attempts; no partial model stays eligible.
 
 @asynccontextmanager
 async def lifespan(app):
@@ -84,11 +104,10 @@ def models():
     return {'object':'list','data':[{'id':'qwen-image-2.1','object':'model','owned_by':'Qwen'}]}
 
 @app.post('/v1/images/generations')
-def generate(request: Generate, authorization: str | None = Header(default=None)):
+def generate(request: Generate, authorization: str | None = Header(default=None), x_scheduler_ticket: str | None = Header(default=None)):
+    global state, load_error
     if not api_key or not secrets.compare_digest((authorization or '').encode(), ('Bearer '+api_key).encode()):
         raise HTTPException(401, 'Invalid upstream credential')
-    import torch
-    from PIL import Image, ImageStat
     if state != 'ready':
         raise HTTPException(503, 'Model is not ready')
     if request.model not in ('qwen-image-2.1','Qwen/Qwen-Image-2.1'):
@@ -100,6 +119,9 @@ def generate(request: Generate, authorization: str | None = Header(default=None)
         assert min(width,height)>=256 and width%32==0 and height%32==0 and width*height<=2048**2
     except Exception:
         raise HTTPException(400,'Invalid size')
+    if scheduled and not isinstance(x_scheduler_ticket, str):
+        raise HTTPException(503, 'Scheduler ticket required')
+    from PIL import Image, ImageStat
     if not lock.acquire(blocking=False):
         raise HTTPException(429,'Evaluation worker busy')
     samples=[]
@@ -116,16 +138,33 @@ def generate(request: Generate, authorization: str | None = Header(default=None)
                 hot.set()
             stop.wait(1)
     def callback(pipe,step,timestep,kwargs):
+        if lease:
+            lease.check()
         if hot.is_set():
             raise RuntimeError('GPU thermal or monitoring safety stop')
         if not torch.isfinite(kwargs['latents']).all().item():
             raise RuntimeError('Non-finite generated latent')
         return kwargs
     watcher=None
+    lease=None
+    outcome='failed'
+    cleanup_ok=True
+    needs_cleanup=False
     try:
+        if scheduled:
+            from star_gpu_scheduler.client import Client, Lease
+            try:
+                ticket=json.loads(x_scheduler_ticket)
+                if ticket['grant']['executor'] != 'qwen_worker_'+str(GPU_ID):
+                    raise ValueError('Wrong executor')
+                lease=Lease(Client.from_env('qwen_worker_'+str(GPU_ID)),ticket,request.model_dump(),hard_stop=lambda: os._exit(75)).acquire()
+            except Exception:
+                raise HTTPException(503,'Scheduler grant unavailable')
         before=gpu_stats()
         if before['temperature_c']>ADMISSION_TEMPERATURE or before['memory_free_mib']<30000:
             raise HTTPException(503,'GPU not idle/cool enough for controlled evaluation')
+        import torch
+        needs_cleanup=True
         torch.cuda.reset_peak_memory_stats()
         watcher=threading.Thread(target=monitor,daemon=True)
         watcher.start()
@@ -147,18 +186,39 @@ def generate(request: Generate, authorization: str | None = Header(default=None)
         output=io.BytesIO()
         result.save(output,format='PNG')
         alpha=result.getchannel('A').getextrema() if result.mode=='RGBA' else None
+        outcome='succeeded'
         return {'created':int(time.time()),'model':request.model,'data':[{'b64_json':base64.b64encode(output.getvalue()).decode(),'mime_type':'image/png','seed':request.seed}],'evaluation':{'gpu_id':GPU_ID,'inference_seconds':inference,'torch_peak_allocated_mib':torch.cuda.max_memory_allocated()/2**20,'torch_peak_reserved_mib':torch.cuda.max_memory_reserved()/2**20,'gpu_peak_used_mib':max([x['memory_used_mib'] for x in samples] or [before['memory_used_mib']]),'gpu_max_temperature_c':max([x['temperature_c'] for x in samples] or [before['temperature_c']]),'steps':request.num_inference_steps,'cfg':1,'mode':result.mode,'alpha_extrema':alpha,'profile':'bf16-model-cpu-offload'}}
     except HTTPException:
         raise
     except Exception as exc:
         LOG.exception('Generation failed')
-        if pipeline is not None:
-            pipeline.maybe_free_model_hooks()
-        torch.cuda.empty_cache()
-        raise HTTPException(500,f'{type(exc).__name__}: {exc}')
+        raise HTTPException(500,'Image generation failed')
     finally:
         stop.set()
         if watcher:
             watcher.join(timeout=6)
-        torch.cuda.empty_cache()
-        lock.release()
+        try:
+            if needs_cleanup:
+                if pipeline is not None:
+                    pipeline.maybe_free_model_hooks()
+                torch.cuda.synchronize()
+                torch.cuda.empty_cache()
+        except Exception:
+            cleanup_ok=False
+            state='error'
+            load_error='GPU cleanup failed; worker requires recovery'
+            LOG.exception('GPU cleanup failed')
+        finally:
+            if lease:
+                try:
+                    lease.finish(outcome, None if outcome=='succeeded' else 'execution_failed', cleanup_ok=cleanup_ok)
+                except Exception:
+                    state='error'
+                    cleanup_ok=False
+                if not cleanup_ok:
+                    quarantined_leases.append(lease)
+            lock.release()
+        if not cleanup_ok:
+            if scheduled:
+                os._exit(75)
+            raise HTTPException(503,'GPU cleanup could not be verified')

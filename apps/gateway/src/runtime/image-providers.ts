@@ -119,17 +119,6 @@ function createDefaultImageGenerationBillingFallbacks(
   }
   const fallbacks: ImageGenerationBillingFallback[] = [];
   const primaryProvider = parseImagePrimaryProvider(env.MEDCODE_IMAGE_PRIMARY_PROVIDER);
-  if (primaryProvider === "qwen" && env.MEDCODE_IMAGE_LLADA_API_KEY?.trim()) {
-    fallbacks.push({
-      accountId: `${imageBillingFallbackAccountId}-llada`,
-      provider: new LLaDAImageGenerationProvider({
-        apiKey: env.MEDCODE_IMAGE_LLADA_API_KEY,
-        baseUrl: env.MEDCODE_IMAGE_LLADA_BASE_URL,
-        timeoutMs: parsePositiveIntegerEnv(env.MEDCODE_IMAGE_LLADA_TIMEOUT_MS, 90_000, "MEDCODE_IMAGE_LLADA_TIMEOUT_MS")
-      }),
-      upstreamModel: "llada-image-turbo-fp8"
-    });
-  }
   if (
     primaryProvider !== "openai" &&
     env.MEDCODE_IMAGE_OPENAI_API_KEY?.trim()

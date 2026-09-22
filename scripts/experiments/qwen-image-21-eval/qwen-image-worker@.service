@@ -1,12 +1,18 @@
 [Unit]
 Description=Private Qwen-Image-2.1 worker on GPU %i
-After=network.target
+After=network.target star-gpu-scheduler.service
+Wants=star-gpu-scheduler.service
+StartLimitIntervalSec=600
+StartLimitBurst=3
 
 [Service]
 Type=simple
 WorkingDirectory=/data/apps/qwen-image-21-eval/current/scripts/experiments/qwen-image-21-eval
 Environment=CUDA_VISIBLE_DEVICES=%i
 Environment=QWEN_GPU_ID=%i
+Environment=GPU_SCHEDULER_REQUIRED=1
+Environment=GPU_SCHEDULER_SOCKET=/run/user/%U/star-gpu-arbiter/scheduler.sock
+Environment=GPU_SCHEDULER_TOKEN_FILE=/data/apps/star-gpu-scheduler/config/qwen_worker_%i.token
 Environment=QWEN_ADMISSION_TEMPERATURE=80
 Environment=QWEN_STOP_TEMPERATURE=88
 Environment=HF_HOME=/data/apps/qwen-image-21-eval/cache/huggingface
@@ -27,7 +33,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/data/apps/qwen-image-21-eval/state /data/apps/qwen-image-21-eval/cache
+ReadWritePaths=/data/apps/qwen-image-21-eval/state /data/apps/qwen-image-21-eval/cache /run/user/%U/star-gpu-arbiter
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 MemoryMax=56G
 CPUQuota=800%

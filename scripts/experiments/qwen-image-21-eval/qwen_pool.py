@@ -9,8 +9,10 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 import logging
 import os
+import json
 import secrets
 import time
+from uuid import uuid4
 
 import httpx
 from fastapi import FastAPI, Header, HTTPException, Request
@@ -37,6 +39,10 @@ class Job:
     submitted: float
     deadline: float
     abandoned: bool = False
+    operation_id: str = field(default_factory=lambda: 'image-'+uuid4().hex)
+    scheduler_body: dict | None = None
+    task_id: str | None = None
+    ticket: dict | None = None
 
 
 class Pool:
@@ -47,12 +53,20 @@ class Pool:
         self.budget, self.queue_wait, self.poll = budget, queue_wait, poll
         self.tasks = set()
         self.scheduler = None
+        self.broker = None
+        if os.environ.get('GPU_SCHEDULER_SOCKET') or os.environ.get('GPU_SCHEDULER_REQUIRED') == '1':
+            from star_gpu_scheduler.client import Client
+            self.broker = Client.from_env('qwen_pool')
 
     async def health(self, worker):
         try:
             response = await self.client.get(worker.url+'/healthz', timeout=6)
             response.raise_for_status()
-            worker.health = response.json()
+            value = response.json()
+            if not isinstance(value, dict) or type(value.get('busy')) is not bool or type(value.get('accepting')) is not bool:
+                raise ValueError('Invalid worker health')
+            value['accepting'] = value['accepting'] and value.get('status') == 'ready' and not value['busy']
+            worker.health = value
         except Exception:
             worker.health = {'status': 'unavailable', 'accepting': False}
 
@@ -65,13 +79,19 @@ class Pool:
             self.scheduler.cancel()
             await asyncio.gather(self.scheduler, return_exceptions=True)
         for job in self.queue:
+            if self.broker and job.task_id:
+                try:
+                    await asyncio.to_thread(self.broker.cancel, job.task_id, 'producer_shutdown')
+                except Exception:
+                    pass
             self.finish(job, 503, {'detail': 'Image service shutting down'})
         # systemd allows in-flight requests to finish before terminating workers.
         if self.tasks:
             await asyncio.gather(*self.tasks, return_exceptions=True)
 
     def submit(self, body):
-        self.queue = deque(j for j in self.queue if not j.abandoned)
+        if not self.broker:
+            self.queue = deque(j for j in self.queue if not j.abandoned)
         if len(self.queue) + sum(w.leased for w in self.workers) >= len(self.workers)+2:
             raise HTTPException(429, 'Image queue full', headers={'Retry-After': '30'})
         if not any(w.health.get('status') == 'ready' for w in self.workers):
@@ -87,10 +107,13 @@ class Pool:
             job.future.set_result((status, payload))
 
     async def schedule(self):
+        if self.broker:
+            await self.schedule_shared()
+            return
         while True:
             await asyncio.gather(*(self.health(w) for w in self.workers))
             now = time.monotonic()
-            while self.queue and (self.queue[0].abandoned or now-self.queue[0].submitted >= self.queue_wait):
+            while self.queue and (self.queue[0].abandoned or now-self.queue[0].submitted >= self.queue_wait or now >= self.queue[0].deadline):
                 job = self.queue.popleft()
                 self.finish(job, 503, {'detail': 'Image queue wait exceeded'})
             for worker in self.workers:
@@ -107,12 +130,69 @@ class Pool:
                 task.add_done_callback(self.tasks.discard)
             await asyncio.sleep(self.poll)
 
+    async def schedule_shared(self):
+        from star_gpu_scheduler.protocol import PROFILES, TERMINAL, digest
+        while True:
+            await asyncio.gather(*(self.health(w) for w in self.workers))
+            for job in list(self.queue):
+                now = time.monotonic()
+                expired = now-job.submitted >= self.queue_wait or now >= job.deadline
+                try:
+                    if job.abandoned or expired:
+                        if job.task_id:
+                            try:
+                                await asyncio.to_thread(self.broker.cancel, job.task_id,
+                                    'client_disconnected' if job.abandoned else 'deadline')
+                            except Exception:
+                                pass  # Unclaimed grants expire after the producer heartbeat stops.
+                        self.queue.remove(job)
+                        self.finish(job, 503, {'detail': 'Image queue wait exceeded'})
+                        continue
+                    if job.scheduler_body is None:
+                        job.scheduler_body = {'schema_version': 1, 'producer_instance': self.broker.instance,
+                            'operation_id': job.operation_id, 'kind': 'image', 'profile': PROFILES['image'],
+                            'payload_sha256': digest(job.body),
+                            'queue_timeout_ms': max(1, int(min(self.queue_wait-(now-job.submitted), job.deadline-now)*1000)),
+                            'request_budget_ms': max(1, int((job.deadline-now)*1000))}
+                    if job.task_id is None:
+                        value = await asyncio.to_thread(self.broker.rpc, 'POST', '/v1/tasks', job.scheduler_body)
+                        job.task_id = value['task_id']
+                    await asyncio.to_thread(self.broker.producer_heartbeat, job.task_id)
+                    value = await asyncio.to_thread(self.broker.get, job.task_id)
+                    if value['state'] in TERMINAL:
+                        self.queue.remove(job)
+                        self.finish(job, 503, {'detail': 'Image scheduler admission ended'})
+                    elif value.get('grant'):
+                        index = int(value['grant']['executor'].rsplit('_', 1)[1])
+                        worker = self.workers[index]
+                        if worker.leased:
+                            continue
+                        job.ticket = value
+                        worker.leased = True
+                        self.queue.remove(job)
+                        task = asyncio.create_task(self.run(worker, job))
+                        self.tasks.add(task)
+                        task.add_done_callback(self.tasks.discard)
+                except Exception:
+                    # Preserve an ambiguous registration and its operation ID until cancelled
+                    # or expired; never dispatch directly when the broker cannot be reached.
+                    if time.monotonic() >= job.deadline:
+                        job.abandoned = True
+                        self.finish(job, 503, {'detail': 'Image scheduler unavailable'})
+            await asyncio.sleep(self.poll)
+
     async def run(self, worker, job):
         started = time.monotonic()
         uncertain = False
         try:
+            if started >= job.deadline:
+                self.finish(job, 503, {'detail': 'Image request deadline exceeded'})
+                return
+            headers = {'Authorization': 'Bearer '+API_KEY}
+            if job.ticket:
+                headers['X-Scheduler-Ticket'] = json.dumps(job.ticket, separators=(',', ':'))
             response = await self.client.post(worker.url+'/v1/images/generations', json=job.body,
-                headers={'Authorization': 'Bearer '+API_KEY}, timeout=max(0.01, job.deadline-started))
+                headers=headers, timeout=max(0.01, job.deadline-started))
             payload = response.json()
             if response.status_code == 200:
                 payload['dispatch'] = {'worker': self.workers.index(worker),
@@ -129,10 +209,15 @@ class Pool:
             if uncertain:
                 while True:
                     await self.health(worker)
-                    if worker.health.get('status') != 'ready' or not worker.health.get('busy', True):
+                    if worker.health.get('status') == 'ready' and worker.health.get('busy') is False:
                         break
                     await asyncio.sleep(self.poll)
             worker.leased = False
+            if self.broker and job.task_id:
+                try:
+                    await asyncio.to_thread(self.broker.cancel, job.task_id, 'producer_shutdown')
+                except Exception:
+                    pass
 
     def snapshot(self):
         return {'status': 'ready' if any(w.health.get('status') == 'ready' for w in self.workers) else 'unavailable',
