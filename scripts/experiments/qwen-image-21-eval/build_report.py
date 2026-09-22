@@ -28,6 +28,14 @@ def main():
         if peaks:
             summary[provider]['peak_torch_allocated_mib']=max(peaks)
     summary['visual_review']=reviews
+    summary['capability_checks']=[{k:r[k] for k in ('test_id','http_status','elapsed_seconds','mode','alpha_extrema','alpha_nonopaque_fraction','peak_gpu_memory_mib','max_gpu_temperature_c')} for r in data['qwen'] if r['test_id'].startswith('capability_') and r.get('http_status')==200]
+    summary['review_counts']={name:sum(r.get('preferred')==name for r in reviews['pairs']) for name in ('qwen','llada','tie')}
+    summary['criteria_counts']={}
+    for criterion in ('target_text_correct','strict_text_layout_pass','count_position_pass','strict_spatial_prompt_pass'):
+        summary['criteria_counts'][criterion]={}
+        for provider in ('llada','qwen'):
+            values=[r[provider+'_'+criterion] for r in reviews['pairs'] if provider+'_'+criterion in r]
+            summary['criteria_counts'][criterion][provider]={'passed':sum(values),'assessed':len(values)}
     (root/'summary.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2),encoding='utf-8')
     css='''body{margin:0;background:#f3f5f8;color:#16202d;font:15px/1.6 system-ui,"Microsoft YaHei",sans-serif}main{max-width:1500px;margin:auto;padding:28px}h1{font-size:30px;line-height:1.25}h2{margin-top:0}p{max-width:1150px}.card,article{background:white;padding:24px;border-radius:12px;margin:20px 0;box-shadow:0 1px 8px #00000008}.pair{display:grid;grid-template-columns:1fr 1fr;gap:18px}figure{margin:0;min-width:0}img{width:100%;display:block;background:repeating-conic-gradient(#eee 0% 25%,#fff 0% 50%) 50%/20px 20px;border-radius:5px}figcaption{padding:8px 0;font-weight:600}table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:10px;border-bottom:1px solid #dce3e9}th{background:#eef2f6}.muted{color:#5c6673}.note{background:#edf5ff;padding:12px;border-left:4px solid #3b74ac}details{margin:12px 0}pre{white-space:pre-wrap;word-break:break-word;font:13px/1.6 monospace}.tag{display:inline-block;padding:2px 8px;border-radius:5px;background:#e8eef5;font-size:13px}a{color:#245dab}@media(max-width:800px){main{padding:12px}.pair{grid-template-columns:1fr}.card,article{padding:14px}}'''
     content=['<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Qwen-Image-2.1 与 LLaDA 对比评估</title><style>'+css+'</style><main>']
@@ -38,11 +46,19 @@ def main():
         s=summary[provider]
         content.append(f'<tr><td>{label}</td><td>{s["successes"]}/{s["requests"]}</td><td>{s["mean_seconds"]:.2f}s</td><td>{s["median_seconds"]:.2f}s</td><td>{s["min_seconds"]:.2f}–{s["max_seconds"]:.2f}s</td><td>{s["peak_board_memory_mib"]/1024:.2f} GiB</td><td>{s["max_temperature_c"]:.0f}°C</td></tr>')
     content.append('</table>')
+    content.append('<p>每次请求开始前等待 GPU 降至 58°C 以下且利用率不高于 5%；上述耗时不包括请求之间的降温等待。这不是连续吞吐量或并发压测。</p>')
     if 'peak_torch_allocated_mib' in summary['qwen']:
         content.append(f'<p>Qwen 单进程 PyTorch 分配峰值：{summary["qwen"]["peak_torch_allocated_mib"]/1024:.2f} GiB。GPU 1 原有 IndexTTS 约占 8.4 GiB。完整逐请求与 GPU 采样记录见 <a href="summary.json">summary.json</a>、<a href="llada-results.jsonl">LLaDA JSONL</a>、<a href="qwen-results.jsonl">Qwen JSONL</a>。</p>')
     content.append('</section>')
     if reviews.get('conclusion'):
         content.append('<section class="card"><h2>视觉审查结论</h2>'+''.join('<p>'+escape(p)+'</p>' for p in reviews['conclusion'])+'</section>')
+    content.append('<section class="card"><h2>本次样本的可核对结果</h2><table><tr><th>检查项</th><th>LLaDA</th><th>Qwen</th></tr>')
+    for criterion,label in [('target_text_correct','指定文字全部正确'),('strict_text_layout_pass','文字、排版及无额外文字'),('count_position_pass','物体数量及相对位置'),('strict_spatial_prompt_pass','空间题完整要求（含铅笔平行）')]:
+        values=summary['criteria_counts'][criterion]
+        cells=''.join(f'<td>{values[p]["passed"]}/{values[p]["assessed"]}</td>' for p in ('llada','qwen'))
+        content.append('<tr><td>'+label+'</td>'+cells+'</tr>')
+    counts=summary['review_counts']
+    content.append(f'</table><p>逐对主观偏好：Qwen {counts["qwen"]} 对，LLaDA {counts["llada"]} 对，平局 {counts["tie"]} 对。未使用原计划中的五分制打分，改为记录可核对的通过项及逐对理由；样本太少，不宜把偏好数解释为总体胜率。</p><p>双语题使用斜杠分隔目标三行，存在表达歧义；Qwen 有一张把斜杠也生成了出来。下方保留全部成功样本，包括不符合提示词的图片。</p></section>')
     llada={(r['test_id'],r['seed']):r for r in data['llada']}
     qwen={(r['test_id'],r['seed']):r for r in data['qwen']}
     for key,left in llada.items():
@@ -67,6 +83,8 @@ def main():
             path=row['file']
             content.append(f'<figure><a href="{escape(path)}"><img src="{escape(path)}"></a><figcaption>{escape(row["test_id"])} · {row["elapsed_seconds"]:.2f}s</figcaption><p>图像模式 {row["mode"]}；Alpha 范围 {row["alpha_extrema"]}；非完全不透明像素比例 {row["alpha_nonopaque_fraction"]:.2%}</p></figure>')
         content.append('</div></section>')
+        for review in reviews.get('capabilities',[]):
+            content.append('<p class="note">'+escape(review['comment'])+'</p>')
     content.append('<section class="card"><h2>服务与复现</h2><p>Qwen 服务：star 的 127.0.0.1:8191，systemd 用户单元 qwen-image-21-eval.service。仅用于研究评估，未接入公共 Gateway，未切换现有生图路由。源代码、模型清单与环境版本记录随评估保留。Qwen 使用 Research License；商业服务需要另行授权。</p><p><a href="https://huggingface.co/Qwen/Qwen-Image-2.1">官方模型</a> · <a href="https://github.com/QwenLM/Qwen-Image-2.1/blob/main/LICENSE">Qwen 许可证</a> · <a href="evaluation_plan.json">原始评测计划</a> · <a href="visual-review.json">视觉审查记录</a></p></section></main></html>')
     (root/'comparison.html').write_text('\n'.join(content),encoding='utf-8')
     print(json.dumps({k:v for k,v in summary.items() if k!='visual_review'},ensure_ascii=False,indent=2))

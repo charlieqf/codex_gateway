@@ -33,3 +33,11 @@ Canonical source is this directory on Gateway main. Deploy a `git archive` of a 
 - These are deployed-configuration comparisons, not a precision-matched or isolated architecture speed benchmark.
 - Alpha generation and single-image editing are separate Qwen capability checks, excluded from shared T2I scores.
 - Visual review is a single assistant's qualitative assessment, not an independent blinded human study.
+
+## Results and report
+
+The deployment receipt and measured results are in `docs/operations/qwen-image-21-evaluation-2026-09-22.zh-CN.md`. Local artifacts are under `C:/work/code/.task-artifacts/qwen-image-21-20260922`; server originals are under `/data/apps/qwen-image-21-eval/results`.
+
+Run `sync_results.py <llada|qwen> <artifact-directory>` on the workstation to retrieve result JSONL and missing original PNGs with SHA256 verification. `build_report.py <artifact-directory>` combines both datasets with `visual-review.json`. `validate_report.py <artifact-directory>` checks all 16 shared pairs, two Qwen capability checks, PNG dimensions/hashes and HTML local references. It does not claim browser-render verification.
+
+Final shared-suite means were 13.64 seconds for LLaDA and 58.52 seconds for Qwen; each completed 16/16. The single-assistant pair preferences were Qwen 9, LLaDA 2, ties 5. Alpha generation and changing only the red cup's color passed their separate checks. Results support task-specific selection, not a blanket model replacement.
