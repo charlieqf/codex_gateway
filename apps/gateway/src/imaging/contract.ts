@@ -12,8 +12,9 @@ export type StudyInput = { format: "nifti" | "dicom_zip"; size: number; sha256: 
 export type JobInput = { study_id: string; study_revision: 1; series_id: string; analysis_profile: typeof imagingProfile; session_id: string };
 export type CreateInput = StudyInput | JobInput;
 export type Series = { series_id: string; modality: "CT"; shape_xyz?: number[]; spacing_xyz?: number[]; phase: null; eligible: boolean; reason?: string };
-export type Study = { study_id: string; study_revision: 1; state: string; format: string; size: number; sha256: string; chunk_bytes: number; expires_at: number; series: Series[]; error?: Json };
-export type Job = { job_id: string; study_id: string; series_id: string; state: string; stage: string; result_revision: 1 | null; created_at: number; updated_at: number; expires_at: number; error?: Json };
+export type ImagingProgress = { phase: "verifying_upload" | "waiting_resources" | "parsing" | "inference" | "postprocessing"; wait_reason?: "queued" | "waiting_memory" | "waiting_gpu" | "scheduler_unavailable" | "recovering"; poll_after_ms: number };
+export type Study = { study_id: string; study_revision: 1; state: string; format: string; size: number; sha256: string; chunk_bytes: number; expires_at: number; series: Series[]; progress?: ImagingProgress; error?: Json };
+export type Job = { job_id: string; study_id: string; series_id: string; state: string; stage: string; result_revision: 1 | null; created_at: number; updated_at: number; expires_at: number; progress?: ImagingProgress; error?: Json };
 export type Resource = Study | Job;
 export type Part = { index: number; size: number; sha256: string };
 export type Artifact = { path: string; size: number; sha256: string };
@@ -99,10 +100,23 @@ function publicError(value: unknown): Json | undefined {
   requireImaging(safeToken(b.code, 80) && typeof b.retryable === "boolean", 503, "upstream_protocol_error");
   return { code: Object.hasOwn(messages, b.code) ? b.code : "execution_failed", message: messages[b.code] ?? messages.execution_failed, retryable: b.retryable };
 }
+function publicProgress(value: unknown): ImagingProgress | undefined {
+  if (value === undefined) return undefined;
+  requireImaging(value !== null && typeof value === "object" && !Array.isArray(value), 503, "upstream_protocol_error");
+  const b = object(value);
+  requireImaging(["verifying_upload", "waiting_resources", "parsing", "inference", "postprocessing"].includes(String(b.phase)) &&
+    Number.isSafeInteger(b.poll_after_ms) && Number(b.poll_after_ms) >= 2000 && Number(b.poll_after_ms) <= 30000 &&
+    (b.phase === "waiting_resources"
+      ? ["queued", "waiting_memory", "waiting_gpu", "scheduler_unavailable", "recovering"].includes(String(b.wait_reason))
+      : b.wait_reason === undefined), 503, "upstream_protocol_error");
+  return { phase: b.phase as ImagingProgress["phase"], poll_after_ms: Number(b.poll_after_ms),
+    ...(b.phase === "waiting_resources" ? { wait_reason: b.wait_reason as ImagingProgress["wait_reason"] } : {}) };
+}
 export function parseResource(kind: Kind, value: unknown): Resource {
   const b = object(value);
   requireImaging(numeric(b.expires_at), 503, "upstream_protocol_error");
   const error = publicError(b.error);
+  const progress = ["validating", "queued", "preprocessing", "running", "postprocessing"].includes(String(b.state)) ? publicProgress(b.progress) : undefined;
   if (kind === "study") {
     requireImaging(identifier(b.study_id, "study") && b.study_revision === 1 &&
       ["uploading", "validating", "ready", "rejected", "deleting", "deleted", "expired"].includes(String(b.state)) &&
@@ -120,13 +134,13 @@ export function parseResource(kind: Kind, value: unknown): Resource {
         ...(s.reason === undefined ? {} : { reason: reasons.includes(String(s.reason)) ? String(s.reason) : "unsupported_series" }) };
     });
     requireImaging(new Set(series.map(s => s.series_id)).size === series.length, 503, "upstream_protocol_error");
-    return { study_id: b.study_id as string, study_revision: 1, state: String(b.state), format: String(b.format), size: Number(b.size), sha256: b.sha256 as string, chunk_bytes: chunkBytes, expires_at: b.expires_at, series, ...(error ? { error } : {}) };
+    return { study_id: b.study_id as string, study_revision: 1, state: String(b.state), format: String(b.format), size: Number(b.size), sha256: b.sha256 as string, chunk_bytes: chunkBytes, expires_at: b.expires_at, series, ...(progress ? { progress } : {}), ...(error ? { error } : {}) };
   }
   const states = ["queued", "preprocessing", "running", "postprocessing", "completed", "failed", "cancel_requested", "cancelled", "expired"];
   requireImaging(identifier(b.job_id, "job") && identifier(b.study_id, "study") && safeToken(b.series_id) && states.includes(String(b.state)) &&
     [...states, "waiting_gpu", "interrupted"].includes(String(b.stage)) && numeric(b.created_at) && numeric(b.updated_at) &&
     (b.state === "completed" ? b.result_revision === 1 : b.result_revision === null), 503, "upstream_protocol_error");
-  return { job_id: b.job_id as string, study_id: b.study_id as string, series_id: b.series_id as string, state: String(b.state), stage: String(b.stage), result_revision: b.result_revision as 1 | null, created_at: b.created_at, updated_at: b.updated_at, expires_at: b.expires_at, ...(error ? { error } : {}) };
+  return { job_id: b.job_id as string, study_id: b.study_id as string, series_id: b.series_id as string, state: String(b.state), stage: String(b.stage), result_revision: b.result_revision as 1 | null, created_at: b.created_at, updated_at: b.updated_at, expires_at: b.expires_at, ...(progress ? { progress } : {}), ...(error ? { error } : {}) };
 }
 export function resourceId(value: Resource): string { return "job_id" in value ? value.job_id : value.study_id; }
 export function parsePart(value: unknown, study: Study): Part {

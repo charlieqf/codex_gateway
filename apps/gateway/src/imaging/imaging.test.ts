@@ -117,6 +117,44 @@ function setup(path = ":memory:", limits = defaultImagingLimits, logs?: string[]
 }
 
 describe("imaging public v1", () => {
+  it("projects resource waits without private scheduler details and clears them on completion", async () => {
+    const t = setup(); const id = (await t.create()).json().study_id;
+    const study = t.star.resources.get(id)!.value as Study;
+    Object.assign(study, { state: "validating", progress: { phase: "waiting_resources", wait_reason: "waiting_memory", poll_after_ms: 2000,
+      message: "/private/task/path", task_id: "private-scheduler-id", host_available_mib: 44400 } });
+    const read = await t.request("GET", `/studies/${id}`);
+    expect(read.statusCode).toBe(200);
+    expect(read.json().progress).toEqual({ phase: "waiting_resources", wait_reason: "waiting_memory", poll_after_ms: 2000 });
+    expect(read.body).not.toContain("private");
+    expect((await t.request("GET", `/studies/${id}`, undefined, 1)).statusCode).toBe(404);
+    t.star.ready(id);
+    expect((await t.request("GET", `/studies/${id}`)).json()).not.toHaveProperty("progress");
+    const created = await t.request("POST", "/jobs", jobInput(id), 0, { "idempotency-key": "wait-progress-job" });
+    const jobId = created.json().job_id;
+    const job = t.star.resources.get(jobId)!.value as Job;
+    for (const wait_reason of ["queued", "waiting_memory", "waiting_gpu", "scheduler_unavailable", "recovering"] as const) {
+      job.progress = { phase: "waiting_resources", wait_reason, poll_after_ms: 2000 };
+      expect((await t.request("GET", `/jobs/${jobId}`)).json().progress.wait_reason).toBe(wait_reason);
+    }
+    t.star.completed(jobId);
+    expect((await t.request("GET", `/jobs/${jobId}`)).json()).not.toHaveProperty("progress");
+  });
+  it("rejects malformed progress but accepts older resources without it", async () => {
+    const t = setup(); const id = (await t.create()).json().study_id;
+    const study = t.star.resources.get(id)!.value;
+    study.state = "validating";
+    expect((await t.request("GET", `/studies/${id}`)).statusCode).toBe(200);
+    for (const progress of [
+      null, [], "private-status-message",
+      { phase: "waiting_resources", wait_reason: "private-code", poll_after_ms: 2000 },
+      { phase: "waiting_resources", poll_after_ms: 2000 },
+      { phase: "parsing", wait_reason: "waiting_memory", poll_after_ms: 2000 },
+      { phase: "parsing", poll_after_ms: 1 },
+    ]) {
+      Object.assign(study, { progress });
+      expect((await t.request("GET", `/studies/${id}`)).statusCode).toBe(503);
+    }
+  });
   it("persists successful and rejected HTTP operations in the independent audit database", async () => {
     const directory = mkdtempSync(join(tmpdir(), "imaging-audit-"));
     cleanup.push(() => rmSync(directory, { recursive: true, force: true }));
