@@ -9,6 +9,7 @@ export type ProviderKind =
   | "local-openai"
   | "openai-api"
   | "llada-image"
+  | "qwen-image"
   | "xai"
   | "gemini"
   | "anthropic"

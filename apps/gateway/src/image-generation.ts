@@ -53,7 +53,7 @@ export interface ImageGenerationResult {
 
 export type ImageGenerationProviderKind = Extract<
   ProviderKind,
-  "openai-api" | "llada-image" | "xai" | "gemini"
+  "openai-api" | "llada-image" | "qwen-image" | "xai" | "gemini"
 >;
 
 export interface ImageGenerationProvider {
@@ -399,6 +399,32 @@ export class OpenAIImageGenerationProvider implements ImageGenerationProvider {
 
   private get timeoutMs(): number {
     return this.options.timeoutMs ?? 180_000;
+  }
+}
+
+/** Qwen returns native RGBA PNG; the shared raster stage encodes the requested format. */
+export class QwenImageGenerationProvider implements ImageGenerationProvider {
+  readonly providerKind = "qwen-image" as const;
+  private readonly delegate: OpenAIImageGenerationProvider;
+
+  constructor(options: OpenAIImageGenerationProviderOptions & { baseUrl: string }) {
+    this.delegate = new OpenAIImageGenerationProvider(options);
+  }
+
+  generate(input: {
+    request: ImageGenerationRequest;
+    upstreamModel: string;
+    signal?: AbortSignal;
+  }): Promise<ImageGenerationResult> {
+    return this.delegate.generate({
+      ...input,
+      request: {
+        ...input.request,
+        size: input.request.size === "auto" ? "1024x1024" : input.request.size,
+        outputFormat: "png",
+        outputCompression: undefined
+      }
+    });
   }
 }
 

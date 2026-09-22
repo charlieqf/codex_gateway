@@ -1749,7 +1749,7 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
-  it("uses the fallback image provider when the global primary is rate limited", async () => {
+  it.each(["llada-image", "qwen-image"] as const)("uses the fallback image provider when %s is rate limited", async (primaryKind) => {
     const { store, headers } = createImageEntitledStore();
     const primaryImageProvider = new FakeImageGenerationProvider(
       new GatewayError({
@@ -1758,7 +1758,7 @@ describe("gateway phase 1 routes", () => {
         httpStatus: 429,
         upstreamStatus: 429
       }),
-      "llada-image"
+      primaryKind
     );
     const fallbackImageProvider = new FakeImageGenerationProvider();
     const app = buildGateway({

@@ -1,0 +1,19 @@
+[Unit]
+Description=Private encrypted Gateway to star Qwen Image connection
+After=network-online.target docker.service
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/ssh -gNT -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/opt/codex-gateway-r760/shared/ssh/qwen-image-known-hosts -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i /opt/codex-gateway-r760/shared/ssh/qwen-image-ed25519 -L 172.18.0.1:18191:127.0.0.1:8191 aiuser@192.168.77.7
+Restart=always
+RestartSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

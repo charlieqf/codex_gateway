@@ -41,6 +41,9 @@ export function validateRuntimeEnvironment(env: NodeJS.ProcessEnv) {
   }
   if (env.MEDCODE_IMAGE_GENERATION_ENABLED === "1") {
     const imagePrimaryProvider = parseImagePrimaryProvider(env.MEDCODE_IMAGE_PRIMARY_PROVIDER);
+    if (imagePrimaryProvider === "qwen" && (!env.MEDCODE_IMAGE_QWEN_API_KEY || !env.MEDCODE_IMAGE_QWEN_BASE_URL?.trim())) {
+      throw new Error("Production Qwen image generation requires MEDCODE_IMAGE_QWEN_API_KEY and MEDCODE_IMAGE_QWEN_BASE_URL.");
+    }
     if (imagePrimaryProvider === "llada" && !env.MEDCODE_IMAGE_LLADA_API_KEY) {
       throw new Error("Production LLaDA image generation requires MEDCODE_IMAGE_LLADA_API_KEY.");
     }

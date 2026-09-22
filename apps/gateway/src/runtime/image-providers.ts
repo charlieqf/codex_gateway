@@ -3,6 +3,7 @@ import {
   GeminiImageGenerationProvider,
   LLaDAImageGenerationProvider,
   OpenAIImageGenerationProvider,
+  QwenImageGenerationProvider,
   XAIImageGenerationProvider,
   type ImageGenerationProvider
 } from "../image-generation.js";
@@ -34,6 +35,16 @@ export function createDefaultImageGenerationProvider(
     return undefined;
   }
   const primaryProvider = parseImagePrimaryProvider(env.MEDCODE_IMAGE_PRIMARY_PROVIDER);
+  if (primaryProvider === "qwen") {
+    if (!env.MEDCODE_IMAGE_QWEN_API_KEY || !env.MEDCODE_IMAGE_QWEN_BASE_URL?.trim()) {
+      throw new Error("Qwen image generation requires MEDCODE_IMAGE_QWEN_API_KEY and MEDCODE_IMAGE_QWEN_BASE_URL.");
+    }
+    return new QwenImageGenerationProvider({
+      apiKey: env.MEDCODE_IMAGE_QWEN_API_KEY,
+      baseUrl: env.MEDCODE_IMAGE_QWEN_BASE_URL.trim(),
+      timeoutMs: parsePositiveIntegerEnv(env.MEDCODE_IMAGE_QWEN_TIMEOUT_MS, 180_000, "MEDCODE_IMAGE_QWEN_TIMEOUT_MS")
+    });
+  }
   if (primaryProvider === "llada") {
     if (!env.MEDCODE_IMAGE_LLADA_API_KEY) {
       throw new Error(
@@ -64,12 +75,12 @@ export function createDefaultImageGenerationProvider(
   });
 }
 
-export function parseImagePrimaryProvider(value: string | undefined): "openai" | "llada" {
+export function parseImagePrimaryProvider(value: string | undefined): "openai" | "llada" | "qwen" {
   const normalized = value?.trim().toLowerCase() || "openai";
-  if (normalized === "openai" || normalized === "llada") {
+  if (normalized === "openai" || normalized === "llada" || normalized === "qwen") {
     return normalized;
   }
-  throw new Error("MEDCODE_IMAGE_PRIMARY_PROVIDER must be openai or llada.");
+  throw new Error("MEDCODE_IMAGE_PRIMARY_PROVIDER must be openai, llada or qwen.");
 }
 
 export function resolveImageGenerationBillingFallbacks(
@@ -107,8 +118,20 @@ function createDefaultImageGenerationBillingFallbacks(
     return [];
   }
   const fallbacks: ImageGenerationBillingFallback[] = [];
+  const primaryProvider = parseImagePrimaryProvider(env.MEDCODE_IMAGE_PRIMARY_PROVIDER);
+  if (primaryProvider === "qwen" && env.MEDCODE_IMAGE_LLADA_API_KEY?.trim()) {
+    fallbacks.push({
+      accountId: `${imageBillingFallbackAccountId}-llada`,
+      provider: new LLaDAImageGenerationProvider({
+        apiKey: env.MEDCODE_IMAGE_LLADA_API_KEY,
+        baseUrl: env.MEDCODE_IMAGE_LLADA_BASE_URL,
+        timeoutMs: parsePositiveIntegerEnv(env.MEDCODE_IMAGE_LLADA_TIMEOUT_MS, 90_000, "MEDCODE_IMAGE_LLADA_TIMEOUT_MS")
+      }),
+      upstreamModel: "llada-image-turbo-fp8"
+    });
+  }
   if (
-    parseImagePrimaryProvider(env.MEDCODE_IMAGE_PRIMARY_PROVIDER) === "llada" &&
+    primaryProvider !== "openai" &&
     env.MEDCODE_IMAGE_OPENAI_API_KEY?.trim()
   ) {
     fallbacks.push({

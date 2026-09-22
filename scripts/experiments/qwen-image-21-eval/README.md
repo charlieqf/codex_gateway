@@ -1,6 +1,6 @@
 # Qwen-Image-2.1 deployment and comparison with LLaDA
 
-Research evaluation requested on 2026-09-22. Production Gateway routing is out of scope.
+Research evaluation completed on 2026-09-22. The subsequent user request authorizes promotion to the preferred Gateway image upstream and client testing. Historical evaluation results below retain their original configuration.
 
 Canonical source is this directory on Gateway main. Deploy a `git archive` of a tested committed revision to the new research service's immutable `releases/<commit>` directory, and point its `current` symlink there. Do not deploy unrelated Gateway files or the dirty development checkout. Model/data downloads and evaluation outputs remain outside the source release.
 
@@ -11,8 +11,8 @@ Canonical source is this directory on Gateway main. Deploy a `git archive` of a 
 - Existing IndexTTS: GPU1, about 8600 MiB resident; preserved without restart.
 - Qwen: separate `/data/apps/qwen-image-21-eval`, GPU1 only, loopback port 8191.
 - BF16 model CPU offload; PyTorch allocator capped at 58% of GPU memory; thermal guard stops at 85C.
-- New service is private and for research/evaluation under the Qwen Research License.
-- Gateway/R760 is not changed. Read-only R760 preflight encountered an existing NVML driver/library mismatch.
+- Service remains private under the Qwen Research License; the Gateway connects through a pinned SSH tunnel and a separate upstream credential.
+- The initial read-only R760 preflight encountered an existing NVML driver/library mismatch. The image route does not use R760 GPU inference.
 
 ## Reproducibility
 
@@ -41,3 +41,7 @@ The deployment receipt and measured results are in `docs/operations/qwen-image-2
 Run `sync_results.py <llada|qwen> <artifact-directory>` on the workstation to retrieve result JSONL and missing original PNGs with SHA256 verification. `build_report.py <artifact-directory>` combines both datasets with `visual-review.json`. `validate_report.py <artifact-directory>` checks all 16 shared pairs, two Qwen capability checks, PNG dimensions/hashes and HTML local references. It does not claim browser-render verification.
 
 Final shared-suite means were 13.64 seconds for LLaDA and 58.52 seconds for Qwen; each completed 16/16. The single-assistant pair preferences were Qwen 9, LLaDA 2, ties 5. Alpha generation and changing only the red cup's color passed their separate checks. Results support task-specific selection, not a blanket model replacement.
+
+## Gateway promotion
+
+The API now requires `QWEN_IMAGE_API_KEY` from protected `api.env`, generates a random seed when absent, and uses the existing temperature/memory/concurrency guards. The unit is enabled on boot during promotion and restarts on failure. `test_qwen_api.py` validates authentication and admission without loading the model. `scripts/ops/prepare-qwen-image-link.py` provisions the restricted, pinned SSH link; `activate-qwen-image-r760.py` performs the backed-up Gateway cutover and public smoke with automatic config/image rollback. LLaDA becomes the first fallback before the existing external providers.

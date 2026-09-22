@@ -88,7 +88,7 @@ def main():
     base='http://127.0.0.1:'+('8190' if provider=='llada' else '8191')
     model='llada-image-turbo-fp8' if provider=='llada' else 'qwen-image-2.1'
     gpu=0 if provider=='llada' else 1
-    key=key_for_llada() if provider=='llada' else None
+    key=key_for_llada() if provider=='llada' else next((line.split('=',1)[1].strip() for line in (ROOT/'api.env').read_text().splitlines() if line.startswith('QWEN_IMAGE_API_KEY=')),None)
     out=ROOT/'results'/provider
     out.mkdir(parents=True,exist_ok=True)
     results_path=ROOT/'results'/f'{provider}-results.jsonl'

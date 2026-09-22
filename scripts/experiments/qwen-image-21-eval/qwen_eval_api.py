@@ -1,4 +1,4 @@
-"""Private research-only Qwen-Image-2.1 endpoint; never attached to public Gateway."""
+"""Authenticated private Qwen-Image-2.1 endpoint for Gateway and research evaluation."""
 from __future__ import annotations
 import asyncio
 import base64
@@ -7,12 +7,13 @@ import io
 import json
 import logging
 import os
+import secrets
 from pathlib import Path
 import subprocess
 import threading
 import time
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
 ROOT = Path('/data/apps/qwen-image-21-eval')
@@ -21,6 +22,7 @@ pipeline = None
 state = 'loading'
 load_error = None
 lock = threading.Lock()
+api_key = os.environ.get('QWEN_IMAGE_API_KEY', '')
 
 def gpu_stats():
     raw = subprocess.check_output(['nvidia-smi','--id=1','--query-gpu=temperature.gpu,memory.used,memory.free,utilization.gpu','--format=csv,noheader,nounits'],text=True,timeout=5)
@@ -46,6 +48,8 @@ def load():
 
 @asynccontextmanager
 async def lifespan(app):
+    if len(api_key) < 32:
+        raise RuntimeError('QWEN_IMAGE_API_KEY must contain at least 32 characters')
     task = asyncio.create_task(asyncio.to_thread(load))
     yield
     await task
@@ -56,7 +60,7 @@ class Generate(BaseModel):
     model: str = 'qwen-image-2.1'
     prompt: str = Field(min_length=1,max_length=10000)
     size: str = '1024x1024'
-    seed: int = Field(default=42,ge=0,le=2**63-1)
+    seed: int = Field(default_factory=lambda: secrets.randbits(63),ge=0,le=2**63-1)
     n: int = Field(default=1,ge=1,le=1)
     num_inference_steps: int = Field(default=40,ge=1,le=50)
     response_format: str = 'b64_json'
@@ -71,7 +75,9 @@ def models():
     return {'object':'list','data':[{'id':'qwen-image-2.1','object':'model','owned_by':'Qwen'}]}
 
 @app.post('/v1/images/generations')
-def generate(request: Generate):
+def generate(request: Generate, authorization: str | None = Header(default=None)):
+    if not api_key or not secrets.compare_digest((authorization or '').encode(), ('Bearer '+api_key).encode()):
+        raise HTTPException(401, 'Invalid upstream credential')
     import torch
     from PIL import Image, ImageStat
     if state != 'ready':

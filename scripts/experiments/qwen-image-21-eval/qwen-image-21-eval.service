@@ -1,5 +1,5 @@
 [Unit]
-Description=Private Qwen-Image-2.1 research evaluation on GPU 1
+Description=Private authenticated Qwen-Image-2.1 on GPU 1
 After=network.target
 
 [Service]
@@ -14,8 +14,10 @@ Environment=TORCHINDUCTOR_CACHE_DIR=/data/apps/qwen-image-21-eval/cache/inductor
 Environment=PYTORCH_KERNEL_CACHE_PATH=/data/apps/qwen-image-21-eval/cache/torch
 Environment=PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 Environment=OMP_NUM_THREADS=8
+EnvironmentFile=/data/apps/qwen-image-21-eval/api.env
 ExecStart=/data/apps/qwen-image-21-eval/env/bin/python -m uvicorn qwen_eval_api:app --host 127.0.0.1 --port 8191 --workers 1 --no-access-log
-Restart=no
+Restart=on-failure
+RestartSec=10
 TimeoutStartSec=900
 TimeoutStopSec=90
 UMask=0077
