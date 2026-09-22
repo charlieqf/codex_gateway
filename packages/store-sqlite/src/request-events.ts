@@ -49,8 +49,8 @@ export function insert(
       gateway_admitted_ms, provider_first_event_ms, provider_duration_ms, terminal_source,
       cancel_requested, cancel_observed, active_tool_count, client_tool_mode,
       tool_loop_guard_json, usage_source, limit_kind, reservation_id, over_request_limit,
-      identity_guard_hit
-    ) VALUES (${Array.from({ length: 72 }, () => "?").join(", ")})
+      identity_guard_hit, vision_observation_json
+    ) VALUES (${Array.from({ length: 73 }, () => "?").join(", ")})
     ON CONFLICT(request_id) DO UPDATE SET
       credential_id = excluded.credential_id,
       subject_id = excluded.subject_id,
@@ -122,7 +122,8 @@ export function insert(
       limit_kind = excluded.limit_kind,
       reservation_id = excluded.reservation_id,
       over_request_limit = excluded.over_request_limit,
-      identity_guard_hit = excluded.identity_guard_hit`
+      identity_guard_hit = excluded.identity_guard_hit,
+      vision_observation_json = excluded.vision_observation_json`
   ).run(
     record.requestId,
     record.credentialId,
@@ -199,7 +200,8 @@ export function insert(
     record.limitKind ?? null,
     record.reservationId ?? null,
     record.overRequestLimit === true ? 1 : 0,
-    record.identityGuardHit === true ? 1 : 0
+    record.identityGuardHit === true ? 1 : 0,
+    record.visionObservation ? JSON.stringify(record.visionObservation) : null
   );
 
   return record;

@@ -21,6 +21,8 @@ const REASONING_OBSERVABILITY_REQUEST_EVENT_COLUMNS = [
   "reasoning_effort_source", "reasoning_effort_normalized",
   "reasoning_effort_normalization_reason"
 ];
+// Added by schema migration 35; databases below that version omit it.
+const VISION_OBSERVATION_REQUEST_EVENT_COLUMNS = ["vision_observation_json"];
 
 const COLUMNS = {
   request_events: [
@@ -40,7 +42,8 @@ const COLUMNS = {
     "prompt_chars", "maximum_output_tokens", "gateway_admitted_ms", "provider_first_event_ms",
     "provider_duration_ms", "terminal_source", "cancel_requested", "cancel_observed",
     ...PHASE0_REQUEST_EVENT_COLUMNS,
-    ...REASONING_OBSERVABILITY_REQUEST_EVENT_COLUMNS
+    ...REASONING_OBSERVABILITY_REQUEST_EVENT_COLUMNS,
+    ...VISION_OBSERVATION_REQUEST_EVENT_COLUMNS
   ],
   token_reservations: [
     "id", "request_id", "kind", "credential_id", "subject_id", "scope",
@@ -141,7 +144,8 @@ function arraysEqual(left, right) {
 function requestEventColumnVariants() {
   const groups = [
     PHASE0_REQUEST_EVENT_COLUMNS,
-    REASONING_OBSERVABILITY_REQUEST_EVENT_COLUMNS
+    REASONING_OBSERVABILITY_REQUEST_EVENT_COLUMNS,
+    VISION_OBSERVATION_REQUEST_EVENT_COLUMNS
   ];
   let variants = [COLUMNS.request_events];
   for (const group of groups) {

@@ -229,6 +229,7 @@ export interface RequestEventRecord {
   upstreamEmptyStop?: boolean | null;
   upstreamAttemptCount?: number | null;
   upstreamAttempts?: UpstreamAttemptSummary[] | null;
+  visionObservation?: VisionObservationSnapshot | null;
   upstreamFailureOrigin?: import("./provider-failure.js").ProviderFailureOrigin | null;
   upstreamFailureKind?: import("./provider-failure.js").ProviderFailureKind | null;
   upstreamFailureStage?: import("./provider-failure.js").ProviderFailureStage | null;
@@ -547,4 +548,32 @@ export interface MessageInput {
   clientToolChoice?: ClientToolChoice;
   signal?: AbortSignal;
   onProviderError?: (diagnostic: ProviderErrorDiagnostic) => void;
+}
+
+/**
+ * Structural, content-free view of the image entries a request carried on the wire.
+ *
+ * It is positional evidence only. `imagesInLastUserMessage` counts what the last
+ * protocol `user` message carried, which for OpenAI-compatible clients is often a
+ * synthetic carrier for tool-result media rather than a fresh user upload, so it
+ * must never be presented as "images the user just attached". Likewise `outside`
+ * is a position, not proof of history replay.
+ */
+export interface VisionObservationSnapshot {
+  /**
+   * `complete` - the whole input was scanned (0 images is then an exact 0).
+   * `partial` - scanning started but a rejection stopped it; only `scannedImageCount` is known.
+   * `unavailable` - the body never reached image scanning; counts are unknown, not 0.
+   */
+  completeness: "complete" | "partial" | "unavailable";
+  /** Image entries accepted before scanning ended, for every completeness value. */
+  scannedImageCount: number;
+  /** Totals below are null unless `completeness` is `complete`. */
+  wireImageCount: number | null;
+  imagesInLastUserMessage: number | null;
+  imagesOutsideLastUserMessage: number | null;
+  lastUserMessagePresent: boolean | null;
+  detailCounts: { high: number; low: number; auto: number; unspecified: number } | null;
+  /** Wire entries minus distinct (url, detail) pairs. Entry equality, not proven content identity. */
+  duplicateWireEntryCount: number | null;
 }

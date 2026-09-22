@@ -1139,6 +1139,16 @@ export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogge
     CREATE INDEX idx_real_user_issuance_actor_created ON real_user_issuance_tasks(actor_id, created_at DESC);
   `, logger);
   applyMigration(db, 34, identityRequestAuditSchema, logger);
+  applyMigration(
+    db,
+    35,
+    () => {
+      if (!columnExists(db, "request_events", "vision_observation_json")) {
+        db.exec("ALTER TABLE request_events ADD COLUMN vision_observation_json TEXT");
+      }
+    },
+    logger
+  );
 }
 
 export function migrateClientEventsSchema(db: DatabaseSync): void {

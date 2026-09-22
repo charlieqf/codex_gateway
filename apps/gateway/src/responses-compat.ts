@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { validateVisionInputLimits } from "./services/vision-input-policy.js";
 import {
+  beginVisionScan,
+  noteVisionContainer,
+  type VisionObservation
+} from "./services/vision-observation.js";
+import {
   GatewayError,
   isRecord,
   type MessageImageInput
@@ -43,7 +48,8 @@ export interface ResponsesResult {
 
 export function parseResponsesRequest(
   body: unknown,
-  requiredModel = "goldencode"
+  requiredModel = "goldencode",
+  observation?: VisionObservation
 ): ParsedResponsesRequest | GatewayError {
   if (!isRecord(body)) {
     return invalidRequest("Request body must be a JSON object.");
@@ -91,10 +97,12 @@ export function parseResponsesRequest(
   if (instructions?.trim()) {
     messages.push({ role: "developer", content: instructions });
   }
-  const inputError = appendResponsesInput(messages, images, body.input);
+  const inputError = appendResponsesInput(messages, images, body.input, observation);
   if (inputError) {
     return inputError;
   }
+  // Every input item was scanned, so the totals are exact even if admission now rejects.
+  if (observation) observation.scanned = true;
   const imageLimitError = validateVisionInputLimits(images);
   if (imageLimitError) return imageLimitError;
   if (messages.length === 0) {
@@ -302,16 +310,19 @@ export function createResponsesFailedEvent(
 function appendResponsesInput(
   messages: ChatCompletionMessage[],
   images: MessageImageInput[],
-  input: unknown
+  input: unknown,
+  observation?: VisionObservation
 ): GatewayError | null {
   if (typeof input === "string") {
     messages.push({ role: "user", content: input });
+    noteVisionContainer(observation, 0, "user");
     return null;
   }
   if (!Array.isArray(input)) {
     return invalidRequest("input must be a string or an array.");
   }
 
+  beginVisionScan(observation);
   for (const [index, item] of input.entries()) {
     if (!isRecord(item) || typeof item.type !== "string") {
       return invalidRequest(`input[${index}] must be an object with a type.`);
@@ -326,10 +337,13 @@ function appendResponsesInput(
       ) {
         return invalidRequest(`input[${index}].role is not supported.`);
       }
+      noteVisionContainer(observation, index, item.role);
       const text = responsesContentText(
         item.content,
         `input[${index}].content`,
-        images
+        images,
+        observation,
+        index
       );
       if (text instanceof GatewayError) {
         return text;
@@ -367,7 +381,9 @@ function appendResponsesInput(
       if (typeof item.call_id !== "string" || !item.call_id) {
         return invalidRequest(`input[${index}].call_id must be a non-empty string.`);
       }
-      const output = toolOutputText(item.output, `input[${index}].output`, images);
+      // A native tool output is not a user carrier, so its images count as outside.
+      noteVisionContainer(observation, index, "tool");
+      const output = toolOutputText(item.output, `input[${index}].output`, images, observation, index);
       if (output instanceof GatewayError) {
         return output;
       }
@@ -382,7 +398,9 @@ function appendResponsesInput(
 function responsesContentText(
   value: unknown,
   path: string,
-  images: MessageImageInput[]
+  images: MessageImageInput[],
+  observation?: VisionObservation,
+  container?: number
 ): string | GatewayError {
   if (typeof value === "string") {
     return value;
@@ -411,7 +429,9 @@ function responsesContentText(
         images,
         part.image_url,
         part.detail,
-        `${path}[${index}]`
+        `${path}[${index}]`,
+        observation,
+        container
       );
       if (error) {
         return error;
@@ -434,13 +454,15 @@ function responsesContentText(
 function toolOutputText(
   value: unknown,
   path: string,
-  images: MessageImageInput[]
+  images: MessageImageInput[],
+  observation?: VisionObservation,
+  container?: number
 ): string | GatewayError {
   if (typeof value === "string") {
     return value;
   }
   if (Array.isArray(value)) {
-    return responsesContentText(value, path, images);
+    return responsesContentText(value, path, images, observation, container);
   }
   if (value === null || value === undefined) {
     return "";

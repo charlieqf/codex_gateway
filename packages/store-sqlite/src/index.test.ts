@@ -1033,11 +1033,27 @@ describe("SqliteGatewayStore", () => {
         wouldWarn: true,
         wouldFinalize: false
       },
-      usageSource: "provider"
+      usageSource: "provider",
+      visionObservation: {
+        completeness: "complete",
+        scannedImageCount: 3,
+        wireImageCount: 3,
+        imagesInLastUserMessage: 1,
+        imagesOutsideLastUserMessage: 2,
+        lastUserMessagePresent: true,
+        detailCounts: { high: 2, low: 0, auto: 0, unspecified: 1 },
+        duplicateWireEntryCount: 1
+      }
     });
 
     expect(store.listRequestEvents()).toMatchObject([
       {
+        visionObservation: {
+          completeness: "complete",
+          wireImageCount: 3,
+          imagesOutsideLastUserMessage: 2,
+          duplicateWireEntryCount: 1
+        },
         requestId: "req_1",
         credentialId: "cred_1",
         subjectId: "subj_1",

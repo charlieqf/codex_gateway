@@ -174,6 +174,7 @@ import { resolveEntitlementAccessForChat } from "./services/entitlement-access.j
 import { canFailoverNativeError, nativeFailoverEnabled } from "./services/native-tool-failover.js";
 import { VisionRequestRecovery, visionRecoveryRequestHeader } from "./services/vision-request-recovery.js";
 import { visionDefaultRequestBodyBytes, visionInputLimitError } from "./services/vision-input-policy.js";
+import { beginVisionObservation, visionObservationSnapshot } from "./services/vision-observation.js";
 import { resolveProviderApiKey } from "./services/provider-secret.js";
 import {
   resolveVisionAssetService,
@@ -3247,7 +3248,14 @@ export function buildGateway(options: GatewayOptions = {}) {
     request: FastifyRequest<{ Body: unknown }>,
     reply: FastifyReply
   ) => {
-    const parsed = parseChatCompletionRequest(request.body, publicModelRegistry.defaultModelId);
+    // Filled while parsing, so the counts are recorded on the rejection path too.
+    const visionObservation = beginVisionObservation();
+    const parsed = parseChatCompletionRequest(
+      request.body,
+      publicModelRegistry.defaultModelId,
+      visionObservation
+    );
+    request.gatewayVisionObservation = visionObservationSnapshot(visionObservation);
     if (parsed instanceof GatewayError) {
       return sendOpenAIError(request, reply, parsed);
     }
@@ -3278,7 +3286,10 @@ export function buildGateway(options: GatewayOptions = {}) {
     "/v1/responses",
     modelRouteOptions,
     async (request, reply) => {
-    const parsed = parseResponsesRequest(request.body);
+    // Filled while parsing, so the counts are recorded on the rejection path too.
+    const visionObservation = beginVisionObservation();
+    const parsed = parseResponsesRequest(request.body, undefined, visionObservation);
+    request.gatewayVisionObservation = visionObservationSnapshot(visionObservation);
     if (parsed instanceof GatewayError) {
       return sendOpenAIError(request, reply, parsed);
     }

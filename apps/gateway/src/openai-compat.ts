@@ -3,6 +3,12 @@ import { Ajv2019 } from "ajv/dist/2019.js";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { validateVisionInputLimits, visionInputLimitError, visionMaximumImageBytes } from "./services/vision-input-policy.js";
 import {
+  beginVisionScan,
+  noteVisionContainer,
+  noteVisionImage,
+  type VisionObservation
+} from "./services/vision-observation.js";
+import {
   GatewayError,
   isRecord,
   type MessageImageInput,
@@ -103,7 +109,8 @@ export interface ChatCompletionShape {
 
 export function parseChatCompletionRequest(
   body: unknown,
-  defaultModel: string
+  defaultModel: string,
+  observation?: VisionObservation
 ): ChatCompletionRequest | GatewayError {
   if (!isRecord(body)) {
     return invalidRequest("Request body must be a JSON object.");
@@ -115,6 +122,7 @@ export function parseChatCompletionRequest(
 
   const messages: ChatCompletionMessage[] = [];
   const images: MessageImageInput[] = [];
+  beginVisionScan(observation);
   for (const [index, message] of body.messages.entries()) {
     if (!isRecord(message)) {
       return invalidRequest(`messages[${index}] must be an object.`);
@@ -132,10 +140,13 @@ export function parseChatCompletionRequest(
       );
     }
 
+    noteVisionContainer(observation, index, message.role);
     const imageError = collectChatMessageImages(
       message.content,
       `messages[${index}].content`,
-      images
+      images,
+      observation,
+      index
     );
     if (imageError) {
       return imageError;
@@ -170,6 +181,8 @@ export function parseChatCompletionRequest(
     });
   }
 
+  // Every message was scanned, so the totals are exact even if admission now rejects.
+  if (observation) observation.scanned = true;
   const imageLimitError = validateVisionInputLimits(images);
   if (imageLimitError) return imageLimitError;
 
@@ -798,7 +811,9 @@ const maximumRemoteImageUrlChars = 16_384;
 function collectChatMessageImages(
   content: unknown,
   path: string,
-  images: MessageImageInput[]
+  images: MessageImageInput[],
+  observation?: VisionObservation,
+  container?: number
 ): GatewayError | null {
   if (!Array.isArray(content)) {
     return null;
@@ -816,7 +831,9 @@ function collectChatMessageImages(
         images,
         part.image_url.url,
         part.image_url.detail,
-        `${partPath}.image_url`
+        `${partPath}.image_url`,
+        observation,
+        container
       );
       if (error) {
         return error;
@@ -828,7 +845,9 @@ function collectChatMessageImages(
         images,
         part.image_url,
         part.detail,
-        partPath
+        partPath,
+        observation,
+        container
       );
       if (error) {
         return error;
@@ -842,7 +861,9 @@ export function appendMessageImageInput(
   images: MessageImageInput[],
   rawImageUrl: unknown,
   rawDetail: unknown,
-  path: string
+  path: string,
+  observation?: VisionObservation,
+  container?: number
 ): GatewayError | null {
   if (typeof rawImageUrl !== "string" || rawImageUrl.trim().length === 0) {
     return invalidRequest(`${path}.url must be a non-empty string.`);
@@ -884,12 +905,10 @@ export function appendMessageImageInput(
     }
   }
 
-  images.push({
-    imageUrl,
-    ...(rawDetail === "auto" || rawDetail === "low" || rawDetail === "high"
-      ? { detail: rawDetail }
-      : {})
-  });
+  const detail =
+    rawDetail === "auto" || rawDetail === "low" || rawDetail === "high" ? rawDetail : undefined;
+  images.push({ imageUrl, ...(detail ? { detail } : {}) });
+  noteVisionImage(observation, container, imageUrl, detail);
   return null;
 }
 

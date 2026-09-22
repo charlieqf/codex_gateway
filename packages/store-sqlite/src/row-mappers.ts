@@ -21,6 +21,7 @@ import {
   type Subject,
   type TokenLimitPolicy,
   type UpstreamAttemptSummary,
+  type VisionObservationSnapshot,
   type UnifiedClientKeyRecord
 } from "@codex-gateway/core";
 import { parseScopeAllowlist } from "./entitlement-rules.js";
@@ -291,6 +292,8 @@ export function rowToRequestEvent(row: unknown): RequestEventRecord {
     upstream_empty_stop: number | null;
     upstream_attempt_count: number | null;
     upstream_attempts_json: string | null;
+    // Absent on rows written before migration 35.
+    vision_observation_json?: string | null;
     upstream_failure_origin: RequestEventRecord["upstreamFailureOrigin"];
     upstream_failure_kind: RequestEventRecord["upstreamFailureKind"];
     upstream_failure_stage: RequestEventRecord["upstreamFailureStage"];
@@ -367,6 +370,7 @@ export function rowToRequestEvent(row: unknown): RequestEventRecord {
       value.upstream_empty_stop === null ? null : value.upstream_empty_stop === 1,
     upstreamAttemptCount: value.upstream_attempt_count,
     upstreamAttempts: parseUpstreamAttempts(value.upstream_attempts_json),
+    visionObservation: parseVisionObservation(value.vision_observation_json),
     upstreamFailureOrigin: value.upstream_failure_origin,
     upstreamFailureKind: value.upstream_failure_kind,
     upstreamFailureStage: value.upstream_failure_stage,
@@ -658,6 +662,26 @@ function parseStringArray(value: string | null): string[] | null {
       return null;
     }
     return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function parseVisionObservation(
+  value: string | null | undefined
+): VisionObservationSnapshot | null {
+  if (!value) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (typeof parsed !== "object" || parsed === null) {
+      return null;
+    }
+    const completeness = (parsed as { completeness?: unknown }).completeness;
+    return completeness === "complete" || completeness === "partial" || completeness === "unavailable"
+      ? (parsed as VisionObservationSnapshot)
+      : null;
   } catch {
     return null;
   }

@@ -20,7 +20,7 @@ import type {
 import type { ClientDisconnectHandle } from "./client-disconnect.js";
 import type { RateLimitLease } from "./rate-limit-lease.js";
 import type { VisionRequestRecovery } from "../services/vision-request-recovery.js";
-import type { IdentityAuditOperation } from "@codex-gateway/core";
+import type { IdentityAuditOperation, VisionObservationSnapshot } from "@codex-gateway/core";
 import type { IdentityRequestAuditContext } from "./identity-request-audit.js";
 
 export type GatewayResponseDialect = "gateway" | "openai" | "research";
@@ -70,6 +70,7 @@ declare module "fastify" {
     gatewayErrorCode?: GatewayErrorCode | string;
     gatewayProviderFailoverEnabled?: boolean;
     gatewayVisionRecovery?: VisionRequestRecovery;
+    gatewayVisionObservation?: VisionObservationSnapshot;
     gatewayRateLimited?: boolean;
     gatewayLimitKind?: LimitKind;
     gatewayLimitDetails?: LimitDetails;

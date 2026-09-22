@@ -298,6 +298,7 @@ export function recordObservation(
     upstreamEmptyStop: request.gatewayUpstreamEmptyStop ?? null,
     upstreamAttemptCount: attemptCount,
     upstreamAttempts: attempts.length > 0 ? attempts : null,
+    visionObservation: request.gatewayVisionObservation ?? null,
     upstreamFailureOrigin: terminalFailure?.origin ?? null,
     upstreamFailureKind: terminalFailure?.kind ?? null,
     upstreamFailureStage: terminalFailure?.stage ?? null,
