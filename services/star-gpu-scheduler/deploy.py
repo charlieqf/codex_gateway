@@ -107,11 +107,18 @@ def prepare(manifest):
         'token_files':files,'units':{'qwen_pool':'qwen-image-pool.service',
             'qwen_worker_0':'qwen-image-worker@0.service','qwen_worker_1':'qwen-image-worker@1.service',
             'radar_service':'radar-imaging.service','indextts':'indextts2.service'}}
-    assert not (BASE/'config/service.json').exists(),'Configuration already exists; review instead of overwriting'
-    protected(BASE/'config/service.json',json.dumps(config,indent=2))
-    run('python3','-m','venv',str(BASE/'env'))
+    config_path=BASE/'config/service.json'
+    if config_path.exists():
+        assert json.loads(config_path.read_text())==config,'Existing scheduler configuration differs'
+    else:
+        protected(config_path,json.dumps(config,indent=2))
+    if not (BASE/'env/bin/python').exists():
+        run('python3','-m','venv',str(BASE/'env'))
     for python in (BASE/'env/bin/python',QWEN/'env/bin/python',Path('/data/apps/radar-poc/.venv/bin/python')):
-        run(str(python),'-m','pip','install','--no-index','--no-deps',manifest['wheel'])
+        # RADAR's uv-created environment deliberately has no pip. Use the existing
+        # Qwen pip driver to target it, without adding/updating model dependencies.
+        run(str(QWEN/'env/bin/python'),'-m','pip','--python',str(python),
+            'install','--no-index','--no-deps','--force-reinstall',manifest['wheel'])
         assert run(str(python),'-I','-c','import star_gpu_scheduler; print(star_gpu_scheduler.__version__)')=='0.1.0'
     protected(BASE/'state/prepared.json',json.dumps({'backup':str(backup),'manifest':manifest},indent=2))
     print(json.dumps({'prepared':True,'backup':str(backup)}),flush=True)
