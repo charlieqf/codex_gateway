@@ -1,5 +1,16 @@
 # System Status
 
+Gateway vision structural observation released: 2026-09-22 22:55:35 UTC;
+verified 23:03–23:10 UTC. R760 Gateway runs `95e724c`, schema 35, healthy with
+zero restarts; public health ready. Parse-time image positions, detail counts and
+duplicates are persisted in `request_events.vision_observation_json`; routing,
+the 413 image-count contract and upstream bodies are unchanged. All 11 chat
+requests after cutover carried complete snapshots. The partial/unavailable and
+413-with-snapshot branches are covered only by unit tests so far. Every start
+still logs `Codex rollout startup archive failed`: R760 has an empty
+`codex-home` while the base Compose enables the archive, and a pending decision
+is recorded in the [vision observation release receipt](./r760-vision-observation-release-2026-09-23.zh-CN.md).
+
 Shared Qwen / RADAR scheduling enabled: 2026-09-22 05:03:25 UTC;
 service checks completed at 05:04:40 UTC. Star runs scheduler/Qwen `58a4d80`
 and RADAR `20a3710300`, with `mode=enforce` and required tickets in both APIs.
@@ -8,6 +19,14 @@ may serialize tasks. The final 68 Linux mock tests passed; two real model
 initialization leases completed, but no generation or CT inference test was
 submitted during this rollout. IndexTTS remains outside the shared lock and its
 process is unchanged. See the [scheduler release receipt](./star-qwen-radar-scheduler-release-2026-09-22.zh-CN.md).
+
+CT memory admission recovery verified: 2026-09-22 07:20 UTC. By explicit user
+request, the live scheduler host reserve is now **11 GiB** (11264 MiB), reduced
+from the initial 12 GiB; the CT reservation remains 32 GiB. Both Qwen workers,
+RADAR, pool and IndexTTS kept their processes. The original blocked study
+`study_cdc4595c1e15442fbfdee46f66eb9e02` is now ready with one eligible series,
+confirmed through the public Gateway. CT inference and HTML continuation remain
+with the client workflow. See the [recovery receipt](./ct-memory-admission-recovery-2026-09-22.zh-CN.md).
 
 Image inference last verified: 2026-09-22 02:50 UTC (before shared scheduling). The public model
 `medcode-image-default` uses two local `qwen-image-2.1` workers on star GPUs 0/1
@@ -21,7 +40,7 @@ forward the [client test notice](../outbox/medevidence-qwen-image-21-primary-tes
 See the [dual-GPU release receipt](./qwen-image-dual-gpu-release-2026-09-22.zh-CN.md)
 and [controlled Chinese-label comparison](./qwen-image-label-prompt-comparison-2026-09-22.zh-CN.md).
 
-Last verified: 2026-09-21 07:04 UTC: imaging v1 admits only the explicitly approved Subjects `subj_yBZBxNUHIVszGz4BKXaltrw5` and `subj__3nJpw9INwhmK4k8Qq4K4jlI`; schema 34. Both existing credentials return available:true, with independent limits of 10 jobs per UTC day and one unfinished job per Subject. Other Subjects remain unavailable. See [latest allowlist verification](../../artifacts/imaging-gateway-20260921/pilot-wang-activation.json). Earlier temporary test studies, credentials and entitlements were cleaned up as recorded in the [joint audit](../../artifacts/imaging-gateway-20260921/joint-final-audit.json). Phone readiness was last checked on 2026-09-18: 300/300 active identities ready, with no duplicate-phone groups.
+Last verified: 2026-09-22 06:25 UTC: imaging v1 admits only the explicitly approved Subjects `subj_yBZBxNUHIVszGz4BKXaltrw5`, `subj__3nJpw9INwhmK4k8Qq4K4jlI` and `medevidence-76650ea38feb47f4b259e1b065151696` (沈杰); schema 34. All three existing credentials return available:true, with independent limits of 10 jobs per UTC day and one unfinished job per Subject. Other Subjects remain unavailable. See [latest allowlist verification](../../artifacts/imaging-pilot-shen-20260922/activation.json) and [沈杰 activation receipt](./imaging-pilot-shen-2026-09-22.zh-CN.md). Earlier temporary test studies, credentials and entitlements were cleaned up as recorded in the [joint audit](../../artifacts/imaging-gateway-20260921/joint-final-audit.json). Phone readiness was last checked on 2026-09-18: 300/300 active identities ready, with no duplicate-phone groups.
 
 xAI proxy routing additionally verified 2026-09-14 03:03 UTC: dedicated
 `api.x.ai -> XAI-EGRESS` priority fallback with two tested leaf nodes, xAI HEAD
@@ -45,12 +64,12 @@ history retain implementation evidence; do not append incident history here.
 
 ## Production Runtime
 
-Gateway config-only activation, public health and dual Qwen inference verified on 2026-09-22 02:50 UTC:
+Gateway release verified on 2026-09-22 23:10 UTC:
 
 - `current`:
-  `f8c1a943d31769125fb80574b22eab6f6c74b06f` (pinned runtime source committed and pushed to `main`; schema 34)
+  `95e724cc06c07f139d94cd46b0f1f0c3c1a6a3b2` (vision structural observation; committed and pushed to `main`; schema 35)
 - `previous`:
-  `a06d5221b1ced1c91d4a1b4fbd2f968ec6b3b131` (same schema 34; retains the imaging audit INSERT fix; rollback also restores the saved image-provider environment and Compose override)
+  `da97de6567e1e988b7cb12594166f195af0139e7` (CT resource-wait progress, deployed 2026-09-22 08:40 UTC; its image reads the schema 35 database because the migration only adds a nullable column)
 - Gateway release source: `origin/main`; pin and verify its latest commit before deployment.
 - Public Gateway: healthy, published only on
   `127.0.0.1:18787->8787`
@@ -64,8 +83,8 @@ Gateway config-only activation, public health and dual Qwen inference verified o
   did not change. See [recovery evidence](../../artifacts/doctor-research-agent-2026-09-10/maintenance-recovery-verified-20260911.json).
 - `qwen38-fp8-local`: healthy, private container port only
 
-Gateway runs `f8c1a94`, schema 34. Imaging v1 defaults off in code and currently
-admits only the two approved Subjects above. Full public CT upload, new inference, 15 verified artifacts, owner
+Gateway runs `95e724c`, schema 35. Imaging v1 defaults off in code and currently
+admits only the three approved Subjects above. Full public CT upload, new inference, 15 verified artifacts, owner
 isolation, resume, cancellation and deletion passed through the public Gateway.
 The source client also completed ordinary-chat tools, inference, verified download
 and HTML generation/browser review. This does not certify a newly installed Desktop

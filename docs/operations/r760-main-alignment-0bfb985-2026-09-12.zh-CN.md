@@ -27,6 +27,7 @@
   research-llm-gateway、research-maintenance、mihomo、qwen 容器未动且健康。
 - 公网 health=ready；三库 `quick_check=ok`、外键违规 0；未结算 research 任务 0。
 - Gateway 日志仅一条启动时已知的 `codex-home/sessions` ENOENT 告警（旧容器同样存在，非本次引入）。
+  **2026-09-23 更正**：该日志按监控方案属于 Critical，不应作为已知噪音放过。根因是基础 Compose 开启了启动归档，而 R760 的 `codex-home` 为空、从未运行 openai-codex；数据库中唯一的引用是 2026-04-22 的 `subj_dev` 会话。详见[视觉观测发布回执](./r760-vision-observation-release-2026-09-23.zh-CN.md#codex-rollout-启动归档告警原因)。
 - 公网业务冒烟（`billing-quota-review-public-smoke.mjs`，合成账户，全部 19 项检查通过）：
   开户/resolve/月付购买/进行中重置 409/真实模型调用（399 token 全部计入一次性 Free）/默认取消
   未来续费保留/年付日 6M 月 200M/管理页 HTML/清理停用吊销全绿，断言 `passed`。

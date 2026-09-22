@@ -1,0 +1,82 @@
+{
+  "changed_at": "2026-09-22T07:19:16.102294+00:00",
+  "backup": "/data/apps/star-gpu-scheduler/backups/ct-reserve11-20260922T071659Z",
+  "old_host_reserve_mib": 12288,
+  "new_host_reserve_mib": 11264,
+  "ct_reservation_mib": 32768,
+  "only_host_reserve_changed": true,
+  "before_config_sha256": "3ea63d01eb4edd3a6a5e3fedbe71a9e0612c1633dc2c67453335e2ab60bfa28f",
+  "active_config_sha256": "55808d8a232711474aa1fec79a2110394c14bc5af14fc18ad4b49788d01165c6",
+  "before_study": {
+    "study_id": "study_cdc4595c1e15442fbfdee46f66eb9e02",
+    "state": "validating",
+    "size": 98330067,
+    "sha256": "8e0e52551b675cb64907bb74506cd9393f195454a6ee7ebf56163e2c136fbabf",
+    "series": [],
+    "expires_at": 1790145466.0910587,
+    "scheduler_links": [
+      [
+        "ct_preprocess",
+        "sched_2486ca3c77c248509cc2531ff157f677"
+      ]
+    ]
+  },
+  "after_study": {
+    "study_id": "study_cdc4595c1e15442fbfdee46f66eb9e02",
+    "state": "ready",
+    "size": 98330067,
+    "sha256": "8e0e52551b675cb64907bb74506cd9393f195454a6ee7ebf56163e2c136fbabf",
+    "series": [
+      {
+        "series_id": "series_0001",
+        "modality": "CT",
+        "phase": null,
+        "eligible": true,
+        "shape_xyz": [
+          512,
+          512,
+          368
+        ],
+        "spacing_xyz": [
+          0.703125,
+          0.703125,
+          1.25
+        ]
+      }
+    ],
+    "expires_at": 1790145466.0910587,
+    "scheduler_links": [
+      [
+        "ct_preprocess",
+        "sched_2486ca3c77c248509cc2531ff157f677"
+      ]
+    ]
+  },
+  "scheduler": {
+    "counts": {
+      "granted": 0,
+      "queued": 0,
+      "recovering": 0,
+      "releasing": 0,
+      "running": 0
+    },
+    "drain": "",
+    "mode": "enforce",
+    "ready": true,
+    "schema_version": 1,
+    "tasks": []
+  },
+  "model_processes_unchanged": true,
+  "memory_available_gib": 43.34092330932617,
+  "database_checks": {
+    "scheduler": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    "radar": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    }
+  },
+  "submitted_new_study_or_inference": false
+}

@@ -12,8 +12,12 @@ and resource admission; model execution stays in Qwen/RADAR. Production uses
 - Each Qwen process has a 56 GiB cgroup bound. The broker reserves the difference
   between that limit and observed usage. A CT task reserves a conservative full
   32 GiB until exit, even after some memory has already been allocated. Host
-  `MemAvailable` must retain another 12 GiB. Dual Qwen execution is conditional
-  on this budget, not a guarantee at all times.
+  `MemAvailable` must retain the configured host reserve. The code/deployment
+  default is 12 GiB; production was explicitly adjusted to 11 GiB on 2026-09-22
+  to recover a blocked original CT study, keeping the CT reservation at 32 GiB.
+  Preserve this live override in future release preparation; see the
+  [recovery receipt](../../docs/operations/ct-memory-admission-recovery-2026-09-22.zh-CN.md).
+  Dual Qwen execution is conditional on this budget, not a guarantee at all times.
 - Temperature admission <=80 C; Qwen/RADAR abort at >=88 C. Minimum free VRAM is
   30000 MiB / 32768 MiB respectively. Unknown GPU processes stop admission.
 - IndexTTS remains outside the shared lock. Its actual VRAM and host memory count
