@@ -75,7 +75,17 @@ def main():
         assert not target.execute('pragma foreign_key_check').fetchall()
     (backup/'gateway.db').chmod(0o600)
     preflight="""import {createDefaultImageGenerationProvider,resolveImageGenerationBillingFallbacks} from '/app/apps/gateway/dist/runtime/image-providers.js'; const p=createDefaultImageGenerationProvider(process.env); const f=resolveImageGenerationBillingFallbacks({},process.env,{info:()=>{}}); if(p.providerKind!=='qwen-image'||f.some(x=>x.provider.providerKind==='llada-image')||f[0].upstreamModel!=='gpt-image-2')throw Error('Unexpected image chain'); console.log(JSON.stringify({primary:p.providerKind,fallbacks:f.map(x=>x.upstreamModel)}));"""
-    chain = json.loads(run(['docker','run','--rm','--network','codex_gateway_r760_default','--env-file',str(candidate),'--entrypoint','node',container['Config']['Image'],'--input-type=module','-e',preflight]))
+    check = ['docker','run','--rm','--network','codex_gateway_r760_default','--env-file',str(candidate)]
+    # Extra cloud fallback credentials are a runtime file, not image contents.
+    # Mount only that existing file read-only for the isolated configuration check.
+    config = dict(line.split('=',1) for line in changed if '=' in line and not line.startswith('#'))
+    fallback_file = config.get('MEDCODE_IMAGE_BILLING_FALLBACK_KEYS_FILE')
+    if fallback_file:
+        mount = next(m for m in container['Mounts'] if fallback_file == m['Destination'] or fallback_file.startswith(m['Destination'].rstrip('/')+'/'))
+        source = Path(mount['Source'])/Path(fallback_file).relative_to(mount['Destination'])
+        assert source.is_file()
+        check.extend(['--mount',f'type=bind,src={source},dst={fallback_file},readonly'])
+    chain = json.loads(run(check+['--entrypoint','node',container['Config']['Image'],'--input-type=module','-e',preflight]))
     print(json.dumps({'phase':'backed-up','backup':str(backup),'chain':chain}),flush=True)
     try:
         shutil.copy2(candidate,env)
