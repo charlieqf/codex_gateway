@@ -71,16 +71,19 @@ def private(output):
         (output/'gpu-samples.json').write_text(json.dumps(samples)+'\n')
 
 
-def public(output):
+def public(output, portrait_only=False):
     spec=importlib.util.spec_from_file_location('smoke',Path(__file__).with_name('smoke-qwen-image-r760.py'))
     smoke=importlib.util.module_from_spec(spec); spec.loader.exec_module(smoke)
     label='qwen-dual-smoke-'+datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
     token=prefix=entitlement=None
     result={'started_utc':datetime.now(timezone.utc).isoformat()}
     try:
+        plan_id='plan_internal_high_quota_image_v1'
+        plan=smoke.admin('plan','show',plan_id)['plan']
+        assert set(['jpeg','png','webp']).issubset(plan['feature_policy']['image_generation']['allowed_formats'])
         fixture=smoke.admin('issue','--user',label,'--user-label','Qwen dual controlled smoke','--label',label,'--scope','code','--credential-class','service','--expires-days','1','--rpm','10','--rpd','20','--concurrent','2','--tokens-per-minute','300000','--tokens-per-day','1000000','--tokens-per-month','10000000','--max-prompt-tokens','24576','--max-total-tokens','32768','--reserve-tokens','8192','--missing-usage-charge','reserve')
         token=fixture['token']; prefix=fixture['credential']['prefix']
-        entitlement=smoke.admin('entitlement','grant','--user',label,'--plan','plan_paid_monthly_v1','--period','one_off','--duration','1h','--replace')['entitlement']['id']
+        entitlement=smoke.admin('entitlement','grant','--user',label,'--plan',plan_id,'--period','one_off','--duration','1h','--replace')['entitlement']['id']
         def one(case):
             fmt, size = case
             started=time.monotonic()
@@ -95,11 +98,13 @@ def public(output):
             assert any(e['provider']=='qwen-image' and e['upstream_model']=='qwen-image-2.1' and e['status']=='ok' for e in events)
             return {'status':status,'request_id':rid,'size':size,'seconds':time.monotonic()-started,'provider':'qwen-image','upstream_model':'qwen-image-2.1','mime_type':item['mime_type'],'sha256':hashlib.sha256(raw).hexdigest()}
         started=time.monotonic()
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            result['images']=list(pool.map(one,[('jpeg','1024x1024'),('png','1536x1024')]))
+        cases=[('webp','1024x1536')] if portrait_only else [('jpeg','1024x1024'),('png','1536x1024')]
+        with ThreadPoolExecutor(max_workers=len(cases)) as pool:
+            result['images']=list(pool.map(one,cases))
         result['pair_wall_seconds']=time.monotonic()-started
         print(json.dumps({'parallel_images':result['images']},indent=2),flush=True)
-        result['images'].append(one(('webp','1024x1536')))
+        if not portrait_only:
+            result['images'].append(one(('webp','1024x1536')))
         status,headers,payload=smoke.request('/v1/chat/completions',token,{'model':'goldencode','messages':[{'role':'user','content':'Reply exactly TEXT_CONTROL_OK.'}],'max_tokens':256,'reasoning_effort':'low','stream':False})
         assert status==200 and payload['choices'][0]['message']['content']
         result['text']={'status':status,'request_id':next(v for k,v in headers.items() if k.lower()=='x-request-id')}
@@ -122,6 +127,9 @@ def public(output):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser()
-    parser.add_argument('mode',choices=['private','public']); parser.add_argument('output',type=Path)
+    parser.add_argument('mode',choices=['private','public','public-portrait']); parser.add_argument('output',type=Path)
     args=parser.parse_args(); args.output.mkdir(mode=0o700,parents=True,exist_ok=True)
-    (private if args.mode=='private' else public)(args.output)
+    if args.mode=='private':
+        private(args.output)
+    else:
+        public(args.output,portrait_only=args.mode=='public-portrait')
