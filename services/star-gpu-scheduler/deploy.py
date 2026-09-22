@@ -70,6 +70,14 @@ def link(target, location):
     temp.replace(location)
 
 
+def install_wheel(python, wheel):
+    # RADAR's uv-created environment deliberately has no pip. Target it through
+    # the existing Qwen pip, without adding/updating model dependencies.
+    run(str(QWEN/'env/bin/python'),'-m','pip','--python',str(python),
+        'install','--no-index','--no-deps','--force-reinstall',wheel)
+    assert run(str(python),'-I','-c','import star_gpu_scheduler; print(star_gpu_scheduler.__version__)')=='0.1.0'
+
+
 def prepare(manifest):
     assert current()==manifest['expected_current'],'Live release drift'
     for filename,expected in manifest['expected_hashes'].items():
@@ -115,11 +123,7 @@ def prepare(manifest):
     if not (BASE/'env/bin/python').exists():
         run('python3','-m','venv',str(BASE/'env'))
     for python in (BASE/'env/bin/python',QWEN/'env/bin/python',Path('/data/apps/radar-poc/.venv/bin/python')):
-        # RADAR's uv-created environment deliberately has no pip. Use the existing
-        # Qwen pip driver to target it, without adding/updating model dependencies.
-        run(str(QWEN/'env/bin/python'),'-m','pip','--python',str(python),
-            'install','--no-index','--no-deps','--force-reinstall',manifest['wheel'])
-        assert run(str(python),'-I','-c','import star_gpu_scheduler; print(star_gpu_scheduler.__version__)')=='0.1.0'
+        install_wheel(python,manifest['wheel'])
     protected(BASE/'state/prepared.json',json.dumps({'backup':str(backup),'manifest':manifest},indent=2))
     print(json.dumps({'prepared':True,'backup':str(backup)}),flush=True)
 
