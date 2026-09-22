@@ -22,6 +22,22 @@ auth.json
 extra_keys.txt
 secrets/
 research-smoke-output/
+# Loose key files at the repository root.
+/*.txt
+docs/outbox/*token*.json
+
+# Personal data, customer material and scratch output. Keep these out of Git.
+# artifacts/ and issues/ already hold tracked files; those stay tracked. Add a
+# reviewed, redacted evidence file deliberately with `git add -f <path>`.
+artifacts/
+issues/
+*.xls
+*.xlsx
+*.zip
+docs/outbox/*.txt
+.tmp/
+.codex-tmp/
+.pytest_cache/
 
 # OS/editor noise.
 .DS_Store
