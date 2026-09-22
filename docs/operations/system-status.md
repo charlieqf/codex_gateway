@@ -1,6 +1,15 @@
 # System Status
 
-Image generation last verified: 2026-09-22 02:50 UTC. The public model
+Shared Qwen / RADAR scheduling enabled: 2026-09-22 05:03:25 UTC;
+service checks completed at 05:04:40 UTC. Star runs scheduler/Qwen `58a4d80`
+and RADAR `20a3710300`, with `mode=enforce` and required tickets in both APIs.
+GPU0 serves images; GPU1 prioritizes CT without preemption. Host memory admission
+may serialize tasks. The final 68 Linux mock tests passed; two real model
+initialization leases completed, but no generation or CT inference test was
+submitted during this rollout. IndexTTS remains outside the shared lock and its
+process is unchanged. See the [scheduler release receipt](./star-qwen-radar-scheduler-release-2026-09-22.zh-CN.md).
+
+Image inference last verified: 2026-09-22 02:50 UTC (before shared scheduling). The public model
 `medcode-image-default` uses two local `qwen-image-2.1` workers on star GPUs 0/1
 through a bounded private queue and the existing authenticated SSH tunnel.
 LLaDA is stopped/disabled and removed from the fallback chain; GPT Image 2 is
@@ -241,7 +250,7 @@ clients from automatically replaying the request.
 Image generation remains separate under client model `medcode-image-default`.
 Its primary upstream is the local `qwen-image-2.1` pool on star GPUs 0/1,
 followed by the existing `gpt-image-2` cloud fallback chain. LLaDA is neither
-running nor configured as a fallback. Star runs committed release `603efbf`;
+running nor configured as a fallback. Star runs committed release `58a4d80`;
 the Gateway image remains `f8c1a94`. Two workers and two waiting slots have a
 170-second pool deadline and an 80-second queue wait cap. Worker admission is
 at most 80 C, with generation stopped at 88 C. Qwen upstream timeout is 180 s;
@@ -250,6 +259,9 @@ budget can expire first on long cloud fallback paths; this is in the handoff.
 Qwen listens only on star loopback; R760 reaches it through an authenticated,
 restricted-key SSH tunnel bound to its private Docker bridge. Workers, pool
 and tunnel are enabled at boot. No new public port was opened.
+The image and RADAR APIs now use the shared resource scheduler. GPU1 is CT-first;
+host memory reservations can reduce concurrency. Use the scheduler receipt's
+GPU0-only Qwen rollback, which preserves RADAR on GPU1 and never restores LLaDA.
 
 ## GoldenCode Local Context Admission
 
