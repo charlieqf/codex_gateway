@@ -1,0 +1,23 @@
+{
+  "purpose": "Non-commercial research evaluation. No Gateway/public traffic switch.",
+  "size": "1024x1024",
+  "seeds": [2026092201, 2026092202],
+  "n": 1,
+  "prompt_rewriting": false,
+  "profiles": {
+    "llada": "Existing production LLaDA-Image-Turbo-FP8, 4 steps, CFG 1, GPU0 resident",
+    "qwen": "Official Qwen-Image-2.1, BF16, 40 steps, CFG 1, GPU1 model CPU offload"
+  },
+  "hardware": "Same host star; two RTX 6000 Ada 48GB GPUs. GPU1 also hosts idle IndexTTS. Run image requests serially and capture utilization; speeds characterize deployed configurations, not isolated architecture efficiency.",
+  "rubric": {"instruction_adherence": 5, "visual_quality": 5, "text_accuracy_if_applicable": 5},
+  "cases": [
+    {"id":"01_photorealism","prompt":"A documentary photograph of a rain-soaked night market in Chengdu, one elderly vendor under a red umbrella, wet pavement reflections, natural skin texture, realistic lighting, no text","criteria":"One elderly vendor, red umbrella, rain/night market, natural anatomy and texture."},
+    {"id":"02_bilingual_text","prompt":"A clean minimalist technology conference poster on a white background. Display exactly these three lines with correct spelling: GOLDEN CODE / 金色代码 / 2026. Large dark blue typography, centered, no other text.","expected_text":["GOLDEN CODE","金色代码","2026"],"criteria":"All three lines exact; no additional writing; centered blue-on-white layout."},
+    {"id":"03_composition","prompt":"A studio product photograph of exactly three ceramic cups in one row: a red cup on the left, a white cup in the center, and a blue cup on the right. No other cups, no text, neutral gray background.","criteria":"Exactly three cups in correct left-to-right colors, one row, no extra objects."},
+    {"id":"04_chinese_poster","prompt":"制作一张简洁的中文科普海报，白色背景、蓝绿色配色。顶部标题必须准确写“每天运动，健康生活”，下方并排三个图标：走路的人、骑自行车的人、游泳的人。每个图标下面依次准确写“步行”“骑行”“游泳”。底部准确写“循序渐进，量力而行”。除指定文字外不要添加其他文字。字体清晰，排版整齐。","expected_text":["每天运动，健康生活","步行","骑行","游泳","循序渐进，量力而行"],"criteria":"Exact specified Chinese text; three matching icons in order; no extra text."},
+    {"id":"05_spatial_relations","prompt":"An overhead flat-lay photograph on a plain beige table. Exactly one closed blue notebook is in the center. Exactly two yellow pencils lie parallel to each other to the left of the notebook. One red apple is to the right of the notebook. One silver key is above the notebook. No other objects, no writing.","criteria":"Five total objects; correct counts, colors and relative positions; no writing."},
+    {"id":"06_product_label","prompt":"Premium studio product photography of a single dark green glass bottle of olive oil on a pale stone surface. A crisp cream paper label on the bottle must read exactly: OLIVE GROVE on the first line, EXTRA VIRGIN on the second line, and 500 mL on the third line. An olive branch lies beside the bottle. Soft side lighting, realistic glass reflections, no other text.","expected_text":["OLIVE GROVE","EXTRA VIRGIN","500 mL"],"criteria":"One bottle, accurate label text integrated with bottle perspective, plausible material/reflections."},
+    {"id":"07_illustration","prompt":"A detailed editorial illustration in watercolor and ink: a small red panda librarian stands on a wooden ladder in a cozy circular library built inside an enormous tree. Warm amber lamps, blue twilight visible through one round window, many books, charming but anatomically coherent, no lettering or text.","criteria":"Red panda on ladder, circular tree library, warm lamps, round blue window, watercolor/ink style."},
+    {"id":"08_hands_portrait","prompt":"A realistic waist-up portrait of an adult female ceramic artist in a sunlit workshop, holding a small white ceramic bowl gently with both hands. Both hands and every finger are clearly visible, natural human anatomy, relaxed expression, realistic skin texture, shallow depth of field, no text.","criteria":"One adult woman holding one white bowl with two plausible hands; fingers/anatomy; realistic skin."}
+  ]
+}
