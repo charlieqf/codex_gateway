@@ -6,10 +6,11 @@ zero restarts; public health ready. Parse-time image positions, detail counts an
 duplicates are persisted in `request_events.vision_observation_json`; routing,
 the 413 image-count contract and upstream bodies are unchanged. All 11 chat
 requests after cutover carried complete snapshots. The partial/unavailable and
-413-with-snapshot branches are covered only by unit tests so far. Every start
-still logs `Codex rollout startup archive failed`: R760 has an empty
-`codex-home` while the base Compose enables the archive, and a pending decision
-is recorded in the [vision observation release receipt](./r760-vision-observation-release-2026-09-23.zh-CN.md).
+413-with-snapshot branches are covered only by unit tests so far. The running
+container still logs `Codex rollout startup archive failed` on start. R760 has
+an empty `codex-home` and the openai-codex runtime is retired. The archive was
+disabled in the R760 Compose override at 2026-09-22 23:29 UTC, effective at the
+next Gateway recreate. See the [vision observation release receipt](./r760-vision-observation-release-2026-09-23.zh-CN.md).
 
 Shared Qwen / RADAR scheduling enabled: 2026-09-22 05:03:25 UTC;
 service checks completed at 05:04:40 UTC. Star runs scheduler/Qwen `58a4d80`

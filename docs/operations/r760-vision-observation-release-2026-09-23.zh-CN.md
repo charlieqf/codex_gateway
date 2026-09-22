@@ -74,6 +74,21 @@ warning=Codex rollout startup archive failed; gateway startup will continue with
 
 工作区中未提交的 `scripts/archive-unreferenced-codex-rollouts.mjs` 修复会把“从未创建 sessions 目录”视为无可归档，同时保留“被引用文件缺失则 fail closed”的守卫。因此在 R760 上它**只会把报错变成** `Refusing to archive account 'sub_openai_codex_dev': 1 referenced provider session file(s) were not found.`，**不能消除告警**。消除告警需要单独决策（见“待决事项”）。
 
+### 处置：R760 关闭启动归档（已执行）
+
+用户确认 openai-codex 运行时已停用（模型改由腾讯 `glm-5.3` 等承接）。
+
+**2026-09-22 23:29:12 UTC** 起，`shared/config/compose.r760.override.yml` 的 gateway environment 新增 `CODEX_GATEWAY_ROLLOUT_ARCHIVE_ON_START: "0"`，并附一行注释指向本回执。该脚本由用户在终端执行，过程如下：
+1. 持有部署锁。
+2. 校验原哈希 `78948b5c…`。
+3. 做 0600 备份。
+4. 原子替换文件。
+5. 用 `docker compose config` 校验合并结果：开关为 `"0"`，镜像与运行中一致。
+
+新哈希为 `ec669a05eb07039fc0c62fa63b0e0ba5c87be5a387d405d0fe6eeb634617efab`。原文件和回执保存在 `backups/archive-flag-off-20260922T232911Z/`。
+
+本次**没有重建容器**。运行中的 Gateway 仍是 `"1"`，下一次受控重建时生效；届时启动日志应不再出现这条告警。数据库和 `codex-home` 都未改动。之后若用割接前保存的 `previous.override.yml` 回退，会把开关带回 `"1"`，但只会让告警重新出现，不影响功能。
+
 ## 回退
 
 schema 35 只新增一个可空列，`da97de6` 镜像可以读取迁移后的库。回退时将 override 中的 gateway 镜像行恢复为 `codex_gateway_r760-gateway:da97de6…`，只重建 gateway，并将 `current` 指回 `previous`。无需恢复数据库。备份位于 `/opt/codex-gateway-r760/backups/vision-observation-95e724cc06c0/`，`deployment.json` 记录原容器 ID、配置哈希和端口绑定。
@@ -93,7 +108,7 @@ schema 35 只新增一个可空列，`da97de6` 镜像可以读取迁移后的库
 
 | 事项 | 建议 | 需要 |
 | --- | --- | --- |
-| 启动归档告警 | 在 `shared/config/compose.r760.override.yml` 的 gateway environment 中设置 `CODEX_GATEWAY_ROLLOUT_ARCHIVE_ON_START: "0"`，随下一次受控 Gateway 重建生效；不改库、不删行、不建目录 | 生产配置变更批准 |
+| 启动归档告警 | **已于 23:29 UTC 执行**，见上文“处置”；下次 Gateway 重建后核对启动日志 | 下次发布时验证 |
 | 413 快照冒烟 | 用临时凭据发送超限图片数请求，核对 `complete` 快照后清理 | 生产临时账户批准 |
 | 备份保留 / 定时备份 | 备份目录迁至 `/data` 并加保留 N 份的 prune timer；另设数据库定时备份 | 主机变更批准 |
 | 发布暂存流程 | 在暂存步骤补建 5 个运行时 env 软链 | 发布脚本 / runbook 修改 |
