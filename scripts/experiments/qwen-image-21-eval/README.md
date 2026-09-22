@@ -7,10 +7,10 @@ Canonical source is this directory on Gateway main. Deploy a `git archive` of a 
 ## Target and isolation
 
 - Host: star, Ubuntu 22.04, NVIDIA driver 570.211.01, 2x RTX 6000 Ada 48GB.
-- Existing LLaDA: GPU0, user service llada-image-api, loopback port 8190.
+- Original LLaDA: GPU0, user service llada-image-api, loopback port 8190; stopped/disabled by the authorized dual-Qwen replacement below, with files retained.
 - Existing IndexTTS: GPU1, about 8600 MiB resident; preserved without restart.
-- Qwen: separate `/data/apps/qwen-image-21-eval`, GPU1 only, loopback port 8191.
-- BF16 model CPU offload; PyTorch allocator capped at 58% of GPU memory; thermal guard stops at 85C.
+- Qwen: separate `/data/apps/qwen-image-21-eval`; the original evaluation uses GPU1/port 8191, while the replacement uses GPUs 0/1 on 8200/8201 behind the private 8191 pool.
+- BF16 model CPU offload; PyTorch allocator capped at 58% of GPU memory. Original evaluation thermal admission/stop are 60/85 C; replacement units use 80/88 C as authorized below.
 - Service remains private under the Qwen Research License; the Gateway connects through a pinned SSH tunnel and a separate upstream credential.
 - The initial read-only R760 preflight encountered an existing NVML driver/library mismatch. The image route does not use R760 GPU inference.
 

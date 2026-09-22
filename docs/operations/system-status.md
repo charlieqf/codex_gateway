@@ -1,12 +1,16 @@
 # System Status
 
-Image generation last verified: 2026-09-22 01:39 UTC. The public model
-`medcode-image-default` now uses the locally deployed `qwen-image-2.1` on star
-through a private authenticated SSH tunnel. LLaDA remains the first fallback.
-Public JPEG generation returned 200 in 57.3 seconds and ordinary text also
-passed. Installed MedEvidence client acceptance is pending; the user will
+Image generation last verified: 2026-09-22 02:50 UTC. The public model
+`medcode-image-default` uses two local `qwen-image-2.1` workers on star GPUs 0/1
+through a bounded private queue and the existing authenticated SSH tunnel.
+LLaDA is stopped/disabled and removed from the fallback chain; GPT Image 2 is
+the first cloud fallback. Two square images completed concurrently in 64.0 s
+versus a 59.5 s single baseline; four queued images completed in 128.5 s.
+Public square JPEG, landscape PNG, portrait WebP and ordinary text passed.
+Installed MedEvidence client acceptance is pending; the user will
 forward the [client test notice](../outbox/medevidence-qwen-image-21-primary-test-notice-2026-09-22.zh-CN.md).
-See the [release receipt](./qwen-image-primary-release-2026-09-22.zh-CN.md).
+See the [dual-GPU release receipt](./qwen-image-dual-gpu-release-2026-09-22.zh-CN.md)
+and [controlled Chinese-label comparison](./qwen-image-label-prompt-comparison-2026-09-22.zh-CN.md).
 
 Last verified: 2026-09-21 07:04 UTC: imaging v1 admits only the explicitly approved Subjects `subj_yBZBxNUHIVszGz4BKXaltrw5` and `subj__3nJpw9INwhmK4k8Qq4K4jlI`; schema 34. Both existing credentials return available:true, with independent limits of 10 jobs per UTC day and one unfinished job per Subject. Other Subjects remain unavailable. See [latest allowlist verification](../../artifacts/imaging-gateway-20260921/pilot-wang-activation.json). Earlier temporary test studies, credentials and entitlements were cleaned up as recorded in the [joint audit](../../artifacts/imaging-gateway-20260921/joint-final-audit.json). Phone readiness was last checked on 2026-09-18: 300/300 active identities ready, with no duplicate-phone groups.
 
@@ -32,7 +36,7 @@ history retain implementation evidence; do not append incident history here.
 
 ## Production Runtime
 
-Gateway activation and public health verified on 2026-09-22 01:39 UTC; local Qwen image inference verified on the same date:
+Gateway config-only activation, public health and dual Qwen inference verified on 2026-09-22 02:50 UTC:
 
 - `current`:
   `f8c1a943d31769125fb80574b22eab6f6c74b06f` (pinned runtime source committed and pushed to `main`; schema 34)
@@ -235,11 +239,17 @@ is deployed and publicly verified: final provider failures explicitly stop suppo
 clients from automatically replaying the request.
 
 Image generation remains separate under client model `medcode-image-default`.
-Its primary upstream is local `qwen-image-2.1` on star GPU 1, followed by
-`llada-image-turbo-fp8`, then the existing `gpt-image-2` fallback chain.
+Its primary upstream is the local `qwen-image-2.1` pool on star GPUs 0/1,
+followed by the existing `gpt-image-2` cloud fallback chain. LLaDA is neither
+running nor configured as a fallback. Star runs committed release `603efbf`;
+the Gateway image remains `f8c1a94`. Two workers and two waiting slots have a
+170-second pool deadline and an 80-second queue wait cap. Worker admission is
+at most 80 C, with generation stopped at 88 C. Qwen upstream timeout is 180 s;
+Gateway's existing overall image timeout is 240 s. The client's current 210 s
+budget can expire first on long cloud fallback paths; this is in the handoff.
 Qwen listens only on star loopback; R760 reaches it through an authenticated,
-restricted-key SSH tunnel bound to its private Docker bridge. Both the Qwen
-service and tunnel are enabled at boot. No new public port was opened.
+restricted-key SSH tunnel bound to its private Docker bridge. Workers, pool
+and tunnel are enabled at boot. No new public port was opened.
 
 ## GoldenCode Local Context Admission
 
