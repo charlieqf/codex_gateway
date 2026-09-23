@@ -1,5 +1,24 @@
 # System Status
 
+Gateway `3efd505` released: 2026-09-23 00:41 UTC; verified 00:41–00:43 UTC.
+The container is healthy with zero restarts, schema 35 (no migration), and
+public health ready. The billing smoke passed 20/20 and its synthetic account
+was cleaned up. Changes now live:
+
+- Resolve checks the selected MedEvidence key. An explicit refusal returns 409
+  with no credentials; an unavailable check proceeds.
+- Paid purchases and renewals of `plan_paid_yearly_v1` must use `one_off` for
+  365–366 days, and `plan_paid_monthly_v1` must use `monthly` for 28–31 days.
+  The billing system still sent yearly as `monthly` on 2026-09-15; the MedEvidence
+  team was asked to change.
+- Paid periods extend the current Desktop Key, and Keys lapsed within 90 days
+  are restored.
+- The startup-archive warning is gone.
+
+Seven Keys are still refused on R760; one is in active use. The academic-question
+change awaits a Research Worker release. See the
+[release receipt](./r760-gateway-release-3efd505-2026-09-23.zh-CN.md).
+
 Scheduled Gateway database backups enabled: 2026-09-22 23:42 UTC. The
 `codex-gateway-db-backup.timer` backs up gateway, client-events and imaging
 databases daily at 18:30 UTC into `/data/backups/codex-gateway-daily`, keeping 7
@@ -9,17 +28,12 @@ daily and 4 weekly copies. The first backup was verified: 2.03 GB, schema 35.
 report keeps release backups report-only and prunes control snapshots older than
 7 days. See [backup operations](./r760-backup-operations.zh-CN.md).
 
-Gateway vision structural observation released: 2026-09-22 22:55:35 UTC;
-verified 23:03–23:10 UTC. R760 Gateway runs `95e724c`, schema 35, healthy with
-zero restarts; public health ready. Parse-time image positions, detail counts and
+Gateway vision structural observation released: 2026-09-22 22:55:35 UTC
+(`95e724c`, now `previous`). Parse-time image positions, detail counts and
 duplicates are persisted in `request_events.vision_observation_json`; routing,
-the 413 image-count contract and upstream bodies are unchanged. All 11 chat
-requests after cutover carried complete snapshots. The partial/unavailable and
-413-with-snapshot branches are covered only by unit tests so far. The running
-container still logs `Codex rollout startup archive failed` on start. R760 has
-an empty `codex-home` and the openai-codex runtime is retired. The archive was
-disabled in the R760 Compose override at 2026-09-22 23:29 UTC, effective at the
-next Gateway recreate. See the [vision observation release receipt](./r760-vision-observation-release-2026-09-23.zh-CN.md).
+the 413 image-count contract and upstream bodies are unchanged. The
+partial/unavailable and 413-with-snapshot branches are covered only by unit tests
+so far. See the [vision observation release receipt](./r760-vision-observation-release-2026-09-23.zh-CN.md).
 
 Shared Qwen / RADAR scheduling enabled: 2026-09-22 05:03:25 UTC;
 service checks completed at 05:04:40 UTC. Star runs scheduler/Qwen `58a4d80`
@@ -74,12 +88,12 @@ history retain implementation evidence; do not append incident history here.
 
 ## Production Runtime
 
-Gateway release verified on 2026-09-22 23:10 UTC:
+Gateway release verified on 2026-09-23 00:43 UTC:
 
 - `current`:
-  `95e724cc06c07f139d94cd46b0f1f0c3c1a6a3b2` (vision structural observation; committed and pushed to `main`; schema 35)
+  `3efd50541278735836eeeb608244f628a31b913c` (resolve key check, retail periods and Key coverage; `origin/main` at release; schema 35)
 - `previous`:
-  `da97de6567e1e988b7cb12594166f195af0139e7` (CT resource-wait progress, deployed 2026-09-22 08:40 UTC; its image reads the schema 35 database because the migration only adds a nullable column)
+  `95e724cc06c07f139d94cd46b0f1f0c3c1a6a3b2` (vision structural observation; same schema 35, no migration between them)
 - Gateway release source: `origin/main`; pin and verify its latest commit before deployment.
 - Public Gateway: healthy, published only on
   `127.0.0.1:18787->8787`
@@ -93,7 +107,7 @@ Gateway release verified on 2026-09-22 23:10 UTC:
   did not change. See [recovery evidence](../../artifacts/doctor-research-agent-2026-09-10/maintenance-recovery-verified-20260911.json).
 - `qwen38-fp8-local`: healthy, private container port only
 
-Gateway runs `95e724c`, schema 35. Imaging v1 defaults off in code and currently
+Gateway runs `3efd505`, schema 35. Imaging v1 defaults off in code and currently
 admits only the three approved Subjects above. Full public CT upload, new inference, 15 verified artifacts, owner
 isolation, resume, cancellation and deletion passed through the public Gateway.
 The source client also completed ordinary-chat tools, inference, verified download
