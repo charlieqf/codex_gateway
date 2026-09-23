@@ -73,3 +73,4 @@
 - 2026-09-23 02:15 UTC：新建 `plan_gift_once_10m_v1`（总额 1000 万，每分钟 30 万，功能为 chat 和 tools）。
 - 2026-09-23 02:17 UTC：为一名 09-22 注册、signup Free 已用 995,285 的用户发放 `ent_e8fa7392…`。发放前他当天有 3 次 `free_quota_exhausted`，发放后请求正常。备份为 `r760-control-pre-control-state-sync-20260923T021652Z-067f6d43.db`。
 - 当时线上还是 `3efd505`，赠送权益会被当作普通权益，用户付费时会冲突。02:31 UTC 部署 `3d4c10a` 之后，只读核验确认这张赠送权益已经是该用户当前生效的 Free 类额度（`activeFreeAllowance` 返回它，`isFreeAllowance` 为 true），无需重新发放。
+- 2026-09-23 02:4x UTC 实测：在容器内存中解密该用户当前 Key 对应的模型凭证（未打印），通过公网调用一次 `goldencode`（`max_tokens=16`）。结果：HTTP 200，`req-7d7c34d6-1045-48fb-8cb2-3f0f549b0110`，148 token 计入赠送权益的 period 窗口（0 → 148），剩余 9,999,852。以后做类似验证可以用同样的方法，但这次请求会记入该用户自己的用量。
