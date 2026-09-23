@@ -6,9 +6,11 @@ reservations, recreates only the gateway with the labelled Compose files of the
 new release, and verifies. Any failed post-check restores the previous override
 and release and recreates the previous gateway before raising.
 
-Used for 3efd505 (2026-09-23). Release-specific: it asserts schema 35 (no
-migration) and allows only CODEX_GATEWAY_ROLLOUT_ARCHIVE_ON_START to change in the
-container environment. Adjust both for a release that migrates or changes config.
+Used for 3efd505 and 3d4c10a (2026-09-23). Release-specific: it asserts schema 35
+(no migration) and allows only CODEX_GATEWAY_ROLLOUT_ARCHIVE_ON_START to change in
+the container environment. Adjust both for a release that migrates or changes config.
+The image swap is scoped to the gateway service block because the research-worker
+may run the same Gateway image.
 
     python3 - <rev> < r760-gateway-release-20260923-cutover.py   (on R760, after prepare and build)
 """
@@ -78,9 +80,15 @@ for rel in state["release_links"]:
     assert (RELEASE / rel).exists(), f"release link {rel} does not resolve"
 
 original = OVERRIDE.read_text()
-old_line = f"image: {state['old_image']}"
-assert original.count(old_line) == 1, "expected exactly one gateway image line"
-proposed = original.replace(old_line, f"image: {IMAGE}")
+# The research-worker may run the same image, so edit only the gateway block.
+block_match = re.search(r"(?ms)^  gateway:\n.*?(?=^  \S|^\S|\Z)", original)
+assert block_match, "gateway service block not found"
+block = block_match.group(0)
+old_line = f"    image: {state['old_image']}\n"
+assert block.count(old_line) == 1, "expected exactly one image line in the gateway block"
+proposed = original[:block_match.start()] + block.replace(old_line, f"    image: {IMAGE}\n") + original[block_match.end():]
+assert proposed.count(f"image: {IMAGE}") == 1
+assert proposed.count(f"image: {state['old_image']}") == original.count(f"image: {state['old_image']}") - 1
 (BACKUP / "proposed.override.yml").write_text(proposed)
 os.chmod(BACKUP / "proposed.override.yml", 0o600)
 

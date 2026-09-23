@@ -24,6 +24,7 @@ documents.
 | Task | Runbook |
 | --- | --- |
 | Real-user key / user / Plan / entitlement / usage | [R760 Control-Plane Authority](./r760-control-plane-authority.md) |
+| One user's token quota: look up, reset or gift tokens | [单用户 Token 额度操作](./user-quota-operations.zh-CN.md) |
 | Real-user/Desktop key provisioning details | [MedEvidence Codex Key Provisioning](./medevidence-codex-key-provisioning.md) |
 | Billing operator console | [Real User Issue Web Console](./real-user-issue-web-console.md) |
 | Independent Free/paid balances, cancellation target and reset conflicts | [Quota Contract](../outbox/medevidence-free-paid-quota-contract-2026-09-10.zh-CN.md) (free-allowance clauses superseded), [2026-09-11 Fix Release](./r760-quota-review-fixes-release-2026-09-11.zh-CN.md) |

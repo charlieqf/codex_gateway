@@ -1,5 +1,13 @@
 # System Status
 
+Gateway `3d4c10a` released: 2026-09-23 02:31 UTC; verified 02:31–02:33 UTC.
+Unlimited `plan_gift_once_*` entitlements are now one-off allowances, like the
+signup Free: they coexist with paid plans, are spent first, and do not block
+billing purchases. The container is healthy with zero restarts, schema 35, and
+the billing smoke passed 20/20. The Research Worker still runs the `3efd505`
+image. See the [3d4c10a receipt](./r760-gateway-release-3d4c10a-2026-09-23.zh-CN.md)
+and [user quota operations](./user-quota-operations.zh-CN.md).
+
 Gateway `3efd505` released: 2026-09-23 00:41 UTC; verified 00:41–00:43 UTC.
 The container is healthy with zero restarts, schema 35 (no migration), and
 public health ready. The billing smoke passed 20/20 and its synthetic account
@@ -88,12 +96,12 @@ history retain implementation evidence; do not append incident history here.
 
 ## Production Runtime
 
-Gateway release verified on 2026-09-23 00:43 UTC:
+Gateway release verified on 2026-09-23 02:33 UTC:
 
 - `current`:
-  `3efd50541278735836eeeb608244f628a31b913c` (resolve key check, retail periods and Key coverage; `origin/main` at release; schema 35)
+  `3d4c10a85bb3d0aa393d30b6be40bf4777740e84` (gift plans as one-off allowances; schema 35)
 - `previous`:
-  `95e724cc06c07f139d94cd46b0f1f0c3c1a6a3b2` (vision structural observation; same schema 35, no migration between them)
+  `3efd50541278735836eeeb608244f628a31b913c` (resolve key check, retail periods and Key coverage; same schema 35, no migration between them)
 - Gateway release source: `origin/main`; pin and verify its latest commit before deployment.
 - Public Gateway: healthy, published only on
   `127.0.0.1:18787->8787`
@@ -107,7 +115,7 @@ Gateway release verified on 2026-09-23 00:43 UTC:
   did not change. See [recovery evidence](../../artifacts/doctor-research-agent-2026-09-10/maintenance-recovery-verified-20260911.json).
 - `qwen38-fp8-local`: healthy, private container port only
 
-Gateway runs `3efd505`, schema 35. Imaging v1 defaults off in code and currently
+Gateway runs `3d4c10a`, schema 35. Imaging v1 defaults off in code and currently
 admits only the three approved Subjects above. Full public CT upload, new inference, 15 verified artifacts, owner
 isolation, resume, cancellation and deletion passed through the public Gateway.
 The source client also completed ordinary-chat tools, inference, verified download
