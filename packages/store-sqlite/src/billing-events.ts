@@ -357,12 +357,16 @@ function applyEntitlementChange(
 
     const entitlement = insertEntitlementFromPlan(db, plan, input, period, now);
     if (isRetailPaidPlan(plan.id)) recoverReplacedFreeAllowance(db, input.subjectId, now);
+    const credentialExtensions = isRetailPaidPlan(plan.id) && period.end
+      ? extendCurrentDesktopCredentialCoverage(db, input.subjectId, period.end, now)
+      : [];
     insertTransitionAudit(
       db,
       input.eventType === "renew" ? "entitlement-renew" : "entitlement-grant",
       entitlement,
       now,
-      billingAuditParams(billingEventId, input)
+      { ...billingAuditParams(billingEventId, input),
+        ...(credentialExtensions.length ? { credential_expiry_extensions: credentialExtensions } : {}) }
     );
     return { entitlement, plan, cancelledEntitlementIds };
   }
@@ -685,6 +689,14 @@ function normalizePeriod(
   const kind = required(input.periodKind, "period_kind");
   const start = input.periodStart ?? now;
   const end = input.periodEnd ?? null;
+  const retailPeriod = input.planId === "plan_paid_monthly_v1"
+    ? { kind: "monthly", minDays: 28, maxDays: 31 }
+    : input.planId === "plan_paid_yearly_v1"
+      ? { kind: "one_off", minDays: 365, maxDays: 366 }
+      : null;
+  if (retailPeriod && kind !== retailPeriod.kind) {
+    throw invalidPeriod(`${input.planId} requires period_kind=${retailPeriod.kind}.`);
+  }
   if (kind === "unlimited") {
     if (end) {
       throw invalidPeriod("unlimited entitlement period_end must be empty.");
@@ -697,7 +709,55 @@ function normalizePeriod(
   if (end.getTime() <= start.getTime()) {
     throw invalidPeriod("period_end must be after period_start.");
   }
+  if (retailPeriod) {
+    // The payment system owns the calendar anchor (including month-end renewal).
+    // Validate its duration without rounding or rewriting its explicit dates.
+    // Allow a one-hour offset change for daylight saving in the supplied dates.
+    const duration = end.getTime() - start.getTime();
+    const day = 86_400_000;
+    const dst = 3_600_000;
+    if (!Number.isFinite(duration) || duration < retailPeriod.minDays * day - dst ||
+        duration > retailPeriod.maxDays * day + dst) {
+      throw invalidPeriod(`${input.planId} requires a single billing period of ${retailPeriod.minDays}-${retailPeriod.maxDays} days (with daylight-saving allowance).`);
+    }
+  }
   return { kind, start, end };
+}
+
+/** How long after lapsing a current Desktop Key is still restored by a paid period. */
+const lapsedDesktopKeyRevivalMs = 90 * 86_400_000;
+
+function extendCurrentDesktopCredentialCoverage(
+  db: DatabaseSync, subjectId: string, periodEnd: Date, now: Date
+) {
+  const end = periodEnd.toISOString();
+  const nowIso = now.toISOString();
+  // Expiry is the paid-period boundary; revocation is the security boundary. A
+  // user who pays after the Key lapsed must get the same Key back (Desktop and
+  // phone login both refuse an expired Key), so a current, unrevoked Desktop Key
+  // that lapsed within the revival window is restored. Older ones need reissue.
+  const revivalCutoff = new Date(now.getTime() - lapsedDesktopKeyRevivalMs).toISOString();
+  const rows = db.prepare(`SELECT u.id AS unified_key_id, c.id AS credential_id,
+      u.expires_at AS unified_key_previous_expires_at, c.expires_at AS credential_previous_expires_at
+    FROM unified_client_keys u JOIN access_credentials c
+      ON c.id = u.codex_credential_id AND c.subject_id = u.subject_id AND c.prefix = u.codex_credential_prefix
+    WHERE u.subject_id = ? AND u.is_current = 1
+      AND u.credential_class = 'desktop' AND c.credential_class = 'desktop'
+      AND u.revoked_at IS NULL AND c.revoked_at IS NULL
+      AND u.expires_at > ? AND c.expires_at > ?
+      AND (u.expires_at < ? OR c.expires_at < ?)`).all(subjectId, revivalCutoff, revivalCutoff, end, end) as Array<{
+        unified_key_id: string; credential_id: string;
+        unified_key_previous_expires_at: string; credential_previous_expires_at: string;
+      }>;
+  for (const row of rows) {
+    db.prepare("UPDATE access_credentials SET expires_at = ? WHERE id = ? AND expires_at < ?")
+      .run(end, row.credential_id, end);
+    db.prepare("UPDATE unified_client_keys SET expires_at = ? WHERE id = ? AND expires_at < ?")
+      .run(end, row.unified_key_id, end);
+  }
+  return rows.map(row => ({ ...row, required_expires_at: end,
+    ...(row.unified_key_previous_expires_at <= nowIso || row.credential_previous_expires_at <= nowIso
+      ? { revived_after_expiry: true } : {}) }));
 }
 
 function activeEntitlement(db: DatabaseSync, subjectId: string, now: Date): Entitlement | null {

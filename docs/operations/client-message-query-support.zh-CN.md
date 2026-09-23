@@ -70,6 +70,15 @@ Desktop 原始用户消息位于 Gateway，不在 MedEvidence v2 的
 
 使用管理 token 时不得打印或保存 token。普通用户 API key 不能访问该页面。
 
+2026-09-14 开发修订（待部署）：管理 JSON 的每条消息增加 `identity_mismatch`。
+同一个 session、message 和完整 app version 下若出现其他 Subject 的模型请求，
+该字段返回 `status=possible_mismatch`、消息 Subject、请求 Subject 列表和最多 100 条
+关联请求，页面提示“账号可能不一致”。无候选时为 null。它只是管理端排障线索，
+不能单凭客户端会话标识建立身份授权；候选请求不加入本账号 `request_summary` 或用量。
+`gateway_requests` 明确返回请求的 `subject_id`、`credential_id`（均为记录 ID，不是 Key）。
+消息／版本缺失时不推断不一致，同一会话的合法切号不被锁定或拦截。
+详见本次修复回执（`docs/outbox/medevidence-account-usage-gateway-fix-receipt-2026-09-14.zh-CN.md`，含具体用户信息，仅本地保存，未入库）。
+
 ## CLI 参数
 
 `query-client-messages.py` 支持：

@@ -98,6 +98,13 @@ interface MessageRequestCorrelation {
   gatewayRequests: ReturnType<typeof publicGatewayRequest>[];
   gatewayRequestsTruncated: boolean;
   gatewayRequestTotal: number;
+  identityMismatch?: {
+    message_subject_id: string;
+    request_subject_ids: string[];
+    gateway_requests: ReturnType<typeof publicGatewayRequest>[];
+    gateway_requests_truncated: boolean;
+    gateway_request_total: number;
+  };
 }
 
 export function resolveAdminMessagesAccess(input: {
@@ -231,7 +238,7 @@ export function buildAdminClientMessagesPayload(input: {
   const messages = rawMessages
     .map((message) => {
       const requestCorrelation =
-        requestSummaries.summaries.get(messageRequestKey(message.subjectId, message.messageId)) ??
+        requestSummaries.summaries.get(message.id) ??
         emptyMessageRequestCorrelation();
       return publicClientMessage(message, {
         subject: subjectById.get(message.subjectId),
@@ -665,6 +672,8 @@ export function renderAdminClientMessagesPage(input: { authRequired?: boolean } 
       const outcome = request.outcome || "no_request";
       const errors = Array.isArray(request.error_codes) && request.error_codes.length ? '<div class="user-meta">错误：' + escapeHtml(request.error_codes.join(", ")) + '</div>' : "";
       const missing = Number(tokens.usage_missing_count || 0) > 0 ? '<div class="user-meta">有 ' + formatNumber(tokens.usage_missing_count) + ' 个请求缺少 Token usage</div>' : "";
+      const mismatch = message.identity_mismatch;
+      const identityNotice = mismatch ? '<div class="user-meta" role="status">账号可能不一致：同一会话、消息及版本下发现 ' + formatNumber(mismatch.gateway_request_total) + ' 个其他 Subject 的请求。请核对客户端当前凭据；这些请求未计入本账号统计。</div><details><summary>查看其他 Subject 的关联请求' + (mismatch.gateway_requests_truncated ? '（已截断）' : '') + '</summary><div class="mono">' + renderGatewayRequests(mismatch.gateway_requests) + '</div></details>' : "";
       const app = [message.app_name, message.app_version].filter(Boolean).join(" ");
       const text = message.text || message.text_preview || "";
       return '<article class="message-card">' +
@@ -678,7 +687,7 @@ export function renderAdminClientMessagesPage(input: { authRequired?: boolean } 
           requestMetric("Provider Token", formatNumber(tokens.provider_total_tokens || 0), "输入 " + formatNumber(tokens.provider_prompt_tokens || 0) + " / 输出 " + formatNumber(tokens.provider_completion_tokens || 0)) +
           requestMetric("估算 Token", formatNumber(tokens.estimated_tokens || 0), tokens.estimated_tokens ? "最终 fallback 估算" : "未使用估算") +
           requestMetric("限流", formatNumber(request.rate_limited_count || 0) + " 次", "客户端自动重试：无法确认") +
-        '</div>' + errors + missing +
+        '</div>' + errors + missing + identityNotice +
         '<pre class="message-text">' + escapeHtml(text) + '</pre>' +
         '<details><summary>Gateway request ID 与 upstream attempts' + (message.gateway_requests_truncated ? '（仅最新 100 / 共 ' + formatNumber(message.gateway_request_total || 0) + '）' : '') + '</summary><div class="mono">subject ' + escapeHtml(subject.id || "-") + '<br>credential ' + escapeHtml(message.credential && message.credential.prefix ? message.credential.prefix : "-") + '<br>session ' + escapeHtml(message.session_id || "-") + '<br>message ' + escapeHtml(message.message_id || "-") + '<br>upload request ' + escapeHtml(message.request_id || "-") + renderGatewayRequests(message.gateway_requests) + '</div></details>' +
       '</article>';
@@ -696,7 +705,7 @@ export function renderAdminClientMessagesPage(input: { authRequired?: boolean } 
           const attemptFailure = attempt.failure ? attempt.failure.origin + '/' + attempt.failure.kind + '/' + attempt.failure.stage + (attempt.failure.transport_code ? ' [' + attempt.failure.transport_code + ']' : '') + (attempt.failure.upstream_status !== null && attempt.failure.upstream_status !== undefined ? ' upstream HTTP ' + attempt.failure.upstream_status : '') : '-';
           return '<br>&nbsp;&nbsp;attempt ' + escapeHtml(attempt.index) + ' ' + escapeHtml(attempt.purpose || 'unknown') + ' / ' + escapeHtml(attempt.kind || '-') + ' · ' + escapeHtml(formatDuration(attempt.duration_ms)) + ' · ' + escapeHtml(attempt.error_code || 'ok') + '<br>&nbsp;&nbsp;&nbsp;&nbsp;provider ' + escapeHtml(route) + '<br>&nbsp;&nbsp;&nbsp;&nbsp;' + escapeHtml(upstream) + '<br>&nbsp;&nbsp;&nbsp;&nbsp;' + escapeHtml(tokens) + '<br>&nbsp;&nbsp;&nbsp;&nbsp;failure ' + escapeHtml(attemptFailure);
         }).join('') : '';
-        return '<br><br>request ' + escapeHtml(request.request_id || '-') + ' · ' + escapeHtml(request.status || '-') + ' · ' + escapeHtml(formatDuration(request.duration_ms)) + '<br>&nbsp;&nbsp;provider ' + escapeHtml([request.provider, request.upstream_runtime, request.upstream_model].filter(Boolean).join(' / ') || '-') + '<br>&nbsp;&nbsp;failure ' + escapeHtml(failureText) + attempts;
+        return '<br><br>request ' + escapeHtml(request.request_id || '-') + ' · ' + escapeHtml(request.status || '-') + ' · ' + escapeHtml(formatDuration(request.duration_ms)) + '<br>&nbsp;&nbsp;subject ' + escapeHtml(request.subject_id || '-') + '<br>&nbsp;&nbsp;provider ' + escapeHtml([request.provider, request.upstream_runtime, request.upstream_model].filter(Boolean).join(' / ') || '-') + '<br>&nbsp;&nbsp;failure ' + escapeHtml(failureText) + attempts;
       }).join('');
     }
 
@@ -793,45 +802,53 @@ function buildMessageRequestSummaries(
     return { summaries, truncated: false };
   }
 
-  const messageIdsBySubject = new Map<string, Set<string>>();
-  for (const message of messages) {
-    const ids = messageIdsBySubject.get(message.subjectId) ?? new Set<string>();
-    ids.add(message.messageId);
-    messageIdsBySubject.set(message.subjectId, ids);
-  }
-
+  const ids = Array.from(new Set(messages.map(message => message.messageId)));
   const eventsByMessage = new Map<string, RequestEventRecord[]>();
   let truncated = false;
   const batchSize = 400;
   const maxEventsPerBatch = 50_000;
-  for (const [subjectId, messageIds] of messageIdsBySubject) {
-    const ids = Array.from(messageIds);
-    for (let start = 0; start < ids.length; start += batchSize) {
-      const batch = ids.slice(start, start + batchSize);
-      const events = store.listRequestEvents({
-        subjectId,
-        clientMessageIds: batch,
-        limit: maxEventsPerBatch + 1
-      });
-      if (events.length > maxEventsPerBatch) {
-        truncated = true;
-        events.length = maxEventsPerBatch;
+  // This admin-only lookup deliberately includes other Subjects. They are
+  // returned as advisory evidence, never merged into the message owner's usage.
+  for (let start = 0; start < ids.length; start += batchSize) {
+    const batch = ids.slice(start, start + batchSize);
+    const events = store.listRequestEvents({
+      clientMessageIds: batch,
+      limit: maxEventsPerBatch + 1
+    });
+    if (events.length > maxEventsPerBatch) {
+      truncated = true;
+      events.length = maxEventsPerBatch;
+    }
+    for (const event of events) {
+      if (!event.clientMessageId) {
+        continue;
       }
-      for (const event of events) {
-        if (!event.clientMessageId) {
-          continue;
-        }
-        const key = messageRequestKey(subjectId, event.clientMessageId);
-        const grouped = eventsByMessage.get(key) ?? [];
-        grouped.push(event);
-        eventsByMessage.set(key, grouped);
-      }
+      const key = event.clientMessageId;
+      const grouped = eventsByMessage.get(key) ?? [];
+      grouped.push(event);
+      eventsByMessage.set(key, grouped);
     }
   }
 
   for (const message of messages) {
-    const key = messageRequestKey(message.subjectId, message.messageId);
-    summaries.set(key, correlateMessageRequests(eventsByMessage.get(key) ?? []));
+    const events = eventsByMessage.get(message.messageId) ?? [];
+    const own = events.filter(event => event.subjectId === message.subjectId &&
+      (!event.clientSessionId || event.clientSessionId === message.sessionId));
+    const correlation = correlateMessageRequests(own);
+    const other = events.filter(event => event.subjectId && event.subjectId !== message.subjectId &&
+      event.clientSessionId === message.sessionId && message.appVersion &&
+      event.clientAppVersion === message.appVersion);
+    if (other.length) {
+      const related = correlateMessageRequests(other);
+      correlation.identityMismatch = {
+        message_subject_id: message.subjectId,
+        request_subject_ids: Array.from(new Set(other.map(event => event.subjectId!))).sort(),
+        gateway_requests: related.gatewayRequests,
+        gateway_requests_truncated: related.gatewayRequestsTruncated,
+        gateway_request_total: related.gatewayRequestTotal
+      };
+    }
+    summaries.set(message.id, correlation);
   }
   return { summaries, truncated };
 }
@@ -1021,6 +1038,8 @@ function publicGatewayRequest(event: RequestEventRecord) {
   const terminalFailure = requestTerminalFailure(event);
   return {
     request_id: event.requestId,
+    subject_id: event.subjectId,
+    credential_id: event.credentialId,
     started_at: event.startedAt.toISOString(),
     status: event.status,
     error_code: event.errorCode,
@@ -1147,10 +1166,6 @@ function emptyMessageRequestCorrelation(): MessageRequestCorrelation {
     gatewayRequestsTruncated: false,
     gatewayRequestTotal: 0
   };
-}
-
-function messageRequestKey(subjectId: string, messageId: string): string {
-  return `${subjectId}\u0000${messageId}`;
 }
 
 function buildAdminUserRows(
@@ -1440,6 +1455,9 @@ function publicClientMessage(
     created_at: message.createdAt.toISOString(),
     received_at: message.receivedAt.toISOString(),
     request_summary: input.requestCorrelation.summary,
+    identity_mismatch: input.requestCorrelation.identityMismatch
+      ? { status: "possible_mismatch", ...input.requestCorrelation.identityMismatch }
+      : null,
     gateway_requests: input.requestCorrelation.gatewayRequests,
     gateway_requests_truncated: input.requestCorrelation.gatewayRequestsTruncated,
     gateway_request_total: input.requestCorrelation.gatewayRequestTotal
