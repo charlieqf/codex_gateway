@@ -1,0 +1,62 @@
+{
+  "id": "tiankuan-glm53-180s-causal-controls-v1",
+  "version": 1,
+  "created_at": "2026-09-02",
+  "description": "Low-cost paired Tencent/TianKuan GLM-5.3 causal controls for the observed 180-second incomplete stream.",
+  "providers": [
+    { "id": "tencent", "upstream_model": "glm-5.3" },
+    { "id": "tiankuan", "upstream_model": "official/glm-5.3" }
+  ],
+  "expected_case_counts": {
+    "causal_controls": 4,
+    "total": 4
+  },
+  "limits_per_provider": {
+    "wall_clock_minutes": 45,
+    "stop_new_requests_at_minute": 40,
+    "input_tokens": 70000,
+    "output_tokens": 25000,
+    "max_concurrency": 1,
+    "max_long_context_concurrency": 1,
+    "default_request_timeout_ms": 210000
+  },
+  "execution": {
+    "paired": true,
+    "randomize_provider_order": true,
+    "preferred_path": "direct_adapter",
+    "gateway_samples_require_single_attempt": true,
+    "gateway_samples_require_actual_provider_match": true,
+    "discard_gateway_samples_after_cooldown_reroute": true,
+    "stop_on_provider_incomplete_stream": true,
+    "require_remaining_output_budget_at_least_request_max_tokens": true,
+    "monetary_cap_required": true,
+    "case_order": ["C01", "C02", "C04", "C03"]
+  },
+  "required_observations": [
+    "request_id",
+    "http_status",
+    "raw_first_event_ms",
+    "visible_first_content_ms",
+    "total_duration_ms",
+    "finish_reason",
+    "normal_terminal_seen",
+    "upstream_attempt_count",
+    "upstream_attempts_json",
+    "provider_first_event_ms",
+    "upstream_raw_response_chars",
+    "upstream_content_chars",
+    "upstream_failure_origin",
+    "upstream_failure_kind",
+    "upstream_failure_stage",
+    "cancel_requested",
+    "cancel_observed",
+    "usage",
+    "actual_provider",
+    "actual_upstream_account_id"
+  ],
+  "scope": {
+    "measures_model_intelligence": false,
+    "marker_assertions_are_transport_sanity_checks_only": true,
+    "defers_two_hour_quick_gate": true
+  }
+}
