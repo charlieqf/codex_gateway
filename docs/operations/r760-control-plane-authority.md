@@ -1,6 +1,6 @@
 # R760 Gateway Control-Plane Authority
 
-Last updated: 2026-09-11.
+Last updated: 2026-09-17.
 
 ## Authority Boundary
 
@@ -73,6 +73,68 @@ definition before commit; any failure rolls back both data and DDL. The
 existing backup and integrity gates
 still apply. New purchases and renewals read the updated Plan; existing grants
 retain their snapshots. Migrating existing grants is a separate operation.
+
+## Explicitly authorized one-off Free total reset
+
+The Billing quota-reset API currently accepts minute/day/month windows; those
+do not reset the lifetime `period` ledger of `plan_free_once_1m_v1`.
+For a user-authorized reset of a Free-only account, use the guarded operation:
+
+```powershell
+python scripts/manage-r760-gateway-control.py --what-if -- reset-free-total <subject-id> <entitlement-id> <expected-used> 1000000 <reason>
+python scripts/manage-r760-gateway-control.py -- reset-free-total <subject-id> <entitlement-id> <expected-used> 1000000 <reason>
+```
+
+It requires an active matching subject and one-off Free entitlement, the exact
+previous used value and total limit, no other live entitlements, and no unfinished
+reservations (including expired reservations awaiting settlement). After the
+verified backup, a write transaction rechecks these conditions, removes only
+that entitlement's lifetime usage window, and records its complete before image
+in a `quota-reset` admin audit event. Historical requests, settled reservations,
+other usage windows, credentials and Plan policies remain unchanged. A retry
+with the old expected usage fails. The wrapper checks integrity and foreign keys
+afterward; separately verify the account balance through the live Gateway.
+
+## Existing Unified Key Expiry Extension
+
+`update-key --expires-at` updates the backing Gateway credential only. To
+extend an existing recoverable current unified Key after the backing credential
+and entitlements have been renewed, use an explicitly authorized plan:
+
+```json
+{
+  "version": 1,
+  "reason": "Approved expiry renewal",
+  "items": [{
+    "subjectId": "<exact-subject-id>",
+    "keyId": "<exact-current-unified-key-id>",
+    "expectedExpiresAt": "2026-10-01T00:00:00.000Z",
+    "expiresAt": "2027-01-01T00:00:00.000Z"
+  }]
+}
+```
+
+```powershell
+python scripts/manage-r760-gateway-control.py --what-if -- extend-unified-key-expiry .tmp/approved-renewal.json
+python scripts/manage-r760-gateway-control.py -- extend-unified-key-expiry .tmp/approved-renewal.json
+```
+
+The wrapper reads the plan once, previews it, verifies a pre-write backup, then
+rechecks every target in one write transaction. It requires the exact old
+expiry, an active subject, one current recoverable desktop Key, its matching
+active phone identity, a backing credential covering the new expiry, and
+continuous code/chat entitlement coverage. It only extends unexpired Keys.
+Any mismatch or audit failure rolls back the whole batch. The operation changes
+only the unified Key expiry and adds a per-Key `update-key` audit event with
+operation `extend-unified-key-expiry`; existing tokens and bindings remain valid.
+The original plan fails its expected-old-value check after a successful apply.
+
+Afterward verify the new expiry through unified-key resolve, the backing
+credential through `/gateway/credentials/current`, and the selected upstream
+through `/validate-key`, using the required Desktop version header. Keep all
+tokens in memory and emit only sanitized results. The 2026-09-17 closure
+record (`docs/operations/oct1-expiry-closure-check-2026-09-17.zh-CN.md`) names
+the affected users and is kept locally, outside the public repository.
 
 ## Usage
 

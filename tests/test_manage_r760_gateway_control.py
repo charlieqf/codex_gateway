@@ -102,6 +102,37 @@ class ManageR760GatewayControlTests(unittest.TestCase):
                 ):
                     MODULE.validate_admin_args(bad)
 
+    def test_free_total_reset_validation(self) -> None:
+        valid = [MODULE.FREE_TOTAL_RESET_COMMAND, "subj_test", "ent_test", "985925", "1000000", "user authorized"]
+        self.assertEqual(MODULE.validate_admin_args(valid), (MODULE.FREE_TOTAL_RESET_COMMAND, None))
+        for bad in (valid[:-1], valid + ["extra"], [*valid[:3], "0", *valid[4:]],
+                    [*valid[:4], "none", valid[5]], [*valid[:5], " "],
+                    [valid[0], "bad subject", *valid[2:]]):
+            with self.subTest(command=bad):
+                with self.assertRaises((MODULE.ManagementError, ValueError, argparse.ArgumentTypeError)):
+                    MODULE.validate_admin_args(bad)
+
+    def test_free_total_reset_uses_backup_before_apply(self) -> None:
+        args = MODULE.parse_args(["--", MODULE.FREE_TOTAL_RESET_COMMAND,
+                                  "subj_test", "ent_test", "985925", "1000000", "authorized"])
+        order = []
+        def reset(_endpoint, _args, *, apply):
+            order.append("write" if apply else "preview")
+            return {"applied": apply}
+        with (
+            mock.patch.object(MODULE, "run_free_total_reset", side_effect=reset),
+            mock.patch.object(MODULE, "install_helper"),
+            mock.patch.object(MODULE, "run_helper_json", return_value={
+                "migration": 30, "integrity": {"quick_check": "ok", "foreign_key_violations": 0}}),
+            mock.patch.object(MODULE, "create_target_backup", side_effect=lambda *a, **kw: order.append("backup") or {}),
+            mock.patch.object(MODULE, "remove_helper_best_effort"),
+            mock.patch.object(MODULE, "run_remote_admin") as admin,
+        ):
+            result = MODULE.execute(args)
+            self.assertTrue(result["authority_result"]["applied"])
+            self.assertEqual(order, ["preview", "backup", "write"])
+            admin.assert_not_called()
+
     def test_user_rpm_plan_only_selects_below_minimum_reenableable_user_keys(self) -> None:
         inventory = {
             "credentials": [
