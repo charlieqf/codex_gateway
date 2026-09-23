@@ -3746,7 +3746,9 @@ describe("Research Worker controlled-beta workflow", () => {
     const citations = [{ sourceId: source.sourceId, passageId: "text_0" }];
     const draft = { facts: [{ type: "expertise", text: "The verified specialty is cardiology.", citations }],
       background: [{ text: "The public profile identifies a cardiology role at Example Hospital.", citations }],
-      qa: Array.from({ length: 5 }, (_, i) => ({ question: `Which aspect of your cardiology work should we discuss (${i + 1})?`,
+      // Field-oriented, per the academic question contract: no second person or
+      // biography, and the five span advances, gaps, evidence and translation.
+      qa: Array.from({ length: 5 }, (_, i) => ({ question: `What recent advances, unresolved gaps and trial evidence should shape cardiology practice (${i + 1})?`,
         answer: "Public information describes the cardiology role; personal priorities should be confirmed in conversation.", citations })), limitations: [] };
     let searches = 0, reads = 0, authors = 0, editors = 0;
     const execute = () => executeDoctorResearchWorkflow({
@@ -6961,7 +6963,7 @@ describe("Research Worker controlled-beta workflow", () => {
     const practicalCitation = [{ sourceId: practicalSource.sourceId, passageId: "text_0" }];
     const practicalDraft = { facts: [{ type: "expertise", text: "Cardiology at Example Hospital.", citations: practicalCitation }],
       background: [{ text: "The public profile identifies the person's cardiology work at Example Hospital.", citations: practicalCitation }],
-      qa: Array.from({ length: 5 }, (_, i) => ({ question: `What should we discuss about your cardiology work (${i + 1})?`,
+      qa: Array.from({ length: 5 }, (_, i) => ({ question: `What recent advances, unresolved gaps and trial evidence should shape cardiology practice (${i + 1})?`,
         answer: "The public profile identifies cardiology; personal priorities should be confirmed in conversation.", citations: practicalCitation })), limitations: ["教育经历未核实；仅整理已读公开资料。"] };
     const gatewayStore = createSqliteStore({ path: ":memory:" });
     const researchGatewayStore = createResearchSqliteStore({

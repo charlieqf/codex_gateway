@@ -2081,6 +2081,11 @@ async function collectPracticalProfile(context: WorkflowContext, identity: Resol
       })).text
     }
   });
+  // A model that cannot satisfy the draft contract is a contract breach, not a
+  // budget failure; reporting it as the latter sends diagnosis after the wrong cause.
+  if (result.outcome === "unresolved" && result.reason === "draft_contract_rejected") {
+    throw new WorkflowModelContractError(new Error("Practical profile draft rejected repeatedly by the draft contract."));
+  }
   if (result.outcome !== "resolved") { context.reportBudgetFailure("practical_profile_investigation"); return null; }
   const output = assemblePracticalProfile({ doctor: context.run.input.doctor, identity: identity.investigatedIdentity,
     canonicalIdentityId: identity.canonicalIdentityId, pages: identity.investigationPages, draft: result.draft, state: result.state,
@@ -5952,7 +5957,7 @@ function buildBodyFragmentPrompt(input: {
     `The markdown must contain exactly ${reviewContractPolicy.sections.topic.bodyFragmentCount} level-two (##) topic-specific sections, each targeting at least ${reviewContractPolicy.sections.topic.targetMinimum} content units. Do not leave any heading without substantive prose.`,
     `Before returning, count the literal "## " headings: there must be exactly ${reviewContractPolicy.sections.topic.bodyFragmentCount}. None of these headings may be an introduction, evidence-synthesis or unresolved-controversies heading, limitations or outlook heading, conclusion, references, or search report.`,
     input.assignment,
-    `Also generate exactly ${reviewContractPolicy.questions.requiredCount} short, conversational, shallow academic questions from the research topic and ${reviewContractPolicy.answers.requiredCount} directly corresponding answers. Do not ask about the doctor's identity, administration, patient care, publicity, business, or branding.`,
+    `Also generate exactly ${reviewContractPolicy.questions.requiredCount} concise, conversational, academically substantive questions about the research field and ${reviewContractPolicy.answers.requiredCount} directly corresponding answers. Across the questions cover frontier advances, research directions, evidence or methods, controversies or gaps, and future validation or translation. Do not ask about the doctor's identity, appointments, biography, awards, memberships, team administration, personal opinions or plans, patient-specific care, publicity, business, or branding.`,
     `Each question must stay within ${input.maximumQuestionContent} ${input.run.language === "zh-CN" ? "Han characters" : "words"}. Each answer must contain ${input.minimumAnswerContent}-${input.maximumAnswerContent} ${input.run.language === "zh-CN" ? "Han characters" : "words"}, directly answer its question, remain academically accurate, and cite one or more supplied source_id values.`,
     input.run.language === "zh-CN"
       ? "Write every factual quantity in answers with Arabic digits (for example 14, 26.1, or 36.0%); do not spell quantities with Chinese numerals. This is required for exact server-side evidence closure."
@@ -6030,13 +6035,13 @@ function buildQaContractCorrectionPrompt(input: {
     "BOUNDED QUESTION AND ANSWER CONTRACT CORRECTION",
     "Return exactly this object and no other fields: {\"schema_version\":\"doctor_research_qa_fragment.v1\",\"predicted_questions\":[\"...\"],\"answers\":[{\"question_index\":1,\"answer\":\"...\",\"source_ids\":[\"src_pubmed_...\"]}]}.",
     `Correct only the ${reviewContractPolicy.questions.requiredCount} question-answer pairs; the research review is owned by a separate peer-review step and is not included in this request.`,
-    `Language: ${input.run.language}. Preserve exactly ${reviewContractPolicy.questions.requiredCount} pairs in order. Every question must be short, conversational, shallow, academic, and no longer than ${input.maximumQuestionContent} ${input.run.language === "zh-CN" ? "Han characters" : "words"}.`,
+    `Language: ${input.run.language}. Preserve exactly ${reviewContractPolicy.questions.requiredCount} pairs in order. Every question must be concise, conversational, academically substantive, field-oriented, and no longer than ${input.maximumQuestionContent} ${input.run.language === "zh-CN" ? "Han characters" : "words"}. Across the set cover frontier advances, research directions, evidence or methods, controversies or gaps, and future validation or translation.`,
     `Every answer must directly answer its question in ${input.minimumAnswerContent}-${input.maximumAnswerContent} ${input.run.language === "zh-CN" ? "Han characters" : "words"}, remain academically accurate, and cite one or more supplied source_id values.`,
     input.run.language === "zh-CN"
       ? "Write every factual quantity with Arabic digits (for example 14, 26.1, or 36.0%); do not spell quantities with Chinese numerals. This is required for exact server-side evidence closure."
       : "Write every factual quantity with Arabic digits so the server can close it exactly against the cited abstracts.",
     "Use only the supplied source IDs. A numeric claim in an answer is allowed only when the exact number occurs in the abstract named by that answer's source_ids. Remove unsupported numbers or restate the point qualitatively; do not invent replacement numbers.",
-    "Do not ask about doctor identity, administration, patient care, publicity, business, branding, sample-size planning, eligibility criteria, or a heavy study design.",
+    "Do not ask about doctor identity, appointments, biography, awards, memberships, team administration, personal opinions or plans, patient-specific care, publicity, business, branding, sample-size planning, eligibility criteria, or a heavy study design.",
     `Deterministic diagnostics: ${JSON.stringify(
       input.validationErrors
         .filter(
@@ -6256,7 +6261,7 @@ function compactMedicalSkillExecutionContract(
     `Derived review contract ${reviewContractPolicy.policyVersion} from ${reviewContractPolicy.sourceSkill} at bundle SHA-256 ${reviewContractPolicy.sourceBundleSha256}. The original medical length targets remain the authoring targets; the versioned controlled-trial release floors are server-side acceptance boundaries and require medical review before expanded release.`,
     `Required review form and targets: academic title; ${reviewContractPolicy.abstract.zhCN.minimum}-${reviewContractPolicy.abstract.zhCN.maximum}-character abstract; ${reviewContractPolicy.keywords.minimumCount}-${reviewContractPolicy.keywords.maximumCount} keywords; introduction targeting at least ${reviewContractPolicy.sections.introduction.targetMinimum} content units; ${reviewContractPolicy.coreEvidence.minimumCount}-${reviewContractPolicy.coreEvidence.maximumCount}-paper core evidence table; ${reviewContractPolicy.sections.topic.minimumCount}-${reviewContractPolicy.sections.topic.maximumCount} topic-specific body sections targeting at least ${reviewContractPolicy.sections.topic.targetMinimum} content units each; evidence synthesis and controversies targeting at least ${reviewContractPolicy.sections.synthesis.targetMinimum}; limitations and outlook targeting at least ${reviewContractPolicy.sections.limitations.targetMinimum}; conclusion targeting at least ${reviewContractPolicy.sections.conclusion.targetMinimum}; numeric in-text citations; at least ${reviewContractPolicy.coreEvidence.targetReferenceCount} references as the target, with authenticity taking priority.`,
     "Required writing behavior: coherent formal scientific review; paragraphs rather than list substitution; cross-study comparison; explicit evidence strength, disagreement, limits, and actionable research gaps; public metadata and abstract evidence must not be represented as full-text verification.",
-    `Required auxiliary outputs: exactly ${reviewContractPolicy.questions.requiredCount} short, conversational, shallow academic questions no longer than the configured bound, and ${reviewContractPolicy.answers.requiredCount} directly corresponding evidence-grounded answers. Peer review applies only to the review document.`,
+    `Required auxiliary outputs: exactly ${reviewContractPolicy.questions.requiredCount} concise, conversational, academically substantive, field-oriented questions no longer than the configured bound, and ${reviewContractPolicy.answers.requiredCount} directly corresponding evidence-grounded answers. Questions must not concern the doctor's biography or personal situation; across the set cover advances, research directions, evidence or methods, controversies or gaps, and future translation. Peer review applies only to the review document.`,
     "END MEDICAL TEAM SKILL EXECUTION CONTRACT"
   ].join("\n");
 }

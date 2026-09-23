@@ -90,6 +90,6 @@ export function assemblePracticalProfile(input: {
     predicted_questions: draft.qa.map(p => p.question),
     answers: draft.qa.map((p, index) => ({ question_index: index + 1, answer: p.answer, source_ids: ids(p.citations) })),
     quality: { status: warnings.length ? "passed_with_warnings" : "passed", warnings,
-      checks: [practicalProfilePolicy.version, "doctor_identity_resolution", "practical_profile_fact_review", "claim_source_closure", "five_question_answer_contract"] }
+      checks: [practicalProfilePolicy.version, "doctor_identity_resolution", "practical_profile_fact_review", "claim_source_closure", "five_question_answer_contract", "field_academic_question_contract"] }
   };
 }
