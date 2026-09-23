@@ -1,3 +1,10 @@
+# Worker-only overlay: replaces three package dists on an older worker image.
+# Unsafe once @codex-gateway/core (or another package these dists import) has
+# changed since the base image: on 2026-09-23 the new store-sqlite needed a core
+# export the base lacked and the worker would have crashed on start. Prefer
+# running the worker on the Gateway image of the same revision (all packages
+# consistent), and always import the worker module graph in the candidate image
+# before cutover.
 ARG BASE_RESEARCH_IMAGE
 
 FROM node:24-bookworm-slim AS verify

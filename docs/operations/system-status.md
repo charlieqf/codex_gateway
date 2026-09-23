@@ -15,8 +15,8 @@ was cleaned up. Changes now live:
   are restored.
 - The startup-archive warning is gone.
 
-Seven Keys are still refused on R760; one is in active use. The academic-question
-change awaits a Research Worker release. See the
+Seven Keys are still refused on R760; one is in active use. The Research Worker
+moved to `3efd505` at 00:51 UTC, so the academic-question change is live. See the
 [release receipt](./r760-gateway-release-3efd505-2026-09-23.zh-CN.md).
 
 Scheduled Gateway database backups enabled: 2026-09-22 23:42 UTC. The
@@ -98,7 +98,7 @@ Gateway release verified on 2026-09-23 00:43 UTC:
 - Public Gateway: healthy, published only on
   `127.0.0.1:18787->8787`
 - Research Worker and Research LLM Gateway: healthy, without published host ports
-- Research Worker: independently deployed `2c561f5a1fe3250c99bbd5bc8c5c80adfb688f9a`; unchanged by this Gateway release.
+- Research Worker: `3efd505` since 2026-09-23 00:51 UTC. It runs on the Gateway image of the same revision (`RESEARCH_WORKER_VERSION=research-academic-3efd50541278`); the previous worker was `2c561f5`. Practical profiles now require field-level academic questions.
 - Research maintenance: `44c7bdd76d47ea434e006e9ea4dc7d3482df4383`, healthy with zero restarts and unchanged by this Gateway release.
 - Research maintenance: healthy with zero restarts, checked 2026-09-11 01:04 UTC.
   Its missing temporary-smoke files were reproduced byte-for-byte from stored

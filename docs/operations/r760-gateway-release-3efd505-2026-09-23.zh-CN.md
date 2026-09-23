@@ -61,6 +61,25 @@
 - 校验明确拒绝 0 次，无法验证 0 次，错误级日志 0，启动归档告警 0。
 - 这段时间的计费事件全部来自冒烟，全部 applied。
 
+## Research Worker 发布（00:51 UTC）
+
+用户随后要求部署 Worker，好让学术问题改动（`7289d4d`）生效。只重建了 research-worker，Gateway、Research LLM Gateway 和 maintenance 都没有重建。
+
+- **Worker 专用 overlay 不能用。** `deploy/r760-research-worker-overlay.Dockerfile` 以当前 Worker 镜像（`2c561f5`）为基础，只替换 research-worker、research-agent、store-sqlite 三个包的 dist。构建本身通过了（研究相关测试 19 个文件、405 个用例），但部署前在断网的临时容器里导入模块时报错：新版 store-sqlite 需要 `@codex-gateway/core` 导出 `identityAuditOperations`，而镜像里的 core 还是旧版。**如果当时部署了，Worker 一启动就会崩。** 这个镜像没有投入使用，已经删除。
+- **改用 `3efd505` 的 Gateway 镜像运行 Worker。** 这沿用了 2126e7c 协调发布时"同一镜像跑 Gateway 和 Worker"的做法。这个镜像里所有包都是同一版本，已通过全量测试（87 个文件）；在断网环境下导入 Worker 模块图正常，健康检查脚本齐全，入口、命令和运行用户都和原 Worker 镜像一致，并且包含学术问题检查和修正后的正则。
+- **发布目录补建了 secrets 软链。** Compose env 里 Worker 的密钥路径是相对路径 `./secrets/...`，而 `3efd505` 发布目录没有这个目录（上一个 `95e724c` 也没有；原 Worker 一直是用 `675e9fe` 的发布目录创建的）。已为 3 个 research 密钥建立指向 `shared/secrets` 的软链，并确认原 Worker 的挂载也来自这些文件。**以后准备发布目录时，也要把 `secrets/` 软链一起补上。**
+- **备份与预览。** `research.db` 在线备份到 `backups/research-worker-3efd50541278/`，并已校验。第一次割接命令里同时删除镜像，被自动模式的权限分类器以 `[Blind Apply]` 拒绝。之后先只读预览：override 只改 research-worker 的 image 和 `RESEARCH_WORKER_VERSION` 两行，每行都只出现一次；没有未完成的研究任务。然后才单独执行割接。
+
+割接结果（`scripts/ops/r760-research-worker-release-20260923.py`）：
+- Worker 运行在 `codex_gateway_r760-gateway:3efd505…` 上，healthy，重启 0。
+- 环境变量只有 `RESEARCH_WORKER_VERSION` 变化，新值是 `research-academic-3efd50541278`。
+- 挂载解析到的仍是原来那批文件，其他容器都没有重建。
+- 公网健康状态是 ready；`research.db` 的 `quick_check=ok`，外键违规 0。
+- 启动日志里有 `research_worker_ready`，版本正确；心跳表已按新版本号更新；启动时的 Brave 搜索请求返回 200。
+- 没有运行真实的医生研究任务。那会产生外部检索和模型费用，所以学术问题的效果要等真实任务来验证。
+
+回退方法：把 override 里 research-worker 的两行改回 `codex-gateway-research-resilience:2c561f5…` 和 `research-resilience-2c561f5a1fe3`，然后用 `675e9fe` 发布目录只重建 research-worker。原 override 保存在 `backups/research-worker-3efd50541278/previous.override.yml`。
+
 ## 回退
 
 本次没有数据库迁移。回退时，把 override 的 gateway 镜像行改回 `codex_gateway_r760-gateway:95e724c…`，用 `previous` release 的 Compose 文件只重建 gateway，再把 `current` 指回 `previous`。旧 override 保存在 `backups/release-3efd50541278/previous.override.yml`。回退会让启动归档开关恢复为 1，但只是告警重新出现，不影响功能。
@@ -68,5 +87,5 @@
 ## 后续
 
 - 等 v2 团队恢复剩余 7 把 Key，确认 `/validate-key` 的失败状态码，并确认计费通知的周期格式。
-- Research Worker 另行部署后，学术问题特性才会生效。
+- 学术问题特性已随 Worker 上线，等真实研究任务再观察效果。
 - 本次构建之后根盘占用为 57%。
