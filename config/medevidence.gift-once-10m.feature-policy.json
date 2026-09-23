@@ -1,0 +1,5 @@
+{
+  "capabilities": ["chat", "tools"],
+  "imageGeneration": null,
+  "medcodeModels": null
+}

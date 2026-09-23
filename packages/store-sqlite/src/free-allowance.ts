@@ -10,16 +10,24 @@ import * as plans from "./plans.js";
 // These are the public product IDs, not all internal or historical Plan templates.
 // plan_free_once_fixture_v1 exists only so tests can pin a custom allowance.
 const freePlanIds = ["plan_free_once_1m_v1", "plan_free_once_fixture_v1", "plan_free_daily_100k_v1", "plan_free_daily_10k_v1", "plan_free_daily_1m_v1"];
+// Operator gift templates (e.g. plan_gift_once_10m_v1) are one-off allowances:
+// they coexist with a paid purchase and are spent first, exactly like the signup
+// Free, instead of blocking the purchase as a conflicting entitlement.
+const giftPlanPrefix = "plan_gift_once_";
 const paidPlanIds = ["plan_paid_monthly_v1", "plan_paid_yearly_v1"];
-export const freePlanSql = `plan_id IN ('${freePlanIds.join("', '")}') AND period_kind = 'unlimited' AND period_end IS NULL`;
+export const freePlanSql = `(plan_id IN ('${freePlanIds.join("', '")}') OR plan_id GLOB '${giftPlanPrefix}*') AND period_kind = 'unlimited' AND period_end IS NULL`;
 export const paidPlanSql = `plan_id IN ('${paidPlanIds.join("', '")}')`;
 
 export function isRetailPaidPlan(planId: string): boolean {
   return paidPlanIds.includes(planId);
 }
 
+export function isFreeAllowancePlan(planId: string): boolean {
+  return freePlanIds.includes(planId) || planId.startsWith(giftPlanPrefix);
+}
+
 export function isFreeAllowance(entitlement: Entitlement): boolean {
-  return freePlanIds.includes(entitlement.planId) &&
+  return isFreeAllowancePlan(entitlement.planId) &&
     entitlement.periodKind === "unlimited" && entitlement.periodEnd === null;
 }
 

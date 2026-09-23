@@ -1,0 +1,10 @@
+{
+  "tokensPerMinute": 300000,
+  "tokensPerDay": null,
+  "tokensPerMonth": null,
+  "tokensTotal": 10000000,
+  "maxPromptTokensPerRequest": null,
+  "maxTotalTokensPerRequest": null,
+  "reserveTokensPerRequest": 0,
+  "missingUsageCharge": "estimate"
+}

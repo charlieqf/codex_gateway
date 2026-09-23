@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { issueAccessCredential, phoneSignupFreePlan, phoneSignupFreePlanId, publicTokenUsage, type ApplyBillingEntitlementEventInput, type Entitlement } from "@codex-gateway/core";
 import { buildQuotaDashboardData, createSqliteStore, createSqliteTokenBudgetLimiter, type SqliteGatewayStore } from "./index.js";
-import { migrateDailyFreeAllowancesToOnce } from "./free-allowance.js";
+import { isFreeAllowance, isFreeAllowancePlan, migrateDailyFreeAllowancesToOnce } from "./free-allowance.js";
 import { migrateGatewaySchema } from "./migrations.js";
 
 const stores: SqliteGatewayStore[] = [];
@@ -52,6 +52,54 @@ function fixture(freeTotal = 10_000) {
   }
   return { store, free, limiter, event, acquire, consume, usage };
 }
+
+describe("operator gift allowance", () => {
+  const giftPlanId = "plan_gift_once_fixture_v1";
+  const month = new Date("2026-10-11T10:00:00Z");
+  // Mirrors production: a gift granted with --replace after the signup Free.
+  function withGift(total = 30_000) {
+    const f = fixture();
+    const template = phoneSignupFreePlan(start);
+    f.store.createPlan({ ...template, id: giftPlanId, displayName: "Gift fixture", policy: { ...template.policy, tokensTotal: total } });
+    const gift = f.store.grantEntitlement({ subjectId: "subj_quota", planId: giftPlanId, periodKind: "unlimited", replace: true, now: nextDay });
+    return { ...f, gift };
+  }
+
+  it("keeps the gift on a paid purchase sent without replace_current and spends it first", async () => {
+    const f = withGift();
+    expect(f.store.getEntitlement(f.free.id)).toMatchObject({ state: "cancelled", cancelledReason: "replaced" });
+    await f.consume(f.gift, "gift-only", 5_000, nextDay);
+    // The billing system never sends replace_current; the gift must not conflict.
+    const purchase = f.event({ now: nextDay, periodStart: nextDay, periodEnd: month });
+    const paid = purchase.entitlement!;
+    expect(purchase.cancelledEntitlementIds).not.toContain(f.gift.id);
+    expect(f.store.getEntitlement(f.gift.id)?.state).toBe("active");
+    expect(f.store.getEntitlement(f.free.id)?.state).toBe("cancelled");
+    await f.consume(paid, "after-purchase", 30_000, nextDay);
+    // 25k of the gift remains and is spent before the paid balance.
+    expect(await f.usage(paid, nextDay)).toMatchObject({ day: { used: 5_000 },
+      freeAllowance: { entitlementId: f.gift.id, total: { used: 30_000, remaining: 0 } } });
+  });
+
+  it("survives cancellation of the paid membership", () => {
+    const f = withGift();
+    const paid = f.event({ now: nextDay, periodStart: nextDay, periodEnd: month }).entitlement!;
+    f.event({ idempotencyKey: "gift:cancel", payloadHash: "cancel", eventType: "cancel", now: nextDay });
+    expect(f.store.getEntitlement(paid.id)?.state).toBe("cancelled");
+    expect(f.store.getEntitlement(f.gift.id)?.state).toBe("active");
+    expect(f.store.entitlementAccessForSubject("subj_quota", nextDay)).toMatchObject({ entitlement: { id: f.gift.id } });
+  });
+
+  it("recognises only unlimited plan_gift_once_* entitlements as allowances", () => {
+    const f = withGift();
+    const base = f.store.getEntitlement(f.gift.id)!;
+    expect(isFreeAllowance(base)).toBe(true);
+    expect(isFreeAllowance({ ...base, periodKind: "one_off", periodEnd: month })).toBe(false);
+    expect(isFreeAllowancePlan("plan_gift_once_10m_v1")).toBe(true);
+    expect(isFreeAllowancePlan("plan_giftXonce_10m_v1")).toBe(false);
+    expect(isFreeAllowancePlan("plan_internal_high_quota_v1")).toBe(false);
+  });
+});
 
 describe("one-off Free and paid balances", () => {
   it.each([false, true])("retains the one-off Free on purchase (replace_current=%s), splits a request and replays without resetting either balance", async (replaceCurrent) => {
