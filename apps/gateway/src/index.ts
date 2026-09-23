@@ -59,6 +59,7 @@ import {
   resolveMedevidenceOriginPolicy,
   selectMedevidenceOrigin
 } from "./medevidence-origin-policy.js";
+import { createMedevidenceRuntimeKeyValidator } from "./medevidence-runtime-key.js";
 import {
   phoneAuthContractErrorHandler,
   registerPhoneAuthRoutes,
@@ -527,6 +528,8 @@ export function buildGateway(options: GatewayOptions = {}) {
   const medevidenceOriginPolicy =
     options.medevidenceOriginPolicy ??
     resolveMedevidenceOriginPolicy(process.env);
+  const medevidenceRuntimeKeyValidator =
+    options.medevidenceRuntimeKeyValidator ?? createMedevidenceRuntimeKeyValidator();
   const configuredPhoneAuthMode = resolvePhoneAuthMode(
     process.env.GATEWAY_PHONE_AUTH_MODE
   );
@@ -1588,8 +1591,6 @@ export function buildGateway(options: GatewayOptions = {}) {
         return sendPhoneAuthError(request, reply, backingCredentialError);
       }
 
-      recordUnifiedKeyResolveAudit(adminAuditStore, result.record, request.log);
-
       const receivedClientVersion = request.headers[desktopVersionHeader];
       const clientVersion =
         typeof receivedClientVersion === "string"
@@ -1601,6 +1602,53 @@ export function buildGateway(options: GatewayOptions = {}) {
         medevidenceOriginPolicy,
         routeMissingMedevidenceMetadata
       );
+
+      if (isApprovedMedevidenceOrigin(selectedMedevidenceBaseUrl)) {
+        const validation = await medevidenceRuntimeKeyValidator(
+          selectedMedevidenceBaseUrl,
+          medevidenceApiKey
+        );
+        if (validation.outcome === "rejected") {
+          request.log.warn({
+            unified_key_id: result.record.id,
+            medevidence_origin: selectedMedevidenceBaseUrl,
+            error_code: validation.error.code
+          }, "MedEvidence runtime credential validation failed.");
+          return sendPhoneAuthError(request, reply, validation.error);
+        }
+        if (validation.outcome === "unverified") {
+          // Only an explicit refusal blocks resolve: a MedEvidence outage must not
+          // also withhold the Codex Gateway credential.
+          request.log.warn({
+            unified_key_id: result.record.id,
+            medevidence_origin: selectedMedevidenceBaseUrl,
+            reason: validation.reason,
+            ...(validation.status ? { upstream_status: validation.status } : {})
+          }, "MedEvidence runtime credential validation unavailable; resolving without it.");
+        }
+
+        // Validation performs I/O: honor revocations/expiry during that wait.
+        const refreshed = authenticateUnifiedClientKeyBearer(request, {
+          store: unifiedClientKeyStore, subjectStore: credentialStore, now: clock
+        });
+        if (refreshed instanceof GatewayError) {
+          return sendPhoneAuthError(request, reply, refreshed);
+        }
+        const refreshedBacking = credentialStore.getAccessCredentialByPrefix(
+          result.record.codexCredentialPrefix
+        );
+        if (!refreshedBacking || refreshedBacking.id !== backingCredential.id ||
+            refreshedBacking.subjectId !== result.subject.id ||
+            refreshed.record.medevidenceKeyCiphertext !== result.record.medevidenceKeyCiphertext) {
+          return sendPhoneAuthError(request, reply, invalidUnifiedKeyError());
+        }
+        const refreshedError = verifyAccessCredentialToken(codexApiKey, refreshedBacking, clock());
+        if (refreshedError) {
+          return sendPhoneAuthError(request, reply, refreshedError);
+        }
+      }
+
+      recordUnifiedKeyResolveAudit(adminAuditStore, result.record, request.log);
 
       return {
         valid: true,

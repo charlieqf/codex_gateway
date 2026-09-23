@@ -25,6 +25,7 @@ research-smoke-output/
 # Loose key files at the repository root.
 /*.txt
 docs/outbox/*token*.json
+docs/outbox/*inventory*.json
 
 # Personal data, customer material and scratch output. Keep these out of Git.
 # artifacts/ and issues/ already hold tracked files; those stay tracked. Add a

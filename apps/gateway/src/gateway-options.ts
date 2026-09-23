@@ -24,6 +24,7 @@ import { type AdminMessagesAuthMode } from "./admin-client-messages.js";
 import { type BillingAdminTokenMode } from "./billing-admin.js";
 import { type DesktopVersionGate } from "./desktop-version-gate.js";
 import { type MedevidenceOriginPolicy } from "./medevidence-origin-policy.js";
+import { type MedevidenceRuntimeKeyValidator } from "./medevidence-runtime-key.js";
 import type { ExternalIdentityStore } from "@codex-gateway/core";
 import { PhoneAuthService } from "./services/phone-auth-service.js";
 import { type ResearchIdentityRegistryEntry } from "./research-routes.js";
@@ -96,6 +97,7 @@ export interface GatewayOptions {
   unifiedKeyRecoverySecret?: string | null;
   desktopVersionGate?: DesktopVersionGate;
   medevidenceOriginPolicy?: MedevidenceOriginPolicy;
+  medevidenceRuntimeKeyValidator?: MedevidenceRuntimeKeyValidator;
   phoneAuthLoginRateLimiter?: RequestRateLimiter;
   phoneAuthPhoneRequestsPerMinute?: number;
   phoneAuthIpRequestsPerMinute?: number;

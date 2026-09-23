@@ -1,5 +1,5 @@
 import { generateKeyPairSync } from "node:crypto";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   defaultImageGenerationFeaturePolicy,
   encryptSecret,
@@ -21,6 +21,10 @@ import {
   phoneAuthLegacyMedevidenceOrigin,
   phoneAuthR760MedevidenceOrigin
 } from "./medevidence-origin-policy.js";
+import {
+  createMedevidenceRuntimeKeyValidator,
+  type MedevidenceRuntimeKeyValidator
+} from "./medevidence-runtime-key.js";
 import {
   PhoneAuthService,
   phoneAuthGatewayOrigin,
@@ -246,6 +250,157 @@ describe("internal phone auth v1 routes", () => {
     } finally {
       await fixture.app.close();
     }
+  });
+
+  it.each([
+    { name: "historical CN key with old client", version: "2.0.0-beta.46", origin: "cn", current: false, cn: true, r760: false, expected: 200 },
+    { name: "historical CN key with new client", version: "2.0.0-beta.65", origin: "cn", current: false, cn: true, r760: false, expected: 409 },
+    { name: "historical key without metadata", version: "2.0.0-beta.65", origin: "missing", current: false, cn: true, r760: false, expected: 409 },
+    { name: "restored historical key with new client", version: "2.0.0-beta.65", origin: "missing", current: false, cn: true, r760: true, expected: 200 },
+    { name: "current R760 key with stale CN metadata and old client", version: "2.0.0-beta.46", origin: "cn", current: true, cn: false, r760: true, expected: 409 },
+    { name: "current R760 key with new client", version: "2.0.0-beta.65", origin: "cn", current: true, cn: false, r760: true, expected: 200 },
+    { name: "current CN-only key with new client", version: "2.0.0-beta.65", origin: "cn", current: true, cn: true, r760: false, expected: 409 }
+  ])("validates the exact runtime pair: $name", async scenario => {
+    const fetchImpl = vi.fn<typeof fetch>(async (url, init) => {
+      expect(new Headers(init?.headers).get("X-API-Key")).toBe("medevidence-runtime-key");
+      const valid = String(url).startsWith(phoneAuthR760MedevidenceOrigin)
+        ? scenario.r760 : scenario.cn;
+      return valid ? Response.json({ valid: true }) : new Response(null, { status: 401 });
+    });
+    const fixture = createFixture({
+      medevidenceR760MinimumDesktopVersion: "2.0.0-beta.47",
+      medevidenceRuntimeKeyValidator: createMedevidenceRuntimeKeyValidator({ fetchImpl })
+    });
+    try {
+      fixture.store.database.prepare("UPDATE unified_client_keys SET is_current=?, metadata_json=? WHERE id=?")
+        .run(scenario.current ? 1 : 0, scenario.origin === "missing" ? null : JSON.stringify({
+          medevidence_base_url: phoneAuthLegacyMedevidenceOrigin
+        }), fixture.unified.record.id);
+      const before = legacyKeySnapshot(fixture);
+      const response = await fixture.app.inject({
+        method: "POST", url: "/gateway/unified-keys/resolve",
+        headers: { authorization: `Bearer ${fixture.unified.token}`,
+          "x-medevidence-client-version": scenario.version }, payload: {}
+      });
+      expect(response.statusCode).toBe(scenario.expected);
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+      expect(response.headers["cache-control"]).toBe("no-store");
+      if (scenario.expected === 200) {
+        expect(response.json().medevidence.api_key).toBe("medevidence-runtime-key");
+        expect(response.json().codex_gateway.api_key).toBe(fixture.backing.token);
+      } else {
+        expect(response.json().error.code).toBe("account_migration_required");
+        expect(response.json()).not.toHaveProperty("medevidence");
+        expect(response.json()).not.toHaveProperty("codex_gateway");
+        expect(response.body).not.toContain("medevidence-runtime-key");
+        expect(response.body).not.toContain(fixture.backing.token);
+      }
+      expect(legacyKeySnapshot(fixture)).toEqual(before);
+    } finally { await fixture.app.close(); }
+  });
+
+  it("keeps a historical key usable after compatibility restoration without switching to another current key", async () => {
+    let restored = false;
+    const fetchImpl = vi.fn<typeof fetch>(async (_url, init) => {
+      expect(new Headers(init?.headers).get("X-API-Key")).toBe("medevidence-runtime-key");
+      return restored ? Response.json({ valid: true }) : new Response(null, { status: 401 });
+    });
+    const fixture = createFixture({
+      medevidenceR760MinimumDesktopVersion: "2.0.0-beta.47",
+      medevidenceRuntimeKeyValidator: createMedevidenceRuntimeKeyValidator({ fetchImpl })
+    });
+    try {
+      const current = issueUnifiedClientKey({
+        subjectId: fixture.subjectId, label: "another-current", expiresAt: fixture.unified.record.expiresAt,
+        codexCredentialId: fixture.backing.record.id, codexCredentialPrefix: fixture.backing.record.prefix,
+        codexKeyCiphertext: encryptSecret(fixture.backing.token, encryptionSecret),
+        medevidenceKeyCiphertext: encryptSecret("different-current-key", encryptionSecret),
+        medevidenceKeyPrefix: "different-prefix", isCurrent: true,
+        metadata: { medevidence_base_url: phoneAuthR760MedevidenceOrigin }, now: start
+      });
+      fixture.store.insertUnifiedClientKey(current.record);
+      const resolve = () => fixture.app.inject({
+        method: "POST", url: "/gateway/unified-keys/resolve",
+        headers: { authorization: `Bearer ${fixture.unified.token}`,
+          "x-medevidence-client-version": "2.0.0-beta.65" }, payload: {}
+      });
+      expect((await resolve()).statusCode).toBe(409);
+      restored = true;
+      const response = await resolve();
+      expect(response.statusCode).toBe(200);
+      expect(response.json().medevidence.api_key).toBe("medevidence-runtime-key");
+      expect(fixture.store.getUnifiedClientKeyByPrefix(current.record.prefix)).toEqual(current.record);
+    } finally { await fixture.app.close(); }
+  });
+
+  it.each(["unified_revoked", "unified_expired", "backing_revoked", "backing_expired", "subject_disabled"].flatMap(
+    state => (["valid", "unverified"] as const).map(outcome => [state, outcome] as const)))(
+    "rejects %s before validation and if it happens during a %s validation", async (state, outcome) => {
+      for (const duringValidation of [false, true]) {
+        let invalidate = () => {};
+        const validator = vi.fn<MedevidenceRuntimeKeyValidator>(async () => {
+          if (duringValidation) invalidate();
+          return outcome === "valid" ? { outcome } : { outcome, reason: "transport" };
+        });
+        const fixture = createFixture({ medevidenceRuntimeKeyValidator: validator });
+        try {
+          invalidate = () => {
+            if (state === "unified_revoked") fixture.store.revokeUnifiedClientKeyByPrefix(fixture.unified.record.prefix, start);
+            if (state === "unified_expired") fixture.store.database.prepare("UPDATE unified_client_keys SET expires_at=? WHERE id=?")
+              .run(start.toISOString(), fixture.unified.record.id);
+            if (state === "backing_revoked") fixture.store.revokeAccessCredentialByPrefix(fixture.backing.record.prefix, start);
+            if (state === "backing_expired") fixture.store.setAccessCredentialExpiresAtByPrefix(fixture.backing.record.prefix, start);
+            if (state === "subject_disabled") fixture.store.setSubjectState(fixture.subjectId, "disabled");
+          };
+          if (!duringValidation) invalidate();
+          const response = await fixture.app.inject({
+            method: "POST", url: "/gateway/unified-keys/resolve",
+            headers: { authorization: `Bearer ${fixture.unified.token}`, ...versionHeader }, payload: {}
+          });
+          expect(response.statusCode).toBe(state === "subject_disabled" ? 403 : 401);
+          expect(validator).toHaveBeenCalledTimes(duringValidation ? 1 : 0);
+          expect(response.json()).not.toHaveProperty("medevidence");
+        } finally { await fixture.app.close(); }
+      }
+    }
+  );
+
+  it.each([
+    ["a transport error", async () => { throw new Error("private transport detail"); }],
+    ["HTTP 503", async () => new Response("private upstream body", { status: 503 })],
+    ["a 200 without a verdict", async () => Response.json({ detail: "private upstream body" })]
+  ] as const)("still resolves both credentials when validation is unavailable (%s)", async (_name, fetchImpl) => {
+    const fixture = createFixture({
+      medevidenceRuntimeKeyValidator: createMedevidenceRuntimeKeyValidator({ fetchImpl })
+    });
+    try {
+      const response = await fixture.app.inject({
+        method: "POST", url: "/gateway/unified-keys/resolve",
+        headers: { authorization: `Bearer ${fixture.unified.token}`, ...versionHeader }, payload: {}
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.json().medevidence.api_key).toBe("medevidence-runtime-key");
+      expect(response.json().codex_gateway.api_key).toBe(fixture.backing.token);
+      expect(response.body).not.toContain("private");
+    } finally { await fixture.app.close(); }
+  });
+
+  it("refuses an explicit valid=false like 401/403", async () => {
+    const fixture = createFixture({
+      medevidenceRuntimeKeyValidator: createMedevidenceRuntimeKeyValidator({
+        fetchImpl: async () => Response.json({ valid: false })
+      })
+    });
+    try {
+      const response = await fixture.app.inject({
+        method: "POST", url: "/gateway/unified-keys/resolve",
+        headers: { authorization: `Bearer ${fixture.unified.token}`, ...versionHeader }, payload: {}
+      });
+      expect(response.statusCode).toBe(409);
+      expect(response.json().error.code).toBe("account_migration_required");
+      expect(response.json()).not.toHaveProperty("medevidence");
+      expect(response.json()).not.toHaveProperty("codex_gateway");
+    } finally { await fixture.app.close(); }
   });
 
   it("implements the frozen login, bootstrap, resolve and current contract", async () => {
@@ -1157,6 +1312,7 @@ function createFixture(
     ipRequestsPerMinute?: number;
     deviceRequestsPerMinute?: number;
     medevidenceR760MinimumDesktopVersion?: string | null;
+    medevidenceRuntimeKeyValidator?: MedevidenceRuntimeKeyValidator;
     billingIdentityCoordination?: boolean;
   } = {}
 ) {
@@ -1267,6 +1423,7 @@ function createFixture(
     provider: new FakeProvider(),
     sessionStore: store,
     phoneAuthService: service,
+    medevidenceRuntimeKeyValidator: options.medevidenceRuntimeKeyValidator ?? (async () => ({ outcome: "valid" })),
     unifiedKeyRecoverySecret: options.billingIdentityCoordination ? recoverySecret : undefined,
     desktopVersionGate: {
       mode: "auth_only",
