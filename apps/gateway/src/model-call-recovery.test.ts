@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import Fastify from "fastify";
 import {
   modelCallSchema,
+  modelCallCapacitySchema,
   SqliteModelCalls,
 } from "../../../packages/store-sqlite/src/model-calls.js";
 import {
@@ -23,16 +24,16 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
-function credentialGateway(provider: ProviderAdapter, requestsPerMinute = 30) {
+function credentialGateway(provider: ProviderAdapter, requestsPerMinute = 30, now = () => new Date()) {
   const store = createSqliteStore({ path: ":memory:" });
-  store.upsertSubject({ id: "recovery-subject", label: "Recovery test", state: "active", createdAt: new Date() });
+  store.upsertSubject({ id: "recovery-subject", label: "Recovery test", state: "active", createdAt: now() });
   const issued = issueAccessCredential({
     subjectId: "recovery-subject", label: "Recovery test", scope: "code",
-    expiresAt: new Date(Date.now() + 86_400_000),
+    now: now(), expiresAt: new Date(now().getTime() + 86_400_000),
     rate: { requestsPerMinute, concurrentRequests: 1 },
   });
   store.insertAccessCredential(issued.record);
-  const app = buildGateway({ authMode: "credential", logger: false, sessionStore: store, provider });
+  const app = buildGateway({ authMode: "credential", logger: false, sessionStore: store, provider, now });
   cleanup.push(() => app.close());
   return { app, store, headers: { authorization: `Bearer ${issued.token}` } };
 }
@@ -48,7 +49,7 @@ function fixture(
   if (
     !db.prepare("SELECT name FROM sqlite_master WHERE name='model_calls'").get()
   )
-    db.exec(modelCallSchema);
+    db.exec(modelCallSchema + modelCallCapacitySchema);
   const app = Fastify();
   const store = new SqliteModelCalls(db);
   app.addHook("onRequest", async (request, reply) => {
@@ -475,6 +476,69 @@ describe("durable model call recovery", () => {
     expect(limited.json().error.code).toBe("model_call_query_limited");
     expect((await f.app.inject({ ...query, headers: { authorization: "user-b" } })).statusCode).toBe(200);
     expect(f.calls.count).toBe(0);
+  });
+
+  it("does not let query exhaustion block new model calls", async () => {
+    let calls = 0;
+    const now = Date.UTC(2026, 8, 28, 0, 0, 10);
+    const f = credentialGateway({ kind: "recovery-test", health: async () => ({ state: "healthy", checkedAt: new Date() }),
+      async *message() { calls++; yield { type: "message_delta", text: "new result" }; yield { type: "completed" }; } }, 30, () => new Date(now));
+    const id = `${now}_${randomUUID()}`;
+    for (let n = 0; n < 120; n++) {
+      expect((await f.app.inject({ url: `/gateway/model-calls/${id}`, headers: f.headers })).statusCode).toBe(200);
+    }
+    expect((await f.app.inject({ url: `/gateway/model-calls/${id}`, headers: f.headers })).statusCode).toBe(429);
+    const response = await f.app.inject({ method: "POST", url: "/v1/chat/completions",
+      headers: { ...f.headers, [modelCallHeader]: id }, payload: modelPayload });
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toContain("data: [DONE]");
+    expect(new SqliteModelCalls(f.store.database).get("recovery-subject", "code", id)?.state).toBe("completed");
+    expect(calls).toBe(1);
+  });
+
+  it("does not let new-call admission exhaustion block query or replay", async () => {
+    const now = Date.UTC(2026, 8, 28, 0, 0, 10);
+    const f = fixture(undefined, () => now);
+    const id = `${now}_${randomUUID()}`;
+    const request = { method: "POST" as const, url: "/v1/chat/completions",
+      headers: { authorization: "user-a", [modelCallHeader]: id }, payload: { stream: true } };
+    const original = await f.app.inject(request);
+    for (let n = 1; n < 120; n++) {
+      expect((await f.app.inject({ ...request, headers: { ...request.headers, [modelCallHeader]: `${now}_${randomUUID()}` } })).statusCode).toBe(200);
+    }
+    const limited = await f.app.inject({ ...request, headers: { ...request.headers, [modelCallHeader]: `${now}_${randomUUID()}` } });
+    expect(limited.statusCode).toBe(429);
+    expect(limited.json().error.code).toBe("model_call_admission_limited");
+    expect(limited.headers["retry-after"]).toBe("50");
+    expect((await f.app.inject({ url: `/gateway/model-calls/${id}`, headers: request.headers })).json().state).toBe("completed");
+    expect((await f.app.inject(request)).body).toBe(original.body);
+    expect(f.calls.count).toBe(120);
+  });
+
+  it("does not promote an aborted socket to success if its handler later finishes", async () => {
+    let entered!: () => void, release!: () => void, closed!: () => void;
+    const started = new Promise<void>((resolve) => { entered = resolve; });
+    const wait = new Promise<void>((resolve) => { release = resolve; });
+    const socketClosed = new Promise<void>((resolve) => { closed = resolve; });
+    const f = fixture(undefined, Date.now, { entered, wait });
+    f.app.addHook("onRequest", async (request, reply) => {
+      if (request.method === "POST") reply.raw.once("close", closed);
+    });
+    const address = await f.app.listen({ port: 0, host: "127.0.0.1" });
+    const id = newCallId();
+    const headers = { authorization: "user-a", [modelCallHeader]: id, "content-type": "application/json" };
+    const abort = new AbortController();
+    const received = fetch(`${address}/v1/chat/completions`, { method: "POST", headers,
+      body: JSON.stringify({ stream: true }), signal: abort.signal }).then((r) => r.text()).catch(() => "");
+    await started;
+    try { abort.abort(); await socketClosed; }
+    finally { release(); await received; }
+    const receipt = (await f.app.inject({ url: `/gateway/model-calls/${id}`, headers })).json();
+    expect(receipt.state).toBe("unknown");
+    expect(receipt.response).toBeUndefined();
+    const replay = await f.app.inject({ method: "POST", url: "/v1/chat/completions", headers, payload: { stream: true } });
+    expect(replay.json().error.code).toBe("model_call_unconfirmed");
+    expect(f.calls.count).toBe(1);
   });
 
   it("recovers a completed result when the real socket is destroyed before DONE is delivered", async () => {

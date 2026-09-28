@@ -52,10 +52,9 @@ export function writeOpenAIStreamError(
   reply.raw.setHeader("cache-control", "no-store");
   try {
     const body = JSON.stringify(payload);
-    request.modelCallCapture?.append(body);
     // Hijacked responses bypass onSend. Persist the actual JSON failure before
     // sending it, so losing the error response does not lose the known outcome.
-    request.modelCallCapture?.complete("failed");
+    request.modelCallReceipt?.finish(body, "failed");
     return reply.raw.write(body);
   } catch {
     return false;

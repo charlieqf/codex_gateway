@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import {
   SqliteModelCalls,
+  modelCallMaxResponseBytes,
   type ModelCallResponse,
 } from "@codex-gateway/store-sqlite";
 import { InMemoryRequestRateLimiter } from "./services/rate-limiter.js";
@@ -23,14 +24,58 @@ const executionHeaders = new Set([
   "x-medcode-write-delivery-limits",
 ]);
 
-export type ModelCallCapture = {
-  append(frame: string): void;
-  complete(outcome?: "completed" | "failed"): void;
+const receiptRate = { requestsPerMinute: 120, requestsPerDay: 10_000, concurrentRequests: 4 };
+const errorMessages = {
+  model_call_invalid: "Invalid model call ID; expected a millisecond timestamp and UUID.",
+  model_call_conflict: "This model call ID is bound to a different execution request.",
+  model_call_expired: "This model call has expired or its timestamp is outside the admission window; it was not executed again.",
+  model_call_pending: "The original model call is still running. Query its result before continuing.",
+  model_call_unconfirmed: "The original model call cannot be confirmed. It was not executed again.",
+  model_call_query_limited: "Model call recovery traffic is limited. Wait for Retry-After before querying again.",
+  model_call_admission_limited: "New model call admission is limited. Wait for Retry-After before starting a new call.",
 };
+
+// One owner for buffering, terminal state and cleanup. JSON and SSE use the
+// same finish operation; a socket close can only abort a still-open receipt.
+export class ModelCallReceipt {
+  private readonly frames: string[] = [];
+  private bytes = 0;
+  private finished = false;
+
+  constructor(
+    private readonly reply: FastifyReply,
+    private readonly save: (response?: ModelCallResponse, outcome?: "completed" | "failed") => void,
+  ) {}
+
+  append(frame: string) {
+    if (this.finished) return;
+    this.bytes += Buffer.byteLength(frame);
+    if (this.bytes <= modelCallMaxResponseBytes) this.frames.push(frame);
+    else this.frames.length = 0;
+  }
+
+  finish(body?: string, outcome?: "completed" | "failed") {
+    if (this.finished) return;
+    this.settle(body !== undefined || this.bytes <= modelCallMaxResponseBytes ? {
+      status: this.reply.raw.statusCode,
+      headers: responseHeaders(this.reply),
+      body: body ?? this.frames.join(""),
+    } : undefined, outcome);
+  }
+
+  abort() { this.settle(); }
+
+  private settle(response?: ModelCallResponse, outcome?: "completed" | "failed") {
+    if (this.finished) return;
+    this.finished = true;
+    this.frames.length = 0;
+    this.save(response, outcome);
+  }
+}
 
 declare module "fastify" {
   interface FastifyRequest {
-    modelCallCapture?: ModelCallCapture;
+    modelCallReceipt?: ModelCallReceipt;
   }
 }
 
@@ -40,13 +85,8 @@ export function registerModelCallRecovery(
   now = Date.now,
 ) {
   const owner = randomUUID();
-  const queries = new InMemoryRequestRateLimiter({
-    now: () => new Date(now()),
-  });
-  const pending = new WeakMap<
-    FastifyRequest,
-    (response?: ModelCallResponse, outcome?: "completed" | "failed") => void
-  >();
+  const recovery = new InMemoryRequestRateLimiter({ now: () => new Date(now()) });
+  const admission = new InMemoryRequestRateLimiter({ now: () => new Date(now()) });
   const active = new Set<string>();
   const prune = setInterval(() => {
     try { store.prune(now()); }
@@ -58,16 +98,16 @@ export function registerModelCallRecovery(
 
   // Protect DB admission and response replay without holding this short-lived
   // permit during upstream work. In particular, model saturation cannot block GET.
-  function acquireReceiptPermit(request: FastifyRequest, reply: FastifyReply) {
-    const permit = queries.acquire({
+  function acquireReceiptPermit(request: FastifyRequest, reply: FastifyReply, kind: "recovery" | "admission") {
+    const permit = (kind === "recovery" ? recovery : admission).acquire({
       key: request.gatewayContext!.subject.id,
       scope: "subject",
-      policy: { requestsPerMinute: 120, requestsPerDay: 10_000, concurrentRequests: 4 },
+      policy: receiptRate,
     });
     if (!("release" in permit)) {
       reply.code(429)
         .header("retry-after", String(permit.error.retryAfterSeconds ?? 1))
-        .send(error("model_call_query_limited"));
+        .send(error(kind === "recovery" ? "model_call_query_limited" : "model_call_admission_limited"));
       return;
     }
     reply.raw.once("close", permit.release);
@@ -90,7 +130,7 @@ export function registerModelCallRecovery(
       reply.header(modelCallContractHeader, "1");
       const context = request.gatewayContext;
       if (!context) return reply.code(401).send();
-      if (!acquireReceiptPermit(request, reply)) return reply;
+      if (!acquireReceiptPermit(request, reply, "recovery")) return reply;
       if (!pattern.test(request.params.id)) return reply.code(400).send();
       const row = store.get(
         context.subject.id,
@@ -122,7 +162,10 @@ export function registerModelCallRecovery(
     const match = typeof id === "string" ? pattern.exec(id) : null;
     const context = request.gatewayContext;
     if (!context) return reply.code(401).send();
-    const permit = acquireReceiptPermit(request, reply);
+    // A primary-key lookup separates recovery from new work before either
+    // independent budget is charged. Polling cannot consume admission capacity.
+    const existing = match && typeof id === "string" ? store.get(context.subject.id, context.scope, id) : undefined;
+    const permit = acquireReceiptPermit(request, reply, existing ? "recovery" : "admission");
     if (!permit) return reply;
     if (!match || typeof id !== "string")
       return reply.code(400).send(error("model_call_invalid"));
@@ -137,8 +180,7 @@ export function registerModelCallRecovery(
       Object.entries(request.headers)
         .filter(
           ([name]) => executionHeaders.has(name),
-        )
-        .sort(([a], [b]) => a.localeCompare(b)),
+        ),
     );
     const fingerprint = createHash("sha256")
       .update(JSON.stringify({ body: request.body, headers }, (_key, value) =>
@@ -146,7 +188,6 @@ export function registerModelCallRecovery(
           ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, value[key]]))
           : value))
       .digest("hex");
-    const existing = store.get(context.subject.id, context.scope, id);
     if (
       !existing &&
       (now() - Number(match[1]) > 300_000 || Number(match[1]) - now() > 60_000)
@@ -182,14 +223,8 @@ export function registerModelCallRecovery(
         .send(response.body);
     }
     const key = JSON.stringify([context.subject.id, context.scope, id]);
-    let finished = false;
-    const frames: string[] = [];
-    const finish = (response?: ModelCallResponse, outcome?: "completed" | "failed") => {
-      if (finished) return;
-      finished = true;
+    const receipt = new ModelCallReceipt(reply, (response, outcome) => {
       active.delete(key);
-      pending.delete(request);
-      frames.length = 0;
       try {
         const state = store.finish(context.subject.id, context.scope, id, response, outcome);
         const fields = { request_id: request.id, model_call_id: id, state };
@@ -202,45 +237,16 @@ export function registerModelCallRecovery(
         request.log.error({ request_id: request.id, model_call_id: id },
           "Model call receipt could not be persisted.");
       }
-    };
+    });
     active.add(key);
-    pending.set(request, finish);
-    let bytes = 0;
-    request.modelCallCapture = {
-      append(frame) {
-        if (finished) return;
-        bytes += Buffer.byteLength(frame);
-        if (bytes <= 8 * 1024 * 1024) frames.push(frame);
-        else frames.length = 0;
-      },
-      complete(outcome = "completed") {
-        finish(
-          bytes <= 8 * 1024 * 1024
-            ? {
-                status: reply.raw.statusCode,
-                headers: {
-                  ...responseHeaders(reply),
-                  "x-request-id": request.id,
-                },
-                body: frames.join(""),
-              }
-            : undefined,
-          outcome,
-        );
-      },
-    };
-    reply.raw.once("close", () => finish());
+    request.modelCallReceipt = receipt;
+    reply.raw.once("close", () => receipt.abort());
     permit.release();
   });
 
-  app.addHook("onSend", async (request, reply, payload) => {
-    const finish = pending.get(request);
-    if (finish && (typeof payload === "string" || Buffer.isBuffer(payload))) {
-      finish({
-        status: reply.statusCode,
-        headers: responseHeaders(reply),
-        body: payload.toString(),
-      });
+  app.addHook("onSend", async (request, _reply, payload) => {
+    if (typeof payload === "string" || Buffer.isBuffer(payload)) {
+      request.modelCallReceipt?.finish(payload.toString());
     }
     return payload;
   });
@@ -266,19 +272,11 @@ function responseHeaders(reply: FastifyReply) {
   );
 }
 
-function error(code: string) {
-  const messages: Record<string, string> = {
-    model_call_invalid: "Invalid model call ID; expected a millisecond timestamp and UUID.",
-    model_call_conflict: "This model call ID is bound to a different execution request.",
-    model_call_expired: "This model call has expired or its timestamp is outside the admission window; it was not executed again.",
-    model_call_pending: "The original model call is still running. Query its result before continuing.",
-    model_call_unconfirmed: "The original model call cannot be confirmed. It was not executed again.",
-    model_call_query_limited: "Model call receipt traffic is limited. Wait for Retry-After before querying again.",
-  };
+function error(code: keyof typeof errorMessages) {
   return {
     error: {
       code,
-      message: messages[code] ?? "The original model call must be confirmed before continuing.",
+      message: errorMessages[code],
       retry_contract_version: 1,
       automatic_retry_allowed: false,
     },

@@ -1,5 +1,7 @@
 # Model Call Recovery：Gateway 评审意见（2026-09-28）
 
+第二轮自审修复：查询/回放与新调用准入已拆为独立限流预算，两个方向的耗尽隔离均有回归测试。migration 37 对 v36 回执一次性回填容量计数，之后通过同事务触发器维护增减；终态保存的执行计划为回执主键查找和容量单行主键查找，没有历史表扫描。完成/中断统一由请求上的 `ModelCallReceipt` 管理，移除了 `WeakMap`、重复排序和重复的大小常量。类型检查及相关 7 个测试文件共 372 项测试通过，涵盖 v35/v36 升级、重开、跨连接容量、删除/过期/回滚和真实连接中断。修复随补充提交交付，尚未上线。
+
 后续修复记录：同日已修复下述三个发现，并补充终态区分、真实 Retry-After、存储故障保护和协议说明，随本次提交交付。下文保留为修复前的评审证据；当前接口语义见 [v1 协议](../coordination/model-call-recovery-v1.zh-CN.md)。尚未上线。
 
 修复后验证：`npm run typecheck` 通过；model-call-recovery、SSE、model-calls SQLite、Gateway index、SQLite index、rate-limit、rate-limit-lease 共 7 个测试文件、367 项测试通过。新增覆盖包括首帧前和流中失败回放、模型频次/并发与回执隔离、语义指纹、凭据轮换/跨用户及 scope 隔离、存储故障、真实 socket 在 DONE 交付前断开、磁盘迁移及重新打开。测试仅使用本地假 Provider 和独立数据库。

@@ -63,7 +63,7 @@ export function setupSseResponse(reply: FastifyReply, options: { deferHeartbeat?
       if (closed || signal.aborted || reply.raw.destroyed || reply.raw.writableEnded) return false;
       try {
         const frame = `data: ${JSON.stringify(data)}\n\n`;
-        reply.request?.modelCallCapture?.append(frame);
+        reply.request?.modelCallReceipt?.append(frame);
         if (reply.raw.write(frame)) return true;
         return await new Promise<boolean>((resolve) => {
           const finish = (ok: boolean) => {
@@ -103,7 +103,7 @@ function writeSseEvent(reply: FastifyReply, event: string, data: unknown): boole
 
   try {
     const frame = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-    reply.request?.modelCallCapture?.append(frame);
+    reply.request?.modelCallReceipt?.append(frame);
     reply.raw.write(frame);
     return true;
   } catch {
@@ -118,9 +118,9 @@ function writeSseData(reply: FastifyReply, data: unknown, terminal?: "failed"): 
 
   try {
     const frame = `data: ${JSON.stringify(data)}\n\n`;
-    reply.request?.modelCallCapture?.append(frame);
+    reply.request?.modelCallReceipt?.append(frame);
     // An SSE error is terminal even when HTTP headers already committed 200.
-    if (terminal) reply.request?.modelCallCapture?.complete(terminal);
+    if (terminal) reply.request?.modelCallReceipt?.finish(undefined, terminal);
     reply.raw.write(frame);
     return true;
   } catch {
@@ -134,9 +134,9 @@ function writeSseDone(reply: FastifyReply): boolean {
   }
 
   try {
-    reply.request?.modelCallCapture?.append("data: [DONE]\n\n");
+    reply.request?.modelCallReceipt?.append("data: [DONE]\n\n");
     // Commit before delivering the terminal marker; a lost response is recoverable.
-    reply.request?.modelCallCapture?.complete();
+    reply.request?.modelCallReceipt?.finish();
     reply.raw.write("data: [DONE]\n\n");
     return true;
   } catch {

@@ -43,9 +43,9 @@ describe("setupSseResponse", () => {
     raw.failOnWrite = 2;
     const frames: string[] = [];
     let saved: { state: string; body: string } | undefined;
-    const reply = Object.assign(createReply(raw), { request: { modelCallCapture: {
+    const reply = Object.assign(createReply(raw), { request: { modelCallReceipt: {
       append: (frame: string) => { frames.push(frame); },
-      complete: (state = "completed") => { saved = { state, body: frames.join("") }; },
+      finish: (_body?: string, state = "completed") => { saved = { state, body: frames.join("") }; },
     } } });
     const sse = setupSseResponse(reply);
     expect(sse.writeData({ content: "original" })).toBe(true);

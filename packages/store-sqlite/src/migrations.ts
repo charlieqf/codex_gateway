@@ -7,7 +7,7 @@ import {
 import type { SqliteStoreLogger } from "./types.js";
 import { migrateDailyFreeAllowancesToOnce, paidPlanSql, recoverReplacedFreeAllowance } from "./free-allowance.js";
 import { identityRequestAuditSchema } from "./identity-request-audit.js";
-import { modelCallSchema } from "./model-calls.js";
+import { modelCallSchema, modelCallCapacitySchema } from "./model-calls.js";
 
 export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogger): void {
   db.exec(`
@@ -1151,6 +1151,7 @@ export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogge
     logger
   );
   applyMigration(db, 36, modelCallSchema, logger);
+  applyMigration(db, 37, modelCallCapacitySchema, logger);
 }
 
 export function migrateClientEventsSchema(db: DatabaseSync): void {
