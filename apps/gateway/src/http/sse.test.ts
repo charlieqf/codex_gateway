@@ -38,6 +38,25 @@ function createReply(raw = new FakeRawReply()): FastifyReply {
 }
 
 describe("setupSseResponse", () => {
+  it.each(["completed", "failed"] as const)("persists %s before the terminal write can fail", (outcome) => {
+    const raw = new FakeRawReply();
+    raw.failOnWrite = 2;
+    const frames: string[] = [];
+    let saved: { state: string; body: string } | undefined;
+    const reply = Object.assign(createReply(raw), { request: { modelCallCapture: {
+      append: (frame: string) => { frames.push(frame); },
+      complete: (state = "completed") => { saved = { state, body: frames.join("") }; },
+    } } });
+    const sse = setupSseResponse(reply);
+    expect(sse.writeData({ content: "original" })).toBe(true);
+    const delivered = outcome === "completed" ? sse.writeDone() : sse.writeData({ error: { code: "upstream_timeout" } }, "failed");
+    expect(delivered).toBe(false);
+    expect(saved?.state).toBe(outcome);
+    expect(saved?.body).toContain(outcome === "completed" ? "data: [DONE]" : '"upstream_timeout"');
+    expect(sse.isClosed()).toBe(true);
+    sse.end();
+  });
+
   it("defers the S heartbeat without changing ordinary heartbeat timing", () => {
     vi.useFakeTimers();
     const ordinary = new FakeRawReply(), delivery = new FakeRawReply();

@@ -1,4 +1,5 @@
 import { DatabaseSync } from "node:sqlite";
+export { SqliteModelCalls, type ModelCallResponse } from "./model-calls.js";
 export { releaseExternalSubjectRegistration, type RegistrationReleaseInput } from "./registration-release.js";
 import * as accessCredentials from "./access-credentials.js";
 import * as adminAudit from "./admin-audit.js";

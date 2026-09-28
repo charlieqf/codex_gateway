@@ -43,7 +43,7 @@ export function writeOpenAIStreamError(
   const errorContext = gatewayErrorResponseContext(request, error);
   const payload = openAIErrorPayload(error, errorContext);
   if (reply.raw.headersSent) {
-    return sse.writeData(payload);
+    return sse.writeData(payload, "failed");
   }
 
   applyGatewayErrorHeaders(reply, error, errorContext);
@@ -51,7 +51,12 @@ export function writeOpenAIStreamError(
   reply.raw.setHeader("content-type", "application/json; charset=utf-8");
   reply.raw.setHeader("cache-control", "no-store");
   try {
-    return reply.raw.write(JSON.stringify(payload));
+    const body = JSON.stringify(payload);
+    request.modelCallCapture?.append(body);
+    // Hijacked responses bypass onSend. Persist the actual JSON failure before
+    // sending it, so losing the error response does not lose the known outcome.
+    request.modelCallCapture?.complete("failed");
+    return reply.raw.write(body);
   } catch {
     return false;
   }

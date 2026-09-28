@@ -5,7 +5,7 @@ export interface SseHandle {
   readonly signal: AbortSignal;
   isClosed(): boolean;
   writeComment(comment: string): boolean;
-  writeData(data: unknown): boolean;
+  writeData(data: unknown, terminal?: "failed"): boolean;
   /** Bounded delivery only: await backpressure while honoring the original deadline. */
   writeDataAsync(data: unknown, signal: AbortSignal): Promise<boolean>;
   writeDone(): boolean;
@@ -58,11 +58,13 @@ export function setupSseResponse(reply: FastifyReply, options: { deferHeartbeat?
     signal: abort.signal,
     isClosed: () => closed,
     writeComment: (comment) => guard(() => writeSseComment(reply, comment)),
-    writeData: (data) => guard(() => writeSseData(reply, data)),
+    writeData: (data, terminal) => guard(() => writeSseData(reply, data, terminal)),
     writeDataAsync: async (data, signal) => {
       if (closed || signal.aborted || reply.raw.destroyed || reply.raw.writableEnded) return false;
       try {
-        if (reply.raw.write(`data: ${JSON.stringify(data)}\n\n`)) return true;
+        const frame = `data: ${JSON.stringify(data)}\n\n`;
+        reply.request?.modelCallCapture?.append(frame);
+        if (reply.raw.write(frame)) return true;
         return await new Promise<boolean>((resolve) => {
           const finish = (ok: boolean) => {
             reply.raw.off("drain", drained);
@@ -100,21 +102,26 @@ function writeSseEvent(reply: FastifyReply, event: string, data: unknown): boole
   }
 
   try {
-    reply.raw.write(`event: ${event}\n`);
-    reply.raw.write(`data: ${JSON.stringify(data)}\n\n`);
+    const frame = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+    reply.request?.modelCallCapture?.append(frame);
+    reply.raw.write(frame);
     return true;
   } catch {
     return false;
   }
 }
 
-function writeSseData(reply: FastifyReply, data: unknown): boolean {
+function writeSseData(reply: FastifyReply, data: unknown, terminal?: "failed"): boolean {
   if (reply.raw.destroyed || reply.raw.writableEnded) {
     return false;
   }
 
   try {
-    reply.raw.write(`data: ${JSON.stringify(data)}\n\n`);
+    const frame = `data: ${JSON.stringify(data)}\n\n`;
+    reply.request?.modelCallCapture?.append(frame);
+    // An SSE error is terminal even when HTTP headers already committed 200.
+    if (terminal) reply.request?.modelCallCapture?.complete(terminal);
+    reply.raw.write(frame);
     return true;
   } catch {
     return false;
@@ -127,6 +134,9 @@ function writeSseDone(reply: FastifyReply): boolean {
   }
 
   try {
+    reply.request?.modelCallCapture?.append("data: [DONE]\n\n");
+    // Commit before delivering the terminal marker; a lost response is recoverable.
+    reply.request?.modelCallCapture?.complete();
     reply.raw.write("data: [DONE]\n\n");
     return true;
   } catch {

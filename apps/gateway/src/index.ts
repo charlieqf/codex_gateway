@@ -21,7 +21,8 @@ import {
   createSqliteTokenBudgetLimiter,
   renderRealtimeTokenUsagePage,
   renderQuotaDashboardPage,
-  SqliteGatewayStore
+  SqliteGatewayStore,
+  SqliteModelCalls
 } from "@codex-gateway/store-sqlite";
 import {
   CLIENT_DIAGNOSTIC_BODY_LIMIT_BYTES,
@@ -93,6 +94,7 @@ import { rateLimitHook, releaseRateLimit, recordRateLimitOutcome } from "./http/
 import { gatewayChildLoggerFactory } from "./http/request-logging.js";
 import { resolveVisionReadUrlPolicy, validateRateLimitProfile } from "./services/vision-read-url-policy.js";
 import { setupSseResponse } from "./http/sse.js";
+import { registerModelCallRecovery } from "./model-call-recovery.js";
 import {
   boundedWritePolicyFromEnv,
   boundedWriteEnabled,
@@ -857,6 +859,11 @@ export function buildGateway(options: GatewayOptions = {}) {
       applyClientTurnHeaders(request);
     }
   });
+
+  // Authenticate first, then recover/admit a logical call before model limits.
+  // Replays use their own limiter; new calls still pass the model limiter below.
+  if (sessions instanceof SqliteGatewayStore)
+    registerModelCallRecovery(app, new SqliteModelCalls(sessions.database), () => clock().getTime());
 
   app.addHook("preHandler", async (request, reply) =>
     rateLimitHook(request, reply, rateLimiter, visionReadUrlRateLimit)
