@@ -8,6 +8,7 @@ import type { SqliteStoreLogger } from "./types.js";
 import { migrateDailyFreeAllowancesToOnce, paidPlanSql, recoverReplacedFreeAllowance } from "./free-allowance.js";
 import { identityRequestAuditSchema } from "./identity-request-audit.js";
 import { modelCallSchema, modelCallCapacitySchema } from "./model-calls.js";
+import { tokenSettlementSchema } from "./token-settlements.js";
 
 export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogger): void {
   db.exec(`
@@ -1152,6 +1153,13 @@ export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogge
   );
   applyMigration(db, 36, modelCallSchema, logger);
   applyMigration(db, 37, modelCallCapacitySchema, logger);
+  const settlementTables = ["token_reservations", "token_windows", "entitlement_token_windows"];
+  if (settlementTables.some(table => tableExists(db, table))) {
+    if (!settlementTables.every(table => tableExists(db, table))) {
+      throw new Error("Migration 38 requires all token accounting tables.");
+    }
+    applyMigration(db, 38, tokenSettlementSchema, logger);
+  }
 }
 
 export function migrateClientEventsSchema(db: DatabaseSync): void {

@@ -120,6 +120,7 @@ export async function beginTokenBudget(
         now
       });
       markTokenReservation(request, softWrite.reservationId, "soft_write");
+      request.gatewayTokenReservationRelease = limiter.holdReservation?.(softWrite.reservationId);
     } catch (err) {
       request.log.warn(
         {
@@ -157,6 +158,7 @@ export async function beginTokenBudget(
       return result.error;
     }
     markTokenReservation(request, result.reservationId, "reservation");
+    request.gatewayTokenReservationRelease = limiter.holdReservation?.(result.reservationId);
     return null;
   } catch (err) {
     request.log.error(
@@ -215,6 +217,9 @@ export async function finalizeTokenBudget(
       },
       "Token reservation finalization failed."
     );
+  } finally {
+    request.gatewayTokenReservationRelease?.();
+    request.gatewayTokenReservationRelease = undefined;
   }
 }
 

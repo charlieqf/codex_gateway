@@ -102,6 +102,41 @@ describe("operator gift allowance", () => {
 });
 
 describe("one-off Free and paid balances", () => {
+  it("reconciles a provisional split into exhausted Free and paid balances", async () => {
+    const f = fixture();
+    await f.consume(f.free, "baseline", 9_000);
+    const paid = f.event().entitlement!;
+    const acquired = await f.acquire({ ...paid, policySnapshot: { ...paid.policySnapshot, missingUsageCharge: "estimate" } }, "split", 2_000);
+    if (!acquired.ok) throw acquired.error;
+    const expired = new Date(start.getTime() + 301_000);
+    await f.limiter.cleanupExpired(expired);
+    expect((await f.usage(paid, expired)).day.used).toBe(1_000);
+    await f.limiter.finalize({ reservationId: acquired.reservationId, now: expired,
+      usage: { promptTokens: 1_300, completionTokens: 200, totalTokens: 1_500 } });
+    const usage = await f.usage(paid, expired);
+    expect(usage.day.used).toBe(500);
+    expect(usage.freeAllowance?.total?.used).toBe(10_000);
+  });
+  it.each([false, true])("corrects expired usage without double-posting Free/paid windows (paid=%s)", async (paid) => {
+    const f = fixture();
+    await f.consume(f.free, "baseline", 9_000);
+    const entitlement = paid ? f.event().entitlement! : f.free;
+    const acquired = await f.acquire({ ...entitlement, policySnapshot: {
+      ...entitlement.policySnapshot, missingUsageCharge: "estimate", reserveTokensPerRequest: 0
+    } }, "provisional", 900);
+    if (!acquired.ok) throw acquired.error;
+    const expired = new Date(start.getTime() + 301_000);
+    await f.limiter.cleanupExpired(expired);
+    await f.limiter.finalize({ reservationId: acquired.reservationId, now: expired,
+      usage: { promptTokens: 600, completionTokens: 100, totalTokens: 700 } });
+    const result = await f.usage(entitlement, expired);
+    if (paid) {
+      expect(result.day.used).toBe(0);
+      expect(result.freeAllowance?.total?.used).toBe(9_700);
+    } else expect(result.freeAllowance?.total?.used).toBe(9_700);
+    expect(f.store.database.prepare("SELECT final_free_tokens, final_total_tokens FROM token_reservations WHERE id=?")
+      .get(acquired.reservationId)).toMatchObject({ final_free_tokens: 700, final_total_tokens: 700 });
+  });
   it.each([false, true])("retains the one-off Free on purchase (replace_current=%s), splits a request and replays without resetting either balance", async (replaceCurrent) => {
     const f = fixture();
     await f.consume(f.free, "before-purchase", 4_000);

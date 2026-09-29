@@ -230,6 +230,9 @@ export interface ClientMessageEventStore {
   insertClientDiagnosticEvent(
     record: ClientDiagnosticEventRecord
   ): ClientDiagnosticEventRecord;
+  insertBudgetedClientDiagnosticEvent(record: ClientDiagnosticEventRecord, dailyLimit: number | null): {
+    accepted: boolean; remaining: number | null; resetAt: Date; lane: "normal" | "terminal";
+  };
   close?(): void;
 }
 

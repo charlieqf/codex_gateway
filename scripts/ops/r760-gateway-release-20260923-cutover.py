@@ -1,22 +1,28 @@
 """Cut the R760 Gateway over to a prepared release (Gateway container only).
 
 Re-checks the state recorded by release-prepare.py, swaps only the gateway image
-line of the R760 override (text edit, so comments survive), waits for in-flight
-reservations, recreates only the gateway with the labelled Compose files of the
+line of the R760 override (text edit, so comments survive), closes admission and
+drains actual work, recreates only the gateway with the labelled Compose files of the
 new release, and verifies. Any failed post-check restores the previous override
 and release and recreates the previous gateway before raising.
 
-Used for 3efd505 and 3d4c10a (2026-09-23). Release-specific: it asserts schema 35
-(no migration) and allows only CODEX_GATEWAY_ROLLOUT_ARCHIVE_ON_START to change in
-the container environment. Adjust both for a release that migrates or changes config.
+Originally used for 3efd505 and 3d4c10a (2026-09-23). The expected schema is now
+an explicit required argument from the tested release plan. Only
+CODEX_GATEWAY_ROLLOUT_ARCHIVE_ON_START may change in the container environment;
+review this allowlist separately for a release that changes configuration.
 The image swap is scoped to the gateway service block because the research-worker
 may run the same Gateway image.
 
-    python3 - <rev> < r760-gateway-release-20260923-cutover.py   (on R760, after prepare and build)
+    python3 - <rev> <expected-schema> < r760-gateway-release-20260923-cutover.py
+    (on R760, after prepare, backup, migration rehearsal and build)
 """
 import datetime, fcntl, hashlib, json, os, pathlib, re, shutil, sqlite3, subprocess, sys, time, urllib.request
 
+if len(sys.argv) != 3 or not sys.argv[2].isdigit():
+    raise SystemExit("usage: cutover <full-revision> <tested-expected-schema>")
 REV = sys.argv[1]
+EXPECTED_SCHEMA = int(sys.argv[2])
+assert EXPECTED_SCHEMA >= 35
 assert re.fullmatch(r"[0-9a-f]{40}", REV)
 ROOT = pathlib.Path("/opt/codex-gateway-r760")
 RELEASE = ROOT / "releases" / REV
@@ -94,20 +100,16 @@ os.chmod(BACKUP / "proposed.override.yml", 0o600)
 
 mounts = {m["Destination"]: m["Source"] for m in meta["Mounts"]}
 dbpath = pathlib.Path(mounts["/var/lib/codex-gateway"]) / "gateway.db"
-for attempt in range(150):
-    with readonly(dbpath) as db:
-        pending = db.execute("SELECT COUNT(*) FROM token_reservations WHERE finalized_at IS NULL").fetchone()[0]
-    if pending == 0:
-        break
-    if attempt % 15 == 0:
-        print(json.dumps({"waiting_for_requests": pending}), flush=True)
-    if attempt == 149:
-        raise RuntimeError("live requests remain; cutover deferred")
-    time.sleep(2)
+with readonly(dbpath) as db:
+    assert db.execute("SELECT max(version) FROM schema_migrations").fetchone()[0] <= EXPECTED_SCHEMA, "refusing schema regression"
+# Old runtimes without drain support fail closed here. The first upgrade needs
+# an explicit maintenance ingress gate; reservation counts are never a fallback.
+drain_command = ["python3", str(RELEASE / "scripts/ops/gateway-drain.py"), "--container", meta["Id"]]
 
 cutover_at = datetime.datetime.now(datetime.timezone.utc)
 changed = False
 try:
+    run(drain_command)
     changed = True
     OVERRIDE.write_text(proposed)
     os.chmod(OVERRIDE, 0o644)
@@ -132,20 +134,27 @@ try:
         schema = db.execute("SELECT max(version) FROM schema_migrations").fetchone()[0]
         quick = db.execute("PRAGMA quick_check").fetchone()[0]
         violations = len(db.execute("PRAGMA foreign_key_check").fetchall())
-    assert schema == 35, f"unexpected schema {schema}"
+    assert schema == EXPECTED_SCHEMA, f"unexpected schema {schema}; expected {EXPECTED_SCHEMA}"
     assert quick == "ok" and violations == 0, "live database failed integrity"
     logs = run(["docker", "logs", "--since", cutover_at.strftime("%Y-%m-%dT%H:%M:%SZ"), CONTAINER]).stdout \
         + run(["docker", "logs", "--since", cutover_at.strftime("%Y-%m-%dT%H:%M:%SZ"), CONTAINER]).stderr
     archive_warning = "Codex rollout startup archive failed" in logs
     point("previous", state["old_current"])
     point("current", str(RELEASE))
-except Exception:
+except (Exception, KeyboardInterrupt):
     if changed:
         (BACKUP / "cutover-rolled-back").write_text(datetime.datetime.now(datetime.timezone.utc).isoformat())
         OVERRIDE.write_text(original)
         os.chmod(OVERRIDE, 0o644)
         subprocess.run(compose(pathlib.Path(state["old_current"])) + ["up", "-d", "--no-deps", "--no-build",
                        "--force-recreate", "--wait", "--wait-timeout", "180", "gateway"], capture_output=True, text=True)
+    else:
+        # Drain can fail after closing admission. Resume only the original instance;
+        # --resume checks protocol support and verifies that admission is open.
+        try:
+            run(drain_command + ["--resume", "--timeout", "30"])
+        except Exception as recovery_error:
+            raise RuntimeError("Cutover aborted; could not verify recovery of the old Gateway admission") from recovery_error
     raise
 
 state.update(candidate_image_id=candidate["Id"], cutover_at=cutover_at.isoformat(),

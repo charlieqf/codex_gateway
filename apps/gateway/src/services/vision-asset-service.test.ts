@@ -30,6 +30,32 @@ afterEach(() => {
 });
 
 describe("R2 vision asset service", () => {
+  it.each(["deadline", "disconnect"])("cancels a stalled response body on %s without deleting the asset", async (reason) => {
+    const parent = new AbortController();
+    let entered!: () => void;
+    const bodyEntered = new Promise<void>(r => entered = r);
+    const cancelled = vi.fn();
+    const methods: string[] = [];
+    const service = new R2VisionAssetService({ endpoint: "https://example.r2.cloudflarestorage.com", bucket: "synthetic",
+      accessKeyId: "synthetic-access", secretAccessKey: "synthetic-secret", requestTimeoutMs: 1000,
+      fetchImpl: async (input, init) => {
+        const method = init?.method ?? "GET"; methods.push(method);
+        if (method === "HEAD") return String(input).includes(".ready")
+          ? new Response(null, { status: 404 }) : headResponse(png.length, "image/png");
+        if (method === "GET") { entered(); return new Response(new ReadableStream({ cancel: cancelled })); }
+        throw new Error(`Unexpected ${method}`);
+      }
+    });
+    const grant = service.createAsset("synthetic-owner", { contentType: "image/png", sizeBytes: png.length, sha256: pngSha256 });
+    const pending = service.completeAsset("synthetic-owner", grant.assetId, parent.signal);
+    const assertion = expect(pending).rejects.toBeDefined();
+    await bodyEntered;
+    if (reason === "disconnect") parent.abort(new Error("client disconnected"));
+    await assertion;
+    expect(cancelled).toHaveBeenCalledOnce();
+    expect(methods).not.toContain("DELETE");
+    expect(methods).not.toContain("PUT");
+  });
   it("creates an immutable upload grant and completes a verified image", async () => {
     let now = new Date("2026-08-08T12:00:00.000Z");
     let markerReady = false;

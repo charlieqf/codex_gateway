@@ -39,6 +39,16 @@ export function resolveVisionReadUrlPolicy(
 export function validateRateLimitProfile(route: RouteOptions): void {
   const profile = route.config?.rateLimitProfile;
   if (profile === undefined) return;
+  if (profile === "vision_upload" || profile === "vision_control") {
+    const valid = profile === "vision_upload"
+      ? route.method === "POST" && route.url === "/gateway/vision/assets/:assetId/complete"
+      : (route.method === "POST" && route.url === "/gateway/vision/assets") ||
+        (route.method === "DELETE" && route.url === "/gateway/vision/assets/:assetId") ||
+        ((route.method === "GET" || route.method === "HEAD") && route.url === "/gateway/vision/capabilities");
+    if (!valid || route.config?.public || route.config?.skipAuth || route.config?.skipRateLimit)
+      throw new Error("Vision upload profiles require their authenticated asset route.");
+    return;
+  }
   if (profile !== "vision_read_url" || route.method !== "POST" || route.url !== visionReadUrlRoute ||
       route.config?.public || route.config?.skipAuth || route.config?.skipRateLimit) {
     throw new Error("vision_read_url rate limit profile requires its authenticated POST read-url route.");

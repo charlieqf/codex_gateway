@@ -23,3 +23,4 @@ COPY --from=production-dependencies /app/package.json /app/package.json
 LABEL org.opencontainers.image.revision="${GATEWAY_REVISION}"
 RUN chmod -R a=rX /app/apps /app/packages
 USER codexgw
+CMD ["node", "/app/apps/gateway/dist/index.js"]

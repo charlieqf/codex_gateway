@@ -2,6 +2,7 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import { GatewayError, type RateLimitPolicy } from "@codex-gateway/core";
 import type { RequestRateLimiter, RateLimitInput } from "../services/rate-limiter.js";
 import { RateLimitLease } from "./rate-limit-lease.js";
+import type { VisionUploadLimits } from "../services/vision-upload-policy.js";
 import { openAIErrorPayload } from "../openai-compat.js";
 import { applyGatewayErrorHeaders, gatewayErrorMetadata } from "./error-response.js";
 import { markRateLimitRejection } from "./observation.js";
@@ -10,7 +11,8 @@ export async function rateLimitHook(
   request: FastifyRequest,
   reply: FastifyReply,
   limiter: RequestRateLimiter,
-  visionReadUrl: { limiter: RequestRateLimiter; policy: RateLimitPolicy }
+  visionReadUrl: { limiter: RequestRateLimiter; policy: RateLimitPolicy },
+  visionUpload?: VisionUploadLimits
 ) {
   if (request.routeOptions.config?.public || request.routeOptions.config?.skipRateLimit) {
     return;
@@ -20,13 +22,16 @@ export async function rateLimitHook(
   request.gatewayClientDisconnect?.signal.throwIfAborted();
   const context = request.gatewayContext;
   let selected: RateLimitInput & { limiter: RequestRateLimiter };
-  if (request.routeOptions.config?.rateLimitProfile === "vision_read_url") {
+  const profile = request.routeOptions.config?.rateLimitProfile;
+  if (profile) {
     if (!context?.subject.id) {
       throw new GatewayError({ code: "invalid_credential", message: "Authenticated subject required.", httpStatus: 401 });
     }
     request.gatewayRateLimitStartedAt = performance.now();
     reply.header("cache-control", "no-store");
-    selected = { limiter: visionReadUrl.limiter, key: context.subject.id, scope: "subject" as const, policy: visionReadUrl.policy };
+    const pool = profile === "vision_read_url" ? visionReadUrl : visionUpload?.[profile];
+    if (!pool) throw new Error(`Missing rate limit pool: ${profile}`);
+    selected = { limiter: pool.limiter, key: context.subject.id, scope: "subject" as const, policy: pool.policy };
   } else {
     const credential = context?.credential;
     if (!credential?.id || !credential.rate) return;
@@ -76,7 +81,7 @@ export function recordRateLimitOutcome(request: FastifyRequest, statusCode: numb
   request.gatewayRateLimitObserved = true;
   request.log.info({
     request_id: request.id,
-    rate_limit_profile: "vision_read_url",
+    rate_limit_profile: request.routeOptions.config?.rateLimitProfile,
     route: request.routeOptions.url,
     subject_id: request.gatewayContext?.subject.id,
     status_code: statusCode,
@@ -85,7 +90,7 @@ export function recordRateLimitOutcome(request: FastifyRequest, statusCode: numb
     duration_ms: performance.now() - request.gatewayRateLimitStartedAt,
     cancelled: request.gatewayClientDisconnect?.signal.aborted ?? false,
     rejected: request.gatewayRateLimited ?? false
-  }, "Vision read URL request completed.");
+  }, "Vision asset request completed.");
 }
 
 function errorPayload(request: FastifyRequest, error: GatewayError) {

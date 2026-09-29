@@ -32,7 +32,7 @@ export function registerVisionAssetRoutes(
   app: FastifyInstance,
   options: VisionAssetRouteOptions
 ): void {
-  app.get("/gateway/vision/capabilities", async (request, reply) => {
+  app.get("/gateway/vision/capabilities", { config: { rateLimitProfile: "vision_control" } }, async (request, reply) => {
     applyPrivateResponseHeaders(reply);
     const error = await authorize(request, options.authorize);
     if (error) return sendVisionAssetError(request, reply, error);
@@ -49,7 +49,7 @@ export function registerVisionAssetRoutes(
   });
   app.post<{ Body: unknown }>(
     "/gateway/vision/assets",
-    { bodyLimit: routeBodyLimitBytes },
+    { bodyLimit: routeBodyLimitBytes, config: { rateLimitProfile: "vision_control" } },
     async (request, reply) => {
       applyPrivateResponseHeaders(reply);
       const service = availableService(options.service);
@@ -76,8 +76,8 @@ export function registerVisionAssetRoutes(
 
   app.post<{ Params: { assetId: string }; Body: unknown }>(
     "/gateway/vision/assets/:assetId/complete",
-    { bodyLimit: routeBodyLimitBytes },
-    async (request, reply) => {
+    { bodyLimit: routeBodyLimitBytes, config: { rateLimitProfile: "vision_upload" } },
+    async (request, reply) => withRateLimitWork(request, async () => {
       applyPrivateResponseHeaders(reply);
       const service = availableService(options.service);
       if (service instanceof GatewayError) {
@@ -95,13 +95,14 @@ export function registerVisionAssetRoutes(
         const { subject } = getGatewayContext(request);
         const grant = await service.completeAsset(
           subject.id,
-          request.params.assetId
+          request.params.assetId,
+          request.gatewayClientDisconnect?.signal
         );
         return reply.send(readGrantResponse(grant));
       } catch (error) {
         return handleVisionAssetFailure(request, reply, error);
       }
-    }
+    })
   );
 
   app.post<{ Params: { assetId: string }; Body: unknown }>(
@@ -143,7 +144,8 @@ export function registerVisionAssetRoutes(
 
   app.delete<{ Params: { assetId: string } }>(
     "/gateway/vision/assets/:assetId",
-    async (request, reply) => {
+    { config: { rateLimitProfile: "vision_control" } },
+    async (request, reply) => withRateLimitWork(request, async () => {
       applyPrivateResponseHeaders(reply);
       const service = availableService(options.service);
       if (service instanceof GatewayError) {
@@ -155,12 +157,12 @@ export function registerVisionAssetRoutes(
       }
       try {
         const { subject } = getGatewayContext(request);
-        await service.deleteAsset(subject.id, request.params.assetId);
+        await service.deleteAsset(subject.id, request.params.assetId, request.gatewayClientDisconnect?.signal);
         return reply.code(204).send();
       } catch (error) {
         return handleVisionAssetFailure(request, reply, error);
       }
-    }
+    })
   );
 }
 
@@ -284,6 +286,7 @@ function handleVisionAssetFailure(
   reply: FastifyReply,
   error: unknown
 ): FastifyReply {
+  if (request.gatewayClientDisconnect?.signal.aborted) return reply;
   if (error instanceof GatewayError) {
     return sendVisionAssetError(request, reply, error);
   }

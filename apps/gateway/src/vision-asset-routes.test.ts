@@ -92,7 +92,8 @@ describe("vision asset routes", () => {
     });
     expect(service.completeAsset).toHaveBeenCalledWith(
       "subject-test",
-      "va1.test.signature"
+      "va1.test.signature",
+      undefined
     );
 
     const read = await app.inject({
@@ -115,7 +116,8 @@ describe("vision asset routes", () => {
     expect(deleted.statusCode).toBe(204);
     expect(service.deleteAsset).toHaveBeenCalledWith(
       "subject-test",
-      "va1.test.signature"
+      "va1.test.signature",
+      undefined
     );
   });
 

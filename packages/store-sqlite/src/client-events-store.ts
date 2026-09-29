@@ -1,4 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
+import { runInTransaction } from "./sql.js";
 import type {
   ClientDiagnosticEventRecord,
   ClientMessageEventRecord,
@@ -240,6 +241,30 @@ export class SqliteClientEventsStore implements ClientMessageEventStore {
       );
 
     return record;
+  }
+
+  insertBudgetedClientDiagnosticEvent(record: ClientDiagnosticEventRecord, dailyLimit: number | null) {
+    // Only server-recognised terminal shapes receive the separate bounded lane.
+    // Neither a priority field nor arbitrary error-labelled telemetry bypasses it.
+    // Use the same predicate for incoming events and persisted budget counts.
+    const terminalSql = `(category = 'agent_turn' AND action IN ('step_finish','turn') AND status IN ('ok','error','timeout','aborted')) OR
+      (((category IN ('provider_stream','tool') AND action IN ('request','execution')) OR
+        (category = 'provider_stream' AND action = 'transport_attempt')) AND status IN ('error','timeout','aborted'))`;
+    const { terminal } = this.db.prepare(`SELECT (${terminalSql}) AS terminal
+      FROM (SELECT ? AS category, ? AS action, ? AS status)`)
+      .get(record.category, record.action, record.status) as { terminal: number };
+    const lane = terminal ? "terminal" as const : "normal" as const;
+    const day = record.receivedAt.toISOString().slice(0, 10);
+    const start = `${day}T00:00:00.000Z`;
+    const resetAt = new Date(Date.parse(start) + 86_400_000);
+    return runInTransaction(this.db, "BEGIN IMMEDIATE", () => {
+      const { used } = this.db.prepare(`SELECT COUNT(*) AS used FROM client_diagnostic_events
+        WHERE subject_id = ? AND received_at >= ? AND received_at < ? AND ${terminal ? "" : "NOT"} (${terminalSql})`)
+        .get(record.subjectId, start, resetAt.toISOString()) as { used: number };
+      if (dailyLimit !== null && used >= dailyLimit) return { accepted: false, remaining: 0, resetAt, lane };
+      this.insertClientDiagnosticEvent(record);
+      return { accepted: true, remaining: dailyLimit === null ? null : Math.max(0, dailyLimit - used - 1), resetAt, lane };
+    });
   }
 
   close(): void {

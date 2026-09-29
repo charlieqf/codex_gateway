@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { runInTransaction } from "./sql.js";
+import { reverseProvisionalSettlement, type SettlementAllocation } from "./token-settlements.js";
 import { activeFreeAllowance, isFreeAllowance, isRetailPaidPlan } from "./free-allowance.js";
 import { get as getEntitlement } from "./entitlement-queries.js";
 import {
@@ -134,13 +135,52 @@ interface ReservationRow {
 export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
   private readonly db: DatabaseSync;
   private readonly logger?: SqliteTokenBudgetLimiterOptions["logger"];
+  private readonly liveReservations = new Map<string, number>();
+  private heartbeat?: ReturnType<typeof setInterval>;
+  private lastRenewedAt = -Infinity;
 
   constructor(options: SqliteTokenBudgetLimiterOptions) {
     this.db = options.db;
     this.logger = options.logger;
   }
 
+  holdReservation(reservationId: string): () => void {
+    this.liveReservations.set(reservationId, (this.liveReservations.get(reservationId) ?? 0) + 1);
+    if (!this.heartbeat) {
+      this.heartbeat = setInterval(() => {
+        try { this.renewLiveReservations(new Date()); }
+        catch (error) { this.logger?.warn({ error: String(error) }, "Token reservation heartbeat failed."); }
+      }, 60_000);
+      this.heartbeat.unref();
+    }
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      const remaining = (this.liveReservations.get(reservationId) ?? 1) - 1;
+      if (remaining > 0) this.liveReservations.set(reservationId, remaining);
+      else this.liveReservations.delete(reservationId);
+      if (!this.liveReservations.size && this.heartbeat) {
+        clearInterval(this.heartbeat);
+        this.heartbeat = undefined;
+      }
+    };
+  }
+
+  private renewLiveReservations(now: Date): void {
+    if (!this.liveReservations.size) return;
+    if (now.getTime() >= this.lastRenewedAt && now.getTime() - this.lastRenewedAt < 60_000) return;
+    const expiresAt = new Date(now.getTime() + 5 * 60_000).toISOString();
+    runInTransaction(this.db, "BEGIN IMMEDIATE", () => {
+      const update = this.db.prepare(`UPDATE token_reservations SET expires_at = ?
+        WHERE id = ? AND finalized_at IS NULL AND (expires_at IS NULL OR expires_at < ?)`);
+      for (const id of this.liveReservations.keys()) update.run(expiresAt, id, expiresAt);
+    });
+    this.lastRenewedAt = now.getTime();
+  }
+
   async acquire(input: AcquireInput): Promise<AcquireSuccess | LimitRejection> {
+    this.renewLiveReservations(input.now ?? new Date());
     const policy = validateTokenPolicy(input.policy);
     const now = input.now ?? new Date();
     const windows = this.paidWindowBoundaries(input, now);
@@ -359,6 +399,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
   }
 
   async cleanupExpired(now: Date = new Date()): Promise<CleanupResult> {
+    this.renewLiveReservations(now);
     const nowIso = now.toISOString();
     const staleSoftWriteBefore = new Date(now.getTime() - 60 * 60_000).toISOString();
     const rows = this.db
@@ -367,8 +408,8 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
          FROM token_reservations
          WHERE finalized_at IS NULL
            AND (
-             (kind = 'reservation' AND expires_at IS NOT NULL AND expires_at <= ?)
-             OR (kind = 'soft_write' AND created_at <= ?)
+             (expires_at IS NOT NULL AND expires_at <= ?)
+             OR (kind = 'soft_write' AND expires_at IS NULL AND created_at <= ?)
            )
          ORDER BY expires_at ASC
          LIMIT 50`
@@ -376,7 +417,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
       .all(nowIso, staleSoftWriteBefore) as Array<{ id: string }>;
 
     for (const row of rows) {
-      this.finalizeReservation(row.id, undefined, now);
+      this.finalizeReservation(row.id, undefined, now, true);
     }
 
     if (rows.length > 0) {
@@ -393,6 +434,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
   }
 
   async getCurrentUsage(input: GetUsageInput): Promise<TokenUsageSnapshot> {
+    this.renewLiveReservations(input.now ?? new Date());
     const policy = validateTokenPolicy(input.policy);
     const now = input.now ?? new Date();
     const windows = this.paidWindowBoundaries(input, now);
@@ -547,16 +589,24 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
   private finalizeReservation(
     reservationId: string,
     usage: TokenUsage | undefined,
-    now: Date
+    now: Date,
+    provisional = false
   ): FinalizeResult {
     const result = runInTransaction(this.db, "BEGIN IMMEDIATE", () => {
       const row = this.reservationById(reservationId);
       if (!row) {
         throw new Error(`Token reservation not found: ${reservationId}`);
       }
-      if (row.finalized_at) {
-        return finalizedRowResult(row);
-      }
+      const correcting = Boolean(row.finalized_at && usage && reverseProvisionalSettlement(this.db, row.id, now));
+      if (row.finalized_at && !correcting) return finalizedRowResult(row);
+      if (correcting) this.db.prepare("UPDATE token_reservations SET finalized_at = NULL WHERE id = ?").run(row.id);
+      const allocations: SettlementAllocation[] = [];
+      const addUsage = (subjectId: string, entitlementId: string | null,
+        kind: "minute" | "day" | "month" | "period", start: string, amount: FinalUsage, at: Date) => {
+        this.addUsageToWindow(subjectId, entitlementId, kind, start, amount, at);
+        allocations.push({ table: entitlementId ? "entitlement_token_windows" : "token_windows",
+          owner: entitlementId ?? subjectId, kind, start, ...amount });
+      };
 
       const final = finalUsageForRow(row, usage);
       const overRequestLimit =
@@ -593,7 +643,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
           row.id
         );
 
-      this.addUsageToWindow(
+      addUsage(
         row.subject_id,
         row.entitlement_id,
         "minute",
@@ -608,20 +658,19 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
       let paidUsage = final;
       if (row.free_entitlement_id && row.free_policy_snapshot_json && row.free_month_window_start) {
         const freePolicy = validateTokenPolicy(JSON.parse(row.free_policy_snapshot_json));
-        const freeEntitlement = getEntitlement(this.db, row.free_entitlement_id);
-        if (freePolicy.tokensTotal !== null && freeEntitlement) {
+        if (freePolicy.tokensTotal !== null) {
           // One-off allowance: a single lifetime window, never reset. When the
           // request's own entitlement is the allowance, the complete-usage
           // minute ledger above already covers it; only add the period window.
           freeTokens = Math.min(final.totalTokens, this.windowRemaining(row.subject_id,
-            row.free_entitlement_id, "period", freeEntitlement.periodStart, freePolicy.tokensTotal, now));
+            row.free_entitlement_id, "period", new Date(row.free_month_window_start), freePolicy.tokensTotal, now));
           const freeUsage = portionOfUsage(final, freeTokens);
           paidUsage = subtractUsage(final, freeUsage);
           if (row.entitlement_id !== row.free_entitlement_id) {
-            this.addUsageToWindow(row.subject_id, row.free_entitlement_id, "minute", row.minute_window_start, freeUsage, now);
+            addUsage(row.subject_id, row.free_entitlement_id, "minute", row.minute_window_start, freeUsage, now);
           }
-          this.addUsageToWindow(row.subject_id, row.free_entitlement_id, "period",
-            freeEntitlement.periodStart.toISOString(), freeUsage, now);
+          addUsage(row.subject_id, row.free_entitlement_id, "period",
+            row.free_month_window_start, freeUsage, now);
         } else {
           freeTokens = Math.min(final.totalTokens, this.freeRemaining(row.subject_id,
             row.free_entitlement_id, freePolicy, row.day_window_start, row.free_month_window_start, now));
@@ -630,7 +679,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
           for (const [kind, start] of [
             ["minute", row.minute_window_start], ["day", row.day_window_start], ["month", row.free_month_window_start]
           ] as const) {
-            this.addUsageToWindow(row.subject_id, row.free_entitlement_id, kind, start, freeUsage, now);
+            addUsage(row.subject_id, row.free_entitlement_id, kind, start, freeUsage, now);
           }
         }
       }
@@ -638,7 +687,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
       this.db.prepare("UPDATE token_reservations SET final_free_tokens = ?, final_paid_tokens = ? WHERE id = ?")
         .run(primary && isFreeAllowance(primary) ? final.totalTokens : freeTokens,
           primary && isRetailPaidPlan(primary.planId) ? paidUsage.totalTokens : 0, row.id);
-      this.addUsageToWindow(
+      addUsage(
         row.subject_id,
         row.entitlement_id,
         "day",
@@ -646,7 +695,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
         paidUsage,
         now
       );
-      this.addUsageToWindow(
+      addUsage(
         row.subject_id,
         row.entitlement_id,
         "month",
@@ -654,6 +703,12 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
         paidUsage,
         now
       );
+
+      if (provisional) this.db.prepare(`INSERT INTO token_settlements
+        (reservation_id, state, original_json, allocations_json, updated_at) VALUES (?, 'provisional', ?, ?, ?)`)
+        .run(row.id, JSON.stringify({ usage: final, finalized_at: now.toISOString() }), JSON.stringify(allocations), now.toISOString());
+      if (correcting) this.db.prepare(`UPDATE token_settlements SET state = 'corrected', corrected_json = ?, updated_at = ?
+        WHERE reservation_id = ?`).run(JSON.stringify({ usage: final, allocations, finalized_at: now.toISOString() }), now.toISOString(), row.id);
 
       return {
         reservationId: row.id,

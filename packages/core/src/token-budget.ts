@@ -185,6 +185,8 @@ export interface WindowSnapshot {
 }
 
 export interface TokenBudgetLimiter {
+  /** Hold a live execution's reservation until finalization; release is idempotent. */
+  holdReservation?(reservationId: string): () => void;
   acquire(input: AcquireInput): Promise<AcquireSuccess | LimitRejection>;
   finalize(input: FinalizeInput): Promise<FinalizeResult>;
   beginSoftWrite(input: SoftWriteBeginInput): Promise<{ reservationId: string }>;

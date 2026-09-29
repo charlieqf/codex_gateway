@@ -105,6 +105,28 @@ function snapshot(limiter: InMemoryRequestRateLimiter, key: string) {
 }
 
 describe("read URL independent budget through the real Gateway", () => {
+  it("keeps disconnected complete work in its subject pool while allowing model/control work", async () => {
+    const f = fixture();
+    vi.mocked(f.service.completeAsset).mockImplementation(async () => { await f.images.enter(); return grant; });
+    const root = await f.app.listen({ host: "127.0.0.1", port: 0 });
+    const first = http.request(`${root}/gateway/vision/assets/a/complete`, { method: "POST", headers: f.headers() });
+    first.on("error", () => undefined); first.end();
+    const second = f.app.inject({ method: "POST", url: "/gateway/vision/assets/b/complete", headers: f.headers(f.second) }).then(r => r);
+    const others = ["c", "d"].map(id => f.app.inject({ method: "POST", url: `/gateway/vision/assets/${id}/complete`, headers: f.headers() }).then(r => r));
+    await f.images.entered(4);
+    first.destroy();
+    await new Promise(resolve => setTimeout(resolve, 25));
+    const third = await f.app.inject({ method: "POST", url: "/gateway/vision/assets/c/complete", headers: f.headers() });
+    expect(third.statusCode).toBe(429);
+    expect(third.json().error.limit.scope).toBe("request");
+    expect((await f.status()).statusCode).toBe(200);
+    expect((await f.app.inject({ method: "GET", url: "/gateway/vision/capabilities", headers: f.headers() })).statusCode).toBe(200);
+    f.images.open();
+    expect((await second).statusCode).toBe(200);
+    expect((await Promise.all(others)).every(r => r.statusCode === 200)).toBe(true);
+    await f.app.gatewayLifecycle.waitForIdle(1000);
+    expect((await f.app.inject({ method: "POST", url: "/gateway/vision/assets/d/complete", headers: f.headers() })).statusCode).toBe(200);
+  });
   it("admits the reported batch of eight without spending ordinary quota", async () => {
     const f = fixture();
     const pending = Array.from({ length: 8 }, () => f.read().then((r) => r));
@@ -130,15 +152,17 @@ describe("read URL independent budget through the real Gateway", () => {
     expect(denied.headers["retry-after"]).toBe("1");
     expect(denied.headers["cache-control"]).toBe("no-store");
     for (const [method, url] of [
-      ["POST", "/v1/chat/completions"], ["POST", "/v1/images/generations"], ["POST", "/v1/images/edits"],
-      ["POST", "/gateway/vision/assets"], ["POST", "/gateway/vision/assets/test/complete"],
-      ["DELETE", "/gateway/vision/assets/test"], ["GET", "/gateway/vision/capabilities"]
+      ["POST", "/v1/chat/completions"], ["POST", "/v1/images/generations"], ["POST", "/v1/images/edits"]
     ] as const) {
       const response = await f.app.inject({ method, url: `${url}?rateLimitProfile=vision_read_url`,
         headers: { ...f.headers(), "x-rate-limit-profile": "vision_read_url" } });
       expect(response.statusCode, url).toBe(429);
       expect(response.json().error.limit.scope, url).toBe("credential");
     }
+    for (const [method, url, code] of [
+      ["POST", "/gateway/vision/assets", 400], ["POST", "/gateway/vision/assets/test/complete", 200],
+      ["DELETE", "/gateway/vision/assets/test", 204], ["GET", "/gateway/vision/capabilities", 200]
+    ] as const) expect((await f.app.inject({ method, url, headers: f.headers() })).statusCode, url).toBe(code);
     const bob = f.read(f.other).then((r) => r);
     await f.images.entered(21);
     expect(snapshot(f.imageLimiter, "alice")).toMatchObject({ active: 20, minuteCount: 20, dayCount: 20 });

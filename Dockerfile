@@ -95,4 +95,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:8787/gateway/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 ENTRYPOINT ["/usr/local/bin/codex-gateway-entrypoint"]
-CMD ["npm", "--workspace", "@codex-gateway/gateway", "run", "start"]
+CMD ["node", "/app/apps/gateway/dist/index.js"]

@@ -53,9 +53,9 @@ export interface VisionAssetReadGrant {
 
 export interface VisionAssetService {
   createAsset(ownerId: string, input: VisionAssetCreateInput): VisionAssetUploadGrant;
-  completeAsset(ownerId: string, assetId: string): Promise<VisionAssetReadGrant>;
+  completeAsset(ownerId: string, assetId: string, signal?: AbortSignal): Promise<VisionAssetReadGrant>;
   createReadUrl(ownerId: string, assetId: string, signal?: AbortSignal): Promise<VisionAssetReadGrant>;
-  deleteAsset(ownerId: string, assetId: string): Promise<void>;
+  deleteAsset(ownerId: string, assetId: string, signal?: AbortSignal): Promise<void>;
 }
 
 export interface R2VisionAssetServiceOptions {
@@ -93,7 +93,7 @@ interface R2ObjectMetadata {
 }
 
 interface AuthenticatedRequestInput {
-  signal?: AbortSignal;
+  signal: AbortSignal;
   method: "DELETE" | "GET" | "HEAD" | "PUT";
   objectKey: string;
   payload?: Uint8Array;
@@ -206,42 +206,61 @@ export class R2VisionAssetService implements VisionAssetService {
     };
   }
 
-  async completeAsset(ownerId: string, assetId: string): Promise<VisionAssetReadGrant> {
-    const asset = this.decodeAssetToken(ownerId, assetId);
-    if (await this.readyMarkerExists(asset)) {
-      await this.verifyObjectMetadata(asset);
-      return this.readGrant(assetId, asset);
-    }
-
-    try {
-      await this.verifyUploadedObject(asset);
-      await this.writeReadyMarker(asset);
-    } catch (error) {
-      if (error instanceof GatewayError && error.code === "vision_asset_invalid") {
-        await this.deleteObjectBestEffort(readyMarkerKey(asset.k));
-        await this.deleteObjectBestEffort(asset.k);
+  async completeAsset(ownerId: string, assetId: string, signal?: AbortSignal): Promise<VisionAssetReadGrant> {
+    return this.withOperation(signal, async signal => {
+      const asset = this.decodeAssetToken(ownerId, assetId);
+      if (await this.readyMarkerExists(asset, signal)) {
+        await this.verifyObjectMetadata(asset, signal);
+        return this.readGrant(assetId, asset);
       }
-      throw error;
-    }
-    return this.readGrant(assetId, asset);
+
+      try {
+        await this.verifyUploadedObject(asset, signal);
+        await this.writeReadyMarker(asset, signal);
+      } catch (error) {
+        if (error instanceof GatewayError && error.code === "vision_asset_invalid") {
+          await this.deleteObjectBestEffort(readyMarkerKey(asset.k), signal);
+          await this.deleteObjectBestEffort(asset.k, signal);
+        }
+        throw error;
+      }
+      return this.readGrant(assetId, asset);
+    });
   }
 
   async createReadUrl(ownerId: string, assetId: string, signal?: AbortSignal): Promise<VisionAssetReadGrant> {
-    signal?.throwIfAborted();
-    const asset = this.decodeAssetToken(ownerId, assetId);
-    if (!(await this.readyMarkerExists(asset, signal))) {
-      throw visionAssetNotFound();
-    }
-    signal?.throwIfAborted();
-    await this.verifyObjectMetadata(asset, signal);
-    signal?.throwIfAborted();
-    return this.readGrant(assetId, asset);
+    return this.withOperation(signal, async signal => {
+      const asset = this.decodeAssetToken(ownerId, assetId);
+      if (!(await this.readyMarkerExists(asset, signal))) throw visionAssetNotFound();
+      signal.throwIfAborted();
+      await this.verifyObjectMetadata(asset, signal);
+      signal.throwIfAborted();
+      return this.readGrant(assetId, asset);
+    });
   }
 
-  async deleteAsset(ownerId: string, assetId: string): Promise<void> {
-    const asset = this.decodeAssetToken(ownerId, assetId, true);
-    await this.deleteObject(readyMarkerKey(asset.k));
-    await this.deleteObject(asset.k);
+  async deleteAsset(ownerId: string, assetId: string, signal?: AbortSignal): Promise<void> {
+    return this.withOperation(signal, async signal => {
+      const asset = this.decodeAssetToken(ownerId, assetId, true);
+      await this.deleteObject(readyMarkerKey(asset.k), signal);
+      await this.deleteObject(asset.k, signal);
+    });
+  }
+
+  private async withOperation<T>(parent: AbortSignal | undefined, work: (signal: AbortSignal) => Promise<T>): Promise<T> {
+    parent?.throwIfAborted();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(new Error("r2_operation_timeout")), this.requestTimeoutMs);
+    const signal = parent ? AbortSignal.any([parent, controller.signal]) : controller.signal;
+    try {
+      const result = await work(signal);
+      signal.throwIfAborted();
+      return result;
+    } catch (error) {
+      parent?.throwIfAborted();
+      if (signal.aborted) throw visionAssetStorageUnavailable();
+      throw error;
+    } finally { clearTimeout(timer); }
   }
 
   private readGrant(
@@ -270,10 +289,11 @@ export class R2VisionAssetService implements VisionAssetService {
     };
   }
 
-  private async verifyUploadedObject(asset: VisionAssetTokenPayload): Promise<void> {
-    await this.verifyObjectMetadata(asset);
+  private async verifyUploadedObject(asset: VisionAssetTokenPayload, signal: AbortSignal): Promise<void> {
+    await this.verifyObjectMetadata(asset, signal);
     const response = await this.authenticatedRequest({
       method: "GET",
+      signal,
       objectKey: asset.k
     });
     if (response.status === 404) {
@@ -289,12 +309,16 @@ export class R2VisionAssetService implements VisionAssetService {
     }
 
     const reader = response.body.getReader();
+    const cancel = () => { void reader.cancel(signal.reason).catch(() => undefined); };
+    signal.addEventListener("abort", cancel, { once: true });
+    if (signal.aborted) cancel();
     const hash = createHash("sha256");
     let prefix = Buffer.alloc(0);
     let totalBytes = 0;
     try {
       while (true) {
         const chunk = await reader.read();
+        signal.throwIfAborted();
         if (chunk.done) {
           break;
         }
@@ -315,6 +339,7 @@ export class R2VisionAssetService implements VisionAssetService {
       await reader.cancel().catch(() => undefined);
       throw error instanceof GatewayError ? error : visionAssetStorageUnavailable();
     } finally {
+      signal.removeEventListener("abort", cancel);
       reader.releaseLock();
     }
 
@@ -330,7 +355,7 @@ export class R2VisionAssetService implements VisionAssetService {
     }
   }
 
-  private async verifyObjectMetadata(asset: VisionAssetTokenPayload, signal?: AbortSignal): Promise<void> {
+  private async verifyObjectMetadata(asset: VisionAssetTokenPayload, signal: AbortSignal): Promise<void> {
     const metadata = await this.headObject(asset.k, signal);
     if (!metadata) {
       throw visionAssetNotFound();
@@ -343,7 +368,7 @@ export class R2VisionAssetService implements VisionAssetService {
     }
   }
 
-  private async readyMarkerExists(asset: VisionAssetTokenPayload, signal?: AbortSignal): Promise<boolean> {
+  private async readyMarkerExists(asset: VisionAssetTokenPayload, signal: AbortSignal): Promise<boolean> {
     const response = await this.authenticatedRequest({
       signal,
       method: "HEAD",
@@ -361,7 +386,7 @@ export class R2VisionAssetService implements VisionAssetService {
     return true;
   }
 
-  private async headObject(objectKey: string, signal?: AbortSignal): Promise<R2ObjectMetadata | null> {
+  private async headObject(objectKey: string, signal: AbortSignal): Promise<R2ObjectMetadata | null> {
     const response = await this.authenticatedRequest({ method: "HEAD", objectKey, signal });
     if (response.status === 404) {
       await cancelResponse(response);
@@ -381,7 +406,7 @@ export class R2VisionAssetService implements VisionAssetService {
     return { contentType, sizeBytes };
   }
 
-  private async writeReadyMarker(asset: VisionAssetTokenPayload): Promise<void> {
+  private async writeReadyMarker(asset: VisionAssetTokenPayload, signal: AbortSignal): Promise<void> {
     const payload = Buffer.from(
       JSON.stringify({
         version: 1,
@@ -393,6 +418,7 @@ export class R2VisionAssetService implements VisionAssetService {
     );
     const response = await this.authenticatedRequest({
       method: "PUT",
+      signal,
       objectKey: readyMarkerKey(asset.k),
       payload,
       signedHeaders: {
@@ -406,7 +432,7 @@ export class R2VisionAssetService implements VisionAssetService {
     }
     if (response.status === 412) {
       await cancelResponse(response);
-      if (await this.readyMarkerExists(asset)) {
+      if (await this.readyMarkerExists(asset, signal)) {
         return;
       }
     } else {
@@ -415,8 +441,8 @@ export class R2VisionAssetService implements VisionAssetService {
     throw visionAssetStorageUnavailable(response.status);
   }
 
-  private async deleteObject(objectKey: string): Promise<void> {
-    const response = await this.authenticatedRequest({ method: "DELETE", objectKey });
+  private async deleteObject(objectKey: string, signal: AbortSignal): Promise<void> {
+    const response = await this.authenticatedRequest({ method: "DELETE", objectKey, signal });
     if (!response.ok && response.status !== 404) {
       await cancelResponse(response);
       throw visionAssetStorageUnavailable(response.status);
@@ -424,14 +450,14 @@ export class R2VisionAssetService implements VisionAssetService {
     await cancelResponse(response);
   }
 
-  private async deleteObjectBestEffort(objectKey: string): Promise<void> {
-    await this.deleteObject(objectKey).catch(() => undefined);
+  private async deleteObjectBestEffort(objectKey: string, signal: AbortSignal): Promise<void> {
+    await this.deleteObject(objectKey, signal).catch(() => undefined);
   }
 
   private async authenticatedRequest(
     input: AuthenticatedRequestInput
   ): Promise<Response> {
-    input.signal?.throwIfAborted();
+    input.signal.throwIfAborted();
     const now = this.now();
     const amzDate = awsTimestamp(now);
     const dateStamp = amzDate.slice(0, 8);
@@ -480,11 +506,6 @@ export class R2VisionAssetService implements VisionAssetService {
     });
     headers.delete("host");
 
-    const controller = new AbortController();
-    const timeout = setTimeout(
-      () => controller.abort(new Error("r2_request_timeout")),
-      this.requestTimeoutMs
-    );
     try {
       return await this.fetchImpl(objectUrl, {
         method: input.method,
@@ -492,13 +513,11 @@ export class R2VisionAssetService implements VisionAssetService {
         ...(input.method === "PUT"
           ? { body: Buffer.from(payload) as unknown as BodyInit }
           : {}),
-        signal: input.signal ? AbortSignal.any([input.signal, controller.signal]) : controller.signal
+        signal: input.signal
       });
     } catch {
-      input.signal?.throwIfAborted();
+      input.signal.throwIfAborted();
       throw visionAssetStorageUnavailable();
-    } finally {
-      clearTimeout(timeout);
     }
   }
 

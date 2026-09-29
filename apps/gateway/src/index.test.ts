@@ -5531,6 +5531,35 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it.each([
+    { category: "agent_turn", action: "turn", status: "error" },
+    { category: "provider_stream", action: "transport_attempt", status: "error" },
+    { category: "provider_stream", action: "transport_attempt", status: "timeout" },
+    { category: "provider_stream", action: "transport_attempt", status: "aborted" }
+  ] as const)("preserves $category/$action/$status intake after normal sampling", async terminalEvent => {
+    const { store, headers } = createCredentialBackedStore();
+    const events = createSqliteClientEventsStore({ path: ":memory:" });
+    let now = new Date("2026-09-29T00:00:00Z");
+    const app = buildGateway({ authMode: "credential", provider: new FakeProvider(), sessionStore: store,
+      clientEventsStore: events, now: () => now, logger: false,
+      clientEventsRatePolicy: { requestsPerMinute: 60, requestsPerDay: 1, concurrentRequests: null } });
+    const post = (event_id: string, terminal = false) => app.inject({ method: "POST", url: "/gateway/client-events/diagnostics",
+      headers, payload: clientDiagnosticPayload({ event_id, ...(terminal ? terminalEvent : {}) }) });
+    try {
+      expect((await post("normal-1")).statusCode).toBe(201);
+      expect((await post("normal-1")).json()).toMatchObject({ duplicate: true });
+      expect((await post("normal-2")).json()).toMatchObject({ stored: false, dropped: true });
+      const terminal = await post("terminal-1", true);
+      expect(terminal.statusCode).toBe(201);
+      expect(terminal.json()).toMatchObject({ stored: true });
+      expect(terminal.headers["x-diagnostic-budget-lane"]).toBe("terminal");
+      expect((await post("terminal-1", true)).json()).toMatchObject({ duplicate: true });
+      expect((await post("terminal-2", true)).statusCode).toBe(429);
+      now = new Date("2026-09-30T00:00:00Z");
+      expect((await post("normal-next-day")).statusCode).toBe(201);
+    } finally { await app.close(); }
+  });
+
   it("rejects dev auth mode when NODE_ENV is production", () => {
     const previousNodeEnv = process.env.NODE_ENV;
     process.env.NODE_ENV = "production";

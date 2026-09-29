@@ -51,12 +51,13 @@ declare module "fastify" {
     public?: boolean;
     skipAuth?: boolean;
     skipRateLimit?: boolean;
-    rateLimitProfile?: "vision_read_url";
+    rateLimitProfile?: "vision_read_url" | "vision_upload" | "vision_control";
     skipObservation?: boolean;
     responseDialect?: GatewayResponseDialect;
   }
 
   interface FastifyRequest {
+    gatewayTokenReservationRelease?: () => void;
     gatewayIdentityAudit?: IdentityRequestAuditContext;
     gatewayContext?: GatewayRequestContext;
     gatewayClientDisconnect?: ClientDisconnectHandle;

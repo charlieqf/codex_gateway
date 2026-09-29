@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { installGatewayLifecycle, installGatewayShutdown } from "./http/lifecycle.js";
+import { createVisionUploadLimits } from "./services/vision-upload-policy.js";
 import { pathToFileURL } from "node:url";
 import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import {
@@ -361,6 +363,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     }
   });
   const accessToken = options.accessToken ?? process.env.GATEWAY_DEV_ACCESS_TOKEN;
+  const lifecycle = installGatewayLifecycle(app);
   app.addHook("onRoute", validateRateLimitProfile);
   const clock = options.now ?? (() => new Date());
   const activeRequestRegistry =
@@ -508,6 +511,7 @@ export function buildGateway(options: GatewayOptions = {}) {
   });
   validateAuthModeForEnvironment(authMode, process.env.NODE_ENV);
   const rateLimiter = options.rateLimiter ?? new InMemoryRequestRateLimiter({ now: clock });
+  const visionUploadLimits = createVisionUploadLimits(clock);
   const visionReadUrlRateLimit = {
     limiter: options.visionReadUrlRateLimiter ?? new InMemoryRequestRateLimiter({ now: clock }),
     policy: resolveVisionReadUrlPolicy(process.env, options.visionReadUrlRatePolicy)
@@ -866,7 +870,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     registerModelCallRecovery(app, new SqliteModelCalls(sessions.database), () => clock().getTime());
 
   app.addHook("preHandler", async (request, reply) =>
-    rateLimitHook(request, reply, rateLimiter, visionReadUrlRateLimit)
+    rateLimitHook(request, reply, rateLimiter, visionReadUrlRateLimit, visionUploadLimits)
   );
 
   app.addHook("preHandler", async (request) => {
@@ -1146,6 +1150,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       config: { public: true }
     },
     async (_request, reply) => {
+      if (lifecycle.draining) return reply.code(503).send({ state: "draining", lifecycle: lifecycle.snapshot() });
       const localHealth = await localOpenAIInferenceHealth(
         publicModelRegistry.models,
         localOpenAIAdapters,
@@ -1169,6 +1174,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             ? "not_ready"
             : "ready",
         service: publicMetadata.serviceName,
+        lifecycle: lifecycle.snapshot(),
         auth_mode: authMode,
         phone_auth: {
           mode: phoneAuthService?.mode ?? configuredPhoneAuthMode,
@@ -2009,6 +2015,21 @@ export function buildGateway(options: GatewayOptions = {}) {
     "/gateway/client-events/diagnostics",
     {
       bodyLimit: CLIENT_DIAGNOSTIC_BODY_LIMIT_BYTES,
+      onRequest: async (request, reply) => {
+        const context = request.gatewayContext;
+        if (!clientEventsStore || !context?.credential.id) return;
+        const permit = clientEventsRateLimiter.acquire({ scope: "credential",
+          key: clientEventsRateLimitKey(context.credential.id, "diagnostics"),
+          policy: { ...clientEventsRatePolicy, requestsPerDay: null, concurrentRequests: 4 } });
+        if ("release" in permit) {
+          request.gatewayRateLimitRelease = permit.release;
+          return;
+        }
+        markRateLimitRejection(request, permit);
+        logClientEventRateLimitRejection({ request, credentialId: context.credential.id, subjectId: context.subject.id,
+          family: "diagnostics", rejection: permit, state: clientEventsRateLimitLogState, now: clock() });
+        return reply.send(sendError(request, reply, permit.error));
+      },
       config: {
         public: !clientEventsStore,
         skipRateLimit: true,
@@ -2041,104 +2062,103 @@ export function buildGateway(options: GatewayOptions = {}) {
         );
       }
 
-      const permit = clientEventsRateLimiter.acquire({
-        scope: "credential",
-        key: clientEventsRateLimitKey(credential.id, "diagnostics"),
-        policy: clientEventsRatePolicy
-      });
-      if (!("release" in permit)) {
-        markRateLimitRejection(request, permit);
-        logClientEventRateLimitRejection({
-          request,
-          credentialId: credential.id,
-          subjectId: subject.id,
-          family: "diagnostics",
-          rejection: permit,
-          state: clientEventsRateLimitLogState,
-          now: clock()
-        });
-        return sendError(request, reply, permit.error);
+      const parsed = parseClientDiagnosticEventRequest(request.body);
+      if (parsed instanceof GatewayError) {
+        return sendError(request, reply, parsed);
       }
+      const linked = linkClientDiagnosticEvent(clientEventsStore, subject.id, parsed);
 
-      try {
-        const parsed = parseClientDiagnosticEventRequest(request.body);
-        if (parsed instanceof GatewayError) {
-          return sendError(request, reply, parsed);
-        }
-        const linked = linkClientDiagnosticEvent(clientEventsStore, subject.id, parsed);
-
-        const existing = clientEventsStore.getClientDiagnosticEvent(
+      const existing = clientEventsStore.getClientDiagnosticEvent(
+        subject.id,
+        linked.eventId
+      );
+      if (existing) {
+        const relinked = relinkExistingClientDiagnosticEvent(
+          clientEventsStore,
           subject.id,
-          linked.eventId
+          existing,
+          parsed,
+          linked
         );
-        if (existing) {
-          const relinked = relinkExistingClientDiagnosticEvent(
-            clientEventsStore,
-            subject.id,
-            existing,
-            parsed,
-            linked
-          );
-          if (relinked || clientDiagnosticEventsMatch(existing, linked)) {
-            return {
-              ok: true,
-              event_id: linked.eventId,
-              duplicate: true,
-              received_at: existing.receivedAt.toISOString()
-            };
-          }
-
-          return sendError(
-            request,
-            reply,
-            new GatewayError({
-              code: "idempotency_conflict",
-              message: "event_id already exists for this user with different content.",
-              httpStatus: 409
-            })
-          );
+        if (relinked || clientDiagnosticEventsMatch(existing, linked)) {
+          return {
+            ok: true,
+            event_id: linked.eventId,
+            duplicate: true,
+            received_at: existing.receivedAt.toISOString()
+          };
         }
 
-        const receivedAt = new Date();
-        clientEventsStore.insertClientDiagnosticEvent({
-          id: `cde_${randomUUID().replaceAll("-", "")}`,
-          eventId: linked.eventId,
-          requestId: request.id,
-          credentialId: credential.id,
-          subjectId: subject.id,
-          scope,
-          sessionId: linked.sessionId,
-          messageId: linked.messageId,
-          toolCallId: linked.toolCallId,
-          providerId: linked.providerId,
-          modelId: linked.modelId,
-          category: linked.category,
-          action: linked.action,
-          status: linked.status,
-          method: linked.method,
-          path: linked.path,
-          monoMs: linked.monoMs,
-          durationMs: linked.durationMs,
-          httpStatus: linked.httpStatus,
-          errorCode: linked.errorCode,
-          errorMessage: linked.errorMessage,
-          metadataJson: linked.metadataJson,
-          appName: linked.appName,
-          appVersion: linked.appVersion,
-          createdAt: linked.createdAt,
-          receivedAt
-        });
-
-        reply.code(201);
-        return {
-          ok: true,
-          event_id: linked.eventId,
-          duplicate: false,
-          received_at: receivedAt.toISOString()
-        };
-      } finally {
-        permit.release();
+        return sendError(
+          request,
+          reply,
+          new GatewayError({
+            code: "idempotency_conflict",
+            message: "event_id already exists for this user with different content.",
+            httpStatus: 409
+          })
+        );
       }
+
+      const receivedAt = clock();
+      const budget = clientEventsStore.insertBudgetedClientDiagnosticEvent({
+        id: `cde_${randomUUID().replaceAll("-", "")}`,
+        eventId: linked.eventId,
+        requestId: request.id,
+        credentialId: credential.id,
+        subjectId: subject.id,
+        scope,
+        sessionId: linked.sessionId,
+        messageId: linked.messageId,
+        toolCallId: linked.toolCallId,
+        providerId: linked.providerId,
+        modelId: linked.modelId,
+        category: linked.category,
+        action: linked.action,
+        status: linked.status,
+        method: linked.method,
+        path: linked.path,
+        monoMs: linked.monoMs,
+        durationMs: linked.durationMs,
+        httpStatus: linked.httpStatus,
+        errorCode: linked.errorCode,
+        errorMessage: linked.errorMessage,
+        metadataJson: linked.metadataJson,
+        appName: linked.appName,
+        appVersion: linked.appVersion,
+        createdAt: linked.createdAt,
+        receivedAt
+      }, clientEventsRatePolicy.requestsPerDay);
+      reply.header("x-diagnostic-budget-lane", budget.lane);
+      reply.header("x-diagnostic-budget-reset", budget.resetAt.toISOString());
+      if (budget.remaining !== null) reply.header("x-diagnostic-budget-remaining", String(budget.remaining));
+      if (!budget.accepted) {
+        const error = new GatewayError({ code: "rate_limited", httpStatus: 429,
+          message: `Daily ${budget.lane} diagnostic event budget exhausted.`,
+          retryAfterSeconds: Math.max(1, Math.ceil((budget.resetAt.getTime() - receivedAt.getTime()) / 1000)) });
+        const rejection = { ok: false as const, error, limitKind: "request_day" as const,
+          details: { scope: "subject" as const, window: "day" as const,
+            limit: clientEventsRatePolicy.requestsPerDay!, used: clientEventsRatePolicy.requestsPerDay!, requested: 1 } };
+        markRateLimitRejection(request, rejection);
+        logClientEventRateLimitRejection({ request, credentialId: credential.id, subjectId: subject.id,
+          family: "diagnostics", rejection, state: clientEventsRateLimitLogState, now: receivedAt });
+        // v1 uploaders pause the ENTIRE queue on 429. A normal-event storage
+        // cap must not prevent a later terminal event from using its reserve.
+        // Explicitly acknowledge disposal, not persistence; HTTP abuse still
+        // receives the real minute/concurrency 429 above.
+        if (budget.lane === "normal") return { ok: true, event_id: linked.eventId,
+          stored: false, dropped: true, reason: "daily_diagnostic_budget", budget_reset_at: budget.resetAt.toISOString() };
+        return sendError(request, reply, error);
+      }
+
+      reply.code(201);
+      return {
+        ok: true,
+        event_id: linked.eventId,
+        duplicate: false,
+        stored: true,
+        received_at: receivedAt.toISOString()
+      };
     }
   );
 
@@ -3641,6 +3661,7 @@ async function main() {
   const host = process.env.GATEWAY_HOST ?? "127.0.0.1";
   const port = Number.parseInt(process.env.GATEWAY_PORT ?? "8787", 10);
   const app = buildGateway();
+  installGatewayShutdown(app);
   await app.listen({ host, port });
 }
 
