@@ -42,7 +42,7 @@ export function createDefaultImageGenerationProvider(
     return new QwenImageGenerationProvider({
       apiKey: env.MEDCODE_IMAGE_QWEN_API_KEY,
       baseUrl: env.MEDCODE_IMAGE_QWEN_BASE_URL.trim(),
-      timeoutMs: parsePositiveIntegerEnv(env.MEDCODE_IMAGE_QWEN_TIMEOUT_MS, 180_000, "MEDCODE_IMAGE_QWEN_TIMEOUT_MS")
+      timeoutMs: parsePositiveIntegerEnv(env.MEDCODE_IMAGE_QWEN_TIMEOUT_MS, 790_000, "MEDCODE_IMAGE_QWEN_TIMEOUT_MS")
     });
   }
   if (primaryProvider === "llada") {
@@ -88,6 +88,13 @@ export function resolveImageGenerationBillingFallbacks(
   env: NodeJS.ProcessEnv,
   logger: UpstreamAccountConfigLogger
 ): ImageGenerationBillingFallback[] {
+  // Qwen queues locally; credentials alone must not enable a quality downgrade.
+  const enabled = env.MEDCODE_IMAGE_FALLBACK_ENABLED?.trim() ||
+    (parseImagePrimaryProvider(env.MEDCODE_IMAGE_PRIMARY_PROVIDER) === "qwen" ? "0" : "1");
+  if (enabled !== "0" && enabled !== "1") {
+    throw new Error("MEDCODE_IMAGE_FALLBACK_ENABLED must be 0 or 1.");
+  }
+  if (enabled === "0") return [];
   if (options.imageGenerationBillingFallbacks !== undefined) {
     return options.imageGenerationBillingFallbacks.map((fallback, index) => ({
       accountId: fallback.accountId ?? `${imageBillingFallbackAccountId}-${index + 1}`,

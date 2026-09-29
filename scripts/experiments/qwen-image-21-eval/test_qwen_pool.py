@@ -57,18 +57,19 @@ class PoolScheduling(unittest.IsolatedAsyncioTestCase):
                 await asyncio.sleep(0.005)
 
     async def test_two_parallel_workers_and_bounded_waiting_queue(self):
-        jobs = [self.pool.submit({'prompt': str(i)}) for i in range(4)]
+        jobs = [self.pool.submit({'prompt': str(i)}) for i in range(12)]
         with self.assertRaises(HTTPException) as error:
             self.pool.submit({'prompt': 'overflow'})
         self.assertEqual(error.exception.status_code, 429)
         await self.until(lambda: len(self.backend.calls) == 2)
         self.assertEqual(self.backend.peak, 2)
-        self.assertEqual(self.pool.snapshot()['queued'], 2)
+        self.assertEqual(self.pool.snapshot()['queue_capacity'], 10)
+        self.assertEqual(self.pool.snapshot()['queued'], 10)
         for event in self.backend.release:
             event.set()
         results = await asyncio.wait_for(asyncio.gather(*(j.future for j in jobs)), 1)
-        self.assertEqual([r[0] for r in results], [200]*4)
-        self.assertEqual(sorted(self.backend.calls), [0, 0, 1, 1])
+        self.assertEqual([r[0] for r in results], [200]*12)
+        self.assertEqual(sorted(self.backend.calls), [0]*6 + [1]*6)
 
     async def test_disconnected_active_job_does_not_free_gpu_early(self):
         jobs = [self.pool.submit({'prompt': str(i)}) for i in range(4)]

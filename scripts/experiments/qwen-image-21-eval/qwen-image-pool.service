@@ -10,10 +10,10 @@ EnvironmentFile=/data/apps/qwen-image-21-eval/api.env
 Environment=GPU_SCHEDULER_REQUIRED=1
 Environment=GPU_SCHEDULER_SOCKET=/run/user/%U/star-gpu-arbiter/scheduler.sock
 Environment=GPU_SCHEDULER_TOKEN_FILE=/data/apps/star-gpu-scheduler/config/qwen_pool.token
-ExecStart=/data/apps/qwen-image-21-eval/env/bin/python -m uvicorn qwen_pool:app --host 127.0.0.1 --port 8191 --workers 1 --no-access-log --timeout-graceful-shutdown 180
+ExecStart=/data/apps/qwen-image-21-eval/env/bin/python -m uvicorn qwen_pool:app --host 127.0.0.1 --port 8191 --workers 1 --no-access-log --timeout-graceful-shutdown 800
 Restart=on-failure
 RestartSec=5
-TimeoutStopSec=190
+TimeoutStopSec=810
 UMask=0077
 NoNewPrivileges=true
 PrivateTmp=true

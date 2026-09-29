@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
-    stop_grace_period: 610s
+    stop_grace_period: 910s
     env_file:
       - ./config/gateway.container.env
     environment:

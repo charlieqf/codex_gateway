@@ -22,6 +22,7 @@ from qwen_eval_api import Generate
 LOG = logging.getLogger('qwen_pool')
 API_KEY = os.environ.get('QWEN_IMAGE_API_KEY', '')
 BACKENDS = ['http://127.0.0.1:8200', 'http://127.0.0.1:8201']
+QUEUE_CAPACITY = 10
 
 
 @dataclass
@@ -46,7 +47,7 @@ class Job:
 
 
 class Pool:
-    def __init__(self, client, backends=BACKENDS, *, budget=170, queue_wait=80, poll=0.5):
+    def __init__(self, client, backends=BACKENDS, *, budget=780, queue_wait=600, poll=0.5):
         self.client = client
         self.workers = [Worker(url) for url in backends]
         self.queue = deque()
@@ -92,7 +93,7 @@ class Pool:
     def submit(self, body):
         if not self.broker:
             self.queue = deque(j for j in self.queue if not j.abandoned)
-        if len(self.queue) + sum(w.leased for w in self.workers) >= len(self.workers)+2:
+        if len(self.queue) + sum(w.leased for w in self.workers) >= len(self.workers)+QUEUE_CAPACITY:
             raise HTTPException(429, 'Image queue full', headers={'Retry-After': '30'})
         if not any(w.health.get('status') == 'ready' for w in self.workers):
             raise HTTPException(503, 'No image worker ready')
@@ -192,7 +193,7 @@ class Pool:
             if job.ticket:
                 headers['X-Scheduler-Ticket'] = json.dumps(job.ticket, separators=(',', ':'))
             response = await self.client.post(worker.url+'/v1/images/generations', json=job.body,
-                headers=headers, timeout=max(0.01, job.deadline-started))
+                headers=headers, timeout=max(0.01, min(180, job.deadline-started)))
             payload = response.json()
             if response.status_code == 200:
                 payload['dispatch'] = {'worker': self.workers.index(worker),
@@ -221,7 +222,7 @@ class Pool:
 
     def snapshot(self):
         return {'status': 'ready' if any(w.health.get('status') == 'ready' for w in self.workers) else 'unavailable',
-            'model': 'qwen-image-2.1', 'replicas': len(self.workers), 'queue_capacity': 2,
+            'model': 'qwen-image-2.1', 'replicas': len(self.workers), 'queue_capacity': QUEUE_CAPACITY,
             'queued': sum(not j.abandoned for j in self.queue), 'active': sum(w.leased for w in self.workers),
             'workers': [{'id': i, 'leased': w.leased, 'completed': w.completed, **w.health}
                 for i, w in enumerate(self.workers)]}

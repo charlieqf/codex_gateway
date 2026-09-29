@@ -41,6 +41,7 @@ class Deployment(unittest.TestCase):
                 deploy.rollback(prepared)
             self.assertNotIn('worker@1.service',(units/'qwen-image-pool.service').read_text())
             self.assertEqual(database.read_bytes(),b'unchanged')
+            ctl.assert_any_call('stop','qwen-image-pool.service','radar-imaging.service',timeout=830)
             self.assertIn(('disable','qwen-image-worker@1.service','star-gpu-scheduler.service'),[call.args for call in ctl.call_args_list])
 
 

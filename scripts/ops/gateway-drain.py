@@ -27,7 +27,7 @@ def status(container):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--container", default="codex_gateway_r760-gateway-1")
-    parser.add_argument("--timeout", type=int, default=600)
+    parser.add_argument("--timeout", type=int, default=900)
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
     if args.timeout <= 0:

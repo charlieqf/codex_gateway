@@ -133,7 +133,7 @@ def activate(prepared):
     assert current()==manifest['expected_current']
     verify_idle()
     ctl('stop','radar-imaging.service')
-    ctl('stop','qwen-image-pool.service')
+    ctl('stop','qwen-image-pool.service',timeout=830)
     for port in (8200,8201): assert health(port)['busy'] is False
     ctl('stop','qwen-image-worker@0.service','qwen-image-worker@1.service')
     for name in SERVICES: assert 'ActiveState=inactive' in ctl('show',name,'-p','ActiveState')
@@ -191,7 +191,7 @@ def rollback(prepared):
     # Stop intake first; broker-owned jobs must drain before any old code starts.
     try: operator('drain')
     except Exception: pass
-    ctl('stop','qwen-image-pool.service','radar-imaging.service')
+    ctl('stop','qwen-image-pool.service','radar-imaging.service',timeout=830)
     ctl('stop','qwen-image-worker@0.service','qwen-image-worker@1.service')
     ctl('stop','star-gpu-scheduler.service')
     assert not run('systemctl','--user','list-units','--plain','--no-legend','--state=active','radar-task-*.service')

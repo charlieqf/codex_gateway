@@ -113,7 +113,7 @@ class Scheduler:
                 self.save(task)
                 return 200, self.visible(task, role)
             active = [t for t in self.tasks() if t['state'] not in TERMINAL]
-            capacity = 4 if kind == 'image' else 1 if kind == 'image_init' else 32
+            capacity = 12 if kind == 'image' else 1 if kind == 'image_init' else 32
             count = sum((t['kind'] == kind and (kind != 'image_init' or t['role'] == role))
                 if kind in ('image', 'image_init') else t['kind'].startswith('ct_') for t in active)
             require(count < capacity, 'queue_full', 429)

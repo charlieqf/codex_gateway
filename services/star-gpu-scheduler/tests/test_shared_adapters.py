@@ -93,14 +93,14 @@ class SharedPool(unittest.IsolatedAsyncioTestCase):
             while not check(): await asyncio.sleep(.01)
         await asyncio.wait_for(wait(), 3)
 
-    async def test_four_images_two_gpus_no_overlapping_executor(self):
-        jobs = [self.pool.submit({'prompt':'synthetic-'+str(i)}) for i in range(4)]
+    async def test_twelve_images_two_gpus_no_overlapping_executor(self):
+        jobs = [self.pool.submit({'prompt':'synthetic-'+str(i)}) for i in range(12)]
         await self.until(lambda: len(self.calls)==2)
         self.assertEqual(sorted(self.calls),[0,1])
         self.assertEqual(self.broker.status()['counts']['running'],2)
         for event in self.release: event.set()
         results = await asyncio.wait_for(asyncio.gather(*(j.future for j in jobs)),3)
-        self.assertEqual([r[0] for r in results],[200]*4)
+        self.assertEqual([r[0] for r in results],[200]*12)
         await self.until(lambda: self.broker.status()['counts']['running']==0)
 
     async def test_ct_priority_uses_gpu1_and_unblocks_only_after_child_exit(self):

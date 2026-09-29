@@ -22,9 +22,13 @@ and resource admission; model execution stays in Qwen/RADAR. Production uses
   30000 MiB / 32768 MiB respectively. Unknown GPU processes stop admission.
 - IndexTTS remains outside the shared lock. Its actual VRAM and host memory count
   toward admission; its concurrent growth is still a limitation of version 1.
-- Images: four total outstanding, at most two executing, queue wait <=80 s and
-  request budget <=170 s. Full queue: 429; unavailable/expired admission: 503.
-  Existing Gateway cloud fallbacks remain. LLaDA is not restored.
+- Images: twelve total outstanding (two execution slots plus ten waiting), at
+  most two executing, queue wait <=600 s and request budget <=780 s. Each actual
+  execution still has a 180 s cap. Full queue: 429; unavailable/expired admission:
+  503. Qwen-primary Gateway defaults to no cross-model fallback. Roll out pool,
+  broker and Gateway together; see the
+  [2026-09-29 change and client notice](../../docs/outbox/image-primary-queue-client-notice-2026-09-29.zh-CN.md).
+  These describe the source contract, not proof of deployment. LLaDA is not restored.
 - CT: original asynchronous job API/24 h resource expiry; waiting stage is
   `waiting_gpu`. Broker outage leaves unstarted business jobs queued. Existing
   service restart semantics require explicit retry for interrupted execution.

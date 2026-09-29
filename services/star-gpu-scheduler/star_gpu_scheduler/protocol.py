@@ -60,8 +60,8 @@ def register_body(role, body, now):
                'qwen_worker_0': ('image_init',), 'qwen_worker_1': ('image_init',)}
     require(kind in allowed.get(role, ()), 'unauthorized', 401)
     if kind in ('image', 'image_init'):
-        maximum = 80000 if kind == 'image' else 300000
-        budget = 170000 if kind == 'image' else 480000
+        maximum = 600000 if kind == 'image' else 300000
+        budget = 780000 if kind == 'image' else 480000
         for name, limit in [('queue_timeout_ms', maximum), ('request_budget_ms', budget)]:
             require(type(body.get(name)) is int and 0 < body[name] <= limit)
         require(body['queue_timeout_ms'] <= body['request_budget_ms'])

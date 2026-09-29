@@ -38,8 +38,20 @@ describe("Qwen image primary", () => {
     expect(parseImagePrimaryProvider(" Qwen ")).toBe("qwen");
     expect(createDefaultImageGenerationProvider(env)?.providerKind).toBe("qwen-image");
     const chain = resolveImageGenerationBillingFallbacks({}, env, { info() {} });
-    expect(chain.map(item => [item.provider.providerKind, item.upstreamModel])).toEqual([["openai-api", "gpt-image-2"], ["openai-api", "gpt-image-1.5"]]);
+    expect(chain).toEqual([]);
+    const enabledChain = resolveImageGenerationBillingFallbacks({}, { ...env, MEDCODE_IMAGE_FALLBACK_ENABLED: "1" }, { info() {} });
+    expect(enabledChain.map(item => [item.provider.providerKind, item.upstreamModel])).toEqual([["openai-api", "gpt-image-2"], ["openai-api", "gpt-image-1.5"]]);
     expect(() => createDefaultImageGenerationProvider({ ...env, MEDCODE_IMAGE_QWEN_API_KEY: "" })).toThrow("QWEN_API_KEY");
     expect(() => validateRuntimeEnvironment({ ...env, NODE_ENV: "production", GATEWAY_AUTH_MODE: "credential", GATEWAY_SQLITE_PATH: "/db", CODEX_HOME: "/codex", MEDCODE_IMAGE_QWEN_BASE_URL: "" })).toThrow("QWEN_BASE_URL");
+  });
+
+  it("disables every fallback source before reading retained credentials", () => {
+    const env = { MEDCODE_IMAGE_GENERATION_ENABLED: "1", MEDCODE_IMAGE_FALLBACK_ENABLED: "0",
+      MEDCODE_IMAGE_OPENAI_API_KEY: "retained", MEDCODE_IMAGE_BILLING_FALLBACK_OPENAI_API_KEY: "retained",
+      MEDCODE_IMAGE_BILLING_FALLBACK_KEYS_FILE: "/must-not-read" };
+    expect(resolveImageGenerationBillingFallbacks({}, env, { info() {} })).toEqual([]);
+    const provider = new QwenImageGenerationProvider({ apiKey: "test", baseUrl: "http://private-qwen" });
+    expect(resolveImageGenerationBillingFallbacks({ imageGenerationBillingFallbacks: [{ provider }] }, env, { info() {} })).toEqual([]);
+    expect(() => resolveImageGenerationBillingFallbacks({}, { ...env, MEDCODE_IMAGE_FALLBACK_ENABLED: "false" }, { info() {} })).toThrow("must be 0 or 1");
   });
 });

@@ -1803,6 +1803,34 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it.each([429, 503, 504])("does not switch image models on HTTP %s when fallbacks are disabled", async (status) => {
+    const previous = process.env.MEDCODE_IMAGE_FALLBACK_ENABLED;
+    process.env.MEDCODE_IMAGE_FALLBACK_ENABLED = "0";
+    const { store, headers } = createImageEntitledStore();
+    const primary = new FakeImageGenerationProvider(new GatewayError({
+      code: status === 429 ? "rate_limited" : status === 504 ? "upstream_timeout" : "upstream_unavailable",
+      message: "Synthetic image capacity failure.", httpStatus: status, upstreamStatus: status,
+      ...(status === 429 ? { retryAfterSeconds: 30 } : {})
+    }), "qwen-image");
+    const fallback = new FakeImageGenerationProvider();
+    const app = buildGateway({ authMode: "credential", provider: new FakeProvider(),
+      sessionStore: store, observationStore: store, imageGenerationProvider: primary,
+      imageGenerationBillingFallbacks: [{ provider: fallback }], logger: false });
+    try {
+      const response = await app.inject({ method: "POST", url: "/gateway/images/generations",
+        headers, payload: { model: "medcode-image-default", prompt: "A diagram.", size: "1024x1024" } });
+      expect(response.statusCode).toBe(status);
+      if (status === 429) expect(response.headers["retry-after"]).toBe("30");
+      expect(primary.calls).toHaveLength(1);
+      expect(fallback.calls).toHaveLength(0);
+      expect(store.listRequestEvents({ limit: 1 })[0]?.provider).toBe("qwen-image");
+    } finally {
+      if (previous === undefined) delete process.env.MEDCODE_IMAGE_FALLBACK_ENABLED;
+      else process.env.MEDCODE_IMAGE_FALLBACK_ENABLED = previous;
+      await app.close();
+    }
+  });
+
   it("tries the next billing fallback image provider when a fallback key is also exhausted", async () => {
     const { store, headers } = createImageEntitledStore();
     const billingLimitError = new GatewayError({

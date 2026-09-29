@@ -79,14 +79,29 @@ class Scheduling(unittest.TestCase):
             'unit': executor['unit'], 'invocation_id': executor['invocation_id']}, executor)
         return task['id'], fields, executor
 
-    def test_two_images_use_distinct_gpus_and_fifth_is_rejected(self):
-        for _ in range(4): self.submit()
+    def test_two_images_use_distinct_gpus_and_thirteenth_is_rejected(self):
+        for _ in range(12): self.submit()
         with self.assertRaises(Rejected) as error: self.submit()
         self.assertEqual(error.exception.status, 429)
         self.s.tick()
         tasks = self.s.tasks()
         self.assertEqual([t['gpu'] for t in tasks[:2]], [GPU0, GPU1])
-        self.assertEqual([t['state'] for t in tasks], ['granted', 'granted', 'queued', 'queued'])
+        self.assertEqual([t['state'] for t in tasks], ['granted', 'granted'] + ['queued']*10)
+
+    def test_long_queue_budget_does_not_extend_execution_limit(self):
+        from star_gpu_scheduler.protocol import register_body
+        _, body = self.submit()
+        body.update(operation_id='long-wait', queue_timeout_ms=600000, request_budget_ms=780000)
+        _, value = self.s.register('qwen_pool', body, peer('qwen_pool'))
+        for field, limit in [('queue_timeout_ms', 600000), ('request_budget_ms', 780000)]:
+            with self.assertRaises(Rejected):
+                register_body('qwen_pool', {**body, field: limit+1}, self.now)
+        self.s.tick()
+        self.claim(value)
+        task = self.s.task(value['task_id'])
+        self.assertEqual(task['queue_deadline'], self.now+600)
+        self.assertEqual(task['request_deadline'], self.now+780)
+        self.assertEqual(task['execution_deadline'], self.now+180)
 
     def test_ct_takes_gpu1_image_takes_gpu0(self):
         self.submit('image'); self.submit('ct_infer'); self.submit('image')
@@ -225,8 +240,8 @@ class Scheduling(unittest.TestCase):
             except Rejected as exc: return exc.status
         with ThreadPoolExecutor(max_workers=8) as pool:
             results=list(pool.map(submit,range(32)))
-        self.assertEqual(results.count(201),4)
-        self.assertEqual(results.count(429),28)
+        self.assertEqual(results.count(201),12)
+        self.assertEqual(results.count(429),20)
         self.s.tick()
         self.assertEqual(self.s.status()['counts']['granted'],2)
 

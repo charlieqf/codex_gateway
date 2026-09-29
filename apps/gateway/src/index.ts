@@ -684,7 +684,7 @@ export function buildGateway(options: GatewayOptions = {}) {
   const imageMaxPromptChars = maxPromptCharsFromEnv(process.env.MEDCODE_IMAGE_MAX_PROMPT_CHARS);
   const imageRequestTimeoutMs = parsePositiveIntegerEnv(
     process.env.MEDCODE_IMAGE_REQUEST_TIMEOUT_MS,
-    180_000,
+    imageGenerationProvider?.providerKind === "qwen-image" ? 810_000 : 180_000,
     "MEDCODE_IMAGE_REQUEST_TIMEOUT_MS"
   );
   const requireEntitlement = process.env.GATEWAY_REQUIRE_ENTITLEMENT === "1";
