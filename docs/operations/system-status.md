@@ -1,5 +1,18 @@
 # System Status
 
+Gateway and Qwen pool/broker `752221d` released: 2026-09-29 05:20:41 UTC;
+public health reverified at 05:32:24 UTC. Image generation stays on Qwen-Image-2.1
+with cross-model fallback disabled, two execution slots and ten waiting slots
+(12 outstanding total). Pool wait/total budgets are 600/780 seconds; Gateway
+provider/request budgets are 790/810 seconds. Client image waits must reach 900
+seconds to use this capacity; the backend cannot extend an old client timeout.
+159 public smoke checks passed, including one actual Qwen image in 63.083 seconds.
+Gateway/pool/broker are healthy with zero restarts; four database integrity/FK
+checks passed. Model workers, RADAR, IndexTTS, Nginx and other containers were
+preserved. Maintenance produced 14 observed HTTP 503 responses; see the
+[release receipt](./image-primary-queue-release-2026-09-29.zh-CN.md) for recovery,
+verification limits and the [client notice](../outbox/image-primary-queue-client-notice-2026-09-29.zh-CN.md).
+
 Gateway `3d4c10a` released: 2026-09-23 02:31 UTC; verified 02:31–02:33 UTC.
 Unlimited `plan_gift_once_*` entitlements are now one-off allowances, like the
 signup Free: they coexist with paid plans, are spent first, and do not block
