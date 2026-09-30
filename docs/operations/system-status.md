@@ -1,5 +1,16 @@
 # System Status
 
+AIPAL / PanEcho Gateway `abffeaf723f72c20ba11e4c6468b21a1c9de7b29` is live,
+verified at 2026-09-30 23:46:44 UTC. Both public v1 prefixes reuse the three CT
+pilot Subjects, with independent 10 jobs/UTC day and 1 unfinished job limits;
+clinical tasks do not consume chat tokens. AIPAL and PanEcho real inference,
+verified downloads, owner isolation, idempotency, interrupted uploads, Gateway
+replacement recovery, running cancellation and deletion passed. 1730 tests
+passed / 4 skipped. Health is ready, schema 38, RestartCount=0; five databases
+passed integrity/FK checks. Test tasks and files were cleaned; other project
+containers were preserved. See the [client contract](./clinical-models-v1.md)
+and [release receipt](./clinical-gateway-release-2026-10-01.zh-CN.md).
+
 Gateway and Qwen pool/broker `752221d` released: 2026-09-29 05:20:41 UTC;
 public health reverified at 05:32:24 UTC. Image generation stays on Qwen-Image-2.1
 with cross-model fallback disabled, two execution slots and ten waiting slots
@@ -109,12 +120,12 @@ history retain implementation evidence; do not append incident history here.
 
 ## Production Runtime
 
-Gateway release verified on 2026-09-23 02:33 UTC:
+Gateway release verified on 2026-09-30 23:46:44 UTC:
 
 - `current`:
-  `3d4c10a85bb3d0aa393d30b6be40bf4777740e84` (gift plans as one-off allowances; schema 35)
+  `abffeaf723f72c20ba11e4c6468b21a1c9de7b29` (clinical direct-task proxies; schema 38)
 - `previous`:
-  `3efd50541278735836eeeb608244f628a31b913c` (resolve key check, retail periods and Key coverage; same schema 35, no migration between them)
+  `45487aa94d81688a1b8c6e50ebb7e940a05415d8` (initial clinical proxies; schema 38)
 - Gateway release source: `origin/main`; pin and verify its latest commit before deployment.
 - Public Gateway: healthy, published only on
   `127.0.0.1:18787->8787`
@@ -128,7 +139,7 @@ Gateway release verified on 2026-09-23 02:33 UTC:
   did not change. See [recovery evidence](../../artifacts/doctor-research-agent-2026-09-10/maintenance-recovery-verified-20260911.json).
 - `qwen38-fp8-local`: healthy, private container port only
 
-Gateway runs `3d4c10a`, schema 35. Imaging v1 defaults off in code and currently
+Gateway runs `abffeaf`, schema 38. Imaging v1 defaults off in code and currently
 admits only the three approved Subjects above. Full public CT upload, new inference, 15 verified artifacts, owner
 isolation, resume, cancellation and deletion passed through the public Gateway.
 The source client also completed ordinary-chat tools, inference, verified download
