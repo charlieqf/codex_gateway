@@ -12,6 +12,7 @@ type Row = Record<string, unknown>;
 
 export class ClinicalStore {
   private readonly db: DatabaseSync;
+  private needsInputCheckpoint = true;
   constructor(path: string) {
     if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
     this.db = new DatabaseSync(path);
@@ -92,7 +93,7 @@ export class ClinicalStore {
     const job = { ...intent.job!, ...(action === "delete" ? { state: "deleting" } : action === "cancel" ? { state: "cancel_requested" } : {}) };
     this.db.prepare("UPDATE clinical_intents SET pending_action=?,revoked=?,state=?,resource_json=?,synced=0 WHERE subject=? AND idem_hash=?")
       .run(action, action === "delete" ? 1 : 0, job.state, JSON.stringify(job), subject, intent.key);
-    if (action === "delete") this.db.prepare("DELETE FROM clinical_inputs WHERE subject=? AND idem_hash=?").run(subject, intent.key);
+    if (action === "delete") { this.db.prepare("DELETE FROM clinical_inputs WHERE subject=? AND idem_hash=?").run(subject, intent.key); this.needsInputCheckpoint = true; }
     return this.find(subject, intent.key)!;
   }
   actionDone(intent: Intent, now: number) {
@@ -102,6 +103,7 @@ export class ClinicalStore {
   expire(intent: Intent, now: number) {
     this.db.prepare("UPDATE clinical_intents SET revoked=1,state='expired',expires=?,pending_action=NULL WHERE subject=? AND idem_hash=?").run(Math.min(now, intent.expires), intent.subject, intent.key);
     this.db.prepare("DELETE FROM clinical_inputs WHERE subject=? AND idem_hash=?").run(intent.subject, intent.key);
+    this.needsInputCheckpoint = true;
   }
   candidates(now: number): Intent[] {
     const rows = this.db.prepare(`SELECT subject,idem_hash FROM clinical_intents WHERE expires>? AND synced<? AND
@@ -114,7 +116,10 @@ export class ClinicalStore {
     const removed = this.db.prepare("DELETE FROM clinical_inputs WHERE expires<=?").run(now);
     this.db.prepare("DELETE FROM clinical_intents WHERE rowid IN (SELECT rowid FROM clinical_intents WHERE expires<? LIMIT 100)").run(now - 30 * retention);
     this.db.prepare("DELETE FROM clinical_audit WHERE id IN (SELECT id FROM clinical_audit WHERE at<? LIMIT 1000)").run(now - 30 * retention);
-    if (removed.changes) this.db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
+    // Deletion/early expiry also removes inputs before their TTL. Keep retrying
+    // a busy checkpoint so old input pages cannot outlive that removal in WAL.
+    if (removed.changes) this.needsInputCheckpoint = true;
+    if (this.needsInputCheckpoint) this.needsInputCheckpoint = Number(this.db.prepare("PRAGMA wal_checkpoint(TRUNCATE)").get()!.busy) !== 0;
   }
   audit(subject: string | null, request: string, operation: string, id: string | null, status: number, code: string | null, now: number) {
     this.db.prepare("INSERT INTO clinical_audit(at,subject,request_id,operation,resource_id,status,error_code) VALUES(?,?,?,?,?,?,?)").run(now, subject, request, operation, id, status, code);

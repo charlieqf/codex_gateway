@@ -173,6 +173,12 @@ describe("clinical public tasks", () => {
     const db = new DatabaseSync(path, { readOnly: true }); expect(db.prepare("SELECT count(*) AS n FROM clinical_inputs").get()!.n).toBe(0); expect(db.prepare("SELECT count(*) AS n FROM clinical_intents").get()!.n).toBe(1); db.close();
     for (const file of [path, path + "-wal"]) expect(readFileSync(file).includes(Buffer.from("measurements"))).toBe(false);
   });
+  it("checkpoints inputs removed by deletion before TTL even when expiry pruning removes no rows", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "clinical-delete-")); cleanup.push(() => rmSync(dir, { recursive: true, force: true })); const path = join(dir, "control.db"); const t = setup("aipal", path);
+    const id = (await t.create()).json().job_id; await t.request("DELETE", `/jobs/${id}`);
+    await t.service.reconcile();
+    for (const file of [path, path + "-wal"]) expect(readFileSync(file).includes(Buffer.from("measurements"))).toBe(false);
+  });
   it("does not auto-retry definite rejection or worker-restarted execution", async () => {
     const t = setup("aipal"); t.star.reject = true; expect((await t.create()).statusCode).toBe(429); t.star.now += 3; await t.service.reconcile(); expect(t.star.jobs.size).toBe(0);
     const id = (await t.create()).json().job_id; Object.assign(t.star.jobs.get(id)!.job, { state: "failed", progress: { phase: "failed" }, error: { code: "worker_restarted", message: "secret /patient/path" } });
