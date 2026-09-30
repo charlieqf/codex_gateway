@@ -34,6 +34,38 @@ def insert_mounts(block,paths):
     mounts=''.join(sequence.group(1)+'- '+path+'\n' for path in paths)
     return block.replace('    volumes:\n','    volumes:\n'+mounts,1)
 
+def proposed_override(original,old_image,rev,subjects,env):
+    match=re.search(r'(?ms)^  gateway:\n.*?(?=^  \S|^\S|\Z)',original); assert match
+    block=match.group(); assert block.count('    image: '+old_image+'\n')==1
+    config={}
+    for mode,port in (('aipal',7444),('panecho',7445)):
+        values={'MODE':'pilot','SUBJECT_IDS':subjects,'SQLITE_PATH':'/var/lib/codex-gateway/clinical/'+mode+'.db',
+            'STAR_URL':'https://192.168.77.7:'+str(port)+'/internal/'+mode+'/v1','STAR_CA_FILE':'/run/secrets/'+mode+'-ca.pem',
+            'STAR_TOKEN_FILE':'/run/secrets/'+mode+'-service.token','DAILY_JOBS':'10','ACTIVE_JOBS':'1','CONTROL_TIMEOUT_MS':'15000','TRANSFER_TIMEOUT_MS':'300000'}
+        config.update({'GATEWAY_'+mode.upper()+'_'+k:v for k,v in values.items()})
+    present={k:v for k,v in env.items() if k.startswith(('GATEWAY_AIPAL_','GATEWAY_PANECHO_'))}
+    if present:
+        assert present==config, 'Existing clinical configuration differs from approved settings'
+        assert all(k+':' in block for k in config), 'Clinical configuration must remain in the live override'
+    else:
+        assert 'GATEWAY_AIPAL_' not in block and 'GATEWAY_PANECHO_' not in block
+        additions=''.join('      '+k+': '+json.dumps(v)+'\n' for k,v in config.items())
+        block=block.replace('    environment:\n','    environment:\n'+additions,1)
+        mounts=[str(SECRET/name)+':/run/secrets/'+name+':ro' for mode in ('aipal','panecho') for name in (mode+'-ca.pem',mode+'-service.token')]
+        block=insert_mounts(block,mounts)
+    block=block.replace('    image: '+old_image+'\n','    image: codex_gateway_r760-gateway:'+rev+'\n')
+    return original[:match.start()]+block+original[match.end():]
+
+def proposed_vhost(nginx,release):
+    existing=re.findall(r'(?m)^\s*include ([^;\s]+/clinical-location\.conf);\s*$',nginx)
+    if existing:
+        assert len(existing)==1 and pathlib.Path(existing[0]).read_bytes()==(release/'config/nginx/clinical-location.conf').read_bytes(), 'Existing clinical Nginx route differs'
+        return nginx
+    assert 'clinical-location.conf' not in nginx
+    anchor=re.search(r'^.*include .*imaging-location\.conf;\s*$',nginx,re.M); assert anchor
+    include='    include '+(release/'config/nginx/clinical-location.conf').as_posix()+';\n'
+    return nginx[:anchor.end()]+'\n'+include+nginx[anchor.end():]
+
 def compose(release):
     return ['docker','compose','--env-file',str(release/'config/research.production.compose.env'),'-p','codex_gateway_r760',
         '-f',str(release/'compose.azure.yml'),'-f',str(release/'compose.research-production.yml'),'-f',str(OVERRIDE),
@@ -88,23 +120,8 @@ def main():
         for name in (mode+'-ca.pem',mode+'-service.token'):
             p=SECRET/name; st=p.stat(); assert st.st_gid==999 and st.st_mode&0o777==0o440
         assert (SECRET/(mode+'-service.token')).stat().st_size>=32
-    match=re.search(r'(?ms)^  gateway:\n.*?(?=^  \S|^\S|\Z)',original); assert match
-    block=match.group(); assert block.count('    image: '+state['old_image']+'\n')==1
-    assert 'GATEWAY_AIPAL_' not in block and 'GATEWAY_PANECHO_' not in block
-    additions=''
-    for mode,port in (('aipal',7444),('panecho',7445)):
-        config={'MODE':'pilot','SUBJECT_IDS':subjects,'SQLITE_PATH':'/var/lib/codex-gateway/clinical/'+mode+'.db',
-            'STAR_URL':'https://192.168.77.7:'+str(port)+'/internal/'+mode+'/v1','STAR_CA_FILE':'/run/secrets/'+mode+'-ca.pem',
-            'STAR_TOKEN_FILE':'/run/secrets/'+mode+'-service.token','DAILY_JOBS':'10','ACTIVE_JOBS':'1','CONTROL_TIMEOUT_MS':'15000','TRANSFER_TIMEOUT_MS':'300000'}
-        additions+=''.join('      GATEWAY_'+mode.upper()+'_'+k+': '+json.dumps(v)+'\n' for k,v in config.items())
-    block=block.replace('    environment:\n','    environment:\n'+additions,1)
-    mounts=[str(SECRET/name)+':/run/secrets/'+name+':ro' for mode in ('aipal','panecho') for name in (mode+'-ca.pem',mode+'-service.token')]
-    block=insert_mounts(block,mounts).replace('    image: '+state['old_image']+'\n','    image: codex_gateway_r760-gateway:'+rev+'\n')
-    proposed=original[:match.start()]+block+original[match.end():]
-    include='    include '+str(release/'config/nginx/clinical-location.conf')+';\n'
-    assert 'clinical-location.conf' not in nginx
-    anchor=re.search(r'^.*include .*imaging-location\.conf;\s*$',nginx,re.M); assert anchor
-    proposed_nginx=nginx[:anchor.end()]+'\n'+include+nginx[anchor.end():]
+    proposed=proposed_override(original,state['old_image'],rev,subjects,env)
+    proposed_nginx=proposed_vhost(nginx,release)
     (BACKUP/'proposed.override.yml').write_text(proposed); (BACKUP/'nginx.proposed.conf').write_text(proposed_nginx)
     changed=False; drained=False
     try:

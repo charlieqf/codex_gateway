@@ -19,6 +19,29 @@ class Response:
     def read(self): return json.dumps({'state':'ready' if self.ready else 'starting','lifecycle':{'draining':False}}).encode()
 
 class RolloutTests(unittest.TestCase):
+    def test_followup_release_only_replaces_image_and_rejects_config_drift(self):
+        original='services:\n  gateway:\n    volumes:\n    - old:/old:ro\n    image: old-image\n    environment:\n      OTHER: "kept"\n'
+        first=module.proposed_override(original,'old-image','a'*40,'subject-a,subject-b',{})
+        env={}
+        for line in first.splitlines():
+            if line.strip().startswith('GATEWAY_'):
+                key,value=line.strip().split(': ',1); env[key]=json.loads(value)
+        second=module.proposed_override(first,'codex_gateway_r760-gateway:'+'a'*40,'b'*40,'subject-a,subject-b',env)
+        self.assertEqual(second,first.replace('gateway:'+'a'*40,'gateway:'+'b'*40))
+        env['GATEWAY_AIPAL_ACTIVE_JOBS']='2'
+        with self.assertRaisesRegex(AssertionError,'differs from approved'):
+            module.proposed_override(first,'codex_gateway_r760-gateway:'+'a'*40,'b'*40,'subject-a,subject-b',env)
+
+    def test_followup_release_preserves_verified_nginx_include(self):
+        with tempfile.TemporaryDirectory() as d:
+            release=pathlib.Path(d); config=release/'config/nginx/clinical-location.conf'; config.parent.mkdir(parents=True); config.write_text('verified route')
+            nginx='server {\n    include /old/imaging-location.conf;\n    location / {}\n}\n'
+            first=module.proposed_vhost(nginx,release)
+            self.assertEqual(module.proposed_vhost(first,release),first)
+            other=release/'new'; new_config=other/'config/nginx/clinical-location.conf'; new_config.parent.mkdir(parents=True); new_config.write_text('changed route')
+            with self.assertRaisesRegex(AssertionError,'route differs'):
+                module.proposed_vhost(first,other)
+
     def test_new_mounts_preserve_both_legal_yaml_sequence_indents(self):
         for indent in ('    ','      '):
             original='  gateway:\n    volumes:\n'+indent+'- old:/old:ro\n    image: old-image\n    environment:\n      OTHER: "kept"\n'

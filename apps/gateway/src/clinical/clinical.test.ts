@@ -126,6 +126,13 @@ describe("clinical public tasks", () => {
       t.star.offline = false; t.star.now += 3; await t.service.reconcile(); expect(t.star.jobs.get(id)!.job.state).toBe("deleting");
       expect((await t.create()).statusCode).toBe(404);
     });
+    it(`${mode}: completed deletion acknowledges a retained upstream revision and releases task capacity`, async () => {
+      const t = setup(mode), id = (await t.create()).json().job_id; t.star.completed(id);
+      expect((await t.request("GET", `/jobs/${id}`)).json().result_revision).toBe(1);
+      const deleted = await t.request("DELETE", `/jobs/${id}`); expect(deleted.statusCode).toBe(202);
+      expect(t.store.get(subjects[0]!, id, t.star.now, true).action).toBeNull();
+      expect((await t.create("next-after-completed-delete")).statusCode).toBe(mode === "aipal" ? 202 : 201);
+    });
   }
   it("PanEcho streams chunks, validates length/hash, resumes and durably retries input completion", async () => {
     const t = setup("panecho"); const id = (await t.create()).json().job_id;

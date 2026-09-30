@@ -86,7 +86,8 @@ export function parseJob(mode: Mode, raw: unknown): Job {
   const b = object(raw), states = ["uploading", "queued", "running", "completed", "failed", "cancel_requested", "cancelled", "deleting", "deleted", "expired"];
   requireClinical(identifier(b.job_id) && b.analysis_profile === profiles[mode] && states.includes(String(b.state)) &&
     [b.created_at, b.updated_at, b.expires_at].every(n => typeof n === "number" && Number.isFinite(n) && n >= 0) &&
-    Number(b.expires_at) <= Number(b.created_at) + retention && (b.state === "completed" ? b.result_revision === 1 : b.result_revision === null) &&
+    Number(b.expires_at) <= Number(b.created_at) + retention && (b.state === "completed" ? b.result_revision === 1 :
+      ["deleting", "deleted", "expired"].includes(String(b.state)) ? b.result_revision === null || b.result_revision === 1 : b.result_revision === null) &&
     (mode !== "panecho" || b.chunk_bytes === chunkBytes), 503, "upstream_protocol_error");
   const p = object(b.progress);
   requireClinical(["uploading", "queued", "verifying_upload", "waiting_resources", "inference", "completed", "failed", "cancel_requested", "cancelled", "deleting", "deleted", "expired"].includes(String(p.phase)) &&
@@ -98,7 +99,7 @@ export function parseJob(mode: Mode, raw: unknown): Job {
     const code = Object.hasOwn(messages, e.code) ? e.code : "execution_failed";
     error = { code, message: messages[code], retryable: false };
   }
-  return { job_id: b.job_id as string, analysis_profile: profiles[mode], state: String(b.state), created_at: Number(b.created_at), updated_at: Number(b.updated_at), expires_at: Number(b.expires_at), result_revision: b.result_revision as 1 | null, progress,
+  return { job_id: b.job_id as string, analysis_profile: profiles[mode], state: String(b.state), created_at: Number(b.created_at), updated_at: Number(b.updated_at), expires_at: Number(b.expires_at), result_revision: b.state === "completed" ? 1 : null, progress,
     ...(mode === "panecho" ? { chunk_bytes: chunkBytes } : {}), ...(error ? { error } : {}), ...(b.state === "completed" ? { artifacts: parseArtifacts(mode, b.artifacts) } : {}) };
 }
 export function capabilities(mode: Mode, available: boolean) {

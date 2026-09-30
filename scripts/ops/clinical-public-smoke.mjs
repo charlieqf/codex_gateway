@@ -87,12 +87,15 @@ try{
     for(const mode of ["aipal","panecho"]){const cap=await call(mode,"/capabilities");assert.equal(cap.available,true);
       const unauth=await fetch(origin+prefix(mode)+"/capabilities");assert.equal(unauth.status,401);report.checks.push({mode,operation:"missing_key_401"});
       const source=await call(mode,"/source",{raw:true});assert.equal(sha(source.bytes),source.headers.get("x-content-sha256"));}
+    const invalid=structuredClone(labs);invalid.input.measurements.PT_percent.unit="INR";
+    await call("aipal","/jobs",{method:"POST",body:invalid,key:state.run+":invalid-unit",expected:422});
     const key=state.run+":aipal";await lostResponse("aipal",labs,key);
     const job=await call("aipal","/jobs",{method:"POST",body:labs,key});state.resources.push({mode:"aipal",id:job.job_id});writeFileSync(statePath,JSON.stringify(state));
     await call("aipal","/jobs",{method:"POST",body:{...labs,session_id:"changed"},key,expected:409});await cross("aipal",job.job_id);
     const done=await wait("aipal",job.job_id,["completed"]);const result=await call("aipal",`/jobs/${job.job_id}/result`);assert.equal(Object.keys(result.probabilities).length,3);await download("aipal",done);await erase("aipal",job.job_id);
     await call("aipal","/jobs",{method:"POST",body:labs,key,expected:404});
     const echoJob=await call("panecho","/jobs",{method:"POST",body:echo,key:state.run+":echo",expected:201});state.echo_id=echoJob.job_id;state.resources.push({mode:"panecho",id:echoJob.job_id});writeFileSync(statePath,JSON.stringify(state));
+    await call("panecho","/jobs",{method:"POST",body:echo,key:state.run+":active-limit",expected:429});
     await partialUpload(echoJob.job_id);await upload(echoJob.job_id);report.checks.push({mode:"panecho",operation:"ready_for_gateway_restart",job_id:echoJob.job_id});
   }else if(phase==="resume"){
     state=JSON.parse(readFileSync(statePath,"utf8"));const id=state.echo_id;
