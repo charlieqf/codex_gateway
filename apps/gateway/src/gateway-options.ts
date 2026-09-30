@@ -38,6 +38,7 @@ import { ActiveRequestRegistry } from "./services/active-request-registry.js";
 import { type LocalContextAdmissionMode } from "./services/local-context-admission.js";
 import { type VisionAssetService } from "./services/vision-asset-service.js";
 import type { ImagingService } from "./imaging/service.js";
+import type { ClinicalService } from "./clinical/service.js";
 
 export type GatewayAuthMode = "dev" | "credential";
 
@@ -109,6 +110,8 @@ export interface GatewayOptions {
   imageGenerationBillingFallbacks?: ImageGenerationBillingFallbackInput[];
   visionAssetService?: VisionAssetService | null;
   imagingService?: ImagingService | null;
+  aipalService?: ClinicalService | null;
+  panechoService?: ClinicalService | null;
   activeRequestRegistry?: ActiveRequestRegistry;
   localContextAdmissionMode?: LocalContextAdmissionMode;
   now?: () => Date;

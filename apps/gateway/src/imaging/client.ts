@@ -41,10 +41,11 @@ export class VerifiedStream extends Transform {
 export class HttpsStarClient implements StarClient {
   private readonly base: URL;
   private readonly agent: Agent;
-  constructor(private readonly options: { baseUrl: string; token: string; ca: string | Buffer; controlTimeoutMs?: number; transferTimeoutMs?: number; maxSockets?: number }) {
+  constructor(private readonly options: { baseUrl: string; token: string; ca: string | Buffer; controlTimeoutMs?: number; transferTimeoutMs?: number; maxSockets?: number; clinical?: "aipal" | "panecho" }) {
     this.base = new URL(options.baseUrl);
     requireImaging(this.base.protocol === "https:" && !this.base.username && !this.base.password && !this.base.search && !this.base.hash &&
-      this.base.pathname.replace(/\/$/, "") === "/internal/imaging/v1" && /^[\x21-\x7e]{24,512}$/.test(options.token) && options.ca.length > 0, 503, "unavailable");
+      this.base.pathname.replace(/\/$/, "") === `/internal/${options.clinical ?? "imaging"}/v1` &&
+      (!options.clinical || ["aipal", "panecho"].includes(options.clinical)) && /^[\x21-\x7e]{24,512}$/.test(options.token) && options.ca.length > 0, 503, "unavailable");
     this.agent = new Agent({ ca: options.ca, rejectUnauthorized: true, keepAlive: true, maxSockets: options.maxSockets ?? 8, maxFreeSockets: 2 });
   }
   close(): void { this.agent.destroy(); }
@@ -59,13 +60,13 @@ export class HttpsStarClient implements StarClient {
     const cleanup = () => { clearTimeout(timer); options.signal?.removeEventListener("abort", abort); };
     const payload = options.body ? Buffer.from(JSON.stringify(options.body)) : undefined;
     // Construct every private header here. Never copy client authorization, owner, cookies or forwarding headers.
-    const headers: Record<string, string> = { authorization: `Bearer ${this.options.token}`, "x-imaging-owner": owner, accept: "application/json" };
+    const headers: Record<string, string> = { authorization: `Bearer ${this.options.token}`, [this.options.clinical ? "x-clinical-owner" : "x-imaging-owner"]: owner, accept: "application/json" };
     if (options.key) headers["idempotency-key"] = options.key;
     if (payload || options.stream) {
       headers["content-type"] = options.stream ? "application/octet-stream" : "application/json";
       headers["content-length"] = String(options.stream ? options.length : payload!.length);
     }
-    if (options.digest) headers["x-content-sha256"] = options.digest;
+    if (options.digest) headers[this.options.clinical === "panecho" ? "x-chunk-sha256" : "x-content-sha256"] = options.digest;
     const url = new URL(this.base);
     const [pathname, query] = suffix.split("?", 2);
     url.pathname = `${this.base.pathname.replace(/\/$/, "")}${pathname}`;
@@ -124,6 +125,26 @@ export class HttpsStarClient implements StarClient {
       operation.cleanup();
       throw error instanceof ImagingError ? error : new ImagingError(503, "unavailable");
     }
+  }
+  async source(owner: string, signal?: AbortSignal): Promise<Buffer> {
+    const operation = this.open(owner, "GET", "/source", { signal }, true);
+    operation.request.end();
+    try {
+      const response = await operation.response;
+      const size = Number(response.headers["content-length"]);
+      requireImaging(response.statusCode === 200 && Number.isSafeInteger(size) && size > 0 && size <= 16 * 1024 * 1024 && !response.headers["content-encoding"], 503, "upstream_protocol_error");
+      const blocks: Buffer[] = []; let count = 0;
+      for await (const data of response) {
+        count += data.length;
+        requireImaging(count <= size, 503, "upstream_protocol_error");
+        blocks.push(data as Buffer);
+      }
+      requireImaging(count === size, 503, "upstream_protocol_error");
+      return Buffer.concat(blocks);
+    } catch (error) {
+      operation.request.destroy();
+      throw error instanceof ImagingError ? error : new ImagingError(503, "unavailable");
+    } finally { operation.cleanup(); }
   }
 }
 

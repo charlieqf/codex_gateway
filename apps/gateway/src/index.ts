@@ -188,7 +188,8 @@ import {
 import { registerVisionAssetRoutes } from "./vision-asset-routes.js";
 import { registerImagingRoutes } from "./imaging/routes.js";
 import { resolveImagingService } from "./imaging/runtime.js";
-import { imagingPrefix } from "./imaging/contract.js";
+import { isClinicalRoute, registerClinicalRoutes } from "./clinical/routes.js";
+import { resolveClinicalService } from "./clinical/runtime.js";
 import {
   modelNotFoundError,
   openAIModelObject,
@@ -859,7 +860,7 @@ export function buildGateway(options: GatewayOptions = {}) {
   });
 
   app.addHook("preHandler", async (request) => {
-    if (!request.routeOptions.config?.public && !request.url.startsWith(`${imagingPrefix}/`)) {
+    if (!request.routeOptions.config?.public && !isClinicalRoute(request.url)) {
       applyClientTurnHeaders(request);
     }
   });
@@ -874,7 +875,7 @@ export function buildGateway(options: GatewayOptions = {}) {
   );
 
   app.addHook("preHandler", async (request) => {
-    if (request.routeOptions.config?.public || request.url.startsWith(`${imagingPrefix}/`)) {
+    if (request.routeOptions.config?.public || isClinicalRoute(request.url)) {
       return;
     }
     await cleanupExpiredTokenReservations(tokenBudgetLimiter, request.log, clock());
@@ -898,6 +899,8 @@ export function buildGateway(options: GatewayOptions = {}) {
 
   registerImagingRoutes(app, options.imagingService === undefined
     ? resolveImagingService(process.env, app.log) : options.imagingService);
+  registerClinicalRoutes(app, "aipal", options.aipalService === undefined ? resolveClinicalService("aipal", process.env, app.log) : options.aipalService);
+  registerClinicalRoutes(app, "panecho", options.panechoService === undefined ? resolveClinicalService("panecho", process.env, app.log) : options.panechoService);
 
   registerVisionAssetRoutes(app, {
     maximumRequestBodyBytes: visionRequestBodyLimitBytes,

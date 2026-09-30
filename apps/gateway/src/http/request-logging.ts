@@ -10,6 +10,8 @@ function assetLogUrl(url: string | undefined): string | null {
     .replace(/%([0-9a-f]{2})/giu, (_match, hex: string) => String.fromCharCode(parseInt(hex, 16)));
   // Even unmatched imaging URLs may contain client filenames or patient data.
   if (/^\/gateway\/imaging(?:\/|$)/iu.test(path)) return "/gateway/imaging/:operation";
+  const clinical = /^\/gateway\/(aipal|panecho)(?:\/|$)/iu.exec(path);
+  if (clinical) return `/gateway/${clinical[1]!.toLowerCase()}/:operation`;
   if (!/^\/gateway\/vision\/assets(?:\/|$)/iu.test(path)) return null;
   if (path.toLowerCase() === assetPath) return assetPath;
   const operation = /^\/gateway\/vision\/assets\/[^/]+\/(read-url|complete)\/?$/iu.exec(path)?.[1]?.toLowerCase();
