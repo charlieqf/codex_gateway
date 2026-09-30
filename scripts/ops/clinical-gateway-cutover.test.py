@@ -19,6 +19,13 @@ class Response:
     def read(self): return json.dumps({'state':'ready' if self.ready else 'starting','lifecycle':{'draining':False}}).encode()
 
 class RolloutTests(unittest.TestCase):
+    def test_new_mounts_preserve_both_legal_yaml_sequence_indents(self):
+        for indent in ('    ','      '):
+            original='  gateway:\n    volumes:\n'+indent+'- old:/old:ro\n    image: old-image\n    environment:\n      OTHER: "kept"\n'
+            proposed=module.insert_mounts(original,['new:/new:ro'])
+            self.assertIn('    volumes:\n'+indent+'- new:/new:ro\n'+indent+'- old:/old:ro\n',proposed)
+            self.assertIn('      OTHER: "kept"',proposed)
+
     def test_public_health_requires_two_consecutive_ready_responses(self):
         with tempfile.TemporaryDirectory() as d, patch.object(module.urllib.request,'urlopen',side_effect=[Response(False),Response(),Response()]) as probe, patch.object(module.time,'sleep'):
             path=pathlib.Path(d)/'events.json'; module.converge(path)

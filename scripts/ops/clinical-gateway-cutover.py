@@ -26,6 +26,14 @@ def inspect(name):
 def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
+def insert_mounts(block,paths):
+    # safe_dump commonly uses indentless sequences; preserve the live style.
+    section=re.search(r'(?ms)^    volumes:\n(.*?)(?=^    [A-Za-z_]|\Z)',block)
+    assert section, 'Gateway volumes section missing'
+    sequence=re.search(r'(?m)^( +)- ',section.group(1)); assert sequence, 'Expected a volume sequence'
+    mounts=''.join(sequence.group(1)+'- '+path+'\n' for path in paths)
+    return block.replace('    volumes:\n','    volumes:\n'+mounts,1)
+
 def compose(release):
     return ['docker','compose','--env-file',str(release/'config/research.production.compose.env'),'-p','codex_gateway_r760',
         '-f',str(release/'compose.azure.yml'),'-f',str(release/'compose.research-production.yml'),'-f',str(OVERRIDE),
@@ -90,8 +98,8 @@ def main():
             'STAR_TOKEN_FILE':'/run/secrets/'+mode+'-service.token','DAILY_JOBS':'10','ACTIVE_JOBS':'1','CONTROL_TIMEOUT_MS':'15000','TRANSFER_TIMEOUT_MS':'300000'}
         additions+=''.join('      GATEWAY_'+mode.upper()+'_'+k+': '+json.dumps(v)+'\n' for k,v in config.items())
     block=block.replace('    environment:\n','    environment:\n'+additions,1)
-    mounts=''.join('      - '+str(SECRET/name)+':/run/secrets/'+name+':ro\n' for mode in ('aipal','panecho') for name in (mode+'-ca.pem',mode+'-service.token'))
-    block=block.replace('    volumes:\n','    volumes:\n'+mounts,1).replace('    image: '+state['old_image']+'\n','    image: codex_gateway_r760-gateway:'+rev+'\n')
+    mounts=[str(SECRET/name)+':/run/secrets/'+name+':ro' for mode in ('aipal','panecho') for name in (mode+'-ca.pem',mode+'-service.token')]
+    block=insert_mounts(block,mounts).replace('    image: '+state['old_image']+'\n','    image: codex_gateway_r760-gateway:'+rev+'\n')
     proposed=original[:match.start()]+block+original[match.end():]
     include='    include '+str(release/'config/nginx/clinical-location.conf')+';\n'
     assert 'clinical-location.conf' not in nginx
