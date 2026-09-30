@@ -105,7 +105,7 @@ def prepare(manifest):
     for path,expected in hashes.items(): assert sha(backup/path)==expected
     for p in backup.rglob('*'): os.chmod(p,0o700 if p.is_dir() else 0o600)
     for name in ('config','state'): (BASE/name).mkdir(parents=True,exist_ok=True,mode=0o700)
-    roles=('qwen_pool','qwen_worker_0','qwen_worker_1','radar_service','radar_runner','operator')
+    roles=('qwen_pool','qwen_worker_0','qwen_worker_1','radar_service','radar_runner','panecho_service','panecho_runner','operator')
     files={role:str(BASE/'config'/(role+'.token')) for role in roles}
     for path in files.values():
         if not Path(path).exists(): protected(path,secrets.token_urlsafe(48)+'\n')

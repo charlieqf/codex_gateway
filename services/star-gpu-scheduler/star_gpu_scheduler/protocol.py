@@ -8,12 +8,13 @@ GPU0 = 'GPU-9df0d9aa-0e98-59af-1de3-0d1ff8564c98'
 GPU1 = 'GPU-b78f29ae-cd33-3c2c-9609-b898f1142c50'
 GPUS = (GPU0, GPU1)
 TERMINAL = frozenset(('succeeded', 'failed', 'cancelled', 'expired'))
-ROLES = frozenset(('qwen_pool', 'qwen_worker_0', 'qwen_worker_1', 'radar_service', 'radar_runner', 'operator'))
+ROLES = frozenset(('qwen_pool', 'qwen_worker_0', 'qwen_worker_1', 'radar_service', 'radar_runner', 'panecho_service', 'panecho_runner', 'operator'))
 PROFILES = {
     'image': 'qwen_bf16_offload_v1',
     'image_init': 'qwen_initialize_v1',
     'ct_infer': 'radar_abdominal_v1',
     'ct_preprocess': 'radar_preprocess_v1',
+    'echo_infer': 'panecho_16x224_v1',
 }
 ERRORS = frozenset(('execution_failed', 'resource_unavailable', 'cancelled', 'deadline',
     'worker_restarted', 'cleanup_failed', 'grant_delivery_failed', 'producer_lost'))
@@ -57,6 +58,7 @@ def register_body(role, body, now):
     require(all(identifier(body[k]) for k in ('producer_instance', 'operation_id')))
     require(isinstance(body['payload_sha256'], str) and re.fullmatch('[0-9a-f]{64}', body['payload_sha256']))
     allowed = {'qwen_pool': ('image',), 'radar_service': ('ct_infer', 'ct_preprocess'),
+               'panecho_service': ('echo_infer',),
                'qwen_worker_0': ('image_init',), 'qwen_worker_1': ('image_init',)}
     require(kind in allowed.get(role, ()), 'unauthorized', 401)
     if kind in ('image', 'image_init'):

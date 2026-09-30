@@ -106,7 +106,7 @@ class Scheduler:
                 task = json.loads(row[0])
                 require(row[1] == fingerprint, 'idempotency_conflict')
                 if task['producer_instance'] != body['producer_instance']:
-                    require(kind.startswith('ct_') and not task.get('execution') and
+                    require(kind.startswith(('ct_', 'echo_')) and not task.get('execution') and
                         task['state'] == 'queued' and self.runtime.alive(task['producer']) is False, 'invalid_transition')
                     task.update(producer_instance=body['producer_instance'], producer=peer)
                 task['producer_heartbeat'] = now
@@ -115,7 +115,7 @@ class Scheduler:
             active = [t for t in self.tasks() if t['state'] not in TERMINAL]
             capacity = 12 if kind == 'image' else 1 if kind == 'image_init' else 32
             count = sum((t['kind'] == kind and (kind != 'image_init' or t['role'] == role))
-                if kind in ('image', 'image_init') else t['kind'].startswith('ct_') for t in active)
+                if kind in ('image', 'image_init') else t['kind'].startswith('ct_' if kind.startswith('ct_') else 'echo_') for t in active)
             require(count < capacity, 'queue_full', 429)
             deadline = now+body['queue_timeout_ms']/1000 if 'queue_timeout_ms' in body else body['expires_at']
             request_deadline = now+body['request_budget_ms']/1000 if 'request_budget_ms' in body else body['expires_at']
@@ -171,7 +171,7 @@ class Scheduler:
             require(type(body['generation']) is int and body['generation'] == task['generation'] and
                 isinstance(body['grant_token'], str) and
                 secrets.compare_digest(token_hash(body['grant_token']), task.get('token_hash', '')), 'stale_grant')
-            supervisor = action == 'released' and role == 'radar_service' and same_process(peer, task['producer'])
+            supervisor = action == 'released' and role == task['role'] and role in ('radar_service', 'panecho_service') and same_process(peer, task['producer'])
             require(supervisor or (role == task['executor'] and self.runtime.executor_allowed(role, peer)), 'unauthorized', 401)
             if action == 'claim':
                 require(body['payload_sha256'] == task['payload_sha256'] and body['unit'] == peer['unit'] and
@@ -185,7 +185,7 @@ class Scheduler:
                 require(task['gpu'] is None or self.runtime.owns_lock(task['gpu'], peer['pid']), 'lock_not_held')
                 task['execution'] = peer
                 task['heartbeat'] = now
-                duration = 900 if task['kind'].startswith('ct_') else 480 if task['kind'] == 'image_init' else 180
+                duration = 900 if task['kind'].startswith(('ct_', 'echo_')) else 480 if task['kind'] == 'image_init' else 180
                 task['execution_deadline'] = min(task['request_deadline'], now+duration)
                 self.save(task, 'running')
             else:
@@ -247,6 +247,8 @@ class Scheduler:
             self.save(task, 'recovering', 'executor_unconfirmed')
 
     def growth(self, task, snapshot):
+        if task['kind'] == 'echo_infer':
+            return 8192
         if task['kind'].startswith('ct_'):
             # Keeping the full bound after start is conservative and avoids sampling transient units.
             return 32768
@@ -260,14 +262,16 @@ class Scheduler:
             slot = self.db.execute('SELECT generation,task_id FROM slots WHERE gpu=?', (gpu,)).fetchone()
             if slot[1] or not self.runtime.lock_free(gpu):
                 return False
-            task['executor'] = 'radar_runner' if task['kind'] == 'ct_infer' else 'qwen_worker_'+str(GPUS.index(gpu))
+            task['executor'] = 'radar_runner' if task['kind'] == 'ct_infer' else 'panecho_runner' if task['kind'] == 'echo_infer' else 'qwen_worker_'+str(GPUS.index(gpu))
         else:
             task['executor'] = 'radar_runner'
         if task['kind'].startswith('ct_') and any(t['id'] != task['id'] and t['kind'].startswith('ct_') and t['state'] in ('granted', 'running', 'releasing', 'recovering') for t in tasks):
             return False
+        if task['kind'] == 'echo_infer' and any(t['id'] != task['id'] and t['kind'] == 'echo_infer' and t['state'] in ('granted', 'running', 'releasing', 'recovering') for t in tasks):
+            return False
         if gpu is not None:
             stats = snapshot['gpus'][gpu]
-            if stats['temperature'] > 80 or stats['free_mib'] < (32768 if task['kind'] == 'ct_infer' else 30000):
+            if stats['temperature'] > 80 or stats['free_mib'] < (32768 if task['kind'] == 'ct_infer' else 8192 if task['kind'] == 'echo_infer' else 30000):
                 task['wait_reason'] = 'waiting_gpu'
                 self.save(task)
                 return False
@@ -317,12 +321,12 @@ class Scheduler:
                 if task['state'] == 'queued':
                     if now >= task['queue_deadline']:
                         self.terminal(task, 'expired')
-                    elif now-task['producer_heartbeat'] > 10 and not task['kind'].startswith('ct_'):
+                    elif now-task['producer_heartbeat'] > 10 and not task['kind'].startswith(('ct_', 'echo_')):
                         task['error_code'] = 'producer_lost'
                         self.terminal(task, 'cancelled')
                 else:
                     if now-task['producer_heartbeat'] > 10 and not task.get('execution'):
-                        if not task['kind'].startswith('ct_'):
+                        if not task['kind'].startswith(('ct_', 'echo_')):
                             task['cancel_requested'] = True
                         task['state'] = 'recovering'
                     self.reconcile(task, now)
@@ -347,7 +351,7 @@ class Scheduler:
                 if init:
                     self.reserve(init, gpu, snapshot, tasks, ct)
                 elif snapshot['cgroups'].get('qwen_worker_'+str(index), {}).get('ready', True):
-                    image = next((t for t in queued if t['kind'] == 'image' and t['state'] == 'queued'), None)
+                    image = next((t for t in queued if t['kind'] in ('image', 'echo_infer') and t['state'] == 'queued'), None)
                     if image:
                         self.reserve(image, gpu, snapshot, tasks, ct)
 

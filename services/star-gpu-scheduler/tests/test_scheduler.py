@@ -109,6 +109,32 @@ class Scheduling(unittest.TestCase):
         self.assertEqual([(t['kind'], t['gpu'], t['state']) for t in self.s.tasks()],
             [('image', GPU0, 'granted'), ('ct_infer', GPU1, 'granted'), ('image', None, 'queued')])
 
+    def test_echo_uses_small_budget_and_separate_executor(self):
+        self.hw.snapshot['memory_available_mib'] = 22000
+        (_, echo), _ = self.submit('echo_infer', role='panecho_service')
+        self.s.tick()
+        value = self.s.get(echo['task_id'], 'panecho_service')
+        self.assertEqual(value['grant']['executor'], 'panecho_runner')
+        self.assertEqual(value['gpu'], GPU0)
+        self.claim(echo)
+        self.assertEqual(self.s.task(echo['task_id'])['execution_deadline'], self.now+900)
+
+    def test_only_one_echo_executor_and_no_preemption(self):
+        self.submit('echo_infer', role='panecho_service')
+        self.submit('echo_infer', role='panecho_service')
+        self.s.tick()
+        self.assertEqual([t['state'] for t in self.s.tasks()], ['granted', 'queued'])
+        self.assertEqual(self.s.tasks()[0]['gpu'], GPU0)
+
+    def test_echo_role_cannot_submit_ct_and_retains_host_reserve(self):
+        self.hw.snapshot['memory_available_mib'] = 20000
+        (_, echo), body = self.submit('echo_infer', role='panecho_service')
+        self.s.tick()
+        self.assertEqual(self.s.get(echo['task_id'], 'panecho_service')['wait_reason'], 'waiting_memory')
+        body.update(kind='ct_infer', profile=PROFILES['ct_infer'])
+        with self.assertRaises(Rejected):
+            self.s.register('panecho_service', body, peer('panecho_service'))
+
     def test_ct_does_not_preempt_running_image(self):
         self.submit(); image, _ = self.submit()
         self.s.tick()

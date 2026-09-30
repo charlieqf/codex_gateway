@@ -110,3 +110,13 @@ source pointers/units, removes GPU1 from the old pool's systemd dependencies and
 disables the GPU1 Qwen worker. It starts Qwen on GPU0 and original RADAR on GPU1.
 It never restores the database backup or starts LLaDA. Original model files,
 certificates, API tokens, SSH tunnel and IndexTTS remain in place.
+# PanEcho research executor
+
+`panecho_service` may submit only `echo_infer/panecho_16x224_v1`; `panecho_runner`
+claims only within `panecho-task-job_*.service` transient units. Echo reserves
+8 GiB host memory and requires 8 GiB free VRAM, with one live echo executor.
+It uses the existing process-owned GPU lock and retains ownership until verified
+process exit. CT retains GPU1 priority; echo and image tasks use queue order on
+available GPUs. Async echo admission/retry follows the durable CT semantics.
+The rollout in MedEvidence `services/clinical-models/deploy.py` preserves live
+host-reserve configuration and uses an isolated, committed scheduler release.

@@ -219,8 +219,9 @@ def write_ticket(path, ticket, payload):
 
 
 @contextmanager
-def radar_execution(directory):
-    client = Client.from_env('radar_runner')
+def radar_execution(directory, *, role='radar_runner'):
+    require(role in ('radar_runner', 'panecho_runner'), 'scheduler_configuration', 503)
+    client = Client.from_env(role)
     if client is None:
         yield None
         return

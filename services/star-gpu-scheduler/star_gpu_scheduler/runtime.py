@@ -142,6 +142,8 @@ class Runtime:
         expected = self.units.get(role)
         if role == 'radar_runner':
             return peer['unit'].startswith('radar-task-') and peer['unit'].endswith('.service')
+        if role == 'panecho_runner':
+            return peer['unit'].startswith('panecho-task-job_') and peer['unit'].endswith('.service')
         return bool(expected) and peer['unit'] == expected
 
     def receipt(self, execution, task):
