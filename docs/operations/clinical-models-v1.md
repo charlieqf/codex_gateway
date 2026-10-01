@@ -86,6 +86,7 @@ profile 固定为 `panecho-tte-research-v1`。
 ```
 
 format 为 video、video_zip、dicom_zip；多帧 US DICOM 通过 dicom_zip 提交。
+dicom_zip 必须来自同一患者、同一次检查，使用支持的 8-bit 多帧 2D US cine；单帧图像及混合检查不支持。
 最大 512 MiB，固定 8 MiB 分块；ROI 为归一化 [left,top,right,bottom]，必须排除文字标签。
 仅接受同一次检查的 2D TTE cine；不进行自动模态识别或自动脱敏。
 
@@ -111,6 +112,7 @@ complete 可重复调用，不能据网络超时重复创建新任务。
 未知、跨 Subject、删除或过期任务均 404；输入/状态/幂等冲突 400/409/413/422；额度或并发限制 429；网络和后台不可用 503。
 具体 code 包括 invalid_request、missing_measurements、invalid_unit、invalid_value、inconsistent_differential、
 idempotency_conflict、state_conflict、hash_mismatch、chunk_conflict、incomplete_upload、result_not_ready、quota_exceeded、queue_full、worker_restarted。
+执行阶段的 mixed_study、cine_limit、unsafe_archive 表示检查混合、cine 超出支持范围或归档内容被拒绝；任务 failed 且 retryable=false，不能自动创建新任务重跑。
 后台错误文本和私有路径不透传。retryable 表示同一操作可重试，不代表可以自动发起新推理。
 
 全部输入、文件和结果访问最多 24 小时；Gateway 短期输入同样清理，控制墓碑不含检验值。
@@ -126,3 +128,5 @@ STAR_URL、STAR_CA_FILE、STAR_TOKEN_FILE、DAILY_JOBS、ACTIVE_JOBS、CONTROL_T
 默认 off；配置错误只关闭对应服务。独立数据库不得指向 identity/client-events/CT 或另一临床服务数据库。
 固定 HTTPS 目的地址、证书验证、独立后台凭据；Nginx 和应用日志脱敏覆盖两组完整路径及查询。
 临床数据库包含短期输入，不纳入长期每日/每周备份；发布备份需执行相同输入保留策略。
+
+video / video_zip / dicom_zip 已逐项通过公网实推理及下载验证，样本和覆盖范围见 [格式补充验收](./clinical-panecho-formats-acceptance-2026-10-01.zh-CN.md)。

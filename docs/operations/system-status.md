@@ -11,6 +11,12 @@ passed integrity/FK checks. Test tasks and files were cleaned; other project
 containers were preserved. See the [client contract](./clinical-models-v1.md)
 and [release receipt](./clinical-gateway-release-2026-10-01.zh-CN.md).
 
+PanEcho video, video ZIP and multi-frame DICOM ZIP public acceptance completed
+at 2026-10-01 01:47:18 UTC: 119 checks passed, identical predictions for equivalent
+pixels, nine verified downloads, and expected mixed-study/static-cine failures.
+All five test jobs and temporary files were cleaned; runtime/config stayed unchanged.
+See the [format supplement](./clinical-panecho-formats-acceptance-2026-10-01.zh-CN.md).
+
 Gateway and Qwen pool/broker `752221d` released: 2026-09-29 05:20:41 UTC;
 public health reverified at 05:32:24 UTC. Image generation stays on Qwen-Image-2.1
 with cross-model fallback disabled, two execution slots and ten waiting slots

@@ -47,7 +47,7 @@ Key 仅在容器内存中恢复使用，没有写入脚本、报告或日志，�
 | 既有接口 | `/v1/models` 和 CT capabilities 公网回归 200；CT 传输与接口专项测试通过 |
 
 PanEcho 公网样本为公开 ECHOpedia A4CTTS 视频（595712 字节，ROI `[0.24,0.21,0.78,0.8]`）；AIPAL 使用合成数值，没有真实患者数据。
-本次公网实推理覆盖 video；video_zip / dicom_zip 的代理格式契约已实现，但本次未逐项进行公网实推理。
+首次发布验收覆盖 video；2026-10-01 已补齐 video_zip / dicom_zip 公网实推理及两个 DICOM 反例，119 条检查记录全部通过，见 [格式补充验收](./clinical-panecho-formats-acceptance-2026-10-01.zh-CN.md)。
 24 小时清理通过可控时钟与真实 SQLite/WAL 文件回归验证，未等待线上满 24 小时。
 每日 10 次上限通过持久化回归及线上配置确认，未耗尽试点用户的当日额度。
 Desktop 工具和结果界面的安装包验收由客户端团队继续完成。
