@@ -80,6 +80,8 @@ try {
       if (expected === "completed") {
         const result = await call(`/jobs/${id}/result`); assert.equal(result.tasks.length, 40); predictions.set(name, result.tasks);
         evidence.tasks = result.tasks.length; evidence.videos = result.videos.length;
+        assert.equal(evidence.videos, name === "video_zip" ? 2 : 1);
+        assert.ok(result.videos.every(video => video.frames === 89));
         for (const suffix of ["", "/result", "/artifacts/result.json"]) await call(`/jobs/${id}${suffix}`, { account: 1, expected: 404 });
         assert.deepEqual(job.artifacts.map(a => a.name).sort(), ["preview.png", "report.csv", "result.json"]);
         for (const item of job.artifacts) {
@@ -89,6 +91,7 @@ try {
           evidence.downloads.push({ name: item.name, size: item.size, sha256: item.sha256 });
         }
       } else {
+        assert.equal(job.error?.code, name === "mixed_study" ? "mixed_study" : "cine_limit");
         assert.equal(job.error?.retryable, false); evidence.error_code = job.error.code;
         await call(`/jobs/${id}/result`, { expected: 409 }); await call(`/jobs/${id}/artifacts/result.json`, { expected: 409 });
         assert.equal((await call("/jobs", { method: "POST", body, key })).state, "failed");
