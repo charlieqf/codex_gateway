@@ -44,6 +44,7 @@ export interface StrictClientToolsInput {
 
 export interface NativeClientToolsInput extends StrictClientToolsInput {
   callBudget?: NativeCallBudget;
+  emptyResponseRecovery?: boolean;
   onNativeCall?: (shape: QuotaRequestShape) => void;
   failoverAttempt?: boolean;
   nativeToolForceRequiredMode: NativeToolForceRequiredMode;

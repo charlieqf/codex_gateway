@@ -26,6 +26,7 @@ import {
 import { estimatePromptTokens } from "./token-budget-hook.js";
 import { type ChatRuntimeContext } from "./chat-runtime-dispatcher.js";
 import { NativeCallBudget, runNativeToolFailover } from "./native-tool-failover.js";
+import { isRecoverableEmptyResponse } from "./empty-response-policy.js";
 import { VisionRequestRecovery, runVisionRequestRecovery } from "./vision-request-recovery.js";
 import type {
   NativeClientToolsInput,
@@ -51,7 +52,7 @@ export async function runNativeWithFailover(input: NativeClientToolsInput & {
   selected: (runtime: ChatRuntimeContext) => void;
 }): Promise<StrictClientToolsResult | GatewayError> {
   const execute = (runtime: ChatRuntimeContext, callBudget?: NativeCallBudget, retry = false) => runNativeClientTools({
-    ...input, callBudget,
+    ...input, callBudget, emptyResponseRecovery: input.failover && !input.visionRecovery,
     request: { ...input.request, maximumOutputTokens: input.request.maximumOutputTokens ?? runtime.limits.maxOutputTokens },
     onNativeCall: runtime.updateQuotaRequest,
     failoverAttempt: retry || runtime.runtimeInstanceId !== input.runtime.runtimeInstanceId,
@@ -101,6 +102,13 @@ async function runNativeClientTools(
     input.failoverAttempt ? "stateless_retry" : "native_initial");
   if (first instanceof GatewayError) {
     return first;
+  }
+
+  // A proven empty provider response has no arguments to repair. Preserve its
+  // classification so the shared budget can switch providers instead.
+  if (input.emptyResponseRecovery) {
+    const error = providerCompletionError(first.providerSummary);
+    if (error && isRecoverableEmptyResponse(providerStreamSummaryFromError(error))) return error;
   }
 
   const firstUsage = openAIUsageFromTokenUsage(first.usage);

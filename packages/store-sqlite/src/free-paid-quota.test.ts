@@ -102,6 +102,37 @@ describe("operator gift allowance", () => {
 });
 
 describe("one-off Free and paid balances", () => {
+  it.each([false, true])("waives terminal empty attempts without consuming Free or paid balances (paid=%s)", async paid => {
+    const f = fixture();
+    await f.consume(f.free, "baseline", 9_000);
+    const entitlement = paid ? f.event().entitlement! : f.free;
+    const acquired = await f.acquire(entitlement, "empty", 500);
+    if (!acquired.ok) throw acquired.error;
+    await f.limiter.finalize({ reservationId: acquired.reservationId, now: start,
+      usage: { promptTokens: 500, completionTokens: 0, totalTokens: 500 },
+      charge: { reason: "empty_response", exemptAttempts: [1, 2],
+        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 } } });
+    const result = await f.usage(entitlement);
+    expect(result.freeAllowance?.total?.used).toBe(9_000);
+    expect(result.minute.used).toBe(paid ? 500 : 9_500);
+    expect(f.store.database.prepare("SELECT final_free_tokens, final_paid_tokens, final_total_tokens FROM token_reservations WHERE id=?")
+      .get(acquired.reservationId)).toMatchObject({ final_free_tokens: 0, final_paid_tokens: 0, final_total_tokens: 500 });
+  });
+
+  it("splits only the successful attempt across remaining Free and paid balances", async () => {
+    const f = fixture();
+    await f.consume(f.free, "baseline", 9_000);
+    const paid = f.event().entitlement!;
+    const acquired = await f.acquire(paid, "recovered", 2_000);
+    if (!acquired.ok) throw acquired.error;
+    await f.limiter.finalize({ reservationId: acquired.reservationId, now: start,
+      usage: { promptTokens: 1_900, completionTokens: 100, totalTokens: 2_000 },
+      charge: { reason: "empty_response", exemptAttempts: [1],
+        usage: { promptTokens: 1_400, completionTokens: 100, totalTokens: 1_500 } } });
+    expect(await f.usage(paid)).toMatchObject({ minute: { used: 2_000 }, day: { used: 500 }, month: { used: 500 },
+      freeAllowance: { total: { used: 10_000 } } });
+  });
+
   it("reconciles a provisional split into exhausted Free and paid balances", async () => {
     const f = fixture();
     await f.consume(f.free, "baseline", 9_000);

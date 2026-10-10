@@ -14,6 +14,7 @@ import type {
   Subject,
   UpstreamAccount,
   TokenUsage,
+  TokenChargeDecision,
   UpstreamAttemptSummary,
   ToolLoopGuardDiagnostic
 } from "@codex-gateway/core";
@@ -78,6 +79,7 @@ declare module "fastify" {
     gatewayRateLimitOrigin?: RateLimitOrigin;
     gatewaySessionId?: string | null;
     gatewayTokenUsage?: TokenUsage;
+    gatewayUserCharge?: TokenChargeDecision;
     gatewayEstimatedTokens?: number | null;
     gatewayEstimatedPromptTokens?: number | null;
     gatewayPromptEstimateMethod?: string | null;

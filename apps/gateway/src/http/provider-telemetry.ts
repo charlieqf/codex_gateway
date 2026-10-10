@@ -123,6 +123,7 @@ export function markProviderStreamSummary(
     return;
   }
   markTokenUsage(request, summary.usage ?? undefined);
+  request.gatewayUserCharge = summary.userCharge;
   if (
     summary.errorCode === "rate_limited" ||
     summary.upstreamHttpStatus === 429 ||

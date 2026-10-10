@@ -177,6 +177,7 @@ import {
 } from "./services/tool-loop-shadow.js";
 import { resolveEntitlementAccessForChat } from "./services/entitlement-access.js";
 import { canFailoverNativeError, nativeFailoverEnabled } from "./services/native-tool-failover.js";
+import { emptyResponseCharge } from "./services/empty-response-policy.js";
 import { VisionRequestRecovery, visionRecoveryRequestHeader } from "./services/vision-request-recovery.js";
 import { visionDefaultRequestBodyBytes, visionInputLimitError } from "./services/vision-input-policy.js";
 import { beginVisionObservation, visionObservationSnapshot } from "./services/vision-observation.js";
@@ -3044,6 +3045,9 @@ export function buildGateway(options: GatewayOptions = {}) {
                   request,
                   combineProviderStreamSummaries(providerSummaries) ?? errorSummary
                 );
+                if (goldencodeRequestFailover && !visionRecovery && !initialChunkSent && !deadline.signal.aborted) {
+                  request.gatewayUserCharge = emptyResponseCharge(providerSummaries, statelessAttempts);
+                }
                 writeOpenAIStreamError(request, reply, sse, completionError);
                 failed = true;
                 break;
@@ -3069,6 +3073,9 @@ export function buildGateway(options: GatewayOptions = {}) {
                 }
               }
               const finalSummary = combineSuccessfulProviderStreamSummaries(providerSummaries) ?? successSummary;
+              if (goldencodeRequestFailover && !visionRecovery && !deadline.signal.aborted) {
+                finalSummary.userCharge = emptyResponseCharge(providerSummaries, statelessAttempts);
+              }
               usage = openAIUsageFromTokenUsage(finalSummary.usage ?? undefined);
               markProviderStreamSummary(request, finalSummary);
             }
@@ -3270,6 +3277,9 @@ export function buildGateway(options: GatewayOptions = {}) {
               request,
               combineProviderStreamSummaries(providerSummaries) ?? providerSummary
             );
+            if (goldencodeRequestFailover && !visionRecovery && !deadline.signal.aborted) {
+              request.gatewayUserCharge = emptyResponseCharge(providerSummaries, statelessAttempts);
+            }
             return fail(visionRecovery?.endError({ signal: deadline.signal, deadlineAt: deadline.deadlineAt, now: clock }) ?? attemptResult);
           }
           const afterCallError = visionRecovery?.endError({ signal: deadline.signal, deadlineAt: deadline.deadlineAt, now: clock });
@@ -3299,6 +3309,9 @@ export function buildGateway(options: GatewayOptions = {}) {
         content = collected.content;
         toolCalls.push(...collected.toolCalls.map(providerToolCallToOpenAI));
         const finalSummary = combineSuccessfulProviderStreamSummaries(providerSummaries) ?? collected.providerSummary;
+        if (goldencodeRequestFailover && !visionRecovery && !deadline.signal.aborted) {
+          finalSummary.userCharge = emptyResponseCharge(providerSummaries, statelessAttempts);
+        }
         usage = openAIUsageFromTokenUsage(finalSummary.usage ?? undefined);
         markProviderStreamSummary(request, finalSummary);
       }

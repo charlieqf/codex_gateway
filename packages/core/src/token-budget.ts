@@ -93,10 +93,19 @@ export interface LimitDetails {
   requested?: number;
 }
 
+/** Server-owned decision; never populated from client request fields. */
+export interface TokenChargeDecision {
+  reason: "empty_response";
+  exemptAttempts: number[];
+  /** User-billable usage, distinct from provider usage. Null keeps missing-usage policy. */
+  usage: TokenUsage | null;
+}
+
 export interface FinalizeInput {
   reservationId: string;
   requestId?: string;
   usage?: TokenUsage;
+  charge?: TokenChargeDecision;
   now?: Date;
 }
 
@@ -121,6 +130,7 @@ export interface SoftWriteFinalizeInput {
   reservationId: string;
   requestId?: string;
   usage?: TokenUsage;
+  charge?: TokenChargeDecision;
   now?: Date;
 }
 

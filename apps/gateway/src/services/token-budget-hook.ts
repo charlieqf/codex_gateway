@@ -189,6 +189,9 @@ export async function finalizeTokenBudget(
   }
 
   const usage = request.gatewayTokenUsage as TokenUsage | undefined;
+  const charge = request.gatewayCancelRequested || request.gatewayClientDisconnect?.signal.aborted ||
+    request.gatewayErrorCode === "client_aborted" || request.gatewayErrorCode === "upstream_timeout"
+    ? undefined : request.gatewayUserCharge;
   const now = options.now?.() ?? new Date();
   try {
     const result =
@@ -197,12 +200,14 @@ export async function finalizeTokenBudget(
             reservationId: request.gatewayTokenReservationId,
             requestId: request.id,
             usage,
+            charge,
             now
           })
         : await limiter.finalize({
             reservationId: request.gatewayTokenReservationId,
             requestId: request.id,
             usage,
+            charge,
             now
           });
     markTokenFinalizeResult(request, result);

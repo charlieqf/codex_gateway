@@ -1,5 +1,6 @@
 import { GatewayError } from "@codex-gateway/core";
 import type { ChatRuntimeContext } from "./chat-runtime-dispatcher.js";
+import { emptyResponseCharge, isRecoverableEmptyResponse } from "./empty-response-policy.js";
 import {
   attachProviderStreamSummary,
   combineProviderStreamSummaries,
@@ -27,6 +28,7 @@ export function nativeFailoverEnabled(value: string | undefined): boolean {
 export function canFailoverNativeError(error: GatewayError, summary = providerStreamSummaryFromError(error)): boolean {
   const failure = error.providerFailure;
   if (!failure || (summary && (summary.semanticOutputChars > 0 || summary.toolCallCount > 0))) return false;
+  if (error.code === "upstream_empty_response") return isRecoverableEmptyResponse(summary);
   if (!["upstream_unavailable", "upstream_timeout", "rate_limited"].includes(error.code)) return false;
   if (failure.origin === "provider" && failure.stage === "after_headers") {
     const status = failure.upstreamStatus;
@@ -68,13 +70,15 @@ export async function runNativeToolFailover<T extends { providerSummary: Provide
     if (afterCallError) return withHistory(afterCallError, summaries);
     if (!(result instanceof GatewayError)) {
       runtime.recordSuccess();
-      return { ...result, providerSummary: combineSuccessfulProviderStreamSummaries(summaries) };
+      const combined = combineSuccessfulProviderStreamSummaries(summaries);
+      if (combined && !input.outputCommitted()) combined.userCharge = emptyResponseCharge(summaries, budget.used);
+      return { ...result, providerSummary: combined };
     }
     if (result.code !== "client_aborted") runtime.recordError(result);
     const canRetry = budget.remaining > 0 && canFailoverNativeError(result) &&
       !input.signal.aborted && !input.outputCommitted() &&
       (!input.deadlineAt || input.deadlineAt.getTime() - input.now().getTime() >= 1000) && runtime.beginRetry;
-    if (!canRetry) return withHistory(result, summaries);
+    if (!canRetry) return withHistory(result, summaries, !input.outputCommitted(), budget.used);
     excluded.add(runtime.runtimeInstanceId);
     const previous = runtime;
     previous.release();
@@ -86,13 +90,14 @@ export async function runNativeToolFailover<T extends { providerSummary: Provide
     input.onDecision?.({ from: previous.runtime, to: next instanceof GatewayError ? null : next.runtime,
       reason: result.providerFailure, calls_used: budget.used,
       unavailable_reason: next instanceof GatewayError ? next.code : null });
-    if (next instanceof GatewayError) return withHistory(result, summaries);
+    if (next instanceof GatewayError) return withHistory(result, summaries, !input.outputCommitted(), budget.used);
   }
 }
 
-function withHistory(error: GatewayError, summaries: ProviderStreamSummary[]): GatewayError {
+function withHistory(error: GatewayError, summaries: ProviderStreamSummary[], allowChargeDecision = false, expectedAttempts?: number): GatewayError {
   const combined = combineProviderStreamSummaries(summaries);
   if (!combined) return error;
+  if (allowChargeDecision) combined.userCharge = emptyResponseCharge(summaries, expectedAttempts);
   // Each execution already recorded its outcome. Cancellation must not rewrite that history.
   return attachProviderStreamSummary(error, { ...combined, completed: false, failure: error.providerFailure ?? null },
     { preserveAttemptOutcomes: true });

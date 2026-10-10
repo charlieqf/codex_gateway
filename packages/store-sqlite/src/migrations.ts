@@ -1159,6 +1159,16 @@ export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogge
       throw new Error("Migration 38 requires all token accounting tables.");
     }
     applyMigration(db, 38, tokenSettlementSchema, logger);
+    applyMigration(db, 39, `CREATE TABLE IF NOT EXISTS token_charge_decisions (
+      reservation_id TEXT PRIMARY KEY REFERENCES token_reservations(id) ON DELETE CASCADE,
+      reason TEXT NOT NULL CHECK (reason = 'empty_response'),
+      state TEXT NOT NULL CHECK (state IN ('pending', 'applied', 'invalidated')),
+      decision_json TEXT NOT NULL,
+      observed_usage_json TEXT NOT NULL,
+      charged_usage_json TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS token_charge_pending ON token_charge_decisions(reservation_id) WHERE state = 'pending';`, logger);
   }
 }
 

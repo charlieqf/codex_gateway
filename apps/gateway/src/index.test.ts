@@ -1,5 +1,5 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { generateKeyPairSync } from "node:crypto";
+import { generateKeyPairSync, randomUUID } from "node:crypto";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -16721,6 +16721,76 @@ async function withTemporaryEnv(
 }
 
 describe("GoldenCode native provider failover", () => {
+  it.each([false, true].flatMap(plain => [false, true].map(stream => ({ plain, stream })) ))(
+    "keeps partial fallback failures billable: plain=$plain stream=$stream", async ({ plain, stream }) => {
+      await runGoldenCodeFailoverFixture({ empty: true, partialText: plain, partial: !plain }, async ({ app, headers, calls, store }) => {
+        const payload = nativeFailoverPayload("chat/completions", stream);
+        if (plain) { delete payload.tools; delete payload.tool_choice; }
+        const response = await app.inject({ method: "POST", url: "/v1/chat/completions", headers, payload });
+        expect(publicFailoverError(response.body).code).not.toBe("upstream_empty_response");
+        expect(calls).toHaveLength(2);
+        expect(store.database.prepare("SELECT COUNT(*) AS n FROM token_charge_decisions").get()).toMatchObject({ n: 0 });
+        expect(store.database.prepare("SELECT final_total_tokens FROM token_reservations").get()).toMatchObject({ final_total_tokens: 20 });
+      });
+    });
+
+  it.each([false, true])("waives a proven empty response even with no available fallback: plain=%s", async plain => {
+    await runGoldenCodeFailoverFixture({ empty: true, disabledMember: "tencent" }, async ({ app, headers, calls, store }) => {
+      const payload = nativeFailoverPayload("chat/completions", false);
+      if (plain) { delete payload.tools; delete payload.tool_choice; }
+      const response = await app.inject({ method: "POST", url: "/v1/chat/completions", headers, payload });
+      expect(publicFailoverError(response.body).code).toBe("upstream_empty_response");
+      expect(calls).toHaveLength(1);
+      const decision = store.database.prepare("SELECT state, charged_usage_json FROM token_charge_decisions").get()!;
+      expect(decision.state).toBe("applied");
+      expect(JSON.parse(String(decision.charged_usage_json)).totalTokens).toBe(0);
+    });
+  });
+
+  it.each([false, true].flatMap(plain => [false, true].map(bothEmpty => ({ plain, bothEmpty }))))(
+    "recovers the incident without reported usage: plain=$plain bothEmpty=$bothEmpty", async ({ plain, bothEmpty }) => {
+      await runGoldenCodeFailoverFixture({ empty: true, bothEmpty, plain, omitEmptyUsage: true }, async ({ app, headers, calls, store }) => {
+        const payload = nativeFailoverPayload("chat/completions", true);
+        if (plain) { delete payload.tools; delete payload.tool_choice; }
+        const response = await app.inject({ method: "POST", url: "/v1/chat/completions", headers, payload });
+        expect(calls.map(call => call.runtime)).toEqual(["tiankuan", "tencent"]);
+        if (bothEmpty) expect(publicFailoverError(response.body)).toMatchObject({ code: "upstream_empty_response" });
+        else expect(response.body).toContain(plain ? "failover text ok" : "call_failover_ok");
+        const decision = store.database.prepare("SELECT charged_usage_json FROM token_charge_decisions").get()!;
+        expect(JSON.parse(String(decision.charged_usage_json)).totalTokens).toBe(bothEmpty ? 0 : 12);
+        expect(store.listRequestEvents({ limit: 1 })[0]?.upstreamAttempts?.[0]?.totalTokens).toBeNull();
+      });
+    });
+
+  it.each([false, true].flatMap(plain => [false, true].flatMap(stream =>
+    ["chat/completions", "responses"].flatMap(api => [false, true].map(bothEmpty => ({ plain, stream, api, bothEmpty }))))))(
+    "settles terminal empty recovery: plain=$plain stream=$stream api=$api bothEmpty=$bothEmpty",
+    async ({ plain, stream, api, bothEmpty }) => {
+      await runGoldenCodeFailoverFixture({ empty: true, bothEmpty, plain }, async ({ app, headers, calls, store }) => {
+        const payload = nativeFailoverPayload(api, stream);
+        if (plain) { delete payload.tools; delete payload.tool_choice; }
+        const callHeaders = { ...headers, "x-medcode-call-id": `${Date.now()}_${randomUUID()}` };
+        const response = await app.inject({ method: "POST", url: `/v1/${api}`, headers: callHeaders, payload });
+        expect(calls).toHaveLength(2);
+        if (bothEmpty) expect(publicFailoverError(response.body)).toMatchObject({ code: "upstream_empty_response" });
+        else expect(response.body).toContain(plain ? "failover text ok" : "call_failover_ok");
+        const decisions = store.database.prepare("SELECT * FROM token_charge_decisions").all();
+        expect(decisions).toHaveLength(1);
+        expect(JSON.parse(String(decisions[0]!.charged_usage_json)).totalTokens).toBe(bothEmpty ? 0 : 12);
+        expect(JSON.parse(String(decisions[0]!.observed_usage_json)).totalTokens).toBe(bothEmpty ? 40 : 32);
+        expect(store.database.prepare("SELECT COUNT(*) AS n FROM token_reservations").get()).toMatchObject({ n: 1 });
+        expect(store.listRequestEvents({ limit: 1 })[0]?.upstreamAttempts).toHaveLength(2);
+        // The existing Call-ID contract covers Chat Completions only.
+        if (api === "chat/completions") {
+          const replay = await app.inject({ method: "POST", url: `/v1/${api}`, headers: callHeaders, payload });
+          expect(replay.body).toBe(response.body);
+          expect(calls).toHaveLength(2);
+          expect(store.database.prepare("SELECT COUNT(*) AS n FROM token_reservations").get()).toMatchObject({ n: 1 });
+          expect(store.database.prepare("SELECT COUNT(*) AS n FROM token_charge_decisions").get()).toMatchObject({ n: 1 });
+        }
+      });
+    });
+
   it.each([",", "subj_dev,", "subj_dev,,another_subject"])("rejects empty rollout entries: %s", async (subjects) => {
     await withTemporaryEnv({ GATEWAY_GOLDENCODE_FAILOVER_SUBJECT_IDS: subjects }, async () => {
       expect(() => buildGateway({ provider: new FakeProvider(), logger: false })).toThrow("must not contain empty entries");
@@ -16960,7 +17030,7 @@ async function runGoldenCodeFailoverFixture(options: {
   first?: string; bothFail?: boolean; status?: number | "reset"; enabled?: boolean;
   repairThenFail?: boolean; cooldown?: string; clock?: () => Date; recover?: boolean;
   disabledMember?: string; subjects?: string; fallbackInvalid?: boolean; repairSuccess?: boolean; partial?: boolean; plain?: boolean;
-  hang?: boolean; partialText?: boolean;
+  hang?: boolean; partialText?: boolean; empty?: boolean; bothEmpty?: boolean; omitEmptyUsage?: boolean;
 }, run: (fixture: { app: ReturnType<typeof buildGateway>; headers: Record<string, string>;
   calls: Array<{ runtime: string; body: Record<string, unknown> }>;
   store: ReturnType<typeof createModelEntitledStore>["store"] }) => Promise<void>): Promise<void> {
@@ -16970,6 +17040,12 @@ async function runGoldenCodeFailoverFixture(options: {
     const body = JSON.parse(raw) as Record<string, unknown>;
     const runtime = String(body.model).startsWith("official/") ? "tiankuan" : "tencent";
     calls.push({ runtime, body });
+    if (options.empty && (runtime === first || options.bothEmpty)) {
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(`data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: "network_error" }],
+        ...(options.omitEmptyUsage ? {} : { usage: { prompt_tokens: 20, completion_tokens: 0, total_tokens: 20 } }) })}\n\n`);
+      response.end("data: [DONE]\n\n"); return;
+    }
     if (options.hang) return;
     if (options.partialText) {
       response.writeHead(200, { "content-type": "text/event-stream" });
@@ -17020,7 +17096,8 @@ async function runGoldenCodeFailoverFixture(options: {
     }, async () => {
       const { store, headers } = createModelEntitledStore(["goldencode"]);
       const app = buildGateway({ authMode: "credential", provider: new FakeProvider(), sessionStore: store,
-        observationStore: store, logger: false, ...(options.clock ? { now: options.clock } : {}) });
+        observationStore: store, tokenBudgetLimiter: createSqliteTokenBudgetLimiter({ db: store.database }),
+        logger: false, ...(options.clock ? { now: options.clock } : {}) });
       try { await run({ app, store, calls, headers: { ...headers, "x-medcode-client-session-id": session } }); }
       finally { await app.close(); }
     });

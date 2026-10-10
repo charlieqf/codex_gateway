@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { GatewayError } from "@codex-gateway/core";
 import { canFailoverNativeError, NativeCallBudget, nativeFailoverEnabled, runNativeToolFailover } from "./native-tool-failover.js";
 import type { ChatRuntimeContext } from "./chat-runtime-dispatcher.js";
-import { attachProviderStreamSummary, providerStreamSummaryFromError, ProviderStreamSummaryCollector } from "./provider-stream.js";
+import { attachProviderStreamSummary, providerCompletionError, providerStreamSummaryFromError, ProviderStreamSummaryCollector } from "./provider-stream.js";
 
 describe("native failover eligibility", () => {
   it.each([402, 408, 429, 500, 502, 503, 504])("allows provider HTTP %i", (status) => {
@@ -41,11 +41,40 @@ describe("native failover eligibility", () => {
 });
 
 describe("native failover request lifecycle", () => {
+  function emptyFailure() {
+    const collector = new ProviderStreamSummaryCollector();
+    collector.record({ type: "completed", responseSummary: { finishReason: "network_error",
+      upstreamHttpStatus: 200, terminationKind: "finish_reason_and_done",
+      streamProgress: { responseBytes: 100, responseChunks: 1, firstResponseByteMs: 1, lastResponseByteMs: 1,
+        sseDataEvents: 1, reasoningChars: 0, observedToolCallCount: 0, toolArgumentBytes: 0 } } });
+    return providerCompletionError(collector.snapshot())!;
+  }
   const failure = () => new GatewayError({ code: "upstream_unavailable", message: "reset", httpStatus: 503,
     providerFailure: { origin: "network", kind: "connection_reset", stage: "before_headers", upstreamStatus: null, transportCode: "ECONNRESET" } });
   const context = () => ({ runtime: "tiankuan", runtimeInstanceId: "tiankuan",
     release: vi.fn(), recordError: vi.fn(() => true), recordSuccess: vi.fn(), beginRetry: vi.fn()
   } as unknown as ChatRuntimeContext);
+
+  it.each(["cancel", "deadline", "committed", "short-deadline", "budget"])("bounds empty recovery after %s", async reason => {
+    const runtime = context();
+    const controller = new AbortController();
+    let now = new Date(0);
+    const execute = vi.fn(async (_runtime, budget: NativeCallBudget) => {
+      budget.consume();
+      if (reason === "budget") budget.consume();
+      if (reason === "cancel") controller.abort();
+      if (reason === "deadline") now = new Date(5000);
+      return emptyFailure();
+    });
+    const result = await runNativeToolFailover({ runtime, signal: controller.signal,
+      deadlineAt: new Date(reason === "short-deadline" ? 999 : 5000), now: () => now,
+      outputCommitted: () => reason === "committed", execute, selected: vi.fn() });
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(runtime.beginRetry).not.toHaveBeenCalled();
+    const charge = providerStreamSummaryFromError(result as GatewayError)?.userCharge;
+    if (["cancel", "deadline", "committed", "budget"].includes(reason)) expect(charge).toBeUndefined();
+    else expect(charge?.usage?.totalTokens).toBe(0);
+  });
 
   it.each(["cancel", "deadline", "committed", "short-deadline"])("does not dispatch another call after %s", async (reason) => {
     const runtime = context();

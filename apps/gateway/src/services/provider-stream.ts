@@ -18,6 +18,7 @@ import {
   type ClientToolChoice,
   type ClientToolDefinition,
   type TokenUsage,
+  type TokenChargeDecision,
   type ToolCallValidationFailureKind,
   type UpstreamAccount,
   type UpstreamAttemptSummary
@@ -42,6 +43,7 @@ export interface CollectedProviderMessage {
 }
 
 export interface ProviderStreamSummary {
+  userCharge?: TokenChargeDecision;
   completed: boolean;
   finishReason: string | null;
   upstreamRequestId: string | null;
