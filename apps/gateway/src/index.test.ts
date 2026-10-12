@@ -503,6 +503,10 @@ describe("gateway phase 1 routes", () => {
       const admin = await app.inject({ method: "GET", url: "/gateway/admin/client-messages.json?include_text=1&limit=10",
         headers: { authorization: "Bearer admin-messages-token-1234567890" } });
       expect(admin.statusCode).toBe(200);
+      expect(admin.json().messages[0].gateway_requests[0].timeout_diagnostic).toMatchObject({
+        trigger: "body_timeout", phase: stream ? "content_incomplete" : "reasoning_only", activity: "recent_bytes",
+        reasoning_chars: 27, client_delivery: "unknown"
+      });
       expect(admin.json().messages[0].gateway_requests[0].upstream_attempts[0]).toMatchObject({
         failure: { kind: "body_timeout" }, stream_progress: { response_bytes: Buffer.byteLength(wireData), reasoning_chars: 27 }
       });

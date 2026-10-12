@@ -18,6 +18,37 @@ SPEC.loader.exec_module(MODULE)
 
 
 class DailyUsageHealthTest(unittest.TestCase):
+    def test_timeout_diagnosis_and_live_alert_freshness(self) -> None:
+        ops = {
+            "generatedAt": "2026-10-12T00:30:00Z", "runtimeSnapshotStatus": "ok",
+            "windows": {"15m": {"infrastructureErrors": 3,
+                "byErrorCode": {"upstream_timeout": 3},
+                "modelCalls": {"timeouts": 3, "byTimeoutPhase": {"reasoning_only": 3}}}},
+            "timeoutAlerts": [{"severity": "warning", "message": "repeated user timeout"}],
+            "runtime": {"generatedAt": "2026-10-12T00:29:55Z", "alerts": [
+                {"kind": "deadline_cleanup_overdue", "requestId": "synthetic", "ageSeconds": 635}]}
+        }
+        report = {"server": {"ops_snapshot": ops}, "usage": {"errors": {"authenticated": {}}}}
+        assess = lambda: MODULE.assess_health(report, disk_warning_percent=90, tls_warning_days=14)
+        result = assess()
+        self.assertTrue(any("reasoning_only" in item for item in result["warnings"]))
+        self.assertIn("repeated user timeout", result["warnings"])
+        self.assertFalse(any("non-timeout infrastructure" in item for item in result["warnings"]))
+        self.assertTrue(any("deadline_cleanup_overdue" in item for item in result["critical"]))
+        ops["runtime"]["generatedAt"] = "2026-10-12T00:20:00Z"
+        result = assess()
+        self.assertTrue(any("stale" in item for item in result["warnings"]))
+        self.assertFalse(any("deadline_cleanup_overdue" in item for item in result["critical"]))
+        del ops["windows"]["15m"]["modelCalls"]
+        result = assess()
+        self.assertTrue(any("3 request timeouts" in item for item in result["warnings"]))
+        ops["runtime"]["generatedAt"] = "2026-10-12T00:30:00Z"
+        for invalid in [None, {}, [1]]:
+            ops["runtime"]["alerts"] = invalid
+            result = assess()
+            self.assertTrue(any("alerts are invalid" in item for item in result["warnings"]))
+
+
     def test_reporting_window_uses_sydney_calendar_day(self) -> None:
         reporting_tz = ZoneInfo("Australia/Sydney")
         now = datetime(2026, 7, 16, 7, 30, tzinfo=timezone.utc)

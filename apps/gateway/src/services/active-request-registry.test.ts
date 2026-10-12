@@ -12,6 +12,32 @@ afterEach(() => {
   }
 });
 
+it("warns once per request, refreshes idle snapshots and never cancels inference", () => {
+  const directory = mkdtempSync(join(tmpdir(), "gateway-live-alerts-"));
+  temporaryDirectories.push(directory);
+  const snapshotPath = join(directory, "runtime.json");
+  let now = new Date("2026-10-12T00:00:00Z");
+  const alerts: string[] = [];
+  const registry = new ActiveRequestRegistry({ now: () => now, snapshotPath,
+    onAlert: alert => { alerts.push(alert.kind); throw new Error("broken diagnostic sink"); } });
+  const request = registry.begin({ requestId: "r1", publicModelId: "goldencode", upstreamRuntime: "tencent",
+    upstreamAccountId: null, startedAt: now, deadlineAt: new Date(now.getTime() + 600000) });
+  now = new Date(now.getTime() + 300000);
+  registry.poll(); registry.poll();
+  expect(alerts).toEqual(["waiting_for_delivery"]);
+  expect(registry.snapshot().inflightRequests).toBe(1);
+  request.markFirstByte();
+  expect(registry.snapshot().alerts).toEqual([]);
+  now = new Date(now.getTime() + 330000);
+  registry.poll(); registry.poll();
+  expect(alerts).toEqual(["waiting_for_delivery", "deadline_cleanup_overdue"]);
+  request.finish();
+  registry.poll();
+  expect(JSON.parse(readFileSync(snapshotPath, "utf8"))).toMatchObject({
+    generatedAt: now.toISOString(), inflightRequests: 0, alerts: []
+  });
+});
+
 describe("ActiveRequestRegistry", () => {
   it("tracks ages, first byte, deadlines and routing updates", () => {
     let now = new Date("2026-07-14T00:00:00.000Z");

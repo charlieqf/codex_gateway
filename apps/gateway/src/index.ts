@@ -373,12 +373,14 @@ export function buildGateway(options: GatewayOptions = {}) {
     new ActiveRequestRegistry({
       now: clock,
       snapshotPath: process.env.GATEWAY_OPS_RUNTIME_SNAPSHOT_PATH,
+      onAlert: (alert) => app.log.warn({ alert }, "Model request waiting or cleanup overdue."),
       onSnapshotWriteError: (error) =>
         app.log.warn(
           { error: error instanceof Error ? error.message : String(error) },
           "Failed to publish the operations runtime snapshot."
         )
     });
+  let runtimeSnapshotTimer: ReturnType<typeof setInterval> | undefined;
   const chatRequestTimeoutPolicy = parseChatRequestTimeoutPolicy(process.env, (message) =>
     app.log.warn(message)
   );
@@ -760,7 +762,12 @@ export function buildGateway(options: GatewayOptions = {}) {
     }
   };
 
+  app.addHook("onReady", async () => {
+    runtimeSnapshotTimer = setInterval(() => activeRequestRegistry.poll(), 5_000);
+    runtimeSnapshotTimer.unref();
+  });
   app.addHook("onClose", async () => {
+    clearInterval(runtimeSnapshotTimer);
     sessions.close?.();
     clientEventsStore?.close?.();
     researchStore?.close?.();

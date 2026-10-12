@@ -12,6 +12,7 @@ export * from "./provider-adapter.js";
 export * from "./plan-entitlement.js";
 export * from "./phone-auth.js";
 export * from "./provider-failure.js";
+export * from "./timeout-diagnostic.js";
 export * from "./public-model-access.js";
 export * from "./public-model-usage.js";
 export * from "./research.js";

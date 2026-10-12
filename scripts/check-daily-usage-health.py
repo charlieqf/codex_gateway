@@ -768,10 +768,44 @@ def assess_health(
     if ops.get("runtimeSnapshotStatus") != "ok":
         warnings.append(f"Gateway runtime snapshot is {ops.get('runtimeSnapshotStatus') or 'unavailable'}")
     window = get_path(ops, "windows", "15m") or {}
-    if int(window.get("infrastructureErrors") or 0) > 0:
+    # Timeouts are diagnosed separately; a long reasoning request is not an outage.
+    other_infra = int(window.get("infrastructureErrors") or 0) - int(
+        (window.get("byErrorCode") or {}).get("upstream_timeout") or 0
+    )
+    if other_infra > 0:
         warnings.append(
-            f"last 15 minutes contain {window.get('infrastructureErrors')} infrastructure errors"
+            f"last 15 minutes contain {other_infra} non-timeout infrastructure errors"
         )
+    model = window.get("modelCalls") or {}
+    if model.get("timeouts"):
+        warnings.append(f"last 15 minutes contain {model['timeouts']} model timeouts: "
+                        f"{model.get('byTimeoutPhase') or {}}")
+    elif not isinstance(window.get("modelCalls"), dict):
+        legacy_timeouts = int((window.get("byErrorCode") or {}).get("upstream_timeout") or 0)
+        if legacy_timeouts:
+            warnings.append(f"last 15 minutes contain {legacy_timeouts} request timeouts "
+                            "(legacy snapshot; phase unavailable)")
+    for alert in ops.get("timeoutAlerts") or []:
+        if alert.get("severity") == "warning":
+            warnings.append(str(alert.get("message") or alert.get("kind")))
+    runtime = ops.get("runtime") or {}
+    generated = runtime.get("generatedAt") if isinstance(runtime, dict) else None
+    try:
+        snapshot_age = (datetime.fromisoformat(ops["generatedAt"].replace("Z", "+00:00")) -
+                        datetime.fromisoformat(generated.replace("Z", "+00:00"))).total_seconds()
+    except (ValueError, TypeError, KeyError, AttributeError):
+        snapshot_age = None
+    if isinstance(runtime, dict) and "alerts" in runtime:
+        active_alerts = runtime["alerts"]
+        if not isinstance(active_alerts, list) or any(not isinstance(a, dict) for a in active_alerts):
+            warnings.append("live request alerts are invalid; active alerts are unconfirmed")
+        elif snapshot_age is None or not 0 <= snapshot_age <= 20:
+            warnings.append("live request snapshot is stale or invalid; active alerts are unconfirmed")
+        else:
+            for alert in active_alerts:
+                target = critical if alert.get("kind") == "deadline_cleanup_overdue" else warnings
+                target.append(f"{alert.get('kind')}: {alert.get('requestId')} "
+                              f"({alert.get('ageSeconds')} seconds)")
     if int(window.get("upstreamRateLimited") or 0) > 0:
         warnings.append(
             f"last 15 minutes contain {window.get('upstreamRateLimited')} upstream rate limits"
@@ -783,7 +817,7 @@ def assess_health(
         if code in INFRASTRUCTURE_ERROR_CODES
     )
     if daily_infra_errors:
-        warnings.append(f"reporting day contains {daily_infra_errors} authenticated infrastructure errors")
+        warnings.append(f"reporting day contains {daily_infra_errors} authenticated service/request failures (including timeouts)")
 
     for item in server.get("collector_errors") or []:
         critical.append(f"collector component {item.get('component')}: {item.get('error')}")
@@ -930,6 +964,15 @@ def format_text_report(report: dict[str, Any], *, include_user_ids: bool) -> str
         f"成功 {number(ops_15m.get('ok') or 0)}，失败 {number(ops_15m.get('errors') or 0)}，"
         f"P95 {format_ms(ops_15m.get('p95DurationMs'))}"
     )
+    model_15m = ops_15m.get("modelCalls")
+    if isinstance(model_15m, dict):
+        rate = model_15m.get("timeoutRate")
+        rate_text = f"{rate * 100:.1f}%" if isinstance(rate, (int, float)) else "N/A"
+        lines.append(
+            f"  模型调用（按完成时间）：{number(model_15m.get('total') or 0)}，"
+            f"超时 {number(model_15m.get('timeouts') or 0)}，超时率 {rate_text}（排除用户取消），"
+            f"P95 {format_ms(model_15m.get('p95DurationMs'))}"
+        )
     upstream = get_path(server, "ops_snapshot", "upstreamAccounts") or []
     lines.append(f"  上游状态：{format_upstream_states(upstream)}")
 

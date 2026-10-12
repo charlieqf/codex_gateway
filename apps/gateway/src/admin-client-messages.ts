@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import {
+  diagnoseTimeout,
   resolveUpstreamAttemptPurpose,
   summarizeUpstreamAttemptPurposes,
   type ProviderFailureClassification,
@@ -697,6 +698,19 @@ export function renderAdminClientMessagesPage(input: { authRequired?: boolean } 
       if (!Array.isArray(requests) || !requests.length) return '<br>Gateway requests: none';
       return requests.map((request) => {
         const failure = request.terminal_failure;
+        const diagnostic = request.timeout_diagnostic;
+        const phases = { awaiting_headers: '等待上游响应头', awaiting_body: '等待上游响应体',
+          reasoning_only: '仅有推理，尚无正文或工具', tool_arguments_incomplete: '工具参数尚未完成',
+          content_incomplete: '已有正文但尚未完成', stream_without_semantic_output: '收到流数据但无有效内容', unknown: '证据不足' };
+        const triggers = { gateway_deadline: 'Gateway 总时限', provider_http_timeout: '上游 HTTP 超时',
+          headers_timeout: '响应头读取超时', body_timeout: '响应体读取超时', connect_timeout: '连接超时', unknown: '来源未确认' };
+        const diagnosticText = diagnostic ? '<br>&nbsp;&nbsp;超时诊断：' + escapeHtml(triggers[diagnostic.trigger] || '来源未确认') +
+          ' · ' + escapeHtml(phases[diagnostic.phase] || '证据不足') +
+          '<br>&nbsp;&nbsp;上游首字节 ' + escapeHtml(formatDuration(diagnostic.first_upstream_byte_ms)) +
+          ' · 终止距末字节 ' + escapeHtml(formatDuration(diagnostic.last_byte_gap_ms)) +
+          ' · 推理字符 ' + escapeHtml(diagnostic.reasoning_chars === null ? '未知' : formatNumber(diagnostic.reasoning_chars)) +
+          ' · 工具参数字节 ' + escapeHtml(diagnostic.tool_argument_bytes === null ? '未知' : formatNumber(diagnostic.tool_argument_bytes)) +
+          '<br>&nbsp;&nbsp;以上为上游接收证据，不代表客户端已收到可用结果。' : '';
         const failureText = failure ? failure.origin + '/' + failure.kind + '/' + failure.stage + (failure.transport_code ? ' [' + failure.transport_code + ']' : '') + (failure.upstream_status !== null && failure.upstream_status !== undefined ? ' upstream HTTP ' + failure.upstream_status : '') : (request.status === 'error' ? '旧记录未分类' : '-');
         const attempts = Array.isArray(request.upstream_attempts) ? request.upstream_attempts.map((attempt) => {
           const route = [attempt.provider, attempt.upstream_runtime, attempt.upstream_model].filter(Boolean).join(' / ') || '-';
@@ -705,7 +719,7 @@ export function renderAdminClientMessagesPage(input: { authRequired?: boolean } 
           const attemptFailure = attempt.failure ? attempt.failure.origin + '/' + attempt.failure.kind + '/' + attempt.failure.stage + (attempt.failure.transport_code ? ' [' + attempt.failure.transport_code + ']' : '') + (attempt.failure.upstream_status !== null && attempt.failure.upstream_status !== undefined ? ' upstream HTTP ' + attempt.failure.upstream_status : '') : '-';
           return '<br>&nbsp;&nbsp;attempt ' + escapeHtml(attempt.index) + ' ' + escapeHtml(attempt.purpose || 'unknown') + ' / ' + escapeHtml(attempt.kind || '-') + ' · ' + escapeHtml(formatDuration(attempt.duration_ms)) + ' · ' + escapeHtml(attempt.error_code || 'ok') + '<br>&nbsp;&nbsp;&nbsp;&nbsp;provider ' + escapeHtml(route) + '<br>&nbsp;&nbsp;&nbsp;&nbsp;' + escapeHtml(upstream) + '<br>&nbsp;&nbsp;&nbsp;&nbsp;' + escapeHtml(tokens) + '<br>&nbsp;&nbsp;&nbsp;&nbsp;failure ' + escapeHtml(attemptFailure);
         }).join('') : '';
-        return '<br><br>request ' + escapeHtml(request.request_id || '-') + ' · ' + escapeHtml(request.status || '-') + ' · ' + escapeHtml(formatDuration(request.duration_ms)) + '<br>&nbsp;&nbsp;subject ' + escapeHtml(request.subject_id || '-') + '<br>&nbsp;&nbsp;provider ' + escapeHtml([request.provider, request.upstream_runtime, request.upstream_model].filter(Boolean).join(' / ') || '-') + '<br>&nbsp;&nbsp;failure ' + escapeHtml(failureText) + attempts;
+        return '<br><br>request ' + escapeHtml(request.request_id || '-') + ' · ' + escapeHtml(request.status || '-') + ' · ' + escapeHtml(formatDuration(request.duration_ms)) + '<br>&nbsp;&nbsp;subject ' + escapeHtml(request.subject_id || '-') + '<br>&nbsp;&nbsp;provider ' + escapeHtml([request.provider, request.upstream_runtime, request.upstream_model].filter(Boolean).join(' / ') || '-') + '<br>&nbsp;&nbsp;failure ' + escapeHtml(failureText) + diagnosticText + attempts;
       }).join('');
     }
 
@@ -1055,6 +1069,8 @@ function publicGatewayRequest(event: RequestEventRecord) {
       metrics.unclassifiedAdditionalAttemptCount,
     attempt_purpose_missing: metrics.attemptPurposeMissing,
     terminal_failure: terminalFailure ? publicProviderFailure(terminalFailure) : null,
+    timeout_diagnostic: diagnoseTimeout({ errorCode: event.errorCode, terminalSource: event.terminalSource,
+      failure: terminalFailure, attempts: event.upstreamAttempts }),
     token_usage: adminTokenBreakdown(event),
     upstream_attempts: (event.upstreamAttempts ?? []).map((attempt, position) => ({
       index: attempt.index,

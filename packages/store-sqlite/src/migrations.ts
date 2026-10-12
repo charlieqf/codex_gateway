@@ -1170,6 +1170,13 @@ export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogge
     );
     CREATE INDEX IF NOT EXISTS token_charge_pending ON token_charge_decisions(reservation_id) WHERE state = 'pending';`, logger);
   }
+  if (columnExists(db, "request_events", "started_at") && columnExists(db, "request_events", "duration_ms")) {
+    applyMigration(db, 40, `
+    CREATE INDEX IF NOT EXISTS idx_request_events_completed_ms ON request_events(
+      CAST(ROUND(unixepoch(started_at, 'subsec') * 1000) AS INTEGER) + MAX(COALESCE(duration_ms, 0), 0)
+    );
+    `, logger);
+  }
 }
 
 export function migrateClientEventsSchema(db: DatabaseSync): void {

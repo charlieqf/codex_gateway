@@ -16,6 +16,16 @@ export interface ActiveRequestUpdate {
 
 interface ActiveRequestRecord extends ActiveRequestInput {
   firstByteAt: Date | null;
+  emittedAlerts: Set<string>;
+}
+
+export interface ActiveRequestAlert {
+  id: string;
+  kind: "waiting_for_delivery" | "deadline_cleanup_overdue";
+  requestId: string;
+  publicModelId: string;
+  upstreamRuntime: string;
+  ageSeconds: number;
 }
 
 export interface ActiveRequestSnapshot {
@@ -28,6 +38,7 @@ export interface ActiveRequestSnapshot {
   oldestWaitingFirstByteAgeSeconds: number | null;
   deadlineExceededRequests: number;
   oldestDeadlineExceededAgeSeconds: number | null;
+  alerts: ActiveRequestAlert[];
   requests: Array<{
     requestId: string;
     publicModelId: string;
@@ -52,6 +63,9 @@ export interface ActiveRequestRegistryOptions {
   now?: () => Date;
   snapshotPath?: string | null;
   onSnapshotWriteError?: (error: unknown) => void;
+  onAlert?: (alert: ActiveRequestAlert) => void;
+  warningAfterMs?: number;
+  deadlineGraceMs?: number;
 }
 
 export class ActiveRequestRegistry {
@@ -59,16 +73,22 @@ export class ActiveRequestRegistry {
   private readonly now: () => Date;
   private readonly snapshotPath: string | null;
   private readonly onSnapshotWriteError?: (error: unknown) => void;
+  private readonly onAlert?: (alert: ActiveRequestAlert) => void;
+  private readonly warningAfterMs: number;
+  private readonly deadlineGraceMs: number;
 
   constructor(options: ActiveRequestRegistryOptions = {}) {
     this.now = options.now ?? (() => new Date());
     this.snapshotPath = options.snapshotPath?.trim() || null;
     this.onSnapshotWriteError = options.onSnapshotWriteError;
+    this.onAlert = options.onAlert;
+    this.warningAfterMs = options.warningAfterMs ?? 300_000;
+    this.deadlineGraceMs = options.deadlineGraceMs ?? 30_000;
     this.writeSnapshot();
   }
 
   begin(input: ActiveRequestInput): ActiveRequestHandle {
-    this.active.set(input.requestId, { ...input, firstByteAt: null });
+    this.active.set(input.requestId, { ...input, firstByteAt: null, emittedAlerts: new Set() });
     this.writeSnapshot();
     let finished = false;
 
@@ -103,6 +123,17 @@ export class ActiveRequestRegistry {
         this.writeSnapshot();
       }
     };
+  }
+
+  /** Called by a bounded timer, never per SSE chunk. Warnings do not cancel work. */
+  poll(): void {
+    for (const alert of this.snapshot().alerts) {
+      const record = this.active.get(alert.requestId);
+      if (!record || record.emittedAlerts.has(alert.kind)) continue;
+      record.emittedAlerts.add(alert.kind);
+      try { this.onAlert?.(alert); } catch { /* Observation must not affect inference. */ }
+    }
+    this.writeSnapshot();
   }
 
   snapshot(at = this.now()): ActiveRequestSnapshot {
@@ -148,6 +179,16 @@ export class ActiveRequestRegistry {
       oldestDeadlineExceededAgeSeconds: maximum(
         requests.map((request) => request.deadlineExceededSeconds)
       ),
+      alerts: requests.flatMap(request => {
+        const kinds: ActiveRequestAlert["kind"][] = [];
+        if (request.waitingFirstByteSeconds !== null && request.waitingFirstByteSeconds * 1000 >= this.warningAfterMs)
+          kinds.push("waiting_for_delivery");
+        if (request.deadlineExceededSeconds !== null && request.deadlineExceededSeconds * 1000 >= this.deadlineGraceMs)
+          kinds.push("deadline_cleanup_overdue");
+        return kinds.map(kind => ({ id: `${kind}:${request.requestId}`, kind,
+          requestId: request.requestId, publicModelId: request.publicModelId,
+          upstreamRuntime: request.upstreamRuntime, ageSeconds: request.ageSeconds }));
+      }),
       requests
     };
   }
