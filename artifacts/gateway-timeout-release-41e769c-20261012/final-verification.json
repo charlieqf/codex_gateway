@@ -1,0 +1,117 @@
+{
+  "checked_at": "2026-10-12T01:58:23.096588+00:00",
+  "revision": "41e769ce035834fc970ad449828bbcf0df00929d",
+  "healthy": true,
+  "restarts": 0,
+  "only_expected_environment_additions": [
+    "GATEWAY_OPS_RUNTIME_SNAPSHOT_PATH=/var/lib/codex-gateway/ops-runtime.json"
+  ],
+  "ports_unchanged": true,
+  "other_containers_preserved": true,
+  "current": "/opt/codex-gateway-r760/releases/41e769ce035834fc970ad449828bbcf0df00929d",
+  "previous": "/opt/codex-gateway-r760/releases/1e41c4c55c78d236a07b309e32bb43d4c95d8d91",
+  "protected_permissions": [
+    {
+      "path": "config/gateway.container.env",
+      "mode": "0o600",
+      "uid": 0,
+      "gid": 0
+    },
+    {
+      "path": "config/research.production.api.env",
+      "mode": "0o600",
+      "uid": 0,
+      "gid": 0
+    },
+    {
+      "path": "config/research.production.compose.env",
+      "mode": "0o600",
+      "uid": 0,
+      "gid": 0
+    },
+    {
+      "path": "config/research.production.llm-gateway.env",
+      "mode": "0o600",
+      "uid": 0,
+      "gid": 0
+    },
+    {
+      "path": "config/research.production.worker.env",
+      "mode": "0o600",
+      "uid": 0,
+      "gid": 0
+    },
+    {
+      "path": "secrets/research-production-llm-token",
+      "mode": "0o400",
+      "uid": 999,
+      "gid": 999
+    },
+    {
+      "path": "secrets/research-production-tencent-key",
+      "mode": "0o400",
+      "uid": 999,
+      "gid": 999
+    },
+    {
+      "path": "secrets/research-production-web-search-key",
+      "mode": "0o400",
+      "uid": 999,
+      "gid": 999
+    }
+  ],
+  "databases": [
+    {
+      "database": "client-events.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "clinical/aipal.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "clinical/panecho.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "gateway.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0,
+      "schema": 40,
+      "pending_charge_decisions": 0
+    },
+    {
+      "database": "imaging/control.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    }
+  ],
+  "ops": {
+    "periodic_snapshot": true,
+    "time_basis": "completed_at_derived",
+    "model_calls_5m": {
+      "total": 6,
+      "ok": 4,
+      "errors": 2,
+      "clientAborted": 0,
+      "timeoutRateDenominator": 6,
+      "timeouts": 2,
+      "timeoutRate": 0.3333333333333333,
+      "p95DurationMs": 5493,
+      "byTimeoutPhase": {
+        "awaiting_headers": 2
+      }
+    },
+    "alert_types": [
+      "timeout_event"
+    ]
+  },
+  "log_levels": {
+    "warn": 1,
+    "error_or_fatal": 0
+  },
+  "storage_errors": 0
+}

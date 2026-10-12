@@ -1,0 +1,11 @@
+{
+  "migration": "39->40",
+  "migration_ms": 367,
+  "idempotent": true,
+  "index_used": true,
+  "historical_timeout_cases": 2,
+  "host_sqlite": "3.37.2",
+  "host_integrity": "ok",
+  "historical_tables_preserved": 10,
+  "added_database_bytes": 4792320
+}

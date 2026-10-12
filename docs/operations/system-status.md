@@ -1,5 +1,17 @@
 # System Status
 
+Gateway `41e769ce035834fc970ad449828bbcf0df00929d` is live, verified at
+2026-10-12 01:58:23 UTC. Admin timeout diagnostics, completion-time operations
+windows, model-only statistics and timeout alerts are enabled. Runtime snapshots
+refresh every five seconds; the protected Gateway environment now sets
+`GATEWAY_OPS_RUNTIME_SNAPSHOT_PATH=/var/lib/codex-gateway/ops-runtime.json`.
+Schema 40, healthy, RestartCount=0. Clean Linux tests: 1804 passed / 4 skipped;
+real Tencent text, TianKuan streaming tool, replay and controlled public timeout
+checks passed. Five database integrity/FK checks passed and synthetic credentials
+were revoked. Public errors, retry limits and billing policy are unchanged.
+See the [timeout diagnostics release receipt](./gateway-timeout-release-2026-10-12.zh-CN.md)
+for migration compatibility, two controlled replacement windows and verification limits.
+
 Gateway `2378c8e44e0eead62458caa01024e1c1a38ccf9f` is live, verified at
 2026-10-01 02:25:43 UTC. It promotes the committed clinical contract and ZIP/DICOM
 acceptance records; business source matches the previous abffeaf release.

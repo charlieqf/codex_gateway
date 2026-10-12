@@ -1,0 +1,8 @@
+{
+  "revision": "41e769ce035834fc970ad449828bbcf0df00929d",
+  "tests": [
+    "Test Files  98 passed | 2 skipped (100)",
+    "Tests  1804 passed | 4 skipped (1808)",
+    "Duration  78.32s (transform 190.14s, setup 0ms, import 262.09s, tests 165.92s, environment 19ms)"
+  ]
+}
