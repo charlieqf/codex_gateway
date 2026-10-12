@@ -305,6 +305,16 @@ export async function runResearchWorker(input: {
               policy: config.workflowPolicy,
               medicalSkillBundle,
               signal,
+              onConfigurationFailure(event) {
+                logger.error("research_run_configuration_mismatch", {
+                  run_id: event.runId,
+                  lease_generation: currentToken.generation,
+                  reason: event.reason,
+                  message: "Worker configuration does not support this research input.",
+                  identity_agent_enabled: config.workflowPolicy.identityAgentEnabled === true,
+                  practical_profile_enabled: config.workflowPolicy.identityAgentEnabled === true && config.workflowPolicy.practicalProfileEnabled !== false
+                });
+              },
               onResourceBudgetFailure(event) {
                 logger.info("research_resource_budget_exceeded", { run_id: event.runId,
                   lease_generation: currentToken.generation, limit: event.limit,

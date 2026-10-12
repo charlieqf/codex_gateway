@@ -439,7 +439,11 @@ function renderPracticalArtifacts(result: DoctorResearchContent, language: "zh-C
   const scope = section(zh ? "信息范围" : "Information Scope", result.source_coverage.limitations ?? result.source_coverage.warnings);
   const profile = [
     `# ${markdownInline(result.doctor.name)} ${zh ? "公开资料" : "Public Profile"}`, "",
-    section(zh ? "检索输入" : "Search Input", [result.doctor.name, result.doctor.hospital ?? "", result.doctor.department ?? ""].filter(Boolean)),
+    section(zh ? "检索输入" : "Search Input", [
+      `${zh ? "姓名" : "Name"}: ${result.doctor.name}`,
+      result.doctor.hospital ? `${zh ? "所属机构" : "Organization"}: ${result.doctor.hospital}` : "",
+      result.doctor.department ? `${zh ? "科室／部门／团队" : "Department / Team"}: ${result.doctor.department}` : ""
+    ].filter(Boolean)),
     `## ${zh ? "已核实资料" : "Verified Information"}`, "",
     ...result.profile.claims.map(c => `- ${markdownInline(c.text)} ${links(c.source_ids)}`), "", scope,
     `## ${zh ? "公开来源" : "Public Sources"}`, "",

@@ -1,0 +1,32 @@
+[
+  {
+    "case_id": "ben-abbott",
+    "input_note": "截图的肺癌是采访主题，不填入部门；姓名和机构仍需服务核验。",
+    "request": { "name": "Ben Abbott", "hospital": "曼彻斯特大学", "interview_topics": ["肺癌"], "language": "zh-CN" }
+  },
+  {
+    "case_id": "zhai-yifan",
+    "input_note": "药企人员不预设临床科室；未提供确切职务，因此不猜测 title。",
+    "request": { "name": "翟一帆", "hospital": "亚盛医药", "interview_topics": ["淋巴瘤"], "language": "zh-CN" }
+  },
+  {
+    "case_id": "zhao-peiqi",
+    "input_note": "保留截图提供的医院和科室，供服务核验；主题来自会议名称。",
+    "request": { "name": "赵培起", "hospital": "天津医科大学肿瘤医院", "department": "淋巴瘤内科", "interview_topics": ["淋巴瘤"], "language": "zh-CN" }
+  },
+  {
+    "case_id": "yang-dajun",
+    "input_note": "药企人员不预设血液科任职；采访主题来自本次淋巴瘤会议。",
+    "request": { "name": "杨大俊", "hospital": "亚盛医药", "interview_topics": ["淋巴瘤"], "language": "zh-CN" }
+  },
+  {
+    "case_id": "yok-lam-kwong",
+    "input_note": "保留截图中的英文姓名、机构和科室，不预先替换为推测的规范名称。",
+    "request": { "name": "Yok-Lam Kwong", "hospital": "香港大学李嘉诚医学院", "department": "血液科", "interview_topics": ["淋巴瘤"], "language": "zh-CN" }
+  },
+  {
+    "case_id": "mei-heng",
+    "input_note": "保留截图提供的院校和科室，由服务判断是否需补充附属医院信息。",
+    "request": { "name": "梅恒", "hospital": "华中科技大学同济医学院", "department": "血液科", "interview_topics": ["淋巴瘤"], "language": "zh-CN" }
+  }
+]

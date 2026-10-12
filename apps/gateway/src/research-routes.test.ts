@@ -7,7 +7,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   GatewayError,
   issueAccessCredential,
@@ -51,6 +51,141 @@ afterEach(() => {
 });
 
 describe("Doctor Research control-plane routes", () => {
+  it("rejects unsupported person inputs before admission when practical profiles are disabled", async () => {
+    const fixture = createFixture({ capability: true, identityAgentEnabled: true, practicalProfileEnabled: false });
+    const configurationLog = vi.fn();
+    fixture.app.addHook("onRequest", async request => { request.log.warn = configurationLog; });
+    try {
+      const doctor = { name: "Alice Example", hospital: "Example Institute", department: "Research Unit" };
+      const bodies = [
+        { name: doctor.name, hospital: doctor.hospital },
+        { ...doctor, interview_topics: ["Cancer"] },
+        { ...doctor, interview_focus: "Evidence gaps" }
+      ];
+      for (const [index, payload] of bodies.entries()) {
+        const response = await fixture.app.inject({ method: "POST", url: "/gateway/research/v1/doctor-runs",
+          headers: { authorization: `Bearer ${fixture.token}`, "idempotency-key": `research:disabled-profile-${index}` }, payload });
+        expect(response.statusCode).toBe(400);
+        expect(response.json().error.code).toBe("invalid_request");
+        expect(response.json().error.message).toBe("This service does not currently support the supplied research fields.");
+        expect(response.body).not.toMatch(/identity.?agent|practical.?profile|unsupported_person_input/iu);
+      }
+      expect(configurationLog).toHaveBeenCalledTimes(3);
+      expect(configurationLog).toHaveBeenCalledWith(expect.objectContaining({
+        reason: "unsupported_person_input", identity_agent_enabled: true, practical_profile_enabled: false
+      }), "Research configuration does not support this input.");
+      expect(fixture.research.database.prepare("SELECT COUNT(*) AS n FROM research_runs").get()).toMatchObject({ n: 0 });
+      const legacy = await fixture.app.inject({ method: "POST", url: "/gateway/research/v1/doctor-runs",
+        headers: { authorization: `Bearer ${fixture.token}`, "idempotency-key": "research:disabled-profile-legacy" }, payload: doctor });
+      expect(legacy.statusCode).toBe(202);
+    } finally { await fixture.app.close(); }
+  });
+
+  it("persists interview requests, replays them, and keeps topic changes within one identity admission", async () => {
+    const fixture = createFixture({ capability: true, identityAgentEnabled: true, uniqueDoctors30dPerSubject: 1 });
+    try {
+      const payload = { name: "Alice Example", hospital: "Example Pharma", title: "Medical Director",
+        interview_topics: ["Lymphoma"], interview_focus: "Evidence gaps", language: "en" };
+      const headers = { authorization: `Bearer ${fixture.token}`, "idempotency-key": "research:person-input" };
+      const post = (body: unknown, key = headers["idempotency-key"]) => fixture.app.inject({ method: "POST", url: "/gateway/research/v1/doctor-runs",
+        headers: { ...headers, "idempotency-key": key }, payload: body as Record<string, unknown> });
+      const first = await post(payload);
+      expect(first.statusCode).toBe(202);
+      const replay = await post({ ...payload, department: null });
+      expect(replay.statusCode).toBe(202);
+      expect(replay.json()).toEqual(first.json());
+      const changed = { ...payload, interview_topics: ["Myeloma"] };
+      const conflict = await post(changed);
+      expect(conflict.statusCode).toBe(409);
+      expect(conflict.json().error.code).toBe("idempotency_conflict");
+      // The existing one-active-brief limit still applies, even for the same person.
+      expect((await post(changed, "research:person-new-topic")).statusCode).toBe(429);
+      const cancelled = await fixture.app.inject({ method: "POST", url: `${first.json().status_url}/cancel`,
+        headers: { ...headers, "idempotency-key": "research:person-cancel" } });
+      expect(cancelled.statusCode).toBe(200);
+      const second = await post(changed, "research:person-new-topic");
+      expect(second.statusCode).toBe(202);
+      expect(fixture.research.database.prepare("SELECT COUNT(DISTINCT identity_fingerprint) AS n FROM research_doctor_admissions").get()).toMatchObject({ n: 1 });
+      const row = fixture.research.database.prepare("SELECT input_json FROM research_runs WHERE run_id = ?").get(first.json().run_id) as { input_json: string };
+      expect(JSON.parse(row.input_json)).toMatchObject({ doctor: { department: null, title: "Medical Director" },
+        interviewTopics: ["Lymphoma"], interviewFocus: "Evidence gaps" });
+      const fetched = await fixture.app.inject({ method: "GET", url: first.json().status_url,
+        headers: { authorization: `Bearer ${fixture.token}` } });
+      expect(fetched.statusCode).toBe(200);
+      expect(fetched.json()).toMatchObject({ status: "cancelled" });
+      const listed = await fixture.app.inject({ method: "GET", url: "/gateway/research/v1/doctor-runs",
+        headers: { authorization: `Bearer ${fixture.token}` } });
+      expect(listed.statusCode).toBe(200);
+      expect(listed.json().items).toHaveLength(2);
+      for (const item of listed.json().items) expect(item.doctor).toMatchObject({ department: null });
+    } finally { await fixture.app.close(); }
+  });
+
+  it("preserves pre-extension request and identity hashes, including absent interview fields", () => {
+    const doctor = { name: "Alice Example", hospital: "Example Institute", department: "Research Unit" };
+    for (const body of [doctor, { doctor }, { ...doctor, interview_topics: null, interview_focus: null }]) {
+      const parsed = parseDoctorResearchRunRequest(body);
+      expect(parsed.requestHash).toBe("a166a42fbcfbb7b8e3c1866a2b13ccc4e03ed533f79c63b8e7e06e8928075cab");
+      expect(parsed.identityFingerprint).toBe("8d488dc06819465e4f383881d1ebbac95bc7efd5a45e1006d7f2253f234d5a78");
+      expect(parsed.input).not.toHaveProperty("interviewTopics");
+      expect(parsed.input).not.toHaveProperty("interviewFocus");
+    }
+  });
+
+  it("accepts common top-level fields in flat requests without loosening unknown-key validation", () => {
+    const doctor = { name: "Alice Example", hospital: "Example Hospital", department: "Cardiology", title: "Consultant" };
+    const common = { mode: "brief", language: "en", options: { publication_years: 3 }, client_reference: "meeting-1" };
+    expect(parseDoctorResearchRunRequest({ ...doctor, ...common }))
+      .toEqual(parseDoctorResearchRunRequest({ doctor, ...common }));
+    expect(() => parseDoctorResearchRunRequest({ ...doctor, unknown: "no" })).toThrow();
+    expect(() => parseDoctorResearchRunRequest({ doctor, name: doctor.name })).toThrow();
+  });
+
+  it.each([
+    { name: "张明", hospital: "示例医院", department: "血液内科", title: "主任医师" },
+    { name: "翟一帆", hospital: "亚盛医药" },
+    { name: "李华", hospital: "示例药企", department: "临床开发部", title: "医学总监" },
+    { name: "王宁", hospital: "示例学会", department: "淋巴瘤专业委员会", title: "委员" },
+    { name: "Alex Morgan", hospital: "Example Society", title: "Board Member" },
+    { name: "陈欣", hospital: "示例研究所", department: "肿瘤免疫课题组", title: "研究员" }
+  ])("normalizes person and interview inputs for $hospital", doctor => {
+    const policy = { identityAgentEnabled: true };
+    const common = { interview_topics: [" 淋巴瘤 ", "转化研究"], interview_focus: " 关注证据局限。 ", language: "zh-CN" };
+    const parsed = parseDoctorResearchRunRequest({ ...doctor, ...common }, policy);
+    expect(parsed).toEqual(parseDoctorResearchRunRequest({ doctor, ...common }, policy));
+    expect(parsed.input).toMatchObject({ doctor: { department: doctor.department ?? null },
+      interviewTopics: ["淋巴瘤", "转化研究"], interviewFocus: "关注证据局限。" });
+    const changed = parseDoctorResearchRunRequest({ ...doctor, ...common, interview_topics: ["另一个主题"] }, policy);
+    expect(changed.identityFingerprint).toBe(parsed.identityFingerprint);
+    expect(changed.requestHash).not.toBe(parsed.requestHash);
+    const focus = parseDoctorResearchRunRequest({ ...doctor, ...common, interview_focus: "其他重点" }, policy);
+    expect(focus.requestHash).not.toBe(parsed.requestHash);
+    expect(focus.identityFingerprint).toBe(parsed.identityFingerprint);
+  });
+
+  it("normalizes omitted and null departments identically and gates unsupported workflows", () => {
+    const body = { name: "Alice Example", hospital: "Example Institute" };
+    const policy = { identityAgentEnabled: true };
+    expect(parseDoctorResearchRunRequest(body, policy)).toEqual(parseDoctorResearchRunRequest({ ...body, department: null }, policy));
+    expect(() => parseDoctorResearchRunRequest(body)).toThrow("Invalid Doctor Research request.");
+    expect(() => parseDoctorResearchRunRequest({ ...body, department: "Research", interview_topics: ["Cancer"] })).toThrow("This service does not currently support the supplied research fields.");
+    expect(() => parseDoctorResearchRunRequest({ ...body, department: "" }, policy)).toThrow();
+    expect(() => parseDoctorResearchRunRequest({ ...body, hospital: null }, policy)).toThrow();
+  });
+
+  it.each([[], [""], ["  "], [1], ["A", " A "], ["A", "B", "C", "D"], ["x".repeat(101)], "Cancer", ["bad\u0000topic"], ["bad\ud800"]])(
+    "rejects malformed interview topics: %j", topics => {
+      expect(() => parseDoctorResearchRunRequest({ name: "Alice Example", hospital: "Example Institute", interview_topics: topics }, { identityAgentEnabled: true })).toThrow();
+    });
+
+  it("enforces topic and focus boundaries and placement", () => {
+    const doctor = { name: "Alice Example", hospital: "Example Institute", department: null };
+    const policy = { identityAgentEnabled: true };
+    expect(parseDoctorResearchRunRequest({ ...doctor, interview_topics: ["a".repeat(100), "b", "c"], interview_focus: "x".repeat(1000) }, policy).input.interviewTopics).toHaveLength(3);
+    for (const focus of ["", " ", 123, "x".repeat(1001)]) expect(() => parseDoctorResearchRunRequest({ ...doctor, interview_focus: focus }, policy)).toThrow();
+    expect(() => parseDoctorResearchRunRequest({ doctor: { ...doctor, interview_topics: ["Cancer"] } }, policy)).toThrow();
+  });
+
   it("fails startup when Research is enabled without its separate database path", async () => {
     await withTemporaryEnv(
       {
@@ -2012,6 +2147,8 @@ describe("Doctor Research control-plane routes", () => {
 
 function createFixture(input: {
   capability: boolean;
+  identityAgentEnabled?: boolean;
+  practicalProfileEnabled?: boolean;
   secondSubject?: boolean;
   secondCredentialSameSubject?: boolean;
   readRpm?: number;
@@ -2102,6 +2239,8 @@ function createFixture(input: {
     provider,
     sessionStore: gateway,
     researchStore: research,
+    researchIdentityAgentEnabled: input.identityAgentEnabled,
+    researchPracticalProfileEnabled: input.practicalProfileEnabled,
     researchAcceptWhenWorkerUnavailable:
       input.acceptWhenWorkerUnavailable ?? true,
     researchAdmissionGuard: input.admissionGuard,

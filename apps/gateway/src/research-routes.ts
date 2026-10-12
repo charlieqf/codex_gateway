@@ -54,6 +54,7 @@ export interface ResearchRouteOptions {
   officialWebAllowedDomains?: readonly string[];
   officialIdentityRegistry?: readonly ResearchIdentityRegistryEntry[];
   identityAgentEnabled?: boolean;
+  practicalProfileEnabled?: boolean;
   now?: () => Date;
 }
 
@@ -105,12 +106,21 @@ export function registerResearchRoutes(
             options.officialWebAllowedDomains ?? [],
           officialIdentityRegistry:
             options.officialIdentityRegistry ?? [],
-          identityAgentEnabled: options.identityAgentEnabled
+          identityAgentEnabled: options.identityAgentEnabled,
+          practicalProfileEnabled: options.practicalProfileEnabled
         });
         idempotencyKey = parseIdempotencyKey(
           request.headers["idempotency-key"]
         );
       } catch (error) {
+        if (error instanceof UnsupportedResearchInputError) {
+          request.log.warn({
+            request_id: request.id,
+            reason: "unsupported_person_input",
+            identity_agent_enabled: options.identityAgentEnabled === true,
+            practical_profile_enabled: options.identityAgentEnabled === true && options.practicalProfileEnabled !== false
+          }, "Research configuration does not support this input.");
+        }
         return sendResearchError(
           request,
           reply,
@@ -757,6 +767,13 @@ export function registerResearchRoutes(
   );
 }
 
+class UnsupportedResearchInputError extends GatewayError {
+  constructor() {
+    super({ code: "invalid_request", httpStatus: 400,
+      message: "This service does not currently support the supplied research fields." });
+  }
+}
+
 export function parseDoctorResearchRunRequest(
   body: unknown,
   policy: {
@@ -764,6 +781,7 @@ export function parseDoctorResearchRunRequest(
     officialWebAllowedDomains?: readonly string[];
     officialIdentityRegistry?: readonly ResearchIdentityRegistryEntry[];
     identityAgentEnabled?: boolean;
+    practicalProfileEnabled?: boolean;
   } = {}
 ): ParsedResearchRunRequest {
   if (!isRecord(body)) {
@@ -783,12 +801,14 @@ export function parseDoctorResearchRunRequest(
           "orcid",
           "official_profile_urls",
           "literature_identity",
+          "interview_topics",
+          "interview_focus",
           "mode",
           "language",
           "options",
           "client_reference"
         ]
-      : ["doctor", "mode", "language", "options", "client_reference"]
+      : ["doctor", "interview_topics", "interview_focus", "mode", "language", "options", "client_reference"]
   );
   const doctorBody = flatRequest ? body : nestedDoctor;
   if (!isRecord(doctorBody)) {
@@ -798,7 +818,7 @@ export function parseDoctorResearchRunRequest(
   if (!isRecord(optionsBody)) {
     throw invalidRequest();
   }
-  assertOnlyKeys(doctorBody, [
+  if (!flatRequest) assertOnlyKeys(doctorBody, [
     "name",
     "hospital",
     "department",
@@ -817,12 +837,18 @@ export function parseDoctorResearchRunRequest(
     1,
     200
   );
-  const department = normalizedText(
+  const department = optionalText(
     doctorBody.department,
     "doctor.department",
-    1,
     200
   );
+  const interviewTopics = parseInterviewTopics(body.interview_topics);
+  const interviewFocus = optionalText(body.interview_focus, "interview_focus", 1000);
+  if (!policy.identityAgentEnabled && department === null) throw invalidRequest();
+  const practicalProfile = policy.identityAgentEnabled === true && policy.practicalProfileEnabled !== false;
+  if (!practicalProfile && (department === null || interviewTopics || interviewFocus)) {
+    throw new UnsupportedResearchInputError();
+  }
   const identityFingerprint = doctorIdentityFingerprint(
     name,
     hospital,
@@ -928,7 +954,10 @@ export function parseDoctorResearchRunRequest(
       publicationYears,
       citationStyle
     },
-    clientReference
+    clientReference,
+    // Omit absent additions to preserve hashes of existing idempotent requests.
+    ...(interviewTopics ? { interviewTopics } : {}),
+    ...(interviewFocus ? { interviewFocus } : {})
   };
   const canonical = JSON.stringify(input);
   return {
@@ -1326,12 +1355,12 @@ function canonicalIdentityAnchor(value: string): string {
 function doctorIdentityFingerprint(
   name: string,
   hospital: string,
-  department: string
+  department: string | null
 ): string {
   const identityCanonical = JSON.stringify({
     name: canonicalIdentityAnchor(name),
     hospital: canonicalIdentityAnchor(hospital),
-    department: canonicalIdentityAnchor(department)
+    department: department === null ? null : canonicalIdentityAnchor(department)
   });
   return sha256(`doctor_identity_input.v1\u0000${identityCanonical}`);
 }
@@ -1365,6 +1394,14 @@ function optionalText(
     return null;
   }
   return normalizedText(value, field, 1, maximum);
+}
+
+function parseInterviewTopics(value: unknown): string[] | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (!Array.isArray(value) || value.length < 1 || value.length > 3) throw invalidRequest();
+  const topics = value.map((topic, index) => normalizedText(topic, `interview_topics[${index}]`, 1, 100));
+  if (new Set(topics).size !== topics.length) throw invalidRequest();
+  return topics;
 }
 
 function optionalBlankText(

@@ -3740,16 +3740,81 @@ describe("Research Worker controlled-beta workflow", () => {
     fixture.store.close();
   });
 
-  it.each([false, true])("delivers the default practical profile with zero literature, including editorial recovery: %s", async resume => {
-    const fixture = createLeasedWorkflowFixture(`practical_profile_${resume}`);
+  it.each(["department", "interviewTopics", "interviewFocus"] as const)("reports unsupported %s inputs before spending on the legacy workflow", async field => {
+    const input = runInput();
+    if (field === "department") input.doctor.department = null;
+    else if (field === "interviewTopics") input.interviewTopics = ["Lymphoma"];
+    else input.interviewFocus = "Evidence gaps";
+    const fixture = createLeasedWorkflowFixture("unsupported_person_workflow", input);
+    let calls = 0;
+    const diagnostics: unknown[] = [];
+    const outcome = await executeDoctorResearchWorkflow({ lease: fixture.lease, store: fixture.store,
+      artifactRoot: fixture.artifactRoot, adapters: adapters(),
+      modelClient: { model: "test-model", async generate() { calls++; throw new Error("Must not call the model"); } },
+      policy: { ...workflowPolicy(), identityAgentEnabled: true, practicalProfileEnabled: false },
+      signal: new AbortController().signal, now: () => fixture.now,
+      onConfigurationFailure: event => { diagnostics.push(event); } });
+    expect(outcome).toEqual({ outcome: "failed", reason: "model_contract_error" });
+    expect(diagnostics).toEqual([{ runId: fixture.lease.run.runId, reason: "unsupported_person_input" }]);
+    expect(calls).toBe(0);
+    fixture.store.close();
+  });
+
+  it("logs unsupported person configuration in the worker runtime without calling the model", async () => {
+    const config = workerConfig(temporaryDirectory());
+    config.workflowPolicy = { ...config.workflowPolicy, identityAgentEnabled: true, practicalProfileEnabled: false };
+    const observer = createResearchSqliteStore({ path: config.databasePath, limits: config.admissionLimits, ...config.store });
+    cleanupStores.push(observer);
+    const created = observer.createRun({ subjectId: "subj_config_mismatch", credentialId: "cred_config_mismatch",
+      requestId: "req_config_mismatch", idempotencyKey: "research:config-mismatch", requestHash: "config-mismatch",
+      identityFingerprint: "config-mismatch", input: { ...runInput(), interviewTopics: ["Lymphoma"] } });
+    if (created.outcome !== "created") throw new Error("Configuration fixture was not created");
+    let modelCalls = 0;
+    const events: unknown[] = [];
+    const controller = new AbortController();
+    const runtime = runResearchWorker({ config, signal: controller.signal,
+      logger: { info() {}, error(event, fields) { events.push({ event, fields }); } },
+      dependencies: { adapters: { ...adapters(), async assertAvailable() {} },
+        modelClient: { model: "test-model", async assertModelAvailable() {}, async generate() {
+          modelCalls++; throw new Error("Must not call the model");
+        } } } });
+    try {
+      await waitFor(() => observer.getRunForSubject(created.run.runId, "subj_config_mismatch")?.status === "failed", 5_000);
+      expect(modelCalls).toBe(0);
+      expect(events).toContainEqual({ event: "research_run_configuration_mismatch", fields: {
+        run_id: created.run.runId, lease_generation: 1, reason: "unsupported_person_input",
+        message: "Worker configuration does not support this research input.",
+        identity_agent_enabled: true, practical_profile_enabled: false
+      } });
+    } finally {
+      controller.abort(new Error("Configuration fixture complete"));
+      await runtime;
+      observer.close();
+    }
+  });
+
+  it.each([
+    { resume: false, person: false }, { resume: true, person: false },
+    { resume: false, person: true }, { resume: true, person: true }
+  ])("delivers practical profiles, including null departments and editorial recovery: %j", async ({ resume, person }) => {
+    const input = runInput();
+    if (person) {
+      input.doctor = { ...input.doctor, hospital: "Example Pharma", department: null, title: "Medical Director" };
+      input.interviewTopics = ["Lymphoma research"];
+      input.interviewFocus = "Focus on evidence gaps and translation.";
+    }
+    const fixture = createLeasedWorkflowFixture(`practical_profile_${resume}_${person}`, input);
+    expect(fixture.lease.run.input).toEqual(input);
     const source = (await adapters().fetchApprovedSource("src_official_1", new AbortController().signal))!;
+    if (person) source.untrustedText = "Example Doctor is Medical Director at Example Pharma. The official profile describes work on lymphoma research and its evidence gaps.";
     const citations = [{ sourceId: source.sourceId, passageId: "text_0" }];
-    const draft = { facts: [{ type: "expertise", text: "The verified specialty is cardiology.", citations }],
-      background: [{ text: "The public profile identifies a cardiology role at Example Hospital.", citations }],
+    const background = person ? "The official profile identifies the Medical Director at Example Pharma and describes lymphoma research." : "The public profile identifies a cardiology role at Example Hospital.";
+    const draft = { facts: [{ type: "expertise", text: person ? "The profile describes lymphoma research." : "The verified specialty is cardiology.", citations }],
+      background: [{ text: background, citations }],
       // Field-oriented, per the academic question contract: no second person or
       // biography, and the five span advances, gaps, evidence and translation.
-      qa: Array.from({ length: 5 }, (_, i) => ({ question: `What recent advances, unresolved gaps and trial evidence should shape cardiology practice (${i + 1})?`,
-        answer: "Public information describes the cardiology role; personal priorities should be confirmed in conversation.", citations })), limitations: [] };
+      qa: Array.from({ length: 5 }, (_, i) => ({ question: `What recent advances, unresolved gaps and trial evidence should shape ${person ? "lymphoma research" : "cardiology practice"} (${i + 1})?`,
+        answer: person ? "The profile identifies the research field but does not establish detailed clinical evidence; the question remains open for academic discussion." : "Public information describes the cardiology role; personal priorities should be confirmed in conversation.", citations })), limitations: [] };
     let searches = 0, reads = 0, authors = 0, editors = 0;
     const execute = () => executeDoctorResearchWorkflow({
       lease: fixture.lease, store: fixture.store, artifactRoot: fixture.artifactRoot,
@@ -3761,11 +3826,19 @@ describe("Research Worker controlled-beta workflow", () => {
         async getPubMedMetadata() { throw new Error("No publication reads needed."); }
       },
       modelClient: { model: "test-model", async generate(request) {
+        const prompt = JSON.parse(request.prompt);
+        if (request.stage === "discover_identity" || request.stage === "resolve_identity") {
+          expect(prompt).not.toHaveProperty("interview_topics");
+          expect(prompt.requested).not.toHaveProperty("interviewTopics");
+        } else if (person) {
+          expect(prompt.interview_topics).toEqual(input.interviewTopics);
+          expect(prompt.interview_focus).toEqual(input.interviewFocus);
+        }
         let value: unknown;
         if (request.stage === "discover_identity" && request.attempt === 1) value = { actions: [{ type: "search", query: "Example Doctor Example Hospital" }] };
         else if (request.stage === "discover_identity" && request.attempt === 2) value = { actions: [{ type: "read", url: source.url }] };
-        else if (request.stage === "discover_identity") value = { identity: { name: "Example Doctor", institution: "Example Hospital", department: "Cardiology",
-          citations: ["person", "institution", "department", "authority"].map(aspect => ({ aspect, sourceId: source.sourceId, passageId: "text_0", explanation: "Fixture relationship." })) } };
+        else if (request.stage === "discover_identity") value = { identity: { name: "Example Doctor", institution: input.doctor.hospital, department: input.doctor.department,
+          citations: (person ? ["person", "institution", "authority"] : ["person", "institution", "department", "authority"]).map(aspect => ({ aspect, sourceId: source.sourceId, passageId: "text_0", explanation: "Fixture relationship." })) } };
         else if (request.stage === "resolve_identity") value = { accepted: true, issues: [] };
         else if (request.stage === "synthesize_review") { expect(request.providerTimeoutMs).toBe(110_000); authors++; value = { draft }; }
         else if (request.stage === "validate_outputs") { expect(request.providerTimeoutMs).toBe(110_000); editors++; if (resume && editors === 1) throw new ResearchModelClientError("upstream_error", 503, null); value = { approved: true, draft }; }
@@ -3778,12 +3851,22 @@ describe("Research Worker controlled-beta workflow", () => {
         budgets: { ...workflowPolicy().budgets, llmCalls: 14, outputTokens: 60000 } },
       signal: new AbortController().signal, now: () => fixture.now
     });
-    if (resume) expect(await execute()).toMatchObject({ outcome: "failed", reason: "upstream_unavailable", retryable: true });
+    if (resume) {
+      expect(await execute()).toMatchObject({ outcome: "failed", reason: "upstream_unavailable", retryable: true });
+      if (person) {
+        fixture.now = new Date(fixture.now.getTime() + 121_000);
+        fixture.lease = fixture.store.acquireLease({ workerId: "replacement-worker", leaseSeconds: 120, now: fixture.now })!;
+        expect(fixture.lease.run.input).toEqual(input);
+      }
+    }
     expect(await execute()).toEqual({ outcome: "succeeded" });
     expect(searches).toBe(1); expect(reads).toBe(1); expect(authors).toBe(1); expect(editors).toBe(resume ? 2 : 1);
     const result = fixture.store.getRunResultForSubject(fixture.lease.run.runId, fixture.lease.run.subjectId)!;
     expect(result.result).toMatchObject({ review: { references: [], core_evidence: [] }, source_coverage: { literature_sources: [] }, quality: { status: "passed" } });
     expect(result.result.artifacts).toHaveLength(4);
+    expect(result.result).toMatchObject({ doctor: { department: input.doctor.department },
+      identity_resolution: { matched_by: person ? ["institution"] : ["institution", "department"] },
+      review: { keywords: person ? input.interviewTopics : ["Cardiology"] } });
     expect(result.result.quality).toMatchObject({ checks: expect.arrayContaining(["doctor_practical_profile.v1", "practical_profile_fact_review"]) });
     fixture.store.close();
   });

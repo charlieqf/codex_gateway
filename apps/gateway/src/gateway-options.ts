@@ -88,6 +88,7 @@ export interface GatewayOptions {
   researchOfficialWebAllowedDomains?: readonly string[];
   researchOfficialIdentityRegistry?: readonly ResearchIdentityRegistryEntry[];
   researchIdentityAgentEnabled?: boolean;
+  researchPracticalProfileEnabled?: boolean;
   upstreamV2Client?: UpstreamV2Client | null;
   tokenBudgetLimiter?: TokenBudgetLimiter;
   planEntitlementStore?: PlanEntitlementStore;

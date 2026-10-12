@@ -1127,6 +1127,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       officialWebAllowedDomains: researchOfficialWebAllowedDomains,
       officialIdentityRegistry: researchOfficialIdentityRegistry,
       identityAgentEnabled: options.researchIdentityAgentEnabled ?? defaultResearchRuntime?.identityAgentEnabled ?? false,
+      practicalProfileEnabled: options.researchPracticalProfileEnabled ?? defaultResearchRuntime?.practicalProfileEnabled,
       now: clock
     });
   }

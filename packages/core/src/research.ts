@@ -70,6 +70,8 @@ export interface ResearchDoctorInput {
 
 export interface DoctorResearchRunInput {
   doctor: ResearchDoctorInput;
+  interviewTopics?: string[];
+  interviewFocus?: string;
   mode: ResearchRunMode;
   language: ResearchRunLanguage;
   options: {

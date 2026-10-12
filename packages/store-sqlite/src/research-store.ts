@@ -3216,7 +3216,7 @@ function failurePublicDetail(
     string
   > = {
     identity_not_resolved:
-      "The public search did not verify the requested name, hospital, and department as one doctor. This does not mean the doctor does not exist.",
+      "The public search could not verify the connection between the supplied name and organization. This does not mean the person does not exist.",
     resource_budget_exceeded:
       "The research task exhausted its search, reading, or model budget before completing verification. This does not mean the requested person could not be found.",
     insufficient_research_evidence:

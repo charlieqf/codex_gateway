@@ -982,6 +982,24 @@ describe("ResearchSqliteStore", () => {
     store.close();
   });
 
+  it.each([null, "Hematology"])("persists neutral identity failure details with department %s", department => {
+    const store = createStore(":memory:");
+    const now = new Date("2026-10-12T01:00:00Z");
+    const request = command("subj_identity", "key-identity", "hash-identity", "fp-identity", now);
+    request.input.doctor.department = department;
+    try {
+      const created = store.createRun(request);
+      if (created.outcome !== "created") throw new Error("Expected a created run");
+      const lease = store.acquireLease({ workerId: "worker-identity", leaseSeconds: 120, now });
+      if (!lease) throw new Error("Expected a lease");
+      expect(store.failRun({ token: lease.token, terminalReason: "identity_not_resolved", now }).outcome).toBe("failed");
+      expect(store.getRunForSubject(created.run.runId, "subj_identity")).toMatchObject({
+        terminalReason: "identity_not_resolved",
+        terminalDetailPublic: "The public search could not verify the connection between the supplied name and organization. This does not mean the person does not exist."
+      });
+    } finally { store.close(); }
+  });
+
   it("publishes a specific monthly search quota terminal detail", () => {
     const store = createStore(":memory:");
     const now = new Date("2026-07-17T02:00:00Z");

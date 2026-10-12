@@ -128,6 +128,7 @@ export function createDefaultResearchRuntime(
   officialWebAllowedDomains: string[];
   officialIdentityRegistry: ResearchIdentityRegistryEntry[];
   identityAgentEnabled: boolean;
+  practicalProfileEnabled: boolean;
 } | null {
   if (!parseResearchEnabled(env.RESEARCH_API_ENABLED)) {
     return null;
@@ -162,6 +163,7 @@ export function createDefaultResearchRuntime(
       env.NODE_ENV
     );
   const identityAgentEnabled = parseResearchBoolean(env.RESEARCH_IDENTITY_AGENT_ENABLED, false, "RESEARCH_IDENTITY_AGENT_ENABLED");
+  const practicalProfileEnabled = parseResearchBoolean(env.RESEARCH_PRACTICAL_PROFILE_ENABLED, identityAgentEnabled, "RESEARCH_PRACTICAL_PROFILE_ENABLED");
   const officialIdentityRegistry = identityAgentEnabled ? [] : loadResearchOfficialIdentityRegistry(
     env,
     officialWebAllowedDomains
@@ -290,6 +292,7 @@ export function createDefaultResearchRuntime(
     officialWebAllowedDomains,
     officialIdentityRegistry,
     identityAgentEnabled,
+    practicalProfileEnabled,
     admissionGuard: async (now) => {
       const latestBackup = store.latestSuccessfulBackupAt();
       if (

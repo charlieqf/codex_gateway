@@ -3,6 +3,7 @@ import type { ResearchDoctorInput } from "@codex-gateway/core";
 import type { FrozenOfficialSource } from "./adapters.js";
 import {
   investigateDoctorIdentity, defaultIdentityInvestigationPolicy, validateConclusion,
+  investigatedIdentityMatches,
   type IdentityInvestigationState, type InvestigatedIdentity
 } from "./identity-investigator.js";
 import { htmlToStructuredText } from "./safe-http.js";
@@ -19,6 +20,68 @@ const profile: FrozenOfficialSource = {
   accessedAt: directory.accessedAt, contentSha256: "b".repeat(64),
   untrustedText: "Example University Hospital official current staff. Alice Example is a consultant in the Department of Cardiology."
 };
+
+describe("Person identities without a clinical department", () => {
+  it.each([
+    ["Example Pharma", "Chief Medical Officer"],
+    ["Example Society", "Board Member"],
+    ["Example Research Institute", "Researcher"]
+  ])("reviews and durably restores %s without manufacturing a department", async (institution, title) => {
+    const person = { ...doctor, hospital: institution, department: null, title };
+    const page = { ...profile, untrustedText: `Official staff record: Alice Example is ${title} at ${institution}.` };
+    const identity = { name: person.name, institution, department: null,
+      citations: (["person", "institution", "authority"] as const).map(aspect => ({ aspect, sourceId: page.sourceId,
+        quote: page.untrustedText, explanation: "Official record connects the named person and organization." })) };
+    let saved: IdentityInvestigationState | undefined;
+    const generate = vi.fn(async (request: { role: string; system: string; prompt: string; attempt: number }) => {
+      expect(request.system).toContain("A department is optional");
+      expect(request.prompt).not.toContain("interview_topics");
+      if (request.attempt === 1) return JSON.stringify({ actions: [{ type: "search", query: `${person.name} ${institution}` }] });
+      if (request.attempt === 2) return JSON.stringify({ actions: [{ type: "read", url: page.url }] });
+      if (request.role === "investigator") return JSON.stringify({ identity });
+      expect(JSON.parse(request.prompt).sources[0].passages.join(" ")).toContain(page.untrustedText);
+      return JSON.stringify({ accepted: true, issues: [] });
+    });
+    const dependencies = { search: vi.fn(async () => [{ url: page.url, title: page.title, snippet: "" }]),
+      read: vi.fn(async () => page), generate, save: async (state: IdentityInvestigationState) => { saved = structuredClone(state); }, signal: new AbortController().signal };
+    const result = await investigateDoctorIdentity({ doctor: person, dependencies });
+    expect(result).toMatchObject({ outcome: "resolved", identity: { department: null }, state: { modelCalls: 4 } });
+    expect(investigatedIdentityMatches(person, identity)).toEqual(["institution"]);
+    expect(await investigateDoctorIdentity({ doctor: person, dependencies, restoredState: saved! })).toMatchObject({ outcome: "resolved", state: { modelCalls: 4 } });
+    expect(generate).toHaveBeenCalledTimes(4);
+    expect(dependencies.search).toHaveBeenCalledTimes(1);
+    expect(dependencies.read).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps person, institution, authority and exact-source requirements when the unit is null", () => {
+    const identity = { ...conclusion(profile), department: null, citations: conclusion(profile).citations.filter(c => c.aspect !== "department") };
+    expect(validateConclusion(identity, [profile]).department).toBeNull();
+    expect(() => validateConclusion({ ...identity, citations: identity.citations.map(c => c.aspect === "institution" ? { ...c, aspect: "authority" } : c) }, [profile])).toThrow("institution");
+    expect(() => validateConclusion({ ...identity, citations: identity.citations.map(c => ({ ...c, quote: "Fabricated source text that does not exist." })) }, [profile])).toThrow("absent");
+    expect(() => validateConclusion({ ...identity, department: "Research Unit" }, [profile])).toThrow();
+    expect(() => validateConclusion({ ...identity, department: "" }, [profile])).toThrow();
+    expect(() => validateConclusion(identity, [{ ...profile, retrieval: { method: "search_excerpt", query: "Alice Example" } }])).toThrow("corroborating");
+  });
+
+  it("does not mark a missing or unverified requested unit as matched", () => {
+    const identity = conclusion(profile);
+    expect(investigatedIdentityMatches(doctor, identity)).toEqual(["institution", "department"]);
+    expect(investigatedIdentityMatches({ ...doctor, department: null }, identity)).toEqual(["institution"]);
+    expect(investigatedIdentityMatches(doctor, { ...identity, department: null })).toEqual(["institution"]);
+    expect(investigatedIdentityMatches(doctor, { ...identity, citations: [] })).toEqual(["institution"]);
+  });
+
+  it("still requires independent review to accept a person without a department", async () => {
+    const identity = { ...conclusion(profile), department: null, citations: conclusion(profile).citations.filter(c => c.aspect !== "department") };
+    const result = await investigateDoctorIdentity({ doctor: { ...doctor, department: null }, dependencies: {
+      search: async () => [{ url: profile.url, title: profile.title, snippet: "" }], read: async () => profile,
+      generate: scripted([{ actions: [{ type: "search", query: "Alice Example" }] }, { actions: [{ type: "read", url: profile.url }] },
+        { identity }, { accepted: false, issues: ["A competing person has the same name."] }, { unresolved: "conflicting_evidence" }]),
+      save: async () => {}, signal: new AbortController().signal
+    } });
+    expect(result).toMatchObject({ outcome: "unresolved", reason: "conflicting_evidence", state: { reviewedIdentity: null } });
+  });
+});
 function conclusion(page: FrozenOfficialSource): InvestigatedIdentity {
   return { name: doctor.name, institution: doctor.hospital!, department: doctor.department!,
     citations: (["person", "institution", "department", "authority"] as const).map(aspect => ({

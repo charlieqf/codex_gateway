@@ -294,7 +294,10 @@ export const doctorResearchResultSchema = {
         },
         matched_by: {
           type: "array",
-          minItems: 2,
+          minItems: 1,
+          // A single organizational anchor is supported by the reviewed person relationship.
+          // Do not allow an isolated topic/department to become sufficient on its own.
+          anyOf: [{ minItems: 2 }, { const: ["institution"] }],
           uniqueItems: true,
           items: {
             enum: [

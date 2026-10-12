@@ -5,6 +5,7 @@ import { investigationTiming } from "./investigation-timing.js";
 import { maximumNarrativeReviewCalls, NarrativeReviewBudgetError, reviewNarrativeWithAgent, splitNarrativeDiagnostics } from "./narrative-review-agent.js";
 import {
   investigateDoctorIdentity,
+  investigatedIdentityMatches,
   IdentityInvestigationBudgetError,
   defaultIdentityInvestigationPolicy,
   type IdentityInvestigationPolicy,
@@ -179,11 +180,19 @@ export async function executeDoctorResearchWorkflow(input: {
     errorDetails?: readonly string[];
   }) => void;
   onResourceBudgetFailure?: (event: { runId: string; limit: string; observed?: number; maximum?: number }) => void;
+  onConfigurationFailure?: (event: { runId: string; reason: "unsupported_person_input" }) => void;
   now?: () => Date;
 }): Promise<DoctorResearchWorkflowResult> {
   const now = input.now ?? (() => new Date());
   validateWorkflowPolicy(input.policy);
   const practicalProfile = input.policy.identityAgentEnabled === true && input.policy.practicalProfileEnabled !== false;
+  // Never silently drop person/interview inputs into the legacy academic workflow.
+  if (!practicalProfile && (input.lease.run.input.doctor.department === null ||
+      input.lease.run.input.interviewTopics || input.lease.run.input.interviewFocus)) {
+    input.onConfigurationFailure?.({ runId: input.lease.run.runId, reason: "unsupported_person_input" });
+    // Keep the existing terminal code; report the configuration mismatch separately.
+    return { outcome: "failed", reason: "model_contract_error" };
+  }
   const medicalSkillBundle =
     practicalProfile ? null : input.medicalSkillBundle ?? getDefaultMedicalSkillBundle();
   try {
@@ -1259,7 +1268,7 @@ async function discoverAgentIdentityEvidence(context: WorkflowContext) {
   }));
   const agentIdentity: ResolvedDoctorResearchIdentity | null = result.outcome === "resolved" ? {
     canonicalIdentityId: `dci_${sha256(JSON.stringify(context.run.input.doctor)).slice(0, 32)}`,
-    matchedBy: ["institution", "department"],
+    matchedBy: investigatedIdentityMatches(context.run.input.doctor, result.identity),
     sources: sourceEvidence.map(({ untrusted_text: _text, ...source }) => source),
     profileSourceIds: sources.map(s => s.sourceId), sourceEvidence,
     investigatedIdentity: result.identity, investigationPages: result.state.pages
@@ -2059,6 +2068,8 @@ async function collectPracticalProfile(context: WorkflowContext, identity: Resol
   if (loaded.outcome !== "read") throw new WorkflowFencedError();
   const result = await preparePracticalProfile({
     doctor: context.run.input.doctor, identity: identity.investigatedIdentity, pages: identity.investigationPages,
+    ...(context.run.input.interviewTopics ? { interviewTopics: context.run.input.interviewTopics } : {}),
+    ...(context.run.input.interviewFocus ? { interviewFocus: context.run.input.interviewFocus } : {}),
     language: context.run.language, ...(loaded.payload ? { restoredState: loaded.payload as PracticalProfileState } : {}),
     dependencies: {
       signal, timing: () => context.investigationTiming(),
@@ -2088,6 +2099,7 @@ async function collectPracticalProfile(context: WorkflowContext, identity: Resol
   }
   if (result.outcome !== "resolved") { context.reportBudgetFailure("practical_profile_investigation"); return null; }
   const output = assemblePracticalProfile({ doctor: context.run.input.doctor, identity: identity.investigatedIdentity,
+    ...(context.run.input.interviewTopics ? { interviewTopics: context.run.input.interviewTopics } : {}),
     canonicalIdentityId: identity.canonicalIdentityId, pages: identity.investigationPages, draft: result.draft, state: result.state,
     language: context.run.language, now: context["now"]() });
   const serialized = JSON.stringify(output).normalize("NFC").toLowerCase();

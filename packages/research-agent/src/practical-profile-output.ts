@@ -1,6 +1,6 @@
 import { isRecord, type DoctorResearchRunInput } from "@codex-gateway/core";
 import type { FrozenOfficialSource } from "./adapters.js";
-import type { InvestigatedIdentity } from "./identity-investigator.js";
+import { investigatedIdentityMatches, type InvestigatedIdentity } from "./identity-investigator.js";
 import type { PracticalProfileDraft, PracticalProfileState } from "./practical-profile-agent.js";
 import { practicalProfilePolicy } from "./practical-profile-agent.js";
 import type { DoctorResearchModelOutput, DoctorResearchSource } from "./contracts.js";
@@ -27,6 +27,7 @@ export function normalizePracticalResultWarnings(result: Record<string, unknown>
 /** Only the factual editor's accepted draft reaches this server-owned assembly. */
 export function assemblePracticalProfile(input: {
   doctor: DoctorResearchRunInput["doctor"]; identity: InvestigatedIdentity;
+  interviewTopics?: string[];
   canonicalIdentityId: string; pages: readonly FrozenOfficialSource[];
   draft: PracticalProfileDraft; state: PracticalProfileState; language: "zh-CN" | "en"; now: Date;
 }): DoctorResearchModelOutput {
@@ -46,7 +47,7 @@ export function assemblePracticalProfile(input: {
   if ([...used].some(id => !sources.some(s => s.source_id === id))) throw new Error("Practical profile source closure failed.");
   const profile: DoctorResearchModelOutput["profile"] = {
     positions: [], expertise: [], education_and_career: [], research_directions: [], representative_outputs: [],
-    claims: [{ claim_id: "clm_practical_identity", claim_type: "identity", text: `${identity.name} · ${identity.institution} · ${identity.department}`,
+    claims: [{ claim_id: "clm_practical_identity", claim_type: "identity", text: [identity.name, identity.institution, identity.department].filter(Boolean).join(" · "),
       source_ids: ids(identity.citations), verification_status: "verified" }],
     primary_public_source_ids: ids([...identity.citations, ...draft.facts.flatMap(f => f.citations)])
   };
@@ -59,6 +60,9 @@ export function assemblePracticalProfile(input: {
   }
   const excerptSources = pages.filter(p => p.retrieval?.method === "search_excerpt");
   const limitations = [...new Set([...(identity.limitations ?? []), ...draft.limitations,
+    ...(input.doctor.department && identity.department === null ? [input.language === "zh-CN"
+      ? "输入的科室／部门／团队尚未获得公开资料核实。"
+      : "The requested department or team has not been verified from public sources."] : []),
     ...excerptSources.map(p => input.language === "zh-CN"
       ? `来源 ${p.url} 未能阅读全文，仅使用搜索引擎返回的标题与摘要，并结合其他已读资料判断；原文现状及未展示内容尚未核实。`
       : `Source ${p.url} could not be read in full. Only its search title and excerpt were used alongside other read evidence; unseen content and current status remain unverified.`)])];
@@ -72,11 +76,12 @@ export function assemblePracticalProfile(input: {
   return {
     schema_version: "doctor_research_model_output.v1",
     doctor: { name: input.doctor.name, hospital: input.doctor.hospital, department: input.doctor.department },
-    identity_resolution: { status: "verified", confidence: excerptSources.length ? "medium" : "high", canonical_identity_id: input.canonicalIdentityId, matched_by: ["institution", "department"] },
+    identity_resolution: { status: "verified", confidence: excerptSources.length ? "medium" : "high", canonical_identity_id: input.canonicalIdentityId, matched_by: investigatedIdentityMatches(input.doctor, identity) },
     sources, profile,
     review: {
       title: `${input.doctor.name} ${zh ? "专业背景与交流准备" : "Professional Background and Conversation Preparation"}`,
-      abstract: draft.background[0]!.text, keywords: [identity.department],
+      abstract: draft.background[0]!.text, keywords: input.interviewTopics?.length ? [...input.interviewTopics]
+        : identity.department ? [identity.department] : [zh ? "专业背景" : "Professional background"],
       markdown: draft.background.map(p => markdownInline(p.text) + " " + ids(p.citations).map(id => {
         const source = sources.find(s => s.source_id === id)!;
         return `[${zh ? "来源" : "Source"} ${sources.indexOf(source) + 1}](<${markdownHttpsUrl(source.url)}>)`;
