@@ -1,0 +1,34 @@
+{
+  "migration": "40->41",
+  "idempotent": true,
+  "migration_ms": 122,
+  "changes": {
+    "plans": {
+      "rows": 17,
+      "raised": 9
+    },
+    "entitlements": {
+      "rows": 813,
+      "raised": 233
+    },
+    "access_credentials": {
+      "rows": 1081,
+      "raised": 41
+    }
+  },
+  "other_policy_fields_preserved": true,
+  "higher_and_unlimited_preserved": true,
+  "ledger_tables_unchanged": [
+    "subjects",
+    "token_reservations",
+    "token_windows",
+    "entitlement_token_windows",
+    "token_settlements",
+    "token_charge_decisions",
+    "request_events"
+  ],
+  "plan_trigger_preserved": true,
+  "quick_check": "ok",
+  "foreign_key_violations": 0,
+  "host_sqlite": "3.37.2"
+}

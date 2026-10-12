@@ -1,0 +1,104 @@
+{
+  "checked_at": "2026-10-12T05:39:38.265620+00:00",
+  "revision": "c69e3ed38aacd2020744a1fa0fda870a4b5578ca",
+  "healthy": true,
+  "restarts": 0,
+  "environment_unchanged": true,
+  "ports_unchanged": true,
+  "other_containers_preserved": true,
+  "databases": [
+    {
+      "database": "client-events.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "clinical/aipal.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "clinical/panecho.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "gateway.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0,
+      "schema": 41,
+      "pending_charge_decisions": 0
+    },
+    {
+      "database": "imaging/control.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    }
+  ],
+  "policies": {
+    "plans": [
+      {
+        "tpm": null,
+        "count": 4
+      },
+      {
+        "tpm": 600000,
+        "count": 9
+      },
+      {
+        "tpm": 700000,
+        "count": 1
+      },
+      {
+        "tpm": 1000000,
+        "count": 2
+      },
+      {
+        "tpm": 2000000,
+        "count": 1
+      }
+    ],
+    "entitlements": [
+      {
+        "tpm": null,
+        "count": 4
+      },
+      {
+        "tpm": 600000,
+        "count": 234
+      },
+      {
+        "tpm": 700000,
+        "count": 199
+      },
+      {
+        "tpm": 1000000,
+        "count": 368
+      },
+      {
+        "tpm": 2000000,
+        "count": 9
+      }
+    ],
+    "access_credentials": [
+      {
+        "tpm": null,
+        "count": 1038
+      },
+      {
+        "tpm": 600000,
+        "count": 41
+      },
+      {
+        "tpm": 1000000,
+        "count": 3
+      }
+    ]
+  },
+  "no_finite_tpm_below_600k": true,
+  "storage_errors": 0,
+  "log_levels": {
+    "warn": 0,
+    "error_or_fatal": 0
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "checked_at": "2026-10-12T05:39:22.920Z",
+  "subject_id": "release_smoke_tpm600k_396e1e2f-2d1d-45ac-8b29-cb6b2ee96d09",
+  "public_policy_tpm": 600000,
+  "limit_enforced": {
+    "request_id": "req-8ffe5ab7-9c50-4f2c-824f-144e298f707c",
+    "status": 429,
+    "maximum": 600000,
+    "retry_after_seconds": 37,
+    "upstream_attempts": 0
+  },
+  "above_old_floor": {
+    "request_id": "req-e2cf2c1c-8d0d-46b8-a2c9-fa6bf60730a2",
+    "status": 200,
+    "existing_reserved_tokens": 350000,
+    "provider_tokens": 136
+  },
+  "real_usage_charged": 136,
+  "cleanup": {
+    "active_credentials": 0,
+    "unfinished_reservations": 0,
+    "public_status": 401
+  },
+  "passed": true
+}
