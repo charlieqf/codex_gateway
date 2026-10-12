@@ -3767,8 +3767,8 @@ describe("Research Worker controlled-beta workflow", () => {
         else if (request.stage === "discover_identity") value = { identity: { name: "Example Doctor", institution: "Example Hospital", department: "Cardiology",
           citations: ["person", "institution", "department", "authority"].map(aspect => ({ aspect, sourceId: source.sourceId, passageId: "text_0", explanation: "Fixture relationship." })) } };
         else if (request.stage === "resolve_identity") value = { accepted: true, issues: [] };
-        else if (request.stage === "synthesize_review") { authors++; value = { draft }; }
-        else if (request.stage === "validate_outputs") { editors++; if (resume && editors === 1) throw new ResearchModelClientError("upstream_error", 503, null); value = { approved: true, draft }; }
+        else if (request.stage === "synthesize_review") { expect(request.providerTimeoutMs).toBe(110_000); authors++; value = { draft }; }
+        else if (request.stage === "validate_outputs") { expect(request.providerTimeoutMs).toBe(110_000); editors++; if (resume && editors === 1) throw new ResearchModelClientError("upstream_error", 503, null); value = { approved: true, draft }; }
         else throw new Error(`Academic stage must not run: ${request.stage}`);
         return { text: JSON.stringify(value), gatewayRequestId: `req_practical_${request.stage}_${request.attempt}`,
           usage: { promptTokens: 100, completionTokens: 100, totalTokens: 200 } };

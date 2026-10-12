@@ -2076,7 +2076,7 @@ async function collectPracticalProfile(context: WorkflowContext, identity: Resol
       readPage: url => { context.chargeExternal(8); return adapters.readWebPage!(url, context.callSignal()); },
       generate: async request => (await context.generateModel({
         stage: request.role === "author" ? "synthesize_review" : "validate_outputs", attempt: request.attempt,
-        system: request.system, prompt: request.prompt, maximumDurationMs: 90_000, reasoningEffort: "low",
+        system: request.system, prompt: request.prompt, maximumDurationMs: 120_000, reasoningEffort: "low",
         maximumOutputTokens: Math.min(practicalProfilePolicy.maximumOutputTokens, policy.maximumOutputTokensPerCall)
       })).text
     }
