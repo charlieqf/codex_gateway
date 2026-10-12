@@ -1,0 +1,18 @@
+{
+  "deployed_at": "2026-10-12T09:10:54.716325+00:00",
+  "revision": "088f11ad8b97afedb72699be5018420d8a10d51e",
+  "image_id": "sha256:03576460978cfc25342414fdcd473f250dd4da823b1a485ada0478fcf9c8edb9",
+  "checks": {
+    "research": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    "gateway": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    }
+  },
+  "gateway_id": "b2017453dbbbb0b412548675a2c3c7c92b619219829647a6777c71d53e2243f7",
+  "worker_id": "914269ed745ac27ea6a3db094d27aeb62b3842d7534674aed6dea71c1181cc54",
+  "other_containers_preserved": true
+}

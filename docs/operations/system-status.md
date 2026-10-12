@@ -1,5 +1,19 @@
 # System Status
 
+Gateway and Research Worker `088f11ad8b97afedb72699be5018420d8a10d51e`
+are live, verified at 2026-10-12 09:20:35 UTC. Person inputs accept optional
+departments and interview topics/focus while retaining legacy requests. Clean
+Linux tests: 1855 passed / 4 skipped. Public legacy admission/replay/cancellation
+and a complete Zhai Yifan new-input run passed; four downloads matched their
+sizes and SHA-256 values. The new run took 298 seconds; this is not a 120-second
+whole-job guarantee. Both services are healthy with zero restarts, six database
+integrity/FK checks passed, and other project containers were preserved.
+Test credentials/entitlements were revoked, subjects disabled, test runs expired
+and artifacts removed; audit records remain. See the
+[person research release receipt](./person-research-release-2026-10-12.zh-CN.md)
+for verification scope and caller compatibility checks.
+
+
 Gateway `c69e3ed38aacd2020744a1fa0fda870a4b5578ca` is live, verified at
 2026-10-12 05:39:38 UTC. The permanent finite token-per-minute floor is 600,000
 for existing and newly issued policies; higher and unlimited limits are preserved.

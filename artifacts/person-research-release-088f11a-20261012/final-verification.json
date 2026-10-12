@@ -1,0 +1,71 @@
+{
+  "checked_at": "2026-10-12T09:20:35.411730+00:00",
+  "revision": "088f11ad8b97afedb72699be5018420d8a10d51e",
+  "healthy": true,
+  "restarts": 0,
+  "other_containers_preserved": true,
+  "databases": [
+    {
+      "database": "client-events.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "aipal.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "panecho.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "gateway.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0,
+      "schema": 41
+    },
+    {
+      "database": "control.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "research.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0,
+      "heartbeat_age_seconds": 14.42
+    }
+  ],
+  "public_health": [
+    {
+      "elapsed_seconds": 0.041,
+      "category": "ready"
+    },
+    {
+      "elapsed_seconds": 1.185,
+      "category": "ready"
+    }
+  ],
+  "log_counts": {
+    "gateway": {
+      "warnings": 0,
+      "errors": 0,
+      "storage_errors": 0
+    },
+    "worker": {
+      "warnings": 0,
+      "errors": 0,
+      "storage_errors": 0
+    }
+  },
+  "cleanup": {
+    "removed_artifacts": 4,
+    "temporary_credentials_revoked": true,
+    "temporary_subjects_disabled": true,
+    "temporary_entitlements_inactive": true,
+    "test_runs_expired": 2,
+    "audit_records_retained": true
+  }
+}

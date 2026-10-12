@@ -1,0 +1,67 @@
+[
+  {
+    "run_id": "drr_954b7f56df91420dbb82a6b724aa7b38",
+    "terminal_status": "succeeded",
+    "model_calls": 10,
+    "maximum_call_ms": 67064,
+    "stages": [
+      [
+        "discover_identity",
+        2835,
+        null
+      ],
+      [
+        "discover_identity",
+        3797,
+        null
+      ],
+      [
+        "discover_identity",
+        10176,
+        null
+      ],
+      [
+        "resolve_identity",
+        1782,
+        null
+      ],
+      [
+        "synthesize_review",
+        5363,
+        null
+      ],
+      [
+        "synthesize_review",
+        9687,
+        null
+      ],
+      [
+        "synthesize_review",
+        64962,
+        null
+      ],
+      [
+        "synthesize_review",
+        67064,
+        null
+      ],
+      [
+        "synthesize_review",
+        48601,
+        null
+      ],
+      [
+        "validate_outputs",
+        58498,
+        null
+      ]
+    ]
+  },
+  {
+    "run_id": "drr_64f4cffe31424028aca35002f10d089e",
+    "terminal_status": "cancelled",
+    "model_calls": 0,
+    "maximum_call_ms": 0,
+    "stages": []
+  }
+]

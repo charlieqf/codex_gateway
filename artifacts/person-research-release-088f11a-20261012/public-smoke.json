@@ -1,0 +1,69 @@
+{
+  "started_at": "2026-10-12T09:14:25.091Z",
+  "subject_id": "release_smoke_person_014baad6-48a0-474b-8a36-a5e2785d56d5",
+  "cases": [
+    {
+      "case": "legacy_nested",
+      "run_id": "drr_64f4cffe31424028aca35002f10d089e",
+      "admitted": true,
+      "replay": true,
+      "cancelled": true
+    },
+    {
+      "case": "zhai_yifan_new_flat",
+      "run_id": "drr_954b7f56df91420dbb82a6b724aa7b38",
+      "status": "succeeded",
+      "elapsed_seconds": 298,
+      "null_department_replay": true,
+      "topic_conflict": true
+    }
+  ],
+  "artifacts": [
+    {
+      "kind": "profile",
+      "bytes": 3642,
+      "sha256": "821a0fd070f7563549d5f049e9628af589a628f4cbfb2529e52d479eff3323e4"
+    },
+    {
+      "kind": "review",
+      "bytes": 1428,
+      "sha256": "67bf1c5664ed6b9e358d9053eaa10e8c2ff42ab9d1e7c93d70610f713aa33c7b"
+    },
+    {
+      "kind": "questions",
+      "bytes": 666,
+      "sha256": "f950116715cd437d2c2b9b4bc2b6c5eaee5929f8376c57300734c86acffa923e"
+    },
+    {
+      "kind": "answers",
+      "bytes": 5595,
+      "sha256": "f25738ecf44b0b932ca97a8373b0a035e3d24359491e75d912dbcd9be81afebd"
+    }
+  ],
+  "result_keys": [
+    "doctor",
+    "identity_resolution",
+    "sources",
+    "profile",
+    "review",
+    "source_coverage",
+    "predicted_questions",
+    "answers",
+    "quality",
+    "schema_version",
+    "request_id",
+    "run_id",
+    "artifacts"
+  ],
+  "cleanup": {
+    "active_credentials": 0,
+    "unfinished_runs": 0,
+    "revoked_public_status": 401
+  },
+  "runs": [
+    "drr_64f4cffe31424028aca35002f10d089e",
+    "drr_954b7f56df91420dbb82a6b724aa7b38"
+  ],
+  "completed_at": "2026-10-12T09:19:23.920Z",
+  "passed": true
+}
