@@ -1,5 +1,6 @@
 import { defaultFeaturePolicy } from "./feature-policy.js";
 import type { CreatePlanInput } from "./plan-entitlement.js";
+import { minimumTokensPerMinute } from "./token-budget.js";
 
 // New grants use a one-off lifetime allowance; existing daily grants keep
 // their snapshots and are migrated separately to the lifetime window model.
@@ -13,7 +14,7 @@ export function phoneSignupFreePlan(now: Date): CreatePlanInput {
     scopeAllowlist: ["code"],
     featurePolicy: defaultFeaturePolicy(),
     policy: {
-      tokensPerMinute: 300_000,
+      tokensPerMinute: minimumTokensPerMinute,
       tokensPerDay: null,
       tokensPerMonth: null,
       tokensTotal: 1_000_000,

@@ -1,7 +1,7 @@
 import type { GatewayError } from "./errors.js";
 import type { ProviderKind, RateLimitPolicy, Scope, TokenUsage } from "./types.js";
 
-export const minimumTokensPerMinute = 300_000;
+export const minimumTokensPerMinute = 600_000;
 
 export interface ModelUsageAttribution {
   publicModelId?: string | null;

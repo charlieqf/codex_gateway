@@ -179,7 +179,7 @@ describe("access credentials", () => {
       now: new Date("2026-01-01T00:00:00Z")
     });
 
-    expect(issued.record.rate.token?.tokensPerMinute).toBe(300_000);
+    expect(issued.record.rate.token?.tokensPerMinute).toBe(600_000);
   });
 
   it("issues Gateway unified client keys without exposing embedded service credentials", () => {

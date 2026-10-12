@@ -3508,7 +3508,7 @@ describe("gateway phase 1 routes", () => {
     expect(status.statusCode).toBe(200);
     expect(current.statusCode).toBe(200);
     expect(status.json().credential.rate.token).toEqual({
-      tokensPerMinute: 300_000,
+      tokensPerMinute: 600_000,
       tokensPerDay: 10_000,
       tokensPerMonth: null,
     tokensTotal: null,
@@ -15483,7 +15483,7 @@ describe("gateway phase 1 routes", () => {
       },
       credential: {
         token: {
-          tokensPerMinute: 300_000,
+          tokensPerMinute: 600_000,
           tokensPerDay: 10_000,
           tokensPerMonth: null,
     tokensTotal: null,

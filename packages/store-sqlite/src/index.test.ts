@@ -505,15 +505,15 @@ describe("SqliteGatewayStore", () => {
         "UPDATE access_credentials SET rate_json = json_set(rate_json, '$.token.tokensPerMinute', 100000) WHERE id = ?"
       )
       .run(credential.record.id);
-    store.database.prepare("DELETE FROM schema_migrations WHERE version = 21").run();
+    store.database.prepare("DELETE FROM schema_migrations WHERE version IN (21, 41)").run();
     store.close();
 
     const migrated = createSqliteStore({ path: dbPath });
-    expect(migrated.getPlan(plan.id)?.policy.tokensPerMinute).toBe(300_000);
-    expect(migrated.getEntitlement(entitlement.id)?.policySnapshot.tokensPerMinute).toBe(300_000);
+    expect(migrated.getPlan(plan.id)?.policy.tokensPerMinute).toBe(600_000);
+    expect(migrated.getEntitlement(entitlement.id)?.policySnapshot.tokensPerMinute).toBe(600_000);
     expect(
       migrated.getAccessCredentialByPrefix(credential.record.prefix)?.rate.token?.tokensPerMinute
-    ).toBe(300_000);
+    ).toBe(600_000);
     expect(
       migrated.database
         .prepare("SELECT version FROM schema_migrations WHERE version = 21")

@@ -1177,6 +1177,29 @@ export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogge
     );
     `, logger);
   }
+  // Permanent 600K TPM floor. Preserve unlimited/higher policies and every
+  // other quota field; historical usage and reservation snapshots stay intact.
+  applyMigration(db, 41, () => {
+    for (const [table, column, jsonPath] of [
+      ["plans", "policy_json", "$.tokensPerMinute"],
+      ["entitlements", "policy_snapshot_json", "$.tokensPerMinute"],
+      ["access_credentials", "rate_json", "$.token.tokensPerMinute"]
+    ]) {
+      if (!tableExists(db, table)) continue;
+      let triggerSql: string | undefined;
+      if (table === "plans") {
+        const trigger = db.prepare("SELECT sql FROM sqlite_master WHERE type='trigger' AND name='trg_plans_policy_immutable'")
+          .get() as { sql: string } | undefined;
+        if (!trigger?.sql) throw new Error("Migration 41 requires the immutable Plan policy trigger.");
+        triggerSql = trigger.sql;
+        db.exec("DROP TRIGGER trg_plans_policy_immutable");
+      }
+      db.prepare(`UPDATE ${table} SET ${column} = json_set(${column}, ?, 600000)
+        WHERE json_valid(${column}) AND json_type(${column}, ?) IN ('integer', 'real')
+          AND json_extract(${column}, ?) < 600000`).run(jsonPath, jsonPath, jsonPath);
+      if (triggerSql) db.exec(triggerSql);
+    }
+  }, logger);
 }
 
 export function migrateClientEventsSchema(db: DatabaseSync): void {
