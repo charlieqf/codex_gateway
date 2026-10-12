@@ -1,5 +1,16 @@
 # System Status
 
+Gateway `c69e3ed38aacd2020744a1fa0fda870a4b5578ca` is live, verified at
+2026-10-12 05:39:38 UTC. The permanent finite token-per-minute floor is 600,000
+for existing and newly issued policies; higher and unlimited limits are preserved.
+Schema 41 migrated 9 Plans, 233 entitlement snapshots and 41 credential policies;
+other quotas and historical ledgers are unchanged. Clean Linux tests: 1814 passed /
+4 skipped. Public admission above the old 300K floor and rejection at 600K passed;
+synthetic reservations were settled at zero and the test credential was revoked.
+Five database integrity/FK checks passed. Gateway is healthy with RestartCount=0;
+environment, ports and other project containers are unchanged. See the
+[600K TPM release receipt](./gateway-tpm-600k-release-2026-10-12.zh-CN.md).
+
 Gateway `41e769ce035834fc970ad449828bbcf0df00929d` is live, verified at
 2026-10-12 01:58:23 UTC. Admin timeout diagnostics, completion-time operations
 windows, model-only statistics and timeout alerts are enabled. Runtime snapshots
