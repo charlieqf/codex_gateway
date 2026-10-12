@@ -39,7 +39,7 @@ describe("SqliteGatewayStore", () => {
       migrateGatewaySchema(store.database);
       expect(store.database.prepare("SELECT COUNT(*) AS n FROM schema_migrations WHERE version=40").get()).toEqual({ n: 1 });
       const plan = store.database.prepare(`EXPLAIN QUERY PLAN SELECT request_id FROM request_events
-        WHERE CAST(ROUND(unixepoch(started_at, 'subsec') * 1000) AS INTEGER) + MAX(COALESCE(duration_ms, 0), 0)
+        WHERE CAST(ROUND((julianday(started_at) - 2440587.5) * 86400000) AS INTEGER) + MAX(COALESCE(duration_ms, 0), 0)
         BETWEEN ? AND ?`).all(0, Date.now());
       expect(JSON.stringify(plan)).toContain("USING INDEX idx_request_events_completed_ms");
       expect(store.database.prepare("PRAGMA integrity_check").get()).toEqual({ integrity_check: "ok" });

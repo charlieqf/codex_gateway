@@ -1173,7 +1173,7 @@ export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogge
   if (columnExists(db, "request_events", "started_at") && columnExists(db, "request_events", "duration_ms")) {
     applyMigration(db, 40, `
     CREATE INDEX IF NOT EXISTS idx_request_events_completed_ms ON request_events(
-      CAST(ROUND(unixepoch(started_at, 'subsec') * 1000) AS INTEGER) + MAX(COALESCE(duration_ms, 0), 0)
+      CAST(ROUND((julianday(started_at) - 2440587.5) * 86400000) AS INTEGER) + MAX(COALESCE(duration_ms, 0), 0)
     );
     `, logger);
   }

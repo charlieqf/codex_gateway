@@ -172,7 +172,7 @@ function completedRequests(db: DatabaseSync, now: Date, minutes: number): Reques
       `SELECT request_id, started_at, subject_id, upstream_account_id, public_model_id, duration_ms, first_byte_ms,
               status, error_code, rate_limited, limit_kind, ${optional}
        FROM request_events
-       WHERE CAST(ROUND(unixepoch(started_at, 'subsec') * 1000) AS INTEGER) + MAX(COALESCE(duration_ms, 0), 0)
+       WHERE CAST(ROUND((julianday(started_at) - 2440587.5) * 86400000) AS INTEGER) + MAX(COALESCE(duration_ms, 0), 0)
          BETWEEN ? AND ?`
     )
     .all(now.getTime() - minutes * 60_000, now.getTime()) as unknown as RequestEventRow[];
