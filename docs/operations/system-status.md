@@ -169,7 +169,7 @@ Gateway release verified on 2026-10-01 02:25:43 UTC:
 - Public Gateway: healthy, published only on
   `127.0.0.1:18787->8787`
 - Research Worker and Research LLM Gateway: healthy, without published host ports
-- Research Worker: `3efd505` since 2026-09-23 00:51 UTC. It runs on the Gateway image of the same revision (`RESEARCH_WORKER_VERSION=research-academic-3efd50541278`); the previous worker was `2c561f5`. Practical profiles now require field-level academic questions.
+- Research Worker: `cdd6a693d97d85716e1ef95059ac41ed4cba2176` since 2026-10-12 06:24:31 UTC, verified 06:24:55 UTC (`RESEARCH_WORKER_VERSION=research-timeout-cdd6a693d97d`); previous worker `3efd505`. Practical-profile generation/review now allows 120 seconds per call, including a 10-second reserve (110-second provider deadline); the 570-second run deadline is unchanged. Healthy, zero restarts, integrity/FKs and private model readiness passed. Other containers and Gateway/current remain unchanged. See the [release and investigation receipt](./research-profile-timeout-2026-10-12.zh-CN.md), including one verification-script-triggered rollback and the successful second cutover.
 - Research maintenance: `44c7bdd76d47ea434e006e9ea4dc7d3482df4383`, healthy with zero restarts and unchanged by this Gateway release.
 - Research maintenance: healthy with zero restarts, checked 2026-09-11 01:04 UTC.
   Its missing temporary-smoke files were reproduced byte-for-byte from stored
