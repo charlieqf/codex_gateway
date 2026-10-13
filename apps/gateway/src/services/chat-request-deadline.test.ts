@@ -35,6 +35,7 @@ describe("chat request deadline", () => {
   it("validates the per-call upper-bound header", () => {
     expect(parseRequestedChatRequestTimeoutMs(undefined)).toBeNull();
     expect(parseRequestedChatRequestTimeoutMs("170000")).toBe(170000);
+    expect(parseRequestedChatRequestTimeoutMs("900000")).toBe(900000);
     expect(parseRequestedChatRequestTimeoutMs("1")).toBe(1);
     expect(parseRequestedChatRequestTimeoutMs("0")).toBeInstanceOf(GatewayError);
     expect(parseRequestedChatRequestTimeoutMs("900001")).toBeInstanceOf(GatewayError);
@@ -58,14 +59,18 @@ describe("chat request deadline", () => {
 
   it("aborts with upstream_timeout after the configured deadline", async () => {
     vi.useFakeTimers();
+    const deadline = createChatRequestDeadline({ timeoutMs: 900_000 });
     try {
-      const deadline = createChatRequestDeadline({ timeoutMs: 500 });
-      await vi.advanceTimersByTimeAsync(500);
+      await vi.advanceTimersByTimeAsync(650_000);
+      expect(deadline.signal.aborted).toBe(false);
+      await vi.advanceTimersByTimeAsync(249_999);
+      expect(deadline.signal.aborted).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
       expect(deadline.signal.aborted).toBe(true);
       expect(deadline.signal.reason).toBeInstanceOf(GatewayError);
       expect((deadline.signal.reason as GatewayError).code).toBe("upstream_timeout");
-      deadline.cleanup();
     } finally {
+      deadline.cleanup();
       vi.useRealTimers();
     }
   });

@@ -1,4 +1,5 @@
 import { GatewayError } from "@codex-gateway/core";
+import { reportModelProgress } from "./model-call-progress.js";
 import {
   classifyOversizedWrite,
   oversizedWriteError,
@@ -73,7 +74,10 @@ export async function runNativeWithFailover(input: NativeClientToolsInput & {
   const result = await runNativeToolFailover({
     ...input,
     signal: input.signal!,
-    onDecision: (fields) => input.log?.info({ request_id: input.requestId, ...fields }, "Native tool provider failover assessed."),
+    onDecision: (fields) => {
+      if (fields.to) reportModelProgress(input.onModelProgress, "retrying");
+      input.log?.info({ request_id: input.requestId, ...fields }, "Native tool provider failover assessed.");
+    },
     execute
   });
   if (result instanceof GatewayError) return result;
@@ -142,6 +146,7 @@ async function runNativeClientTools(
       "Native client-defined tool output failed validation; retrying tool call request."
     );
 
+    reportModelProgress(input.onModelProgress, "retrying");
     const second = await collectNativeClientTools(
       input,
       retryPlan.toolChoice,
@@ -186,6 +191,7 @@ async function runNativeClientTools(
     "Native client-defined tools auto response did not call a tool; retrying tool call request."
   );
 
+  reportModelProgress(input.onModelProgress, "retrying");
   const second = await collectNativeClientTools(
     input,
     retryPlan.toolChoice,
@@ -270,6 +276,7 @@ async function collectNativeClientTools(
     signal: input.signal,
     onProviderError: input.onProviderError,
     onProviderEvent: input.onProviderEvent,
+    onModelProgress: input.onModelProgress,
     suppressTextAfterToolCall: true,
     deferEmptyCompletionError: true,
     outputTruncationMode: input.nativeFileToolRecoveryPolicy.mode,
@@ -313,6 +320,7 @@ function nativeCollectionToResult(
   toolChoice: ChatCompletionRequest["toolChoice"],
   providerSummary: ProviderStreamSummary | null = collected.providerSummary
 ): StrictClientToolsResult | GatewayError {
+  reportModelProgress(input.onModelProgress, "validating");
   const toolCalls = collected.toolCalls.map(providerToolCallToOpenAI);
   if (toolCalls.some((call) => call.function.name.toLowerCase() === writeDeliveryToolName)) {
     const error = new GatewayError({ code: "tool_call_validation_failed", httpStatus: 502,

@@ -18,6 +18,29 @@ import { ProviderStreamSummaryCollector } from "./provider-stream.js";
 import { OpenAICompatibleProviderAdapter } from "./openai-compatible-provider.js";
 
 describe("OpenAICompatibleProviderAdapter", () => {
+  it("reports only semantic increments and keeps progress failures outside model output", async () => {
+    const observations: string[] = [];
+    const deltas = [{ role: "assistant" }, {}, { reasoning_content: "private reasoning" },
+      { content: "answer", reasoning_content: "private reasoning" },
+      { tool_calls: [{ index: 0, id: "call_test", function: { name: "write", arguments: "" } }] },
+      { tool_calls: [{ index: 0, function: { arguments: "{}" } }] }];
+    const body = ":ping\n\n" + deltas.map(delta => `data: ${JSON.stringify({ choices: [{ delta }] })}\n\n`).join("") +
+      `data: ${JSON.stringify({ choices: [], usage: { prompt_tokens: 1, completion_tokens: 2, total_tokens: 3 } })}\n\n` +
+      'data: {"choices":[{"delta":{},"finish_reason":"tool_calls"}]}\n\ndata: [DONE]\n\n';
+    const provider = new OpenAICompatibleProviderAdapter({ providerKind: "tencent", apiKey: "", apiKeyEnv: "UNUSED",
+      baseUrl: "https://synthetic.invalid/v1", upstreamModel: "synthetic", timeoutMs: 1000,
+      fetchImpl: async () => new Response(body) });
+    const result = await collectProviderMessage({ provider, upstreamAccount: openRouterAccount(), subject: testSubject(),
+      session: testSession(), scope: "code", message: "hello",
+      clientTools: [{ type: "function", function: { name: "write", parameters: { type: "object" } } }],
+      onModelProgress: event => { observations.push(event); throw new Error("observation failure"); }
+    });
+    expect(observations).toEqual(["attempt_started", "reasoning", "generating", "generating", "generating"]);
+    expect(result).toMatchObject({ content: "answer", toolCalls: [{ name: "write", arguments: {} }],
+      providerSummary: { completed: true } });
+    expect(JSON.stringify(result)).not.toContain("private reasoning");
+  });
+
   it.each(["body_timeout", "deadline", "client_abort", "invalid_json"] as const)(
     "retains partial stream evidence after %s without delivering incomplete tools",
     async (ending) => {

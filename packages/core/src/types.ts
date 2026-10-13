@@ -534,6 +534,9 @@ export interface ProviderChatMessage {
   tool_calls?: ProviderChatToolCall[];
 }
 
+/** Content-free observations only; never drive retries or request deadlines. */
+export type ModelProgressEvent = "attempt_started" | "reasoning" | "generating" | "validating" | "retrying";
+
 export interface MessageInput {
   upstreamAccount: UpstreamAccount;
   session: GatewaySession;
@@ -548,6 +551,7 @@ export interface MessageInput {
   clientToolChoice?: ClientToolChoice;
   signal?: AbortSignal;
   onProviderError?: (diagnostic: ProviderErrorDiagnostic) => void;
+  onModelProgress?: (event: ModelProgressEvent) => void;
 }
 
 /**

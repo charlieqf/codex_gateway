@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { reportModelProgress, reportModelOutput } from "./services/model-call-progress.js";
 import { installGatewayLifecycle, installGatewayShutdown } from "./http/lifecycle.js";
 import { createVisionUploadLimits } from "./services/vision-upload-policy.js";
 import { pathToFileURL } from "node:url";
@@ -2669,11 +2670,14 @@ export function buildGateway(options: GatewayOptions = {}) {
       const releaseDelivery = offeredDelivery ? writeDeliveryAdmission.acquire() : undefined;
       const acceptedDelivery = releaseDelivery ? offeredDelivery : undefined;
       const sse = setupSseResponse(reply, { deferHeartbeat: !!acceptedDelivery });
+      const requestStartedAt = clock();
       const deadline = createChatRequestDeadline({
         timeoutMs: chatRequestTimeoutMs || (visionRecovery ? 600_000 : 0),
         parentSignals: [executionOptions.signal, sse.signal],
-        now: clock()
+        now: requestStartedAt
       });
+      request.modelCallReceipt?.startProgress(requestStartedAt, deadline.deadlineAt);
+      const onModelProgress = request.modelCallReceipt?.observeProgress;
       const activeRequest = beginActiveRequest(attempt, deadline.deadlineAt);
       markProviderCallStarted(request, clock());
       const onProviderEvent = (event: StreamEvent) =>
@@ -2711,7 +2715,8 @@ export function buildGateway(options: GatewayOptions = {}) {
             requestId: request.id,
             log: request.log,
             onProviderError,
-            onProviderEvent
+            onProviderEvent,
+            onModelProgress
           });
           if (strictResult instanceof GatewayError) {
             attempt.recordError(strictResult);
@@ -2788,7 +2793,8 @@ export function buildGateway(options: GatewayOptions = {}) {
             requestId: request.id,
             log: request.log,
             onProviderError,
-            onProviderEvent
+            onProviderEvent,
+            onModelProgress
           });
           if (nativeResult instanceof GatewayError) {
             if (!nativeFailover) attempt.recordError(nativeResult);
@@ -2899,6 +2905,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             let attemptHasToolCalls = false;
             let retrying = false;
             visionRecovery?.budget.consume();
+            if (!deadline.signal.aborted) reportModelProgress(onModelProgress, "attempt_started");
             for await (const event of attempt.adapter.message({
               upstreamAccount: attempt.adapterInputUpstreamAccount,
               subject: attempt.subject,
@@ -2914,8 +2921,10 @@ export function buildGateway(options: GatewayOptions = {}) {
               clientTools: nativeClientTools ? parsed.tools : undefined,
               clientToolChoice: nativeClientTools ? parsed.toolChoice : undefined,
               signal: deadline.signal,
-              onProviderError
+              onProviderError,
+              onModelProgress
             })) {
+              reportModelOutput(onModelProgress, event);
               onProviderEvent(event);
               providerSummary.record(event);
               if (sse.isClosed()) {
@@ -3116,11 +3125,14 @@ export function buildGateway(options: GatewayOptions = {}) {
     let content = "";
     const toolCalls: OpenAIChatToolCall[] = [];
     let usage: OpenAIChatUsage | null = null;
+    const requestStartedAt = clock();
     const deadline = createChatRequestDeadline({
       timeoutMs: chatRequestTimeoutMs || (visionRecovery ? 600_000 : 0),
       parentSignals: [executionOptions.signal, request.gatewayClientDisconnect?.signal],
-      now: clock()
+      now: requestStartedAt
     });
+    request.modelCallReceipt?.startProgress(requestStartedAt, deadline.deadlineAt);
+    const onModelProgress = request.modelCallReceipt?.observeProgress;
     const activeRequest = beginActiveRequest(attempt, deadline.deadlineAt);
     markProviderCallStarted(request, clock());
     const onProviderEvent = (event: StreamEvent) =>
@@ -3145,7 +3157,8 @@ export function buildGateway(options: GatewayOptions = {}) {
           requestId: request.id,
           log: request.log,
           onProviderError,
-          onProviderEvent
+          onProviderEvent,
+          onModelProgress
         });
         if (strictResult instanceof GatewayError) {
           attempt.recordError(strictResult);
@@ -3191,7 +3204,8 @@ export function buildGateway(options: GatewayOptions = {}) {
           requestId: request.id,
           log: request.log,
           onProviderError,
-          onProviderEvent
+          onProviderEvent,
+          onModelProgress
         });
         if (nativeResult instanceof GatewayError) {
           if (!nativeFailover) attempt.recordError(nativeResult);
@@ -3239,6 +3253,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             signal: deadline.signal,
             onProviderError,
             onProviderEvent,
+            onModelProgress,
             suppressToolCalls: parsed.toolChoice === "none",
             suppressTextAfterToolCall: true,
             outputTruncationMode: nativeFileToolRecoveryPolicy.mode,

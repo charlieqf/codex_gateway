@@ -1,5 +1,6 @@
 import {
   type GatewaySession,
+  type MessageInput,
   type ProviderAdapter,
   type ProviderErrorDiagnostic,
   type Scope,
@@ -35,6 +36,7 @@ export interface StrictClientToolsInput {
   log?: StrictClientToolsLogger;
   onProviderError?: (diagnostic: ProviderErrorDiagnostic) => void;
   onProviderEvent?: (event: StreamEvent) => void;
+  onModelProgress?: MessageInput["onModelProgress"];
   nativeFileToolRecoveryPolicy: NativeFileToolRecoveryPolicy;
   boundedWriteEnabled?: boolean;
   writeDelivery?: { negotiation: WriteDeliveryNegotiation; shape: ChatCompletionShape };

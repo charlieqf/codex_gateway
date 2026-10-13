@@ -1,4 +1,5 @@
 import { GatewayError } from "@codex-gateway/core";
+import { reportModelProgress } from "./model-call-progress.js";
 import {
   chatMessagesToStrictToolRepairPrompt,
   openAIUsageFromTokenUsage,
@@ -51,6 +52,7 @@ export async function runStrictClientTools(
     "Strict client-defined tool output failed validation; attempting repair."
   );
 
+  reportModelProgress(input.onModelProgress, "retrying");
   const repairPrompt = chatMessagesToStrictToolRepairPrompt({
     originalPrompt: input.prompt,
     invalidOutput: first.collected.content,
@@ -205,6 +207,7 @@ async function collectStrictToolDecision(
     signal: input.signal,
     onProviderError: input.onProviderError,
     onProviderEvent: input.onProviderEvent,
+    onModelProgress: input.onModelProgress,
     suppressToolCalls: true,
     deferEmptyCompletionError: true,
     outputTruncationMode: input.nativeFileToolRecoveryPolicy.mode,
@@ -220,6 +223,7 @@ async function collectStrictToolDecision(
     return collected;
   }
 
+  reportModelProgress(input.onModelProgress, "validating");
   const parsed = parseStrictToolDecision({
     text: collected.content,
     tools: input.request.tools ?? [],

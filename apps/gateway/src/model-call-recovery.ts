@@ -6,6 +6,8 @@ import {
   type ModelCallResponse,
 } from "@codex-gateway/store-sqlite";
 import { InMemoryRequestRateLimiter } from "./services/rate-limiter.js";
+import type { ModelProgressEvent } from "@codex-gateway/core";
+import { ModelCallProgressTracker } from "./services/model-call-progress.js";
 
 export const modelCallHeader = "x-medcode-call-id";
 export const modelCallContractHeader = "x-medcode-model-call-contract-version";
@@ -41,6 +43,17 @@ export class ModelCallReceipt {
   private readonly frames: string[] = [];
   private bytes = 0;
   private finished = false;
+  private progress?: ModelCallProgressTracker;
+
+  startProgress(startedAt: Date, deadlineAt: Date | null) {
+    if (!this.finished && !this.progress) this.progress = new ModelCallProgressTracker(startedAt, deadlineAt);
+  }
+
+  readonly observeProgress = (event: ModelProgressEvent): void => {
+    this.progress?.observe(event);
+  };
+
+  progressSnapshot() { return this.progress?.snapshot(); }
 
   constructor(
     private readonly reply: FastifyReply,
@@ -68,6 +81,7 @@ export class ModelCallReceipt {
   private settle(response?: ModelCallResponse, outcome?: "completed" | "failed") {
     if (this.finished) return;
     this.finished = true;
+    this.progress = undefined;
     this.frames.length = 0;
     this.save(response, outcome);
   }
@@ -87,7 +101,7 @@ export function registerModelCallRecovery(
   const owner = randomUUID();
   const recovery = new InMemoryRequestRateLimiter({ now: () => new Date(now()) });
   const admission = new InMemoryRequestRateLimiter({ now: () => new Date(now()) });
-  const active = new Set<string>();
+  const active = new Map<string, ModelCallReceipt>();
   const prune = setInterval(() => {
     try { store.prune(now()); }
     catch { app.log.error("Model call receipt cleanup failed."); }
@@ -139,11 +153,15 @@ export function registerModelCallRecovery(
       );
       if (!row) return { version: 1, id: request.params.id, state: "unknown" };
       const state = stateOf(row, context.subject.id, context.scope);
+      const progress = state === "running"
+        ? active.get(JSON.stringify([context.subject.id, context.scope, row.id]))?.progressSnapshot()
+        : undefined;
       return {
         version: 1,
         id: row.id,
         state,
         request_id: row.request_id,
+        ...(progress ? { progress } : {}),
         ...((state === "completed" || state === "failed") && row.response_json
           ? { response: JSON.parse(row.response_json) as ModelCallResponse }
           : {}),
@@ -238,7 +256,7 @@ export function registerModelCallRecovery(
           "Model call receipt could not be persisted.");
       }
     });
-    active.add(key);
+    active.set(key, receipt);
     request.modelCallReceipt = receipt;
     reply.raw.once("close", () => receipt.abort());
     permit.release();

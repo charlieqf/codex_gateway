@@ -5,6 +5,7 @@ import {
   resolveUpstreamAttemptPurpose,
   type GatewaySession,
   type MessageImageInput,
+  type MessageInput,
   type ProviderChatMessage,
   type ProviderAdapter,
   type ProviderErrorDiagnostic,
@@ -23,6 +24,7 @@ import {
   type UpstreamAccount,
   type UpstreamAttemptSummary
 } from "@codex-gateway/core";
+import { reportModelProgress, reportModelOutput } from "./model-call-progress.js";
 
 const CONTEXT_LENGTH_EXCEEDED_MESSAGE =
   "Current conversation or attached files are too large. Start a new conversation, split large PDFs/files, or clear earlier history before retrying.";
@@ -337,6 +339,7 @@ export interface CollectProviderMessageInput {
   signal?: AbortSignal;
   onProviderError?: (diagnostic: ProviderErrorDiagnostic) => void;
   onProviderEvent?: (event: StreamEvent) => void;
+  onModelProgress?: MessageInput["onModelProgress"];
   suppressToolCalls?: boolean;
   suppressTextAfterToolCall?: boolean;
   deferEmptyCompletionError?: boolean;
@@ -365,6 +368,7 @@ export async function collectProviderMessage(
   };
   let hasToolCalls = false;
 
+  if (!input.signal?.aborted) reportModelProgress(input.onModelProgress, "attempt_started");
   for await (const event of input.provider.message({
     upstreamAccount: input.upstreamAccount,
     subject: input.subject,
@@ -378,8 +382,10 @@ export async function collectProviderMessage(
     clientTools: input.clientTools,
     clientToolChoice: input.clientToolChoice,
     signal: input.signal,
-    onProviderError: input.onProviderError
+    onProviderError: input.onProviderError,
+    onModelProgress: input.onModelProgress
   })) {
+    reportModelOutput(input.onModelProgress, event);
     input.onProviderEvent?.(event);
     collector.record(event);
     if (event.type === "message_delta") {

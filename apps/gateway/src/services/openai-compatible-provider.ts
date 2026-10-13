@@ -20,6 +20,7 @@ import {
   type UpstreamAccount
 } from "@codex-gateway/core";
 import { buildOpenRouterIdentityGuardPrompt } from "./openrouter-identity-guard.js";
+import { reportModelProgress } from "./model-call-progress.js";
 import {
   contextCompactionRequiredError,
   localContextWindowDetails
@@ -271,6 +272,9 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
           return;
         }
         const event = mapOpenAIStreamChunk(chunk.value, nativeToolCalls);
+        // Visible text is observed once by the stream consumer. Only reasoning
+        // and partial tools need this parser-side metadata callback.
+        if (event.activity && event.events.length === 0) reportModelProgress(input.onModelProgress, event.activity);
         semanticOutputChars += event.semanticOutputChars;
         visibleOutputChars += event.visibleOutputChars;
         progress.reasoningChars += event.reasoningChars ?? 0;
@@ -623,6 +627,7 @@ function modelRequestErrorMessage(
 }
 
 interface ParsedOpenAIChunk {
+  activity?: "reasoning" | "generating";
   events: StreamEvent[];
   usage?: TokenUsage;
   finishReason: string | null;
@@ -741,6 +746,7 @@ function mapOpenAIStreamChunk(
   const delta = choice.delta;
   let semanticOutputChars = 0;
   let reasoningOutputChars = 0;
+  let generating = false;
   if (isRecord(delta)) {
     const content = delta.content;
     if (typeof content === "string" && content.length > 0) {
@@ -769,10 +775,13 @@ function mapOpenAIStreamChunk(
       semanticOutputChars += structuredOutputChars(delta.function_call);
     }
     if (nativeToolCalls) semanticOutputChars += nativeToolCalls.append(delta.tool_calls);
+    generating = hasToolOutput(delta.function_call) ||
+      (Array.isArray(delta.tool_calls) && delta.tool_calls.some(call => isRecord(call) && hasToolOutput(call.function)));
   }
 
   return {
     events,
+    ...(generating ? { activity: "generating" as const } : reasoningOutputChars > 0 ? { activity: "reasoning" as const } : {}),
     ...(usage ? { usage } : {}),
     finishReason:
       typeof choice.finish_reason === "string" ? choice.finish_reason : null,
@@ -780,6 +789,13 @@ function mapOpenAIStreamChunk(
     visibleOutputChars: semanticOutputChars - reasoningOutputChars,
     reasoningChars: reasoningOutputChars
   };
+}
+
+function hasToolOutput(value: unknown): boolean {
+  return isRecord(value) && (
+    typeof value.name === "string" && value.name.length > 0 ||
+    typeof value.arguments === "string" && value.arguments.length > 0
+  );
 }
 
 function structuredOutputChars(value: unknown): number {

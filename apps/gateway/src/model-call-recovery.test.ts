@@ -9,6 +9,7 @@ import {
 } from "../../../packages/store-sqlite/src/model-calls.js";
 import {
   registerModelCallRecovery,
+  type ModelCallReceipt,
   modelCallHeader,
   modelCallContractHeader,
 } from "./model-call-recovery.js";
@@ -81,6 +82,81 @@ function fixture(
 }
 
 describe("durable model call recovery", () => {
+  it("counts a strict-tool repair within the original receipt and deadline", async () => {
+    let calls = 0, entered!: () => void, release!: () => void;
+    let enteredFirst!: () => void, releaseFirst!: () => void;
+    let now = new Date();
+    const firstStarted = new Promise<void>(resolve => { enteredFirst = resolve; });
+    const firstWait = new Promise<void>(resolve => { releaseFirst = resolve; });
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    const wait = new Promise<void>(resolve => { release = resolve; });
+    const f = credentialGateway({ kind: "recovery-test", health: async () => ({ state: "healthy", checkedAt: new Date() }),
+      async *message() {
+        if (++calls === 1) { enteredFirst(); await firstWait; yield { type: "completed" }; return; }
+        entered(); await wait;
+        yield { type: "message_delta", text: JSON.stringify({ type: "tool_calls",
+          tool_calls: [{ name: "test_tool", arguments: { value: "ok" } }] }) };
+        yield { type: "completed" };
+      } }, 30, () => now);
+    const id = newCallId();
+    const post = f.app.inject({ method: "POST", url: "/v1/chat/completions",
+      headers: { ...f.headers, [modelCallHeader]: id, "x-medcode-request-timeout-ms": "900000" },
+      payload: { ...modelPayload, stream: false, tool_choice: "required", tools: [{ type: "function",
+        function: { name: "test_tool", parameters: { type: "object", properties: { value: { type: "string" } }, required: ["value"] } } }] }
+    }).then(r => r);
+    await firstStarted;
+    try {
+      const original = (await f.app.inject({ url: `/gateway/model-calls/${id}`, headers: f.headers })).json().progress;
+      expect(original.attempt_index).toBe(1);
+      now = new Date(now.getTime() + 1000);
+      releaseFirst();
+      await started;
+      const receipt = (await f.app.inject({ url: `/gateway/model-calls/${id}`, headers: f.headers })).json();
+      expect(receipt.progress).toMatchObject({ phase: "waiting_upstream", attempt_index: 2, last_model_activity_at: null });
+      expect(receipt.progress.started_at).toBe(original.started_at);
+      expect(receipt.progress.deadline_at).toBe(original.deadline_at);
+    } finally { releaseFirst(); release(); await post; }
+    const response = await post;
+    expect(response.json().choices[0].message.tool_calls).toHaveLength(1);
+    expect(calls).toBe(2);
+    expect((await f.app.inject({ url: `/gateway/model-calls/${id}`, headers: f.headers })).json().progress).toBeUndefined();
+  });
+
+  it.each([true, false])("exposes isolated running progress and removes it at terminal state (stream=%s)", async (stream) => {
+    let entered!: () => void, release!: () => void;
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    const wait = new Promise<void>(resolve => { release = resolve; });
+    const f = credentialGateway({ kind: "recovery-test", health: async () => ({ state: "healthy", checkedAt: new Date() }),
+      async *message(input) {
+        input.onModelProgress?.("reasoning");
+        entered(); await wait;
+        yield { type: "message_delta", text: "original" }; yield { type: "completed" };
+      } });
+    const id = newCallId();
+    const post = f.app.inject({ method: "POST", url: "/v1/chat/completions",
+      headers: { ...f.headers, [modelCallHeader]: id, "x-medcode-request-timeout-ms": "900000" },
+      payload: { ...modelPayload, stream } }).then(r => r);
+    await started;
+    try {
+      const get = () => f.app.inject({ url: `/gateway/model-calls/${id}`, headers: f.headers });
+      const receipt = (await get()).json();
+      expect(receipt).toMatchObject({ state: "running", version: 1,
+        progress: { phase: "reasoning", attempt_index: 1 } });
+      expect(Date.parse(receipt.progress.deadline_at) - Date.parse(receipt.progress.started_at)).toBe(900_000);
+      expect(receipt.progress.last_model_activity_at).toMatch(/\.\d{3}Z$/);
+      expect((await get()).json().progress.last_model_activity_at).toBe(receipt.progress.last_model_activity_at);
+      const other = issueAccessCredential({ subjectId: "recovery-subject", scope: "medical", label: "other scope",
+        expiresAt: new Date(Date.now() + 60_000) });
+      f.store.insertAccessCredential(other.record);
+      expect((await f.app.inject({ url: `/gateway/model-calls/${id}`,
+        headers: { authorization: `Bearer ${other.token}` } })).json()).toEqual({ version: 1, id, state: "unknown" });
+    } finally { release(); await post; }
+    const terminal = (await f.app.inject({ url: `/gateway/model-calls/${id}`, headers: f.headers })).json();
+    expect(terminal.state).toBe("completed");
+    expect(terminal.progress).toBeUndefined();
+    expect(terminal.response.body).toContain("original");
+  });
+
   it("queries an in-flight call and rejects concurrent duplicate execution", async () => {
     let entered!: () => void;
     let release!: () => void;
@@ -521,6 +597,14 @@ describe("durable model call recovery", () => {
     const wait = new Promise<void>((resolve) => { release = resolve; });
     const socketClosed = new Promise<void>((resolve) => { closed = resolve; });
     const f = fixture(undefined, Date.now, { entered, wait });
+    let retainedReceipt: ModelCallReceipt | undefined;
+    f.app.addHook("preHandler", async request => {
+      if (request.method !== "POST") return;
+      retainedReceipt = request.modelCallReceipt;
+      retainedReceipt?.startProgress(new Date(), new Date(Date.now() + 900_000));
+      retainedReceipt?.observeProgress("attempt_started");
+      retainedReceipt?.observeProgress("reasoning");
+    });
     f.app.addHook("onRequest", async (request, reply) => {
       if (request.method === "POST") reply.raw.once("close", closed);
     });
@@ -531,11 +615,16 @@ describe("durable model call recovery", () => {
     const received = fetch(`${address}/v1/chat/completions`, { method: "POST", headers,
       body: JSON.stringify({ stream: true }), signal: abort.signal }).then((r) => r.text()).catch(() => "");
     await started;
-    try { abort.abort(); await socketClosed; }
-    finally { release(); await received; }
+    try {
+      expect((await f.app.inject({ url: `/gateway/model-calls/${id}`, headers })).json().progress.phase).toBe("reasoning");
+      abort.abort(); await socketClosed;
+    } finally { abort.abort(); release(); await received; }
     const receipt = (await f.app.inject({ url: `/gateway/model-calls/${id}`, headers })).json();
     expect(receipt.state).toBe("unknown");
     expect(receipt.response).toBeUndefined();
+    expect(receipt.progress).toBeUndefined();
+    retainedReceipt?.observeProgress("generating");
+    expect(retainedReceipt?.progressSnapshot()).toBeUndefined();
     const replay = await f.app.inject({ method: "POST", url: "/v1/chat/completions", headers, payload: { stream: true } });
     expect(replay.json().error.code).toBe("model_call_unconfirmed");
     expect(f.calls.count).toBe(1);
