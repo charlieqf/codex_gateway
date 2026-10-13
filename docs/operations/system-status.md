@@ -1,5 +1,18 @@
 # System Status
 
+Gateway `94b60aec5974e0aafadf0aeeba05fe045b745da2` is live as of
+2026-10-13 00:28:52 UTC; final smoke cleanup was verified at 00:35:11 UTC.
+Running model-call receipts expose optional progress; goldencode and both target
+provider adapters have a 900,000 ms budget. Other model defaults remain 600,000 ms.
+Clean Linux tests: 1860 passed / 4 skipped. Public Tencent and TianKuan calls,
+receipt recovery/replay, subject isolation, short deadlines and cancellation passed;
+a live call exposed reasoning activity. No full 15-minute live call was attempted.
+Gateway is healthy with zero restarts; six database integrity/FK checks passed.
+All seven smoke subjects are disabled, with zero active credentials or unfinished
+reservations. Research Worker remains on `088f11ad8b97afedb72699be5018420d8a10d51e`;
+other containers and ports were preserved. See the
+[progress and 900-second release receipt](./gateway-progress-release-2026-10-13.zh-CN.md).
+
 Gateway and Research Worker `088f11ad8b97afedb72699be5018420d8a10d51e`
 are live, verified at 2026-10-12 09:20:35 UTC. Person inputs accept optional
 departments and interview topics/focus while retaining legacy requests. Clean

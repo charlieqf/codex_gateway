@@ -2,7 +2,7 @@
 
 日期：2026-10-13。面向 Gateway 与 Desktop 联调。
 
-状态：Gateway 已按下述契约完成本地实现与针对性回归验证，尚未部署或通过线上验收。900 秒配置调整与 progress 上线是两个独立发布项，本文件不代表任何一项已经在线上生效。
+状态：Gateway `94b60ae` 已于北京时间 2026-10-13 08:28:52 部署。progress 与 goldencode 单次请求 900 秒预算均已通过公网自测；实际观察到 waiting_upstream、reasoning 和模型活动时间。验证范围及限制见[发布记录](../operations/gateway-progress-release-2026-10-13.zh-CN.md)。
 
 本契约在[模型调用回执与恢复 v1](model-call-recovery-v1.zh-CN.md)上可选增加 `progress`，用于说明服务端模型调用阶段。既有鉴权、回执状态、结果恢复、查询限流和防重复执行规则保持有效。
 

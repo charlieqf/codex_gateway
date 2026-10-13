@@ -1,0 +1,9 @@
+{
+  "revision": "94b60aec5974e0aafadf0aeeba05fe045b745da2",
+  "base_revision": "088f11ad8b97afedb72699be5018420d8a10d51e",
+  "clean_committed_source": true,
+  "linux_build": "passed",
+  "tests_passed": 1860,
+  "tests_skipped": 4,
+  "image": "sha256:d0339c9f93d8553bca8afc192fab23c45fb0a61ade5e29bed67d19f364fc1872"
+}

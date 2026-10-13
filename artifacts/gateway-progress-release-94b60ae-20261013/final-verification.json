@@ -1,0 +1,63 @@
+{
+  "verified_at": "2026-10-13T00:32:04.177810+00:00",
+  "revision": "94b60aec5974e0aafadf0aeeba05fe045b745da2",
+  "image": "sha256:d0339c9f93d8553bca8afc192fab23c45fb0a61ade5e29bed67d19f364fc1872",
+  "health": "healthy",
+  "restart_count": 0,
+  "public_ready": true,
+  "timeout_policy": {
+    "models": {
+      "goldencode": 900000
+    }
+  },
+  "other_default_timeout_ms": 600000,
+  "provider_timeouts_ms": 900000,
+  "other_containers_preserved": true,
+  "ports_preserved": true,
+  "databases": [
+    {
+      "database": "research.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "gateway.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "client-events.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "imaging/control.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "clinical/aipal.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "clinical/panecho.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    }
+  ],
+  "log_counts": {
+    "warn": 3,
+    "error": 0,
+    "fatal": 0
+  },
+  "error_messages": {},
+  "all_smoke_cleanup": {
+    "subjects_disabled": 7,
+    "active_subjects": 0,
+    "active_credentials": 0,
+    "unfinished_reservations": 0
+  },
+  "semantic_activity_smoke_passed": true,
+  "smoke_cleanup_verified_at": "2026-10-13T00:35:11.804011+00:00"
+}
