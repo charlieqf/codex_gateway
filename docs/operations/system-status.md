@@ -1,5 +1,16 @@
 # System Status
 
+GoldenCode now balances across Tencent `glm-5.3`, TianKuan `official/glm-5.3`
+and TokenSwitch `glm-5.3`, verified at 2026-10-14 00:40:27 UTC. This was a
+configuration-only Gateway recreate on unchanged revision `94b60ae` and image.
+All three adapters and the original goldencode request budget are 900,000 ms.
+Existing session-sticky HRW routing, vision/local models and failover rules remain.
+TokenSwitch Chinese text, tool arguments, tool-result continuation and long-input
+preflights passed; public calls to all three members, progress and receipt replay
+passed. Healthy, zero restarts; both affected databases checked, both smoke
+subjects disabled with zero active credentials or unfinished reservations.
+See the [three-provider release receipt](./tokenswitch-three-provider-release-2026-10-14.zh-CN.md).
+
 Gateway `94b60aec5974e0aafadf0aeeba05fe045b745da2` is live as of
 2026-10-13 00:28:52 UTC; final smoke cleanup was verified at 00:35:11 UTC.
 Running model-call receipts expose optional progress; goldencode and both target
@@ -376,7 +387,7 @@ by EXE/PPT acceptance, remains pending. See the joint contract's delivery review
 
 The public text surface contains:
 
-- `goldencode`: Tencent GLM-5.3 only; TianKuan is disabled pending payment and explicit restoration.
+- `goldencode`: Tencent `glm-5.3`, TianKuan `official/glm-5.3` and TokenSwitch `glm-5.3`, all enabled with session-sticky balancing (verified 2026-10-14).
 - `goldencode-local`: R760 Qwen3.8-27B-FP8 local route
 
 The [TianKuan suspension record](./goldencode-tiankuan-suspension-2026-09-07.zh-CN.md)

@@ -1,0 +1,42 @@
+{
+  "at": "2026-10-14T00:36:50.813406+00:00",
+  "cutover_started_at": "2026-10-14T00:36:35.817501+00:00",
+  "revision": "94b60aec5974e0aafadf0aeeba05fe045b745da2",
+  "image": "sha256:d0339c9f93d8553bca8afc192fab23c45fb0a61ade5e29bed67d19f364fc1872",
+  "health": "healthy",
+  "restarts": 0,
+  "changed_env_names": [
+    "MEDCODE_PUBLIC_MODELS_JSON",
+    "MEDCODE_TOKENSWITCH_API_KEY",
+    "MEDCODE_TOKENSWITCH_BASE_URL",
+    "MEDCODE_TOKENSWITCH_TIMEOUT_MS"
+  ],
+  "routing": {
+    "members": [
+      "goldencode-tencent",
+      "goldencode-tiankuan",
+      "goldencode-tokenswitch"
+    ],
+    "distribution": {
+      "goldencode-tencent": 999,
+      "goldencode-tiankuan": 983,
+      "goldencode-tokenswitch": 1018
+    }
+  },
+  "timeout_ms": 900000,
+  "other_containers_preserved": true,
+  "ports_mounts_image_preserved": true,
+  "current_previous_preserved": true,
+  "backup": "/opt/codex-gateway-r760/backups/tokenswitch-20261014T003626Z",
+  "database_backup": "/data/backups/codex-gateway-daily/tokenswitch-20261014T003626Z",
+  "database_checks": {
+    "gateway.db": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    "client-events.db": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    }
+  }
+}

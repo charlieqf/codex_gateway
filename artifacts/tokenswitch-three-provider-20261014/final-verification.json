@@ -1,0 +1,60 @@
+{
+  "verified_at": "2026-10-14T00:40:27.637520+00:00",
+  "revision": "94b60aec5974e0aafadf0aeeba05fe045b745da2",
+  "health": "healthy",
+  "restart_count": 0,
+  "pool": {
+    "selection": {
+      "strategy": "hrw_sticky",
+      "stickyKeyOrder": [
+        "client_session",
+        "credential",
+        "subject"
+      ]
+    },
+    "requireAllMembers": false,
+    "members": [
+      {
+        "id": "goldencode-tencent",
+        "runtime": "tencent",
+        "upstreamModel": "glm-5.3",
+        "enabled": true
+      },
+      {
+        "id": "goldencode-tiankuan",
+        "runtime": "tiankuan",
+        "upstreamModel": "official/glm-5.3",
+        "enabled": true
+      },
+      {
+        "id": "goldencode-tokenswitch",
+        "runtime": "tokenswitch",
+        "upstreamModel": "glm-5.3",
+        "enabled": true
+      }
+    ]
+  },
+  "timeouts_ms": {
+    "MEDCODE_TENCENT_TOKENHUB_TIMEOUT_MS": 900000,
+    "MEDCODE_TIANKUAN_TIMEOUT_MS": 900000,
+    "MEDCODE_TOKENSWITCH_TIMEOUT_MS": 900000
+  },
+  "request_timeout_policy": {
+    "models": {
+      "goldencode": 900000
+    }
+  },
+  "secret_configured": true,
+  "secret_file_mode": "0o600",
+  "gateway_env_mode": "0o600",
+  "cleanup": {
+    "subjects": 2,
+    "active_subjects": 0,
+    "active_credentials": 0,
+    "unfinished_reservations": 0
+  },
+  "logs_by_level": {
+    "30": 140
+  },
+  "artifacts_secret_scan_passed": true
+}

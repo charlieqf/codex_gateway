@@ -1,0 +1,12 @@
+{
+  "members": [
+    "goldencode-tencent",
+    "goldencode-tiankuan",
+    "goldencode-tokenswitch"
+  ],
+  "distribution": {
+    "goldencode-tencent": 999,
+    "goldencode-tiankuan": 983,
+    "goldencode-tokenswitch": 1018
+  }
+}
