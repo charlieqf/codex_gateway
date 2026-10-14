@@ -14,7 +14,8 @@ import {
   type MessageImageInput,
   type StreamEvent,
   type TokenUsage,
-  type ToolCallValidationFailureKind
+  type ToolCallValidationFailureKind,
+  type ToolCallValidationDiagnostic
 } from "@codex-gateway/core";
 import {
   gatewayErrorMetadata,
@@ -434,7 +435,7 @@ export function parseStrictToolDecision(input: {
 
     const rawArguments = strictToolCallArguments(item);
     const argumentValue =
-      typeof rawArguments === "string" ? parseJsonObject(rawArguments) : rawArguments;
+      typeof rawArguments === "string" ? parseJsonObject(rawArguments, name) : rawArguments;
     if (argumentValue instanceof GatewayError) {
       return argumentValue;
     }
@@ -445,11 +446,21 @@ export function parseStrictToolDecision(input: {
       );
     }
 
-    const validationError = validateAgainstToolSchema(tool, argumentValue);
+    const validationError = toolArgumentValidation(tool, argumentValue);
     if (validationError) {
       return toolCallValidationFailed(
-        `Tool '${name}' arguments invalid: ${validationError}`,
-        "schema_mismatch"
+        `Tool '${name}' arguments invalid: ${validationError.message}`,
+        "schema_mismatch",
+        {
+          toolName: name.slice(0, 128),
+          argumentBytes: Buffer.byteLength(typeof rawArguments === "string" ? rawArguments : JSON.stringify(argumentValue), "utf8"),
+          issueCount: validationError.errors.length,
+          issues: validationError.errors.slice(0, 8).map(issue => ({
+            keyword: issue.keyword.slice(0, 64),
+            schemaPath: issue.schemaPath.slice(0, 256),
+            ...(typeof issue.params.missingProperty === "string" ? { missingProperty: issue.params.missingProperty.slice(0, 128) } : {})
+          }))
+        }
       );
     }
 
@@ -930,7 +941,7 @@ function decodedBase64ByteLength(value: string): number {
   return Math.floor((value.length * 3) / 4) - padding;
 }
 
-function parseJsonObject(value: string): Record<string, unknown> | GatewayError {
+function parseJsonObject(value: string, toolName?: string): Record<string, unknown> | GatewayError {
   const trimmed = stripJsonFence(value.trim());
   try {
     const parsed = JSON.parse(trimmed) as unknown;
@@ -938,8 +949,14 @@ function parseJsonObject(value: string): Record<string, unknown> | GatewayError 
       return toolCallValidationFailed("Expected a JSON object.", "schema_mismatch");
     }
     return parsed;
-  } catch {
-    return toolCallValidationFailed("Expected valid JSON object output.", "invalid_json");
+  } catch (error) {
+    const message = error instanceof SyntaxError ? error.message : "";
+    const offset = message.match(/\bposition (\d+)/)?.[1];
+    return toolCallValidationFailed("Expected valid JSON object output.", "invalid_json", {
+      ...(toolName ? { toolName: toolName.slice(0, 128) } : {}),
+      argumentBytes: Buffer.byteLength(value, "utf8"),
+      jsonError: { kind: /unexpected end/i.test(message) ? "unexpected_end" : "syntax", offset: offset ? Number(offset) : null }
+    });
   }
 }
 
@@ -966,13 +983,6 @@ function strictToolCallArguments(item: Record<string, unknown>): unknown {
     return item.function.arguments;
   }
   return {};
-}
-
-function validateAgainstToolSchema(
-  tool: OpenAIChatToolDefinition,
-  value: unknown
-): string | null {
-  return toolArgumentValidation(tool, value)?.message ?? null;
 }
 
 /** Retain all errors; callers must never infer a sole failure from the first one. */
@@ -1084,7 +1094,8 @@ function isJsonSerializable(value: unknown): boolean {
 
 function toolCallValidationFailed(
   message: string,
-  failureKind: ToolCallValidationFailureKind
+  failureKind: ToolCallValidationFailureKind,
+  toolCallValidationDiagnostic?: ToolCallValidationDiagnostic
 ): GatewayError {
   return new GatewayError({
     code: "tool_call_validation_failed",
@@ -1094,7 +1105,8 @@ function toolCallValidationFailed(
     failureKind,
     transformedRetryAllowed: true,
     recommendedAction: "correct_tool_call",
-    recoveryOwner: "client"
+    recoveryOwner: "client",
+    toolCallValidationDiagnostic
   });
 }
 

@@ -101,6 +101,17 @@ export type ToolCallValidationFailureKind =
   | "undeclared_tool"
   | "tool_choice_mismatch";
 
+/** Bounded schema/syntax facts only; never argument values or JSON excerpts. */
+export interface ToolCallValidationDiagnostic {
+  toolName?: string;
+  argumentBytes: number;
+  /** Offset is in UTF-16 units in trimmed/fence-stripped JSON, when supplied by the parser. */
+  jsonError?: { kind: "unexpected_end" | "syntax"; offset: number | null };
+  issueCount?: number;
+  // Instance paths may contain user-controlled dictionary keys; retain schema paths only.
+  issues?: Array<{ keyword: string; schemaPath: string; missingProperty?: string }>;
+}
+
 export type GatewayFailureKind =
   | ToolCallValidationFailureKind
   | "confirmed_output_limit"
@@ -165,6 +176,7 @@ export class GatewayError extends Error {
   readonly contextWindowDetails?: GatewayContextWindowDetails;
   readonly imageLimitDetails?: GatewayImageLimitDetails;
   readonly toolValidationDetails?: ToolValidationDetails;
+  readonly toolCallValidationDiagnostic?: ToolCallValidationDiagnostic;
 
   constructor(input: {
     identityFailure?: IdentityAuditFacts;
@@ -186,6 +198,7 @@ export class GatewayError extends Error {
     contextWindowDetails?: GatewayContextWindowDetails;
     imageLimitDetails?: GatewayImageLimitDetails;
     toolValidationDetails?: ToolValidationDetails;
+    toolCallValidationDiagnostic?: ToolCallValidationDiagnostic;
   }) {
     super(input.message);
     this.name = "GatewayError";
@@ -208,6 +221,7 @@ export class GatewayError extends Error {
     this.contextWindowDetails = input.contextWindowDetails;
     this.imageLimitDetails = input.imageLimitDetails;
     this.toolValidationDetails = input.toolValidationDetails;
+    Object.defineProperty(this, "toolCallValidationDiagnostic", { value: input.toolCallValidationDiagnostic, enumerable: false });
   }
 }
 

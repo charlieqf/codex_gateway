@@ -308,6 +308,7 @@ export interface UpstreamAttemptSummary {
   totalToolArgumentBytes?: number | null;
   maxToolArgumentCodeUnits?: number | null;
   toolValidationFailureKind?: import("./errors.js").ToolCallValidationFailureKind | null;
+  toolValidationDiagnostic?: import("./errors.js").ToolCallValidationDiagnostic;
   outputLimitHit?: boolean;
   streamIncomplete?: boolean;
   argumentBudgetCandidate?: boolean;

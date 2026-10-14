@@ -160,6 +160,52 @@ describe("A/S real Gateway HTTP pipeline with a loopback provider", () => {
       expect(response.headers).not.toHaveProperty("x-medcode-write-delivery-manifest");
     });
   });
+
+  it.each([true, false])("records export validation diagnostics without changing recovery, stream=%s", async (stream) => {
+    const content = "private-document-body";
+    const tools = [{ type: "function", function: { name: "export_document", parameters: {
+      type: "object", properties: { format: { type: "string", enum: ["docx", "pdf"] }, content: { type: "string" } },
+      required: ["format", "content"], additionalProperties: false
+    } } }];
+    await fixture({ replies: [
+      { calls: [{ name: "export_document", args: { content } }] },
+      { calls: [{ name: "export_document", args: { content, format: "pdf" } }] }
+    ] }, async ({ send, captured, store }) => {
+      const response = await send({ stream, tools });
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain(content);
+      expect(response.body).not.toContain("toolValidationDiagnostic");
+      expect(captured).toHaveLength(2);
+      expect(captured[1].tools).toEqual(captured[0].tools);
+      expect(captured[1].max_tokens).toBe(64000);
+      expect(captured[1].reasoning_effort).toBe(captured[0].reasoning_effort);
+      const event = store.listRequestEvents({ limit: 1 })[0];
+      expect(event).toMatchObject({ status: "ok", totalTokens: 300, upstreamAttemptCount: 2, upstreamRecoveryAttemptCount: 1 });
+      expect(event.upstreamAttempts?.[0].toolValidationDiagnostic).toMatchObject({ toolName: "export_document", issueCount: 1,
+        issues: [{ keyword: "required", schemaPath: "#/required", missingProperty: "format" }] });
+      expect(event.upstreamAttempts?.[1].toolValidationDiagnostic).toBeUndefined();
+      expect(JSON.stringify(event.upstreamAttempts)).not.toContain(content);
+    });
+  });
+
+  it("preserves separate syntax diagnostics for both failed attempts", async () => {
+    const malformed = '{"filePath":"private-sentinel",!}';
+    await fixture({ replies: [
+      { calls: [{ name: "write", args: malformed }] },
+      { calls: [{ name: "write", args: '{"filePath":' }] }
+    ] }, async ({ send, captured, store }) => {
+      const response = await send();
+      expect(streamError(response.body)).toMatchObject({ code: "tool_call_validation_failed", failure_kind: "invalid_json" });
+      expect(captured).toHaveLength(2);
+      const event = store.listRequestEvents({ limit: 1 })[0];
+      expect(event).toMatchObject({ status: "error", totalTokens: 300 });
+      expect(event.upstreamAttempts?.[0].toolValidationDiagnostic).toMatchObject({
+        toolName: "write", argumentBytes: Buffer.byteLength(malformed), jsonError: { kind: "syntax", offset: expect.any(Number) } });
+      expect(event.upstreamAttempts?.[1].toolValidationDiagnostic).toMatchObject({ jsonError: { kind: "unexpected_end", offset: null } });
+      expect(JSON.stringify(event.upstreamAttempts)).not.toContain("private-sentinel");
+      expect(response.body).not.toContain("private-sentinel");
+    });
+  });
   it("retains the old length repair when the A/S switch is disabled", async () => {
     await fixture({ policy: { mode: "disabled" }, replies: [{ calls: [write("x".repeat(14000))] }, { calls: [write("fixed")] }] }, async ({ send, captured }) => {
       const response = await send({ headers: sHeaders() });

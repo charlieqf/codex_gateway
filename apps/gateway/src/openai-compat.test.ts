@@ -101,6 +101,57 @@ describe("multimodal chat compatibility", () => {
 });
 
 describe("parseStrictToolDecision validation subtypes", () => {
+  it("retains bounded missing-field diagnostics without argument values", () => {
+    const result = parseStrictToolDecision({ text: JSON.stringify({ type: "tool_calls", tool_calls: [
+      { name: "read", arguments: { privateBody: "private-sentinel" } }
+    ] }), tools: [readTool], toolChoice: "auto", createToolCallId: () => "call_test" });
+    expect(result).toBeInstanceOf(GatewayError);
+    if (!(result instanceof GatewayError)) return;
+    expect(result.toolCallValidationDiagnostic).toMatchObject({ toolName: "read", issueCount: 2,
+      issues: expect.arrayContaining([{ keyword: "required", schemaPath: "#/required", missingProperty: "path" }]) });
+    expect(JSON.stringify(result.toolCallValidationDiagnostic)).not.toContain("private-sentinel");
+    expect(Object.keys(result)).not.toContain("toolCallValidationDiagnostic");
+  });
+
+  it("records a JSON syntax offset without copying the parser's argument excerpt", () => {
+    const result = parseStrictToolDecision({ text: JSON.stringify({ type: "tool_calls", tool_calls: [
+      { name: "read", arguments: '{"path":"private-sentinel",!}' }
+    ] }), tools: [readTool], toolChoice: "auto", createToolCallId: () => "call_test" });
+    expect(result).toBeInstanceOf(GatewayError);
+    if (!(result instanceof GatewayError)) return;
+    expect(result.toolCallValidationDiagnostic).toMatchObject({ toolName: "read", jsonError: { kind: "syntax", offset: expect.any(Number) } });
+    expect(JSON.stringify(result.toolCallValidationDiagnostic)).not.toContain("private-sentinel");
+    expect(result.message).toBe("Expected valid JSON object output.");
+  });
+
+  it("does not persist document text used as a dynamic object key", () => {
+    const tool: OpenAIChatToolDefinition = { type: "function", function: { name: "dictionary",
+      parameters: { type: "object", additionalProperties: { type: "integer" } } } };
+    const result = parseStrictToolDecision({ text: JSON.stringify({ type: "tool_calls", tool_calls: [
+      { name: "dictionary", arguments: { "private-person@example.test": "not an integer" } }
+    ] }), tools: [tool], toolChoice: "auto", createToolCallId: () => "call_test" });
+    expect(result).toBeInstanceOf(GatewayError);
+    if (!(result instanceof GatewayError)) return;
+    expect(JSON.stringify(result.toolCallValidationDiagnostic)).not.toContain("private-person");
+    expect(result.toolCallValidationDiagnostic?.issues).toEqual([
+      { keyword: "type", schemaPath: "#/additionalProperties/type" }
+    ]);
+  });
+
+  it("bounds diagnostic size while retaining the total validation error count", () => {
+    const names = Array.from({ length: 12 }, (_, index) => `field_${index}_${"x".repeat(300)}`);
+    const tool: OpenAIChatToolDefinition = { type: "function", function: { name: "many_fields",
+      parameters: { type: "object", required: names } } };
+    const result = parseStrictToolDecision({ text: JSON.stringify({ type: "tool_calls", tool_calls: [
+      { name: "many_fields", arguments: {} }
+    ] }), tools: [tool], toolChoice: "auto", createToolCallId: () => "call_test" });
+    expect(result).toBeInstanceOf(GatewayError);
+    if (!(result instanceof GatewayError)) return;
+    expect(result.toolCallValidationDiagnostic?.issueCount).toBe(12);
+    expect(result.toolCallValidationDiagnostic?.issues).toHaveLength(8);
+    expect(result.toolCallValidationDiagnostic?.issues?.every(issue => issue.missingProperty?.length === 128)).toBe(true);
+  });
+
   it.each([
     {
       name: "invalid JSON",

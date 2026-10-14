@@ -671,6 +671,9 @@ export function attachProviderStreamSummary(
           ...(isToolCallValidationFailureKind(error.failureKind)
             ? { toolValidationFailureKind: error.failureKind }
             : {}),
+          ...(error.toolCallValidationDiagnostic
+            ? { toolValidationDiagnostic: structuredClone(error.toolCallValidationDiagnostic) }
+            : {}),
           ...(error.recoveryOwner
             ? { gatewayRecoveryOwner: error.recoveryOwner }
             : {}),
