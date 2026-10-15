@@ -1,0 +1,10 @@
+{
+  "deployed": "3d2d4e046a53e39d336caa5c797a072104cdf041",
+  "previous": "94b60aec5974e0aafadf0aeeba05fe045b745da2",
+  "schema_version": 41,
+  "quick_check": "ok",
+  "foreign_key_violations": 0,
+  "startup_archive_warning": false,
+  "current": "/opt/codex-gateway-r760/releases/3d2d4e046a53e39d336caa5c797a072104cdf041",
+  "previous_link": "/opt/codex-gateway-r760/releases/94b60aec5974e0aafadf0aeeba05fe045b745da2"
+}

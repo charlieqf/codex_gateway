@@ -1,0 +1,9 @@
+{
+  "revision": "3d2d4e046a53e39d336caa5c797a072104cdf041",
+  "build_exit": 0,
+  "tests_passed": 1867,
+  "tests_skipped": 4,
+  "test_files_passed": 100,
+  "committed_archive": true,
+  "base_revision": "94b60aec5974e0aafadf0aeeba05fe045b745da2"
+}

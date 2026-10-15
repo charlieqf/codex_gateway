@@ -1,5 +1,16 @@
 # System Status
 
+Gateway `3d2d4e046a53e39d336caa5c797a072104cdf041` is live, verified at
+2026-10-15 00:04:22 UTC. Tool-validation failures retain bounded schema/syntax
+diagnostics per upstream attempt. Argument contents, parser excerpts and dynamic
+instance paths are excluded from the new diagnostics. Retry, routing, deadlines,
+billing and the public error contract are unchanged; the speculative enum-patch
+recovery was removed before commit. Clean Linux tests: 1867 passed / 4 skipped.
+Deployed-image diagnostics and in-memory SQLite smoke passed; public health is
+ready, zero restarts, six database integrity/FK checks passed. Runtime environment,
+protected inputs, ports and other service containers are unchanged. See the
+[tool diagnostics release receipt](./gateway-tool-diagnostics-release-2026-10-15.zh-CN.md).
+
 GoldenCode now balances across Tencent `glm-5.3`, TianKuan `official/glm-5.3`
 and TokenSwitch `glm-5.3`, verified at 2026-10-14 00:40:27 UTC. This was a
 configuration-only Gateway recreate on unchanged revision `94b60ae` and image.

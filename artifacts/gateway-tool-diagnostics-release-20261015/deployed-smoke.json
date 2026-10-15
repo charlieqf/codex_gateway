@@ -1,0 +1,11 @@
+{
+  "status": "passed",
+  "scope": "built-image modules and in-memory SQLite only",
+  "missing_field": true,
+  "json_offset": true,
+  "private_keys_omitted": true,
+  "diagnostics_not_public": true,
+  "per_attempt_persistence": true,
+  "production_database_writes": 0,
+  "upstream_calls": 0
+}

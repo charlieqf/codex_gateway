@@ -1,0 +1,52 @@
+{
+  "verified_at": "2026-10-15T00:04:22.665264+00:00",
+  "revision": "3d2d4e046a53e39d336caa5c797a072104cdf041",
+  "image": "sha256:6cc803519cd000082a7129b4ef12a21084528f3680caf8e63ea26f232d4a587a",
+  "health": "healthy",
+  "restart_count": 0,
+  "public_ready": true,
+  "environment_unchanged": true,
+  "protected_files_unchanged": 8,
+  "other_containers_preserved": true,
+  "ports_preserved": true,
+  "databases": [
+    {
+      "database": "gateway.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "client-events.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "imaging/control.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "clinical/aipal.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "clinical/panecho.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "research.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    }
+  ],
+  "log_counts": {
+    "warn": 0,
+    "error": 0,
+    "fatal": 0
+  },
+  "smoke_production_database_writes": 0,
+  "smoke_subjects_created": 0,
+  "smoke_upstream_calls": 0
+}
