@@ -1,7 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import {
   normalizeAllowedPublicModels,
-  normalizeRateLimitPolicy,
+  normalizeCredentialRatePolicy,
   type AccessCredentialRecord,
   type ListAccessCredentialsInput,
   type UpdateAccessCredentialInput
@@ -14,7 +14,7 @@ export function insert(
   db: DatabaseSync,
   record: AccessCredentialRecord
 ): AccessCredentialRecord {
-  const normalizedRate = normalizeRateLimitPolicy(record.rate);
+  const normalizedRate = normalizeCredentialRatePolicy(record.rate);
   const allowedPublicModels = normalizeAllowedPublicModels(record.allowedPublicModels);
   db.prepare(
     `INSERT INTO access_credentials (
@@ -88,7 +88,7 @@ export function updateByPrefix(
   prefix: string,
   input: UpdateAccessCredentialInput
 ): AccessCredentialRecord | null {
-  const normalizedRate = input.rate ? normalizeRateLimitPolicy(input.rate) : null;
+  const normalizedRate = input.rate ? normalizeCredentialRatePolicy(input.rate) : null;
   const updateAllowedPublicModels = input.allowedPublicModels !== undefined;
   const allowedPublicModels = updateAllowedPublicModels
     ? normalizeAllowedPublicModels(input.allowedPublicModels)

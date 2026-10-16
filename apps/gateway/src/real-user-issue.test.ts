@@ -28,7 +28,7 @@ describe("real user issue defaults", () => {
     expect(minimumRealUserRequestsPerMinute).toBe(20);
     expect(defaultRealUserIssueRate).toEqual({
       requestsPerMinute: 20,
-      requestsPerDay: 200,
+      requestsPerDay: 500,
       concurrentRequests: 4
     });
     const page = renderRealUserIssuePage({defaultPlanId: "test", defaultValidityDays: 92,

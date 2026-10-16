@@ -2666,6 +2666,14 @@ describe("gateway phase 1 routes", () => {
     const rateLimiter = new InMemoryRequestRateLimiter({
       now: fixedNow
     });
+    // Seed the first 499 calls without spending model/token quota.
+    for (let i = 0; i < 499; i++) {
+      const permit = rateLimiter.acquire({ key: issued.record.id, scope: "credential",
+        policy: { requestsPerMinute: 1000, requestsPerDay: 500, concurrentRequests: 1 } });
+      if (!("release" in permit)) throw permit.error;
+      permit.release();
+    }
+    rateLimiter.reset({ key: issued.record.id, windows: ["minute"] });
     store.createPlan({
       id: "plan_quota_reset_v1",
       displayName: "Quota Reset",

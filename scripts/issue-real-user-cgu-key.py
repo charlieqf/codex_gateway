@@ -106,7 +106,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Backing Gateway key expiration ISO timestamp. Defaults to now + 92 days; values under 90 days are rejected.",
     )
     parser.add_argument("--rpm", type=real_user_rpm, default=MIN_REAL_USER_RPM)
-    parser.add_argument("--rpd", type=positive_int, default=200)
+    parser.add_argument("--rpd", type=positive_int, default=500)
     parser.add_argument("--concurrent", type=positive_int, default=4)
     parser.add_argument("--output-dir", default=DEFAULT_OUTPUT_DIR)
     parser.add_argument(

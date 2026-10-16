@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type LimitRejection, type RateLimitPolicy } from "@codex-gateway/core";
+import { normalizeCredentialRatePolicy, type LimitRejection, type RateLimitPolicy } from "@codex-gateway/core";
 import { InMemoryRequestRateLimiter, type RateLimitPermit } from "./rate-limiter.js";
 
 const policy: RateLimitPolicy = {
@@ -9,6 +9,16 @@ const policy: RateLimitPolicy = {
 };
 
 describe("InMemoryRequestRateLimiter", () => {
+  it("admits 500 account calls, rejects the 501st, and resets at UTC midnight", () => {
+    let now = new Date("2026-10-16T23:59:00Z");
+    const limiter = new InMemoryRequestRateLimiter({ now: () => now });
+    const policy = normalizeCredentialRatePolicy({ requestsPerMinute: 1000, requestsPerDay: 200, concurrentRequests: 1 });
+    for (let i = 0; i < 500; i++) permit(limiter.acquire({ key: "account", scope: "credential", policy })).release();
+    expect(rejection(limiter.acquire({ key: "account", scope: "credential", policy })).details)
+      .toMatchObject({ window: "day", limit: 500, used: 500 });
+    now = new Date("2026-10-17T00:00:00Z");
+    permit(limiter.acquire({ key: "account", scope: "credential", policy })).release();
+  });
   it("limits requests per minute and returns retry_after_seconds", () => {
     let now = new Date("2026-01-01T00:00:00Z");
     const limiter = new InMemoryRequestRateLimiter({ now: () => now });

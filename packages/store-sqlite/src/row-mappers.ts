@@ -2,7 +2,7 @@ import {
   decodeStoredAllowedPublicModelsJson,
   decodePlanFeaturePolicy,
   isProviderFailureClassification,
-  normalizeRateLimitPolicy,
+  normalizeCredentialRatePolicy,
   validatePlanPolicy,
   type AccessCredentialRecord,
   type AdminAuditEventRecord,
@@ -106,7 +106,7 @@ export function rowToAccessCredential(row: unknown): AccessCredentialRecord {
     scope: value.scope,
     expiresAt: new Date(value.expires_at),
     revokedAt: value.revoked_at ? new Date(value.revoked_at) : null,
-    rate: normalizeRateLimitPolicy(JSON.parse(value.rate_json) as RateLimitPolicy),
+    rate: normalizeCredentialRatePolicy(JSON.parse(value.rate_json) as RateLimitPolicy),
     allowedPublicModels: decodeStoredAllowedPublicModelsJson(
       value.allowed_public_models_json
     ),

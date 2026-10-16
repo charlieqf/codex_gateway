@@ -52,7 +52,7 @@ export const minimumRealUserRequestsPerMinute = 20;
 
 export const defaultRealUserIssueRate: RateLimitPolicy = {
   requestsPerMinute: minimumRealUserRequestsPerMinute,
-  requestsPerDay: 200,
+  requestsPerDay: 500,
   concurrentRequests: 4
 };
 

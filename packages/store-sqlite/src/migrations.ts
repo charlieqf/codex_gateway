@@ -1200,6 +1200,14 @@ export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogge
       if (triggerSql) db.exec(triggerSql);
     }
   }, logger);
+  if (tableExists(db, "access_credentials")) applyMigration(db, 42, `
+    UPDATE access_credentials
+       SET rate_json = json_set(rate_json, '$.requestsPerDay', 500)
+     WHERE revoked_at IS NULL
+       AND json_valid(rate_json)
+       AND json_type(rate_json, '$.requestsPerDay') IN ('integer', 'real')
+       AND json_extract(rate_json, '$.requestsPerDay') < 500;
+  `, logger);
 }
 
 export function migrateClientEventsSchema(db: DatabaseSync): void {

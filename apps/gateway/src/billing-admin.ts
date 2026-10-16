@@ -2767,7 +2767,7 @@ function parseRealUserIssueRequest(
   }
   const requestsPerDay = positiveIntegerField(
     body.rpd,
-    defaultRealUserIssueRate.requestsPerDay ?? 200
+    defaultRealUserIssueRate.requestsPerDay ?? 500
   );
   if (requestsPerDay instanceof GatewayError) {
     return requestsPerDay;

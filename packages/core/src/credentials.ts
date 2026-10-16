@@ -12,6 +12,19 @@ import type {
 
 export const accessCredentialTokenPrefix = "cgw";
 
+export const minimumCredentialRequestsPerDay = 500;
+
+/** Account quota floor; independent endpoint abuse limits are not affected. */
+export function normalizeCredentialRatePolicy(policy: RateLimitPolicy): RateLimitPolicy {
+  const normalized = normalizeRateLimitPolicy(policy);
+  return {
+    ...normalized,
+    requestsPerDay: normalized.requestsPerDay === null
+      ? null
+      : Math.max(minimumCredentialRequestsPerDay, normalized.requestsPerDay)
+  };
+}
+
 export function formatAccessCredentialPublicPrefix(storedPrefix: string): string {
   return `${accessCredentialTokenPrefix}.${storedPrefix}`;
 }
@@ -68,7 +81,7 @@ export function issueAccessCredential(input: IssueAccessCredentialInput): Issued
       scope: input.scope,
       expiresAt: input.expiresAt,
       revokedAt: null,
-      rate: normalizeRateLimitPolicy({
+      rate: normalizeCredentialRatePolicy({
         requestsPerMinute: input.rate?.requestsPerMinute ?? 30,
         requestsPerDay: input.rate?.requestsPerDay ?? null,
         concurrentRequests: input.rate?.concurrentRequests ?? 1,

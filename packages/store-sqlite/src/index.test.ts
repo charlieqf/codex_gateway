@@ -763,7 +763,7 @@ describe("SqliteGatewayStore", () => {
       scope: "medical",
       rate: {
         requestsPerMinute: 5,
-        requestsPerDay: 20,
+        requestsPerDay: 500,
         concurrentRequests: 2
       },
       credentialClass: "service"

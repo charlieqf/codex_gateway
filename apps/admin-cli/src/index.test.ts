@@ -617,7 +617,7 @@ describe("codex-gateway-admin user API key operations", () => {
       },
       rate: {
         requestsPerMinute: 2,
-        requestsPerDay: 10,
+        requestsPerDay: 500,
         concurrentRequests: 1
       }
     });
@@ -1110,7 +1110,7 @@ describe("codex-gateway-admin user API key operations", () => {
           scope: "code",
           rate: {
             requestsPerMinute: 2,
-            requestsPerDay: 10
+            requestsPerDay: 500
           }
         },
         after: {
