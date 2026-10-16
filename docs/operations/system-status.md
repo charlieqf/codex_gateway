@@ -1,5 +1,15 @@
 # System Status
 
+Gateway `1e7e5fa0d7dc14a9ada87bb377f4bdb003e21a9f` is live, verified at
+2026-10-16 08:16:26 UTC, schema 42. Account credentials have a permanent finite
+daily-request floor of 500; higher and unlimited policies are preserved. First,
+302 valid accounts were raised online without a restart. New-account defaults
+and credential creation/update normalization now enforce the same floor.
+Token policies, RPM and concurrency limits are unchanged. Linux tests: 1875
+passed / 4 skipped. Public credential and model checks passed; healthy, zero
+restarts, other containers preserved. See the
+[500 RPD operation and release record](./account-rpd-500-2026-10-16.zh-CN.md).
+
 Gateway `3d2d4e046a53e39d336caa5c797a072104cdf041` is live, verified at
 2026-10-15 00:04:22 UTC. Tool-validation failures retain bounded schema/syntax
 diagnostics per upstream attempt. Argument contents, parser excerpts and dynamic
