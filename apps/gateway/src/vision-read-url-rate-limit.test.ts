@@ -173,21 +173,22 @@ describe("read URL independent budget through the real Gateway", () => {
   });
 
   it.each(["minute", "day"] as const)("isolates %s exhaustion in both directions and resets at the UTC boundary", async (window) => {
-    const policy = { requestsPerMinute: window === "minute" ? 2 : 100, requestsPerDay: window === "day" ? 2 : 100, concurrentRequests: 20 };
+    const policy = { requestsPerMinute: window === "minute" ? 2 : 1000, requestsPerDay: window === "day" ? 2 : 100, concurrentRequests: 20 };
     for (const imageFirst of [true, false]) {
       const f = fixture(policy, policy);
       f.setTime("2026-09-20T23:59:59Z"); f.images.open();
       const ordered = imageFirst ? [f.read, f.status] : [f.status, f.read];
       for (const send of ordered) {
-        expect((await send()).statusCode).toBe(200);
-        expect((await send()).statusCode).toBe(200);
+        const allowed = window === "day" && send === f.status ? 500 : 2;
+        for (let i = 0; i < allowed; i++) expect((await send()).statusCode).toBe(200);
         const denied = await send();
         expect(denied.statusCode).toBe(429);
         expect(denied.json().error.limit_kind).toBe(`request_${window}`);
         expect(denied.headers["retry-after"]).toBe("1");
       }
       expect(snapshot(f.imageLimiter, "alice")).toMatchObject({ active: 0, minuteCount: 2, dayCount: 2 });
-      expect(snapshot(f.modelLimiter, f.first.record.id)).toMatchObject({ active: 0, minuteCount: 2, dayCount: 2 });
+      const accountCalls = window === "day" ? 500 : 2;
+      expect(snapshot(f.modelLimiter, f.first.record.id)).toMatchObject({ active: 0, minuteCount: accountCalls, dayCount: accountCalls });
       f.setTime("2026-09-21T00:00:00Z");
       expect((await f.read()).statusCode).toBe(200);
       expect((await f.status()).statusCode).toBe(200);

@@ -40,6 +40,7 @@ REGISTRATION_RELEASE_COMMAND = "release-registration"
 UNIFIED_KEY_EXPIRY_COMMAND = "extend-unified-key-expiry"
 USER_CREDENTIAL_CLASSES = {"desktop", "unknown"}
 SIMPLE_WRITE_COMMANDS = {
+    "ensure-account-rpd-minimum",
     "disable-user",
     "enable-user",
     "revoke",
@@ -164,6 +165,14 @@ def run_remote_admin(
     *,
     timeout_seconds: int,
 ) -> dict[str, Any]:
+    if admin_args[0] == "ensure-account-rpd-minimum":
+        if len(admin_args) != 2 or admin_args[1] != "500":
+            raise ManagementError("This operation requires the reviewed 500 RPD floor.")
+        completed = run_ssh(endpoint,
+            f"{docker_command(endpoint)} exec -i -w /app {shell_word(endpoint.container)} node -",
+            stdin=Path(__file__).with_name("gateway-rpd-floor.cjs").read_text(encoding="utf-8"),
+            timeout_seconds=timeout_seconds)
+        return json.loads(completed.stdout)
     payload = base64.urlsafe_b64encode(
         json.dumps(admin_args, ensure_ascii=False).encode("utf-8")
     ).decode("ascii")

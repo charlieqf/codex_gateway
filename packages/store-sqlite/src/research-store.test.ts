@@ -574,7 +574,7 @@ describe("ResearchSqliteStore", () => {
         "key-1",
         "hash-1",
         "fp-1",
-        new Date("2026-07-17T01:30:00Z")
+        new Date()
       )
     );
     expect(created.outcome).toBe("created");
