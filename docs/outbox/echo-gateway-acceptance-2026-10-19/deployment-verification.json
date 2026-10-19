@@ -1,0 +1,71 @@
+{
+  "verified_at": "2026-10-19T13:26:16.252439+00:00",
+  "revision": "6d33d4a44ba19d31192d82ee1ecfb9e1ab08e502",
+  "image": "sha256:308668723bf5f27a2e1063e420871fbbdd63c98c2f4e0169332dfb2901519b82",
+  "health": "healthy",
+  "restart_count": 0,
+  "public_ready": true,
+  "schema": 42,
+  "protected_files_preserved": 8,
+  "other_containers_preserved": 3,
+  "ports_preserved": true,
+  "environment_changes_only_echo": true,
+  "databases": [
+    {
+      "database": "gateway.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "client-events.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "imaging/control.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "clinical/aipal.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "clinical/panecho.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "clinical/echonet.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "clinical/echonext.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "research.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    }
+  ],
+  "smoke_cleanup": [
+    {
+      "mode": "echonet",
+      "revoked_and_input_removed": 4
+    },
+    {
+      "mode": "echonext",
+      "revoked_and_input_removed": 3
+    }
+  ],
+  "log_counts": {
+    "warn": 1,
+    "error": 0,
+    "fatal": 0
+  },
+  "warning_classification": "Tool loop guard shadow threshold matched; request is not altered."
+}

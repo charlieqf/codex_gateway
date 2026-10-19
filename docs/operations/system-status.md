@@ -1,5 +1,18 @@
 # System Status
 
+Gateway `6d33d4a44ba19d31192d82ee1ecfb9e1ab08e502` is live, deployed
+2026-10-19 13:15:35 UTC and verified at 13:26:16 UTC. EchoNet-Dynamic and
+EchoNext-Mini now use independent clinical routes/databases and authenticated
+account access, including future registrations. Existing pilot services retain
+their allowlists. Deployment waited for 30.31 seconds of natural idle.
+Linux tests: 1910 passed / 4 skipped. Public real inference/download checks and
+actual Desktop client-library XML/video-ZIP/DICOM-ZIP calls passed; 21 artifact
+downloads were verified. Seven test tasks were revoked and their input records
+removed. Healthy, zero restarts, schema 42 unchanged, eight databases passed
+integrity/FK checks. Other containers, protected inputs, star model services and
+GPU scheduling were preserved. Installed Desktop UI acceptance remains with the
+client team. See the [Echo Gateway release and integration receipt](../outbox/echo-gateway-acceptance-2026-10-19/README.md).
+
 Gateway `c183e3fdce91a127fe6c38678fe88b8a2305aa0c` is live, verified at
 2026-10-19 06:49:49 UTC, schema 42 unchanged. Native invalid-JSON repair retries
 now receive bounded rejected arguments and parser diagnostics. Deployment waited

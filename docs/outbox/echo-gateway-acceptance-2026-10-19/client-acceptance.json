@@ -1,0 +1,134 @@
+{
+  "client_revision": "13ac0e9a8fa5fee1405420dd0529ac34b438d793",
+  "clinical_client_unchanged_since_handoff": "c4b1d4b677b19d5b87e16ee2601ebdaf7ef9967c",
+  "cases": [
+    {
+      "mode": "echonext",
+      "format": "ge_muse_xml",
+      "job_id": "job_6c8fb10b490044eaafe89a276bbc63f4",
+      "state": "completed",
+      "client_seconds": 123.93,
+      "runtime_seconds": 3.2861382835544646,
+      "verified_files": 3,
+      "input_sha256": "42c73d3b5fbde1af91e30b92aea178a11a05dee879ca573792b59bc508479eb4",
+      "model_provenance": {
+        "clinical_validation": false,
+        "device": "cpu",
+        "learning_only": true,
+        "model": "echonext",
+        "source_revision": "76712e80495e640c841a78a61cea4124a659e5d3",
+        "upstream_revision": "15233e9392e9dc10c136a5624abf10199207bce9"
+      },
+      "artifacts": [
+        {
+          "name": "result.json",
+          "size": 1993,
+          "sha256": "983a1c0aed24ad9db07a089759bf859e2851a734018b4ac01c450dac3db41695"
+        },
+        {
+          "name": "report.csv",
+          "size": 724,
+          "sha256": "2b2ed4a137a332d1aa29ec53336de3e125b499680764edc652550b8640e0156f"
+        },
+        {
+          "name": "preview.png",
+          "size": 238087,
+          "sha256": "10a20e4bf24590955e7674ce1d1371234cf3af7a61e6156423d427ccd3c2118c"
+        }
+      ],
+      "deleted": true
+    },
+    {
+      "mode": "echonet",
+      "format": "video_zip",
+      "job_id": "job_63ea2413dc194f63851438819e414703",
+      "state": "completed",
+      "client_seconds": 55.134,
+      "runtime_seconds": 8.622446619905531,
+      "verified_files": 5,
+      "input_sha256": "c59d0503d633b672f9a40db6ac309f0822e0b5c6e8ebd1b1a9e458bf457f8a4c",
+      "model_provenance": {
+        "clinical_validation": false,
+        "device": "cpu",
+        "learning_only": true,
+        "model": "echonet",
+        "source_revision": "76712e80495e640c841a78a61cea4124a659e5d3",
+        "upstream_revision": "e01d02947b20604b0ba1a427f3cf6f4890dc4e9c"
+      },
+      "artifacts": [
+        {
+          "name": "result.json",
+          "size": 1570,
+          "sha256": "4992f29722990c69c181609d4e34cadcb0ad2bd60ead97159b94592c3bc725e9"
+        },
+        {
+          "name": "report.csv",
+          "size": 71,
+          "sha256": "12d0d375a1ae91b1919a9ecc3e37595c045098291c23bdbb760f4b5c9d353efe"
+        },
+        {
+          "name": "preview.png",
+          "size": 31249,
+          "sha256": "5b369c210f9c22e0da57a515802b5b0275271be5a48a6621728feeacb1dca498"
+        },
+        {
+          "name": "overlay.mp4",
+          "size": 170027,
+          "sha256": "851da05cd8e18b4e4d1c0b3db5c9992aa147e4c9f5eb34b4184815b6c80c9885"
+        },
+        {
+          "name": "contours.json",
+          "size": 30388,
+          "sha256": "f1ba6b4dcc37980ed1eb90db5cead5898e975f134c42f7f681496a55c6285b0f"
+        }
+      ],
+      "deleted": true
+    },
+    {
+      "mode": "echonet",
+      "format": "dicom_zip",
+      "job_id": "job_9403098d5fe34dcd87dc7b809a38de49",
+      "state": "completed",
+      "client_seconds": 305.943,
+      "runtime_seconds": 8.37110026134178,
+      "verified_files": 5,
+      "input_sha256": "24f8b97a1b77c850cbd1450e8873f69f858e726d8bb4a513da0676357bd7f717",
+      "model_provenance": {
+        "clinical_validation": false,
+        "device": "cpu",
+        "learning_only": true,
+        "model": "echonet",
+        "source_revision": "76712e80495e640c841a78a61cea4124a659e5d3",
+        "upstream_revision": "e01d02947b20604b0ba1a427f3cf6f4890dc4e9c"
+      },
+      "artifacts": [
+        {
+          "name": "result.json",
+          "size": 1563,
+          "sha256": "526a37ea7660f80799477d155eacb7a5bae9d5f550ce644a12cde5264419e5e9"
+        },
+        {
+          "name": "report.csv",
+          "size": 72,
+          "sha256": "3a74279bcdc1deb0761e065832a06fe8d6011d77cf070189336a60a6fe8feb56"
+        },
+        {
+          "name": "preview.png",
+          "size": 31927,
+          "sha256": "f5f76fd952d45b6daa1185ec49470f0e9f9c840c890e0786d3bd09c183886cfe"
+        },
+        {
+          "name": "overlay.mp4",
+          "size": 168167,
+          "sha256": "54f7bbe7ff409012007daa0816fd1ae5a017e9064a01ea7a84b1993a24545758"
+        },
+        {
+          "name": "contours.json",
+          "size": 30364,
+          "sha256": "955209b49d1b010f120eae5356e948c4de181802793b04540990b3236c0d74cf"
+        }
+      ],
+      "deleted": true
+    }
+  ]
+}

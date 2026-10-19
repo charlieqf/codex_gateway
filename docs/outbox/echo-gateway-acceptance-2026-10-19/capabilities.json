@@ -1,0 +1,64 @@
+{
+  "echonext": {
+    "schema_version": 1,
+    "analysis_profile": "echonext-mini-ecg-research-v1",
+    "available": true,
+    "research_only": true,
+    "retention_seconds": 86400,
+    "source_path": "/gateway/echonext/v1/source",
+    "artifact_names": [
+      "result.json",
+      "report.csv",
+      "preview.png"
+    ],
+    "max_artifact_bytes": 33554432,
+    "fields": {
+      "formats": [
+        "ge_muse_xml"
+      ],
+      "max_upload_bytes": 16777216,
+      "chunk_bytes": 8388608,
+      "acquisition": "resting_12_lead_ecg",
+      "sample_rates_hz": [
+        250,
+        500
+      ],
+      "seconds": 10,
+      "validated_mv_per_lsb": 0.00488,
+      "quality_confirmation_required": true
+    },
+    "poll_after_ms": 2000
+  },
+  "echonet": {
+    "schema_version": 1,
+    "analysis_profile": "echonet-a4c-research-v1",
+    "available": true,
+    "research_only": true,
+    "retention_seconds": 86400,
+    "source_path": "/gateway/echonet/v1/source",
+    "artifact_names": [
+      "result.json",
+      "report.csv",
+      "preview.png",
+      "overlay.mp4",
+      "contours.json"
+    ],
+    "max_artifact_bytes": 33554432,
+    "fields": {
+      "formats": [
+        "video",
+        "video_zip",
+        "dicom_zip"
+      ],
+      "max_upload_bytes": 536870912,
+      "chunk_bytes": 8388608,
+      "acquisition": "2d_tte",
+      "view": "a4c",
+      "cine_count": 1,
+      "min_frames": 63,
+      "max_frames": 512,
+      "normalization": "fixed_public_demo_statistics_learning_only"
+    },
+    "poll_after_ms": 2000
+  }
+}
