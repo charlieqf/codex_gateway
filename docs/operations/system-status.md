@@ -1,5 +1,15 @@
 # System Status
 
+Gateway `c183e3fdce91a127fe6c38678fe88b8a2305aa0c` is live, verified at
+2026-10-19 06:49:49 UTC, schema 42 unchanged. Native invalid-JSON repair retries
+now receive bounded rejected arguments and parser diagnostics. Deployment waited
+for 30 seconds of natural idle. Linux tests: 1888 passed / 4 skipped. Deployed
+pipeline checks, one real Tencent repair and public tool calls to all three
+GLM providers passed; temporary credentials were revoked. Healthy, zero restarts,
+six database integrity/FK checks passed, protected inputs and other project
+containers preserved. See the [JSON repair release receipt](./native-json-repair-release-2026-10-19.zh-CN.md).
+This does not fix the separate [RTI error-event parsing issue](./rti-stream-error-2026-10-19.zh-CN.md).
+
 Gateway `1e7e5fa0d7dc14a9ada87bb377f4bdb003e21a9f` is live, verified at
 2026-10-16 08:16:26 UTC, schema 42. Account credentials have a permanent finite
 daily-request floor of 500; higher and unlimited policies are preserved. First,
