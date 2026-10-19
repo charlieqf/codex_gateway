@@ -1,11 +1,11 @@
 import { Readable } from "node:stream";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { ImagingError, sha256 } from "../imaging/contract.js";
-import { capabilities, chunkBytes, ClinicalError, identifier, object, prefix, requireClinical, type Mode } from "./contract.js";
+import { capabilities, chunkBytes, ClinicalError, identifier, object, prefix, requireClinical, usesUpload, type Mode } from "./contract.js";
 import type { ClinicalService } from "./service.js";
 
 type State = { release?: () => void; timer?: NodeJS.Timeout; working: boolean; disconnected: boolean; streaming: boolean; errorCode: string | null };
-export const isClinicalRoute = (url: string) => /^\/gateway\/(?:imaging|aipal|panecho)\/v1(?:\/|$)/.test(url.split("?", 1)[0]!);
+export const isClinicalRoute = (url: string) => /^\/gateway\/(?:imaging|aipal|panecho|echonet|echonext)\/v1(?:\/|$)/.test(url.split("?", 1)[0]!);
 export function registerClinicalRoutes(root: FastifyInstance, mode: Mode, service: ClinicalService | null) {
   const base = prefix(mode);
   void root.register(async app => {
@@ -35,7 +35,7 @@ export function registerClinicalRoutes(root: FastifyInstance, mode: Mode, servic
       reply.raw.once("close", () => { state.disconnected = true; if (!state.working && !state.streaming) state.release?.(); clearTimeout(state.timer); });
     });
     app.addHook("onSend", async (r, reply, payload) => {
-      reply.header("cache-control", "no-store").header("pragma", "no-cache");
+      reply.header("cache-control", "no-store, no-transform").header("pragma", "no-cache");
       if (reply.statusCode < 400 || typeof payload !== "string") return payload;
       try {
         const original = JSON.parse(payload) as { error?: { code?: string } }, code = original.error?.code && /^[a-z0-9_]{1,80}$/.test(original.error.code) ? original.error.code : "unavailable";
@@ -61,7 +61,7 @@ export function registerClinicalRoutes(root: FastifyInstance, mode: Mode, servic
     app.get(`${base}/jobs/:id`, route, run(async r => service!.get(subject(r), id(r))));
     app.post(`${base}/jobs/:id/cancel`, route, run(async (r, reply) => { empty(r); return reply.code(202).send(await service!.action(subject(r), id(r), "cancel")); }));
     app.delete(`${base}/jobs/:id`, route, run(async (r, reply) => reply.code(202).send(await service!.action(subject(r), id(r), "delete"))));
-    if (mode === "panecho") {
+    if (usesUpload(mode)) {
       app.get(`${base}/jobs/:id/input`, route, run(async r => service!.inputStatus(subject(r), id(r))));
       app.put(`${base}/jobs/:id/input/parts/:index`, { ...route, bodyLimit: chunkBytes }, run(async r => {
         requireClinical(r.body instanceof Readable); return service!.upload(subject(r), id(r), (r.params as { index: string }).index, r.headers["content-length"], r.headers["x-chunk-sha256"], r.body, r.gatewayClientDisconnect?.signal);

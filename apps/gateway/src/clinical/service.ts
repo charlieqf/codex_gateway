@@ -3,7 +3,8 @@ import { pipeline } from "node:stream/promises";
 import { VerifiedStream, type StarClient } from "../imaging/client.js";
 import { ImagingError, sha256 } from "../imaging/contract.js";
 import { ClinicalStore, type Action, type Intent, type Limits } from "./store.js";
-import { capabilities, chunkBytes, ClinicalError, hashPattern, identifier, object, owner, parseInput, parseJob, profiles, requireClinical, terminal, type Input, type Job, type Mode } from "./contract.js";
+import { capabilities, chunkBytes, ClinicalError, hashPattern, identifier, object, owner, parseInput, parseJob, profiles, requireClinical, terminal, usesUpload, type Input, type Job, type Mode } from "./contract.js";
+import { validateEchoResult } from "./echo-result.js";
 
 export type ClinicalClient = StarClient & { source(owner: string, signal?: AbortSignal): Promise<Buffer> };
 export class ClinicalService {
@@ -11,10 +12,10 @@ export class ClinicalService {
   private readonly admissions = new Map<string, { minute: number; requests: number; active: number; transfers: number }>();
   private active = 0; private transfers = 0; private closed = false; private timer?: NodeJS.Timeout; private syncing?: Promise<void>;
   constructor(readonly mode: Mode, readonly store: ClinicalStore, private readonly star: ClinicalClient, private readonly options: {
-    subjects: ReadonlySet<string>; limits?: Limits; now?: () => number; onRecoveryError?: () => void
+    subjects: ReadonlySet<string>; allAuthenticated?: boolean; limits?: Limits; now?: () => number; onRecoveryError?: () => void
   }) {}
   now() { return this.options.now?.() ?? Date.now() / 1000; }
-  allowed(subject: string) { return this.options.subjects.has(subject); }
+  allowed(subject: string) { return Boolean(subject) && (this.options.allAuthenticated === true || this.options.subjects.has(subject)); }
   enter(subject: string, transfer: boolean) {
     requireClinical(!this.closed && this.allowed(subject), 503, "unavailable");
     const minute = Math.floor(this.now() / 60), entry = this.admissions.get(subject) ?? { minute, requests: 0, active: 0, transfers: 0 };
@@ -28,7 +29,7 @@ export class ClinicalService {
     if (!this.allowed(subject)) return capabilities(this.mode, false);
     try {
       const b = object((await this.star.json(owner(this.mode, subject), "GET", "/capabilities")).data);
-      requireClinical(b.schema_version === 1 && b.analysis_profile === profiles[this.mode] && b.retention_seconds === 86400 && b.research_only === true, 503, "upstream_protocol_error");
+      requireClinical(b.schema_version === 1 && b.analysis_profile === profiles[this.mode] && b.retention_seconds === 86400 && b.research_only === true && b.available !== false, 503, "upstream_protocol_error");
       return capabilities(this.mode, true);
     } catch { return capabilities(this.mode, false); }
   }
@@ -64,7 +65,7 @@ export class ClinicalService {
     catch (error) { this.failure(intent, error); throw error; }
   }
   async inputStatus(subject: string, id: string) {
-    const intent = this.owned(subject, id); requireClinical(this.mode === "panecho", 404, "not_found");
+    const intent = this.owned(subject, id); requireClinical(usesUpload(this.mode), 404, "not_found");
     const response = object((await this.star.json(owner(this.mode, subject), "GET", `/jobs/${id}/input`)).data);
     const size = Number(intent.input?.input.size);
     requireClinical(Array.isArray(response.parts) && response.parts.length <= 64 && ["uploading", "queued", "running", "completed", "failed", "cancel_requested", "cancelled"].includes(String(response.state)), 503, "upstream_protocol_error");
@@ -77,7 +78,7 @@ export class ClinicalService {
   }
   async upload(subject: string, id: string, rawIndex: string, length: unknown, digest: unknown, stream: Readable, signal?: AbortSignal) {
     const intent = this.owned(subject, id);
-    requireClinical(this.mode === "panecho" && intent.state === "uploading" && !intent.action, 409, "state_conflict");
+    requireClinical(usesUpload(this.mode) && intent.state === "uploading" && !intent.action, 409, "state_conflict");
     requireClinical(/^(0|[1-9][0-9]?)$/.test(rawIndex), 400, "invalid_chunk");
     const index = Number(rawIndex), size = Number(intent.input?.input.size), expected = Math.min(chunkBytes, size - index * chunkBytes);
     requireClinical(expected > 0 && typeof length === "string" && /^[0-9]+$/.test(length) && Number(length) === expected, 400, "invalid_chunk");
@@ -93,7 +94,7 @@ export class ClinicalService {
   }
   async action(subject: string, id: string, action: Action) {
     const intent = this.owned(subject, id, action === "delete");
-    if (action === "complete") requireClinical(this.mode === "panecho" && !["cancelled", "cancel_requested", "failed"].includes(intent.state), 409, "state_conflict");
+    if (action === "complete") requireClinical(usesUpload(this.mode) && !["cancelled", "cancel_requested", "failed"].includes(intent.state), 409, "state_conflict");
     return this.lock(`${subject}:${intent.key}`, async () => {
       const current = this.store.action(subject, id, action, this.now());
       if (!current.action) return current.job!;
@@ -123,6 +124,8 @@ export class ClinicalService {
     requireClinical(data.schema_version === 1 && data.job_id === id && data.analysis_profile === profiles[this.mode] && data.research_only === true, 503, "upstream_protocol_error");
     if (this.mode === "aipal") {
       const p = object(data.probabilities); requireClinical(Object.keys(p).length === 3 && ["ALL", "AML", "APL"].every(k => typeof p[k] === "number" && Number.isFinite(p[k]) && Number(p[k]) >= 0 && Number(p[k]) <= 1) && Math.abs(Object.values(p).reduce<number>((sum, n) => sum + Number(n), 0) - 1) < 0.0001, 503, "upstream_protocol_error");
+    } else if (this.mode === "echonet" || this.mode === "echonext") {
+      validateEchoResult(this.mode, data, this.owned(subject, id).input?.input);
     } else {
       requireClinical(Array.isArray(data.tasks) && data.tasks.length === 40, 503, "upstream_protocol_error");
       const names = new Set<string>();

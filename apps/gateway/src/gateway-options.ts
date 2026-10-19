@@ -113,6 +113,8 @@ export interface GatewayOptions {
   imagingService?: ImagingService | null;
   aipalService?: ClinicalService | null;
   panechoService?: ClinicalService | null;
+  echonetService?: ClinicalService | null;
+  echonextService?: ClinicalService | null;
   activeRequestRegistry?: ActiveRequestRegistry;
   localContextAdmissionMode?: LocalContextAdmissionMode;
   now?: () => Date;

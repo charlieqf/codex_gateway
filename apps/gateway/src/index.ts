@@ -910,6 +910,8 @@ export function buildGateway(options: GatewayOptions = {}) {
     ? resolveImagingService(process.env, app.log) : options.imagingService);
   registerClinicalRoutes(app, "aipal", options.aipalService === undefined ? resolveClinicalService("aipal", process.env, app.log) : options.aipalService);
   registerClinicalRoutes(app, "panecho", options.panechoService === undefined ? resolveClinicalService("panecho", process.env, app.log) : options.panechoService);
+  registerClinicalRoutes(app, "echonet", options.echonetService === undefined ? resolveClinicalService("echonet", process.env, app.log) : options.echonetService);
+  registerClinicalRoutes(app, "echonext", options.echonextService === undefined ? resolveClinicalService("echonext", process.env, app.log) : options.echonextService);
 
   registerVisionAssetRoutes(app, {
     maximumRequestBodyBytes: visionRequestBodyLimitBytes,

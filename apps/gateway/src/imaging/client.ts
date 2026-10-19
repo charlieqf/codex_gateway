@@ -4,6 +4,7 @@ import type { IncomingMessage } from "node:http";
 import { Readable, Transform, type TransformCallback } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { ImagingError, object, requireImaging, safeToken, type Artifact, type Json } from "./contract.js";
+import { modes, type Mode } from "../clinical/contract.js";
 
 export interface StarRequest {
   body?: Json; key?: string; stream?: Readable; length?: number; digest?: string; signal?: AbortSignal;
@@ -41,11 +42,11 @@ export class VerifiedStream extends Transform {
 export class HttpsStarClient implements StarClient {
   private readonly base: URL;
   private readonly agent: Agent;
-  constructor(private readonly options: { baseUrl: string; token: string; ca: string | Buffer; controlTimeoutMs?: number; transferTimeoutMs?: number; maxSockets?: number; clinical?: "aipal" | "panecho" }) {
+  constructor(private readonly options: { baseUrl: string; token: string; ca: string | Buffer; controlTimeoutMs?: number; transferTimeoutMs?: number; maxSockets?: number; clinical?: Mode }) {
     this.base = new URL(options.baseUrl);
     requireImaging(this.base.protocol === "https:" && !this.base.username && !this.base.password && !this.base.search && !this.base.hash &&
       this.base.pathname.replace(/\/$/, "") === `/internal/${options.clinical ?? "imaging"}/v1` &&
-      (!options.clinical || ["aipal", "panecho"].includes(options.clinical)) && /^[\x21-\x7e]{24,512}$/.test(options.token) && options.ca.length > 0, 503, "unavailable");
+      (!options.clinical || modes.includes(options.clinical)) && /^[\x21-\x7e]{24,512}$/.test(options.token) && options.ca.length > 0, 503, "unavailable");
     this.agent = new Agent({ ca: options.ca, rejectUnauthorized: true, keepAlive: true, maxSockets: options.maxSockets ?? 8, maxFreeSockets: 2 });
   }
   close(): void { this.agent.destroy(); }
@@ -66,7 +67,7 @@ export class HttpsStarClient implements StarClient {
       headers["content-type"] = options.stream ? "application/octet-stream" : "application/json";
       headers["content-length"] = String(options.stream ? options.length : payload!.length);
     }
-    if (options.digest) headers[this.options.clinical === "panecho" ? "x-chunk-sha256" : "x-content-sha256"] = options.digest;
+    if (options.digest) headers[this.options.clinical ? "x-chunk-sha256" : "x-content-sha256"] = options.digest;
     const url = new URL(this.base);
     const [pathname, query] = suffix.split("?", 2);
     url.pathname = `${this.base.pathname.replace(/\/$/, "")}${pathname}`;

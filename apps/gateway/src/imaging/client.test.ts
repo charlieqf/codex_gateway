@@ -26,13 +26,13 @@ function client(baseUrl: string, options: Partial<ConstructorParameters<typeof H
   cleanup.push(() => c.close()); return c;
 }
 describe("private imaging HTTPS transport", () => {
-  it("uses fixed clinical paths and dedicated owner/chunk headers, and refuses missing download hashes", async () => {
+  it.each(["panecho", "echonet", "echonext"] as const)("%s uses fixed clinical paths and dedicated owner/chunk headers, and refuses missing download hashes", async mode => {
     let observed: IncomingMessage["headers"] = {};
     const url = (await server((req, res) => { observed = req.headers; req.resume(); req.on("end", () => {
       if (req.method === "GET") { res.writeHead(200, { "content-length": 3 }); res.end("abc"); }
       else res.end("{}");
-    }); })).replace("/internal/imaging/", "/internal/panecho/");
-    const c = client(url, { clinical: "panecho" }); const bytes = Buffer.from("abc");
+    }); })).replace("/internal/imaging/", `/internal/${mode}/`);
+    const c = client(url, { clinical: mode }); const bytes = Buffer.from("abc");
     await c.json(owner, "PUT", "/jobs/job_0123456789abcdef0123456789abcdef/input/parts/0", { stream: Readable.from([bytes]), length: 3, digest: sha256(bytes) });
     expect(observed["x-clinical-owner"]).toBe(owner); expect(observed["x-chunk-sha256"]).toBe(sha256(bytes)); expect(observed["x-imaging-owner"]).toBeUndefined();
     await expect(c.artifact(owner, "/jobs/job_0123456789abcdef0123456789abcdef/artifacts/result.json", { path: "result.json", size: 3, sha256: sha256(bytes) })).rejects.toMatchObject({ code: "upstream_protocol_error" });
