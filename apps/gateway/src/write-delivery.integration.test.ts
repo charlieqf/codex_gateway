@@ -97,6 +97,61 @@ function streamError(body: string) {
 }
 
 describe("A/S real Gateway HTTP pipeline with a loopback provider", () => {
+  it.each([true, false])("repairs malformed shell JSON with bounded original arguments and revalidates the result, stream=%s", async (stream) => {
+    const command = 'python "C:\\Users\\测试\\图表.py"';
+    const rejected = '{"command":"' + command + '"}';
+    const tools = [{ type: "function", function: { name: "bash", parameters: {
+      type: "object", properties: { command: { type: "string" } }, required: ["command"], additionalProperties: false
+    } } }];
+    await fixture({ replies: [
+      { calls: [{ name: "bash", args: rejected }] },
+      { calls: [{ name: "bash", args: { command } }] }
+    ] }, async ({ send, captured, store }) => {
+      const response = await send({ stream, tools });
+      expect(response.statusCode).toBe(200);
+      expect(captured).toHaveLength(2);
+      const repairPrompt = captured[1].messages.map((m: { content: string }) => m.content).join("\n");
+      const data = JSON.parse(repairPrompt.match(/<tool_json_repair_data>\n(.*)\n<\/tool_json_repair_data>/)![1]);
+      expect(data).toMatchObject({ tool_name: "bash", arguments_json: rejected, json_error: { kind: "syntax" } });
+      expect(data.json_error.offset).toBeTypeOf("number");
+      expect(captured[1].tools).toEqual(captured[0].tools);
+      expect(captured[1].tool_choice).toBe(captured[0].tool_choice);
+      const frames = stream ? response.body.split(/\r?\n/).filter(line => line.startsWith("data: ") && line !== "data: [DONE]")
+        .map(line => JSON.parse(line.slice(6))) : [response.json()];
+      const calls = frames.flatMap(frame => frame.choices ?? []).flatMap(choice => (choice.delta ?? choice.message)?.tool_calls ?? []);
+      expect(calls).toHaveLength(1);
+      expect(JSON.parse(calls[0].function.arguments)).toEqual({ command });
+      expect(response.body).not.toContain("tool_json_repair_data");
+      const event = store.listRequestEvents({ limit: 1 })[0];
+      expect(event).toMatchObject({ status: "ok", upstreamAttemptCount: 2 });
+      expect(event.upstreamAttempts?.[0].toolValidationDiagnostic).toMatchObject({ toolName: "bash", jsonError: { kind: "syntax" } });
+      expect(JSON.stringify(event)).not.toContain("图表.py");
+    });
+  });
+
+  it.each([
+    { args: '{"command":"private-rejected', kind: "invalid_json" },
+    { args: { command: 42 }, kind: "schema_mismatch" }
+  ])("rejects a repair that still fails $kind without a third attempt or argument disclosure", async ({ args, kind }) => {
+    const tools = [{ type: "function", function: { name: "bash", parameters: {
+      type: "object", properties: { command: { type: "string" } }, required: ["command"], additionalProperties: false
+    } } }];
+    await fixture({ secondMember: true, replies: [
+      { calls: [{ name: "bash", args: '{"command":"private-rejected' }] },
+      { calls: [{ name: "bash", args }] }
+    ] }, async ({ send, captured, store }) => {
+      const response = await send({ stream: false, tools });
+      expect(response.statusCode).toBe(502);
+      expect(response.json().error).toMatchObject({ code: "tool_call_validation_failed", failure_kind: kind });
+      expect(captured).toHaveLength(2);
+      expect(response.body).not.toContain("private-rejected");
+      expect(response.json()).not.toHaveProperty("choices");
+      const event = store.listRequestEvents({ limit: 1 })[0];
+      expect(event).toMatchObject({ status: "error", upstreamAttemptCount: 2 });
+      expect(JSON.stringify(event)).not.toContain("private-rejected");
+    });
+  });
+
   it.each([{}, { mode: "append" }, { mode: "append", chunk: { index: 2, total: 3 } }])("delivers one complete oversized write with original semantics %j", async (extra) => {
     const payload = "\uFEFF" + '中文😀"\\\n\r\t'.repeat(5000);
     await fixture({ replies: [{ calls: [write(payload, extra)], text: "File prepared." }] }, async ({ send, captured, store }) => {

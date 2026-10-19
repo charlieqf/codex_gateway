@@ -130,7 +130,8 @@ async function runNativeClientTools(
       input.upstreamModel,
       firstToolChoice,
       firstResult,
-      input.prompt
+      input.prompt,
+      first.toolCalls
     );
     if (!retryPlan || input.callBudget?.remaining === 0) {
       return firstResult;
