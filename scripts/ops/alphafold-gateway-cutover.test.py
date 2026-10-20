@@ -34,8 +34,8 @@ class AlphaFoldCutoverTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             root = pathlib.Path(d); old = root/'old/config/nginx/clinical-location.conf'; new = root/'new/config/nginx/clinical-location.conf'
             old.parent.mkdir(parents=True); new.parent.mkdir(parents=True)
-            old.write_text('location (aipal|panecho|echonet|echonext) { access_log off; }\n')
-            new.write_text('location (aipal|panecho|echonet|echonext|alphafold) { access_log off; }\n')
+            old.write_text('location (aipal|panecho|echonet|echonext) {\n    proxy_cache off;\n}\n')
+            new.write_text('location (aipal|panecho|echonet|echonext|alphafold) {\n    proxy_cache off;\n    gzip off;\n}\n')
             original = 'server {\n    include '+old.as_posix()+';\n}\n'
             self.assertEqual(module.proposed_vhost(original, root/'new'), original.replace(old.as_posix(), str(new)))
             new.write_text('unreviewed route')

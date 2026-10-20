@@ -51,6 +51,7 @@ def proposed_vhost(original, release):
     assert len(matches) == 1, 'Expected one clinical include'
     old = pathlib.Path(matches[0].group(2))
     expected = old.read_text().replace('(aipal|panecho|echonet|echonext)', '(aipal|panecho|echonet|echonext|alphafold)')
+    expected = expected.replace('    proxy_cache off;\n', '    proxy_cache off;\n    gzip off;\n')
     assert expected == (release/'config/nginx/clinical-location.conf').read_text(), 'Unexpected Nginx route change'
     return original[:matches[0].start(2)]+str(release/'config/nginx/clinical-location.conf')+original[matches[0].end(2):]
 
