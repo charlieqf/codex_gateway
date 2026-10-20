@@ -1,0 +1,79 @@
+{
+  "verified_at": "2026-10-20T00:48:00.314017+00:00",
+  "revision": "43ba3d7536d4795147b84d91f3832ae1ab827a94",
+  "image": "sha256:def65532db2d03afc37efbf2f4520bb12bf920d315029a23781deb798ab85bfe",
+  "health": "healthy",
+  "restart_count": 0,
+  "public_ready": true,
+  "schema": 42,
+  "protected_files_preserved": 8,
+  "other_containers_preserved": 3,
+  "ports_preserved": true,
+  "environment_changes_only_alphafold": true,
+  "databases": [
+    {
+      "database": "gateway.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "client-events.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "imaging/control.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "clinical/aipal.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "clinical/panecho.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "clinical/echonet.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "clinical/echonext.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "clinical/alphafold.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "research.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    }
+  ],
+  "smoke_cleanup": [
+    {
+      "mode": "alphafold",
+      "revoked_and_input_removed": 3
+    },
+    {
+      "mode": "echonet",
+      "revoked_and_input_removed": 2
+    },
+    {
+      "mode": "echonext",
+      "revoked_and_input_removed": 2
+    }
+  ],
+  "log_counts": {
+    "warn": 0,
+    "error": 0,
+    "fatal": 0
+  }
+}

@@ -1,5 +1,19 @@
 # System Status
 
+Gateway `43ba3d7536d4795147b84d91f3832ae1ab827a94` is live, deployed
+2026-10-20 00:43:08 UTC and verified at 00:48:00 UTC. AlphaFold uses its
+independent authenticated clinical route/database for existing and future
+accounts. Nginx configuration `b5213615bff75778b2b7eff34268fed4bb0db88e`
+was separately reloaded at 00:46:03 UTC to disable artifact gzip, without
+restarting Gateway. The application container remains at 43ba3d7.
+Linux tests: 1914 passed / 4 skipped. Public 76-residue prediction, all seven
+artifact hashes/headers, identity isolation, running cancellation and deletion
+passed. Both Echo upload-to-download regressions passed. Seven test jobs and
+runtime smoke files were cleaned. Nine databases passed integrity/FK checks;
+schema 42, protected inputs, other containers and model services are unchanged.
+Beta.107 conversation/UI acceptance remains with the client team. See the
+[AlphaFold Gateway receipt](../outbox/alphafold-gateway-acceptance-2026-10-20/README.md).
+
 Gateway `6d33d4a44ba19d31192d82ee1ecfb9e1ab08e502` is live, deployed
 2026-10-19 13:15:35 UTC and verified at 13:26:16 UTC. EchoNet-Dynamic and
 EchoNext-Mini now use independent clinical routes/databases and authenticated

@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "analysis_profile": "alphafold2-monomer-public-msa-v1",
+  "available": true,
+  "research_only": true,
+  "retention_seconds": 86400,
+  "artifact_names": [
+    "result.json",
+    "report.csv",
+    "preview.png",
+    "structure.pdb",
+    "scores.json",
+    "structure.html",
+    "models.zip"
+  ],
+  "max_artifact_bytes": 33554432,
+  "fields": {
+    "formats": [
+      "sequence",
+      "fasta"
+    ],
+    "min_residues": 16,
+    "max_residues": 130,
+    "chains": 1,
+    "external_msa": "https://api.colabfold.com",
+    "external_msa_consent_required": true,
+    "data_policy": "public_or_authorized_sequence",
+    "templates": false,
+    "relaxation": false,
+    "num_models": 5,
+    "num_recycle": 3,
+    "max_sequence_bytes": 4096
+  },
+  "poll_after_ms": 2000
+}
