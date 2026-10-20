@@ -912,6 +912,7 @@ export function buildGateway(options: GatewayOptions = {}) {
   registerClinicalRoutes(app, "panecho", options.panechoService === undefined ? resolveClinicalService("panecho", process.env, app.log) : options.panechoService);
   registerClinicalRoutes(app, "echonet", options.echonetService === undefined ? resolveClinicalService("echonet", process.env, app.log) : options.echonetService);
   registerClinicalRoutes(app, "echonext", options.echonextService === undefined ? resolveClinicalService("echonext", process.env, app.log) : options.echonextService);
+  registerClinicalRoutes(app, "alphafold", options.alphafoldService === undefined ? resolveClinicalService("alphafold", process.env, app.log) : options.alphafoldService);
 
   registerVisionAssetRoutes(app, {
     maximumRequestBodyBytes: visionRequestBodyLimitBytes,

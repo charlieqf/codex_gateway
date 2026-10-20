@@ -95,7 +95,7 @@ export class HttpsStarClient implements StarClient {
         return { status: response.statusCode ?? 503, data };
       });
       const [result] = await Promise.all([reading, uploading]);
-      checkStatus(result.status, result.data);
+      checkStatus(result.status, result.data, this.options.clinical === "alphafold");
       return result;
     } catch (error) {
       operation.request.destroy();
@@ -109,7 +109,7 @@ export class HttpsStarClient implements StarClient {
       const response = await operation.response;
       if (response.statusCode !== 200) {
         const body = await readJson(response);
-        checkStatus(response.statusCode ?? 503, body);
+        checkStatus(response.statusCode ?? 503, body, this.options.clinical === "alphafold");
         throw new ImagingError(503, "upstream_protocol_error");
       }
       if (response.headers["content-length"] !== String(artifact.size) || response.headers["x-content-sha256"] !== artifact.sha256 || response.headers["content-encoding"]) {
@@ -120,7 +120,7 @@ export class HttpsStarClient implements StarClient {
       // Catch the pipeline promise: Fastify consumes the stream error. No raw TLS/host errors reach request logs.
       void pipeline(response, checked).catch(() => checked.destroy(new ImagingError(503, "unavailable")));
       checked.once("close", () => { response.destroy(); operation.cleanup(); });
-      return checked;
+      return Object.assign(checked, { contentType: response.headers["content-type"] });
     } catch (error) {
       operation.request.destroy();
       operation.cleanup();
@@ -163,9 +163,9 @@ async function readJson(response: IncomingMessage): Promise<unknown> {
     return JSON.parse(Buffer.concat(buffers).toString("utf8")) as unknown;
   } catch (error) { throw error instanceof ImagingError ? error : new ImagingError(503, "upstream_protocol_error"); }
 }
-function checkStatus(status: number, data: unknown): void {
+function checkStatus(status: number, data: unknown, preserveStatus = false): void {
   if ([200, 201, 202].includes(status)) return;
-  if (![400, 404, 409, 413, 422, 429].includes(status)) throw new ImagingError(503, "unavailable");
+  if (!(preserveStatus ? status >= 400 && status <= 599 : [400, 404, 409, 413, 422, 429].includes(status))) throw new ImagingError(503, "unavailable");
   let error: Json;
   try { error = object(object(data).error); }
   catch { throw new ImagingError(503, "upstream_protocol_error"); }

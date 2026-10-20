@@ -5,6 +5,7 @@ import { ImagingError, sha256 } from "../imaging/contract.js";
 import { ClinicalStore, type Action, type Intent, type Limits } from "./store.js";
 import { capabilities, chunkBytes, ClinicalError, hashPattern, identifier, object, owner, parseInput, parseJob, profiles, requireClinical, terminal, usesUpload, type Input, type Job, type Mode } from "./contract.js";
 import { validateEchoResult } from "./echo-result.js";
+import { proteinContentTypes, validateProteinResult } from "./protein-result.js";
 
 export type ClinicalClient = StarClient & { source(owner: string, signal?: AbortSignal): Promise<Buffer> };
 export class ClinicalService {
@@ -36,12 +37,13 @@ export class ClinicalService {
   async create(subject: string, raw: unknown, rawKey: unknown) {
     const parsed = parseInput(this.mode, raw), input: Input = { ...parsed, session_id: sha256(`${owner(this.mode, subject)}:session:${parsed.session_id}`) };
     requireClinical(typeof rawKey === "string" && /^[A-Za-z0-9_.:-]{8,128}$/.test(rawKey), 400, "invalid_idempotency_key");
-    const key = sha256(rawKey);
+    // AlphaFold requires the original key on every submission, including recovery.
+    const key = this.mode === "alphafold" ? rawKey : sha256(rawKey);
     return this.lock(`${subject}:${key}`, async () => {
       const { intent, replay } = this.store.reserve(subject, key, input, this.now(), this.options.limits ?? { dailyJobs: 10, activeJobs: 1 });
       if (intent.errorStatus && ![429, 503].includes(intent.errorStatus) && !intent.id) throw new ClinicalError(intent.errorStatus, intent.errorCode!);
       const job = intent.id ? await this.refresh(intent) : await this.submit(intent);
-      return { status: replay ? 200 : this.mode === "aipal" ? 202 : 201, job };
+      return { status: replay ? 200 : usesUpload(this.mode) ? 201 : 202, job };
     });
   }
   owned(subject: string, id: string, includeRevoked = false) {
@@ -120,9 +122,16 @@ export class ClinicalService {
   }
   async result(subject: string, id: string) {
     const job = await this.get(subject, id); requireClinical(job.state === "completed", 409, "result_not_ready");
-    const data = object((await this.star.json(owner(this.mode, subject), "GET", `/jobs/${id}/result`)).data);
+    // Keep AlphaFold result bytes identical to the immutable manifest, including whitespace.
+    const bytes = this.mode === "alphafold" ? (await this.artifact(subject, id, "result.json")).bytes : undefined;
+    let raw: unknown;
+    try { raw = bytes ? JSON.parse(bytes.toString("utf8")) : (await this.star.json(owner(this.mode, subject), "GET", `/jobs/${id}/result`)).data; }
+    catch (error) { if (error instanceof ImagingError) throw error; throw new ClinicalError(503, "upstream_protocol_error"); }
+    const data = object(raw);
     requireClinical(data.schema_version === 1 && data.job_id === id && data.analysis_profile === profiles[this.mode] && data.research_only === true, 503, "upstream_protocol_error");
-    if (this.mode === "aipal") {
+    if (this.mode === "alphafold") {
+      validateProteinResult(data, this.owned(subject, id).input?.input);
+    } else if (this.mode === "aipal") {
       const p = object(data.probabilities); requireClinical(Object.keys(p).length === 3 && ["ALL", "AML", "APL"].every(k => typeof p[k] === "number" && Number.isFinite(p[k]) && Number(p[k]) >= 0 && Number(p[k]) <= 1) && Math.abs(Object.values(p).reduce<number>((sum, n) => sum + Number(n), 0) - 1) < 0.0001, 503, "upstream_protocol_error");
     } else if (this.mode === "echonet" || this.mode === "echonext") {
       validateEchoResult(this.mode, data, this.owned(subject, id).input?.input);
@@ -136,15 +145,28 @@ export class ClinicalService {
         else { const p = object(t.probabilities); requireClinical(Object.keys(p).length > 1 && Object.values(p).every(n => typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= 1) && Math.abs(Object.values(p).reduce<number>((sum, n) => sum + Number(n), 0) - 1) < 0.0001, 503, "upstream_protocol_error"); }
       }
     }
-    this.owned(subject, id); return data;
+    this.owned(subject, id); return bytes ?? data;
   }
   async artifact(subject: string, id: string, name: string, signal?: AbortSignal) {
     const job = await this.get(subject, id); requireClinical(job.state === "completed", 409, "result_not_ready");
     const artifact = job.artifacts?.find(a => a.name === name); requireClinical(artifact, 404, "not_found");
     const source = await this.star.artifact(owner(this.mode, subject), `/jobs/${id}/artifacts/${artifact.name}`, { path: name, size: artifact.size, sha256: artifact.sha256 }, signal);
+    if (this.mode === "alphafold") {
+      // At most 32 MiB per file and four transfers globally. Do not send HTTP 200 until verified.
+      const blocks: Buffer[] = []; let size = 0;
+      try {
+        const contentType = (source as Readable & { contentType?: string }).contentType;
+        requireClinical(contentType === proteinContentTypes[name], 503, "upstream_protocol_error");
+        for await (const block of source) { this.owned(subject, id); size += block.length; requireClinical(size <= artifact.size, 503, "artifact_integrity"); blocks.push(Buffer.from(block)); }
+        const bytes = Buffer.concat(blocks);
+        requireClinical(size === artifact.size && sha256(bytes) === artifact.sha256, 503, "artifact_integrity");
+        this.owned(subject, id);
+        return { artifact, stream: Readable.from([bytes]), bytes, contentType };
+      } finally { source.destroy(); }
+    }
     const stream = new VerifiedStream(artifact.size, artifact.sha256, () => { this.owned(subject, id); });
     void pipeline(source, stream).catch(() => stream.destroy(new ClinicalError(503, "unavailable"))); stream.once("close", () => source.destroy());
-    return { artifact, stream };
+    return { artifact, stream, bytes: undefined, contentType: "application/octet-stream" };
   }
   source(subject: string, signal?: AbortSignal) { return this.star.source(owner(this.mode, subject), signal); }
   start() { this.store.prune(this.now()); this.timer = setInterval(() => { void this.reconcile(); }, 2000); this.timer.unref(); }
