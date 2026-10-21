@@ -7,6 +7,7 @@ forbids automatically restoring the old AF2-enabled image/configuration.
 """
 import datetime, fcntl, importlib.util, json, os, pathlib, re, sqlite3, sys
 
+sys.dont_write_bytecode = True
 spec = importlib.util.spec_from_file_location('af3_cutover', pathlib.Path(__file__).with_name('alphafold3-gateway-cutover.py'))
 af3 = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(af3)

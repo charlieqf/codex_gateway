@@ -15,6 +15,7 @@ import sys
 import time
 import urllib.request
 
+sys.dont_write_bytecode = True
 spec = importlib.util.spec_from_file_location('clinical_cutover', pathlib.Path(__file__).with_name('clinical-gateway-cutover.py'))
 c = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(c)
