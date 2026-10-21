@@ -26,6 +26,19 @@ function client(baseUrl: string, options: Partial<ConstructorParameters<typeof H
   cleanup.push(() => c.close()); return c;
 }
 describe("private imaging HTTPS transport", () => {
+  it.each(["alphafold", "alphafold3"] as const)("%s retains private authentication, original idempotency and structured upstream failures", async mode => {
+    let observed: IncomingMessage["headers"] = {};
+    const url = (await server((req, res) => {
+      observed = req.headers; req.resume(); req.on("end", () => {
+        res.writeHead(503); res.end(JSON.stringify({ error: { code: "storage_full", message: "secret-path-and-sequence" } }));
+      });
+    })).replace("/internal/imaging/", `/internal/${mode}/`);
+    const c = client(url, { clinical: mode });
+    await expect(c.json(owner, "POST", "/jobs", { body: {}, key: "original:key-123" })).rejects.toMatchObject({ status: 503, code: "storage_full" });
+    expect(observed.authorization).toBe(`Bearer ${token}`); expect(observed["x-clinical-owner"]).toBe(owner);
+    expect(observed["idempotency-key"]).toBe("original:key-123"); expect(observed.cookie).toBeUndefined();
+    await expect(client(url, { clinical: mode, ca: rootCertificates[0]! }).json(owner, "GET", "/capabilities")).rejects.toMatchObject({ status: 503 });
+  });
   it.each(["panecho", "echonet", "echonext"] as const)("%s uses fixed clinical paths and dedicated owner/chunk headers, and refuses missing download hashes", async mode => {
     let observed: IncomingMessage["headers"] = {};
     const url = (await server((req, res) => { observed = req.headers; req.resume(); req.on("end", () => {

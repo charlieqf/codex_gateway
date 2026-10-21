@@ -1,11 +1,11 @@
 import { Readable } from "node:stream";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { ImagingError, sha256 } from "../imaging/contract.js";
-import { capabilities, chunkBytes, ClinicalError, identifier, object, prefix, requireClinical, usesUpload, type Mode } from "./contract.js";
+import { capabilities, chunkBytes, ClinicalError, identifier, isProtein, object, prefix, requireClinical, usesUpload, type Mode } from "./contract.js";
 import type { ClinicalService } from "./service.js";
 
 type State = { release?: () => void; timer?: NodeJS.Timeout; working: boolean; disconnected: boolean; streaming: boolean; errorCode: string | null };
-export const isClinicalRoute = (url: string) => /^\/gateway\/(?:imaging|aipal|panecho|echonet|echonext|alphafold)\/v1(?:\/|$)/.test(url.split("?", 1)[0]!);
+export const isClinicalRoute = (url: string) => /^\/gateway\/(?:imaging|aipal|panecho|echonet|echonext|alphafold|alphafold3)\/v1(?:\/|$)/.test(url.split("?", 1)[0]!);
 export function registerClinicalRoutes(root: FastifyInstance, mode: Mode, service: ClinicalService | null) {
   const base = prefix(mode);
   void root.register(async app => {
@@ -23,7 +23,7 @@ export function registerClinicalRoutes(root: FastifyInstance, mode: Mode, servic
       for (const h of Object.keys(r.headers)) if (h.startsWith("x-clinical-") || h.startsWith("x-imaging-") || h.startsWith("x-service-")) delete r.headers[h];
       const state: State = { working: false, disconnected: false, streaming: false, errorCode: null }; states.set(r, state);
       const upload = r.method === "PUT" && r.routeOptions.url?.endsWith("/input/parts/:index");
-      const transfer = Boolean(upload || r.routeOptions.url?.endsWith("/artifacts/:name") || r.routeOptions.url?.endsWith("/source") || (mode === "alphafold" && r.routeOptions.url?.endsWith("/result")));
+      const transfer = Boolean(upload || r.routeOptions.url?.endsWith("/artifacts/:name") || r.routeOptions.url?.endsWith("/source") || (isProtein(mode) && r.routeOptions.url?.endsWith("/result")));
       if (r.routeOptions.url !== `${base}/capabilities`) { requireClinical(service, 503, "unavailable"); state.release = service.enter(subject(r), transfer); }
       else if (service?.allowed(subject(r))) state.release = service.enter(subject(r), false);
       if (upload) {
@@ -49,7 +49,7 @@ export function registerClinicalRoutes(root: FastifyInstance, mode: Mode, servic
       try { service.store.audit(r.gatewayContext?.subject.id ?? null, r.id, `${r.method} ${r.routeOptions.url ?? base}`, identifier(id) ? id : null, reply.statusCode, state?.errorCode ?? null, service.now()); }
       catch { r.log.warn("Clinical audit write failed."); }
     });
-    const route = { config: { skipRateLimit: true, skipObservation: true }, bodyLimit: mode === "alphafold" ? 65536 : 16384 } as const;
+    const route = { config: { skipRateLimit: true, skipObservation: true }, bodyLimit: isProtein(mode) ? 65536 : 16384 } as const;
     const run = (handler: (r: FastifyRequest, reply: FastifyReply) => Promise<unknown>) => async (r: FastifyRequest, reply: FastifyReply) => {
       const state = states.get(r)!; state.working = true;
       try { return await handler(r, reply); } finally { state.working = false; if (state.disconnected && !state.streaming) state.release?.(); }
@@ -78,10 +78,10 @@ export function registerClinicalRoutes(root: FastifyInstance, mode: Mode, servic
       const state = states.get(r)!; state.streaming = true;
       result.stream.once("close", () => { state.streaming = false; state.release?.(); clearTimeout(state.timer); });
       reply.raw.once("close", () => result.stream.destroy());
-      if (mode === "alphafold") reply.header("content-disposition", `attachment; filename="${result.artifact.name}"`).header("content-security-policy", "sandbox; default-src 'none'");
+      if (isProtein(mode)) reply.header("content-disposition", `attachment; filename="${result.artifact.name}"`).header("content-security-policy", "sandbox; default-src 'none'");
       return reply.header("content-type", result.contentType).header("content-length", result.artifact.size).header("x-content-sha256", result.artifact.sha256).send(result.stream);
     }));
-    if (mode !== "alphafold") app.get(`${base}/source`, route, run(async (r, reply) => { const bytes = await service!.source(subject(r), r.gatewayClientDisconnect?.signal); return reply.header("content-type", "application/zip").header("content-length", bytes.length).header("x-content-sha256", sha256(bytes)).send(bytes); }));
+    if (!isProtein(mode)) app.get(`${base}/source`, route, run(async (r, reply) => { const bytes = await service!.source(subject(r), r.gatewayClientDisconnect?.signal); return reply.header("content-type", "application/zip").header("content-length", bytes.length).header("x-content-sha256", sha256(bytes)).send(bytes); }));
     app.all(`${base}/*`, route, run(async () => { throw new ClinicalError(404, "not_found"); }));
     app.addHook("onReady", async () => service?.start()); app.addHook("onClose", async () => { await service?.close(); });
   });

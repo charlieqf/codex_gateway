@@ -4,7 +4,7 @@ import type { IncomingMessage } from "node:http";
 import { Readable, Transform, type TransformCallback } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { ImagingError, object, requireImaging, safeToken, type Artifact, type Json } from "./contract.js";
-import { modes, type Mode } from "../clinical/contract.js";
+import { isProtein, modes, type Mode } from "../clinical/contract.js";
 
 export interface StarRequest {
   body?: Json; key?: string; stream?: Readable; length?: number; digest?: string; signal?: AbortSignal;
@@ -95,7 +95,7 @@ export class HttpsStarClient implements StarClient {
         return { status: response.statusCode ?? 503, data };
       });
       const [result] = await Promise.all([reading, uploading]);
-      checkStatus(result.status, result.data, this.options.clinical === "alphafold");
+      checkStatus(result.status, result.data, isProtein(this.options.clinical));
       return result;
     } catch (error) {
       operation.request.destroy();
@@ -109,7 +109,7 @@ export class HttpsStarClient implements StarClient {
       const response = await operation.response;
       if (response.statusCode !== 200) {
         const body = await readJson(response);
-        checkStatus(response.statusCode ?? 503, body, this.options.clinical === "alphafold");
+        checkStatus(response.statusCode ?? 503, body, isProtein(this.options.clinical));
         throw new ImagingError(503, "upstream_protocol_error");
       }
       if (response.headers["content-length"] !== String(artifact.size) || response.headers["x-content-sha256"] !== artifact.sha256 || response.headers["content-encoding"]) {

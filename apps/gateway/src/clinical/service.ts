@@ -3,9 +3,9 @@ import { pipeline } from "node:stream/promises";
 import { VerifiedStream, type StarClient } from "../imaging/client.js";
 import { ImagingError, sha256 } from "../imaging/contract.js";
 import { ClinicalStore, type Action, type Intent, type Limits } from "./store.js";
-import { capabilities, chunkBytes, ClinicalError, hashPattern, identifier, object, owner, parseInput, parseJob, profiles, requireClinical, terminal, usesUpload, type Input, type Job, type Mode } from "./contract.js";
+import { capabilities, chunkBytes, ClinicalError, hashPattern, identifier, isProtein, object, owner, parseInput, parseJob, profiles, requireClinical, terminal, usesUpload, type Input, type Job, type Mode } from "./contract.js";
 import { validateEchoResult } from "./echo-result.js";
-import { proteinContentTypes, validateProteinResult } from "./protein-result.js";
+import { proteinContentTypes, validateAlphaFold3Result, validateProteinResult } from "./protein-result.js";
 
 export type ClinicalClient = StarClient & { source(owner: string, signal?: AbortSignal): Promise<Buffer> };
 export class ClinicalService {
@@ -38,7 +38,7 @@ export class ClinicalService {
     const parsed = parseInput(this.mode, raw), input: Input = { ...parsed, session_id: sha256(`${owner(this.mode, subject)}:session:${parsed.session_id}`) };
     requireClinical(typeof rawKey === "string" && /^[A-Za-z0-9_.:-]{8,128}$/.test(rawKey), 400, "invalid_idempotency_key");
     // AlphaFold requires the original key on every submission, including recovery.
-    const key = this.mode === "alphafold" ? rawKey : sha256(rawKey);
+    const key = isProtein(this.mode) ? rawKey : sha256(rawKey);
     return this.lock(`${subject}:${key}`, async () => {
       const { intent, replay } = this.store.reserve(subject, key, input, this.now(), this.options.limits ?? { dailyJobs: 10, activeJobs: 1 });
       if (intent.errorStatus && ![429, 503].includes(intent.errorStatus) && !intent.id) throw new ClinicalError(intent.errorStatus, intent.errorCode!);
@@ -123,7 +123,7 @@ export class ClinicalService {
   async result(subject: string, id: string) {
     const job = await this.get(subject, id); requireClinical(job.state === "completed", 409, "result_not_ready");
     // Keep AlphaFold result bytes identical to the immutable manifest, including whitespace.
-    const bytes = this.mode === "alphafold" ? (await this.artifact(subject, id, "result.json")).bytes : undefined;
+    const bytes = isProtein(this.mode) ? (await this.artifact(subject, id, "result.json")).bytes : undefined;
     let raw: unknown;
     try { raw = bytes ? JSON.parse(bytes.toString("utf8")) : (await this.star.json(owner(this.mode, subject), "GET", `/jobs/${id}/result`)).data; }
     catch (error) { if (error instanceof ImagingError) throw error; throw new ClinicalError(503, "upstream_protocol_error"); }
@@ -131,6 +131,8 @@ export class ClinicalService {
     requireClinical(data.schema_version === 1 && data.job_id === id && data.analysis_profile === profiles[this.mode] && data.research_only === true, 503, "upstream_protocol_error");
     if (this.mode === "alphafold") {
       validateProteinResult(data, this.owned(subject, id).input?.input);
+    } else if (this.mode === "alphafold3") {
+      validateAlphaFold3Result(data, this.owned(subject, id).input?.input);
     } else if (this.mode === "aipal") {
       const p = object(data.probabilities); requireClinical(Object.keys(p).length === 3 && ["ALL", "AML", "APL"].every(k => typeof p[k] === "number" && Number.isFinite(p[k]) && Number(p[k]) >= 0 && Number(p[k]) <= 1) && Math.abs(Object.values(p).reduce<number>((sum, n) => sum + Number(n), 0) - 1) < 0.0001, 503, "upstream_protocol_error");
     } else if (this.mode === "echonet" || this.mode === "echonext") {
@@ -151,7 +153,7 @@ export class ClinicalService {
     const job = await this.get(subject, id); requireClinical(job.state === "completed", 409, "result_not_ready");
     const artifact = job.artifacts?.find(a => a.name === name); requireClinical(artifact, 404, "not_found");
     const source = await this.star.artifact(owner(this.mode, subject), `/jobs/${id}/artifacts/${artifact.name}`, { path: name, size: artifact.size, sha256: artifact.sha256 }, signal);
-    if (this.mode === "alphafold") {
+    if (isProtein(this.mode)) {
       // At most 32 MiB per file and four transfers globally. Do not send HTTP 200 until verified.
       const blocks: Buffer[] = []; let size = 0;
       try {

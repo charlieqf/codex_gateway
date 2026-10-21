@@ -913,6 +913,7 @@ export function buildGateway(options: GatewayOptions = {}) {
   registerClinicalRoutes(app, "echonet", options.echonetService === undefined ? resolveClinicalService("echonet", process.env, app.log) : options.echonetService);
   registerClinicalRoutes(app, "echonext", options.echonextService === undefined ? resolveClinicalService("echonext", process.env, app.log) : options.echonextService);
   registerClinicalRoutes(app, "alphafold", options.alphafoldService === undefined ? resolveClinicalService("alphafold", process.env, app.log) : options.alphafoldService);
+  registerClinicalRoutes(app, "alphafold3", options.alphafold3Service === undefined ? resolveClinicalService("alphafold3", process.env, app.log) : options.alphafold3Service);
 
   registerVisionAssetRoutes(app, {
     maximumRequestBodyBytes: visionRequestBodyLimitBytes,
