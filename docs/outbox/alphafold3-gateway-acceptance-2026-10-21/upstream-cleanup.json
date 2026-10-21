@@ -1,0 +1,42 @@
+[
+  {
+    "mode": "alphafold3",
+    "job_id": "job_e40cc3fe1d324d978e1ff4345e2e6b23",
+    "upstream_after_delete": 404
+  },
+  {
+    "mode": "alphafold3",
+    "job_id": "job_1272df0a9e6647ebb69bbf120b98a5dc",
+    "upstream_after_delete": 404
+  },
+  {
+    "mode": "alphafold3",
+    "job_id": "job_2cdf845063914f3b85874c4c533cec96",
+    "upstream_after_delete": 404
+  },
+  {
+    "mode": "alphafold3",
+    "job_id": "job_888af9bb733a4dc39ae8f345ee221dca",
+    "upstream_after_delete": 404
+  },
+  {
+    "mode": "echonet",
+    "job_id": "job_27073cdabc6d4365942125d349e4f263",
+    "upstream_after_delete": 404
+  },
+  {
+    "mode": "echonet",
+    "job_id": "job_1d76aa2a36cd40a2878682dfe18f1399",
+    "upstream_after_delete": 404
+  },
+  {
+    "mode": "echonext",
+    "job_id": "job_095a8e9b53454634b472a3c98796ed59",
+    "upstream_after_delete": 404
+  },
+  {
+    "mode": "echonext",
+    "job_id": "job_e2dfb5de368f48f9b0e6d66977a9d4e9",
+    "upstream_after_delete": 404
+  }
+]

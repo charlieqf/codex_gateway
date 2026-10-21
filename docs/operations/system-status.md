@@ -1,5 +1,21 @@
 # System Status
 
+Gateway `8d55a638ec30753094802a063c771b28ee358f17` is live, deployed
+2026-10-21 00:27:40 UTC and verified at 00:32:11 UTC. AF3 is the sole protein
+mode after successful public acceptance followed by immediate AF2 retirement.
+AF2 routes, registration, profile/PDB/result branches, environment and credential
+mounts are removed; old routes return 404 without redirect. No AF2 fallback or
+active rollback target remains. AF3 real 76-residue prediction, seven verified
+files, cross-account denial, predicting-stage cancellation and deletion passed
+both before and after retirement. EchoNet/EchoNext upload/download regressions
+passed. Linux: 1920 passed / 4 skipped. Healthy, restart count 0, schema 42;
+nine database integrity/FK checks passed, protected inputs/other containers/ports
+preserved, eight smoke jobs and eight runtime files cleaned. The original AF3
+server session owns star AF2 retirement and independent ColabFold MSA setup;
+installed Desktop acceptance remains with the client team. See the
+[AF3 Gateway receipt](../outbox/alphafold3-gateway-acceptance-2026-10-21/README.md)
+and [AF3 runbook](./alphafold3-gateway-v1.md).
+
 Gateway `43ba3d7536d4795147b84d91f3832ae1ab827a94` is live, deployed
 2026-10-20 00:43:08 UTC and verified at 00:48:00 UTC. AlphaFold uses its
 independent authenticated clinical route/database for existing and future

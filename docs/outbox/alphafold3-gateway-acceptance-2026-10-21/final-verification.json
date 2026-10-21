@@ -1,0 +1,87 @@
+{
+  "verified_at": "2026-10-21T00:32:11.742209+00:00",
+  "deployed_at": "2026-10-21T00:27:40.780340+00:00",
+  "revision": "8d55a638ec30753094802a063c771b28ee358f17",
+  "image": "sha256:01aa93180ec06e94692e36c92527a6c228fde56e1426f5c2ae40181b631ac789",
+  "health": "healthy",
+  "restart_count": 0,
+  "public_ready": true,
+  "schema": 42,
+  "af2_environment_and_mounts_absent": true,
+  "af2_rollback_target": false,
+  "af3_mounts_readonly": true,
+  "protected_files_preserved": 8,
+  "other_containers_preserved": 3,
+  "ports_preserved": true,
+  "databases": [
+    {
+      "database": "gateway.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "client-events.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "imaging/control.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "clinical/aipal.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "clinical/panecho.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "clinical/echonet.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "clinical/echonext.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "clinical/alphafold3.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "research.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    }
+  ],
+  "smoke_cleanup": [
+    {
+      "mode": "alphafold3",
+      "revoked_and_input_removed": 4
+    },
+    {
+      "mode": "echonet",
+      "revoked_and_input_removed": 2
+    },
+    {
+      "mode": "echonext",
+      "revoked_and_input_removed": 2
+    }
+  ],
+  "log_counts": {
+    "warn": 0,
+    "error": 0,
+    "fatal": 0
+  },
+  "sequence_absent_from_logs": true,
+  "test_summary": [
+    "Test Files  103 passed | 2 skipped (105)",
+    "Tests  1920 passed | 4 skipped (1924)"
+  ]
+}

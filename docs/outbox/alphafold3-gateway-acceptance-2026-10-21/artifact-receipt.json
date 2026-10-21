@@ -1,0 +1,61 @@
+{
+  "job_id": "job_2cdf845063914f3b85874c4c533cec96",
+  "artifacts": [
+    {
+      "job_id": "job_2cdf845063914f3b85874c4c533cec96",
+      "name": "result.json",
+      "size": 2580,
+      "sha256": "889fa28195993a95e026cfc3b8c0fa2f93fb5dacc574805823f6a758edb91f0f",
+      "content_type": "application/octet-stream",
+      "verified": true
+    },
+    {
+      "job_id": "job_2cdf845063914f3b85874c4c533cec96",
+      "name": "report.csv",
+      "size": 936,
+      "sha256": "4b40d4c8269d0e3bb97907750dd3495fa0c666baeb2ea19b18a9092973f6f67b",
+      "content_type": "text/csv",
+      "verified": true
+    },
+    {
+      "job_id": "job_2cdf845063914f3b85874c4c533cec96",
+      "name": "preview.png",
+      "size": 92984,
+      "sha256": "c4f070103618b72b05d72b71446906127c2490848c5fbc272aed7441ef6bf6c5",
+      "content_type": "image/png",
+      "verified": true
+    },
+    {
+      "job_id": "job_2cdf845063914f3b85874c4c533cec96",
+      "name": "structure.cif",
+      "size": 55981,
+      "sha256": "7da60a2e9dec6e4aed8efdb5322ec8487c84870004f23b8a24245a4c18a344a6",
+      "content_type": "chemical/x-mmcif",
+      "verified": true
+    },
+    {
+      "job_id": "job_2cdf845063914f3b85874c4c533cec96",
+      "name": "scores.json",
+      "size": 54742,
+      "sha256": "4d22660bdded075ae22156fc94786ca97c33ee4b47f40dc5bc91b397e6f39c4e",
+      "content_type": "application/json",
+      "verified": true
+    },
+    {
+      "job_id": "job_2cdf845063914f3b85874c4c533cec96",
+      "name": "structure.html",
+      "size": 747892,
+      "sha256": "e52b5820830b67b65ce2c22064fcdd2eaac231cf0c8b92bcb868542060c977d3",
+      "content_type": "text/html; charset=utf-8",
+      "verified": true
+    },
+    {
+      "job_id": "job_2cdf845063914f3b85874c4c533cec96",
+      "name": "models.zip",
+      "size": 137708,
+      "sha256": "3641016ad81beb4d83ec832f1139bd7742efc91a2961e471d67fd4d4ebc9d3c8",
+      "content_type": "application/zip",
+      "verified": true
+    }
+  ]
+}

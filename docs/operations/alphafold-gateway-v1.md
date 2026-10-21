@@ -1,5 +1,10 @@
 # AlphaFold Gateway v1
 
+Retired on 2026-10-21 after AF3 public acceptance. The following is historical
+design evidence; do not re-enable its routes, configuration or credentials.
+Use [AlphaFold 3 Gateway v1](./alphafold3-gateway-v1.md). AF2 has no compatibility
+period or fallback service.
+
 Public prefix `/gateway/alphafold/v1`; private upstream
 `https://192.168.77.7:7448/internal/alphafold/v1`.
 Profile: `alphafold2-monomer-public-msa-v1`.

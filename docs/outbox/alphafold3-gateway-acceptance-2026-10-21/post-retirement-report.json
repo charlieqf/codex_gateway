@@ -1,0 +1,594 @@
+{
+  "at": "2026-10-21T00:27:49.896Z",
+  "capabilities": {
+    "schema_version": 1,
+    "analysis_profile": "alphafold3-monomer-public-msa-v1",
+    "available": true,
+    "research_only": true,
+    "retention_seconds": 86400,
+    "artifact_names": [
+      "result.json",
+      "report.csv",
+      "preview.png",
+      "structure.cif",
+      "scores.json",
+      "structure.html",
+      "models.zip"
+    ],
+    "max_artifact_bytes": 33554432,
+    "fields": {
+      "formats": [
+        "sequence",
+        "fasta"
+      ],
+      "min_residues": 16,
+      "max_residues": 130,
+      "chains": 1,
+      "external_msa": "https://api.colabfold.com",
+      "external_msa_consent_required": true,
+      "data_policy": "public_or_authorized_sequence",
+      "templates": false,
+      "relaxation": false,
+      "num_models": 1,
+      "num_diffusion_samples": 5,
+      "num_recycle": 10,
+      "random_seed": 0,
+      "structure_format": "mmcif",
+      "confidence_unit": "atom",
+      "supports_complexes": false,
+      "supports_ligands": false,
+      "supports_nucleic_acids": false,
+      "max_sequence_bytes": 4096
+    },
+    "poll_after_ms": 2000
+  },
+  "checks": [
+    {
+      "mode": "retired-alphafold",
+      "path": "/capabilities",
+      "status": 404,
+      "request_id": "req-23c5bf45-039b-46cf-a946-b5acb974acc7"
+    },
+    {
+      "mode": "retired-alphafold",
+      "path": "/jobs",
+      "status": 404,
+      "request_id": "req-68a6eb88-076a-480d-bb2a-23cc69a972c8"
+    },
+    {
+      "mode": "retired-alphafold",
+      "path": "/jobs/job_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/result",
+      "status": 404,
+      "request_id": "req-f3c24341-d4fb-49b6-9f4b-730fc393f582"
+    },
+    {
+      "mode": "retired-alphafold",
+      "path": "/source",
+      "status": 404,
+      "request_id": "req-90805c00-4b3b-4252-9117-6d2f0f3191c0"
+    },
+    {
+      "path": "/jobs",
+      "method": "POST",
+      "status": 422,
+      "request_id": "req-db7d208e-7481-4ea8-9331-94105838c609",
+      "error_code": "unsupported_profile"
+    },
+    {
+      "path": "/capabilities",
+      "method": "GET",
+      "status": 401,
+      "request_id": "req-31173067-4488-4369-81c8-63c9f80312a8",
+      "error_code": "missing_credential"
+    },
+    {
+      "path": "/capabilities",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-58599e02-3157-4384-8171-e63565a2299b"
+    },
+    {
+      "path": "/capabilities",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-369c07a2-5321-4b1b-add5-ea86d1cc3513"
+    },
+    {
+      "path": "/jobs",
+      "method": "POST",
+      "status": 422,
+      "request_id": "req-b7d791dd-173f-43f2-ac7b-cfc1e8280aa2",
+      "error_code": "external_msa_consent_required"
+    },
+    {
+      "path": "/jobs",
+      "method": "POST",
+      "status": 422,
+      "request_id": "req-1aefaf3b-f348-46eb-8942-2da496e1c410",
+      "error_code": "invalid_residues"
+    },
+    {
+      "path": "/jobs",
+      "method": "POST",
+      "status": 422,
+      "request_id": "req-cb115e21-51aa-4541-9e87-17157e674f79",
+      "error_code": "sequence_length"
+    },
+    {
+      "path": "/jobs",
+      "method": "POST",
+      "status": 422,
+      "request_id": "req-beb36964-832e-429b-adea-32aa0642d649",
+      "error_code": "multiple_sequences"
+    },
+    {
+      "path": "/jobs",
+      "method": "POST",
+      "status": 202,
+      "request_id": "req-46c6ebe1-3e51-4121-9940-07f5017b9dd7"
+    },
+    {
+      "path": "/jobs",
+      "method": "POST",
+      "status": 200,
+      "request_id": "req-bcdc64fa-3c44-45b5-a770-f1cfd8085627"
+    },
+    {
+      "path": "/jobs",
+      "method": "POST",
+      "status": 409,
+      "request_id": "req-1eedbb1b-137b-4559-b5f2-63eb88d0428c",
+      "error_code": "idempotency_conflict"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96",
+      "method": "GET",
+      "status": 404,
+      "request_id": "req-c77b8bf9-c47e-44ee-930e-ecd74b1aa507",
+      "error_code": "not_found"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96/result",
+      "method": "GET",
+      "status": 404,
+      "request_id": "req-45745059-ca47-44c7-8e19-94b6206c67b4",
+      "error_code": "not_found"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96/artifacts/structure.html",
+      "method": "GET",
+      "status": 404,
+      "request_id": "req-f1e6ba51-75c2-40b1-8cc4-9ede8acddfbb",
+      "error_code": "not_found"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96/cancel",
+      "method": "POST",
+      "status": 404,
+      "request_id": "req-c0618b3f-be00-4441-91bb-5391c4e1ec30",
+      "error_code": "not_found"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96",
+      "method": "DELETE",
+      "status": 404,
+      "request_id": "req-7cc94991-7864-4fe1-a505-f154c41759a8",
+      "error_code": "not_found"
+    },
+    {
+      "path": "/source",
+      "method": "GET",
+      "status": 404,
+      "request_id": "req-0f09ffb0-8088-479d-bd72-a0077364b19c",
+      "error_code": "not_found"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96/input",
+      "method": "GET",
+      "status": 404,
+      "request_id": "req-fc313cf6-72f2-411f-a861-f7c419c6eca3",
+      "error_code": "not_found"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-9885fadc-b702-44e6-8907-13886ffd45bb"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-4f4a6f75-783c-449e-8570-f0382d398038"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-821ea071-a17a-4c6e-aa33-260e4d6df603"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-f67176f8-f7cb-4f6d-a866-1dc8463579c8"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-195c85e7-74ad-4fc2-bd25-570911d84397"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-ab5a8a45-045d-4639-905a-ba4358f895d5"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-08b0ad8d-d084-4337-b6e7-c8792c7b1e13"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-e6f51d50-7aaa-44e4-aa3d-8af4487be413"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-ca19523f-a593-438c-9c93-9f4a48253ca2"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-e47c71ea-6a39-4a1c-bb20-cf97a45bc332"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-0cbe4a74-b306-47ec-b74b-1a3cfc717861"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-b867c0cf-28be-438f-8afa-c9c7f0c5d6b7"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-1cb02f20-ab99-47a0-adbb-88d4b4d98a49"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-1cedd99f-230b-4fad-beea-adcbdb7a1f80"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-cfd49d62-11f4-446d-9534-9c19b881094c"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-dc74a62b-9e7f-4964-a02e-91c1dc8f6fef"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-8cebd3ca-bc83-409a-9fb8-b48cad9ecee8"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-e24b2d4d-c58d-478e-9dfc-8ff82e45c0ce"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-85310805-a0ff-4caf-9ed7-d75fab0d59d5"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-b48b3f20-4830-405f-a485-63aed3c04b9b"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-ee0c6053-3431-469c-b841-84146fbe57c0"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-3adf02ac-09b3-4bdf-a3c8-5e09c2b15155"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-46eed62a-a36c-40f8-a2ff-b46014063ecf"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-04730151-9c08-4788-bafe-ec7852fdc65a"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96/artifacts/structure.pdb",
+      "method": "GET",
+      "status": 404,
+      "request_id": "req-8583e218-9735-46e6-a3c9-ae137046e84f",
+      "error_code": "not_found"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96/result",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-06208b38-0466-4d67-b4ee-c5634bb452b7"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96/artifacts/result.json",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-7701ad8d-6096-4182-8db1-a742a2dc6258"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96/artifacts/report.csv",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-88bf8df2-e9a2-4707-acf0-319a4a4bcae0"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96/artifacts/preview.png",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-3b5f8fbc-8cfd-428c-b9e4-c1d44b3110db"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96/artifacts/structure.cif",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-8e51e270-e367-46ee-b9da-dcb45c00c23b"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96/artifacts/scores.json",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-6fe020cc-c43d-4542-b3c2-5669d4132804"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96/artifacts/structure.html",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-01d3ac1b-52a9-4ef8-9a2b-2a281864129a"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96/artifacts/models.zip",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-cf848711-109b-4107-9808-5cb9eb5a3428"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96",
+      "method": "DELETE",
+      "status": 202,
+      "request_id": "req-7902a8d1-23aa-4877-b00f-2d93d4978758"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96",
+      "method": "GET",
+      "status": 404,
+      "request_id": "req-41c4b782-3fca-4783-be14-37d92ed9b269",
+      "error_code": "not_found"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96/result",
+      "method": "GET",
+      "status": 404,
+      "request_id": "req-e846c005-667a-4af5-81d7-7c5ec4efeb7f",
+      "error_code": "not_found"
+    },
+    {
+      "path": "/jobs/job_2cdf845063914f3b85874c4c533cec96/artifacts/structure.html",
+      "method": "GET",
+      "status": 404,
+      "request_id": "req-d978c7bc-22f7-4022-afe8-5a550ccda243",
+      "error_code": "not_found"
+    },
+    {
+      "path": "/jobs",
+      "method": "POST",
+      "status": 202,
+      "request_id": "req-87d4c8e5-6d8a-4391-8b82-85cf21e521ff"
+    },
+    {
+      "path": "/jobs/job_888af9bb733a4dc39ae8f345ee221dca",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-f36be791-3200-4b52-99e7-4c446c917726"
+    },
+    {
+      "path": "/jobs/job_888af9bb733a4dc39ae8f345ee221dca",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-fad79993-4656-487e-8d35-9ee162e905e0"
+    },
+    {
+      "path": "/jobs/job_888af9bb733a4dc39ae8f345ee221dca",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-cef9031d-06b6-4c5b-8a79-7b91a0691a50"
+    },
+    {
+      "path": "/jobs/job_888af9bb733a4dc39ae8f345ee221dca",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-868b4b54-42f9-4c00-8cf0-dffa756a5797"
+    },
+    {
+      "path": "/jobs/job_888af9bb733a4dc39ae8f345ee221dca",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-e5150a3d-e1da-46c8-ae02-9baf1410a134"
+    },
+    {
+      "path": "/jobs/job_888af9bb733a4dc39ae8f345ee221dca/cancel",
+      "method": "POST",
+      "status": 202,
+      "request_id": "req-5b96ff04-2bfc-4d27-94ab-bf5d75f070fa"
+    },
+    {
+      "path": "/jobs/job_888af9bb733a4dc39ae8f345ee221dca",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-2294cef8-a980-4760-a3a3-5032637a191d"
+    },
+    {
+      "path": "/jobs/job_888af9bb733a4dc39ae8f345ee221dca",
+      "method": "GET",
+      "status": 200,
+      "request_id": "req-202dce1d-64d8-4ee0-9f9b-b4b83f35aea8"
+    },
+    {
+      "path": "/jobs/job_888af9bb733a4dc39ae8f345ee221dca",
+      "method": "DELETE",
+      "status": 202,
+      "request_id": "req-d01dbfc8-f391-45da-9dae-002b67742177"
+    },
+    {
+      "path": "/jobs/job_888af9bb733a4dc39ae8f345ee221dca",
+      "method": "GET",
+      "status": 404,
+      "request_id": "req-5507cd61-4413-4b63-85a4-f5a353faa1af",
+      "error_code": "not_found"
+    },
+    {
+      "path": "/jobs/job_888af9bb733a4dc39ae8f345ee221dca/result",
+      "method": "GET",
+      "status": 404,
+      "request_id": "req-6baca52d-66ff-45b9-8b42-0297acee500b",
+      "error_code": "not_found"
+    },
+    {
+      "path": "/jobs/job_888af9bb733a4dc39ae8f345ee221dca/artifacts/structure.html",
+      "method": "GET",
+      "status": 404,
+      "request_id": "req-124569b7-5637-4ec5-ab7b-bb83f58933aa",
+      "error_code": "not_found"
+    }
+  ],
+  "jobs": [
+    {
+      "job_id": "job_2cdf845063914f3b85874c4c533cec96",
+      "state": "completed",
+      "seconds": 46.686,
+      "result_summary": {
+        "length": 76,
+        "mean_atom_plddt": 90.9231561461794,
+        "mean_ca_plddt": 94.58828947368421,
+        "ptm": 0.85,
+        "ca_residues_below_70": 3,
+        "samples": 5,
+        "settings": {
+          "attention": "xla",
+          "bucket": 256,
+          "num_diffusion_samples": 5,
+          "num_models": 1,
+          "num_recycles": 10,
+          "random_seed": 0,
+          "relaxation": false,
+          "run_data_pipeline": false,
+          "templates": false
+        },
+        "runtime_seconds": 44.50275940820575
+      },
+      "deleted": true
+    },
+    {
+      "job_id": "job_888af9bb733a4dc39ae8f345ee221dca",
+      "purpose": "running-cancellation",
+      "state": "cancelled",
+      "phase_at_cancel": "predicting",
+      "deleted": true
+    }
+  ],
+  "artifacts": [
+    {
+      "job_id": "job_2cdf845063914f3b85874c4c533cec96",
+      "name": "result.json",
+      "size": 2580,
+      "sha256": "889fa28195993a95e026cfc3b8c0fa2f93fb5dacc574805823f6a758edb91f0f",
+      "content_type": "application/octet-stream",
+      "verified": true
+    },
+    {
+      "job_id": "job_2cdf845063914f3b85874c4c533cec96",
+      "name": "report.csv",
+      "size": 936,
+      "sha256": "4b40d4c8269d0e3bb97907750dd3495fa0c666baeb2ea19b18a9092973f6f67b",
+      "content_type": "text/csv",
+      "verified": true
+    },
+    {
+      "job_id": "job_2cdf845063914f3b85874c4c533cec96",
+      "name": "preview.png",
+      "size": 92984,
+      "sha256": "c4f070103618b72b05d72b71446906127c2490848c5fbc272aed7441ef6bf6c5",
+      "content_type": "image/png",
+      "verified": true
+    },
+    {
+      "job_id": "job_2cdf845063914f3b85874c4c533cec96",
+      "name": "structure.cif",
+      "size": 55981,
+      "sha256": "7da60a2e9dec6e4aed8efdb5322ec8487c84870004f23b8a24245a4c18a344a6",
+      "content_type": "chemical/x-mmcif",
+      "verified": true
+    },
+    {
+      "job_id": "job_2cdf845063914f3b85874c4c533cec96",
+      "name": "scores.json",
+      "size": 54742,
+      "sha256": "4d22660bdded075ae22156fc94786ca97c33ee4b47f40dc5bc91b397e6f39c4e",
+      "content_type": "application/json",
+      "verified": true
+    },
+    {
+      "job_id": "job_2cdf845063914f3b85874c4c533cec96",
+      "name": "structure.html",
+      "size": 747892,
+      "sha256": "e52b5820830b67b65ce2c22064fcdd2eaac231cf0c8b92bcb868542060c977d3",
+      "content_type": "text/html; charset=utf-8",
+      "verified": true
+    },
+    {
+      "job_id": "job_2cdf845063914f3b85874c4c533cec96",
+      "name": "models.zip",
+      "size": 137708,
+      "sha256": "3641016ad81beb4d83ec832f1139bd7742efc91a2961e471d67fd4d4ebc9d3c8",
+      "content_type": "application/zip",
+      "verified": true
+    }
+  ],
+  "status": "passed"
+}

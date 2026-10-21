@@ -37,6 +37,9 @@ documents.
 
 ## Runtime Components
 
+AF3 is the sole supported protein service: [AF3 Gateway v1](./alphafold3-gateway-v1.md)
+and [2026-10-21 acceptance / AF2 retirement](../outbox/alphafold3-gateway-acceptance-2026-10-21/README.md).
+
 | Task | Runbook |
 | --- | --- |
 | GoldenCode Local context admission | [Local Context Admission Release](./goldencode-local-context-admission-release-2026-08-30.zh-CN.md) |
