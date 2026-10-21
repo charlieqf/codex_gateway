@@ -15,18 +15,18 @@ import { ClinicalStore } from "./store.js";
 import { resolveClinicalService } from "./runtime.js";
 
 const sequence = "MQIFVKTLTGKTITLEVEPSDTIENVKAKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGG";
-const input = (mode: ProteinMode = "alphafold") => ({ session_id: "private-session", analysis_profile: profiles[mode], data_policy: "public_or_authorized_sequence", input: { sequence, external_msa_consent: true } });
+const input = (mode: ProteinMode = "alphafold3") => ({ session_id: "private-session", analysis_profile: profiles[mode], data_policy: "public_or_authorized_sequence", input: { sequence, external_msa_consent: true } });
 const id = "job_" + "a".repeat(32), cleanup: (() => unknown | Promise<unknown>)[] = [];
 afterEach(async () => { for (const fn of cleanup.splice(0).reverse()) await fn(); });
 
 const af3Fixture = () => JSON.parse(readFileSync(new URL("./fixtures/af3-ubiquitin76-result.json", import.meta.url), "utf8"));
-it("AF3 rejects sharing the AF2 or identity database and redacts arbitrary private route text", async () => {
+it("AF3 rejects sharing the other clinical or identity databases and redacts arbitrary private route text", async () => {
   const t = setup(new Star("alphafold3"));
   await t.app.inject({ url: "/gateway/alphafold3/v1/private-sequence?token=private-sequence" });
   await t.app.inject({ url: "/gateway/%61lphafold3/v1/private-sequence" });
   expect(t.logs.join("\n")).not.toContain("private-sequence");
   const path = join(tmpdir(), "clinical-independent-db-check.db");
-  for (const other of ["GATEWAY_ALPHAFOLD_SQLITE_PATH", "GATEWAY_SQLITE_PATH", "GATEWAY_CLIENT_EVENTS_SQLITE_PATH"]) {
+  for (const other of ["GATEWAY_ECHONET_SQLITE_PATH", "GATEWAY_SQLITE_PATH", "GATEWAY_CLIENT_EVENTS_SQLITE_PATH"]) {
     expect(resolveClinicalService("alphafold3", { GATEWAY_ALPHAFOLD3_MODE: "authenticated", GATEWAY_ALPHAFOLD3_SQLITE_PATH: path, [other]: path }, { warn() {} })).toBeNull();
   }
 });
@@ -38,7 +38,6 @@ it("AF3 accepts the real five-sample result and negative ranking scores without 
   Object.assign(data.samples.find((s: { sample: number }) => s.sample === data.sample), { ranking_score: -99.15, has_clash: 1 });
   expect(() => validateAlphaFold3Result(data, { sequence })).not.toThrow();
   expect(capabilities("alphafold3", true).fields).toMatchObject({ num_models: 1, num_diffusion_samples: 5, num_recycle: 10, structure_format: "mmcif" });
-  expect(capabilities("alphafold", true).fields).toMatchObject({ num_models: 5, num_recycle: 3 });
 });
 it("AF3 rejects invalid identity, confidence, samples and settings before returning result bytes", async () => {
   const t = setup(new Star("alphafold3")); await t.create(); t.star.complete();
@@ -73,7 +72,7 @@ it("AF3 preserves the 64 KiB control boundary and never serves AF2 artifacts", a
   expect(() => parseArtifacts("alphafold3", altered)).toThrow();
 });
 class Star {
-  constructor(readonly mode: ProteinMode = "alphafold") {
+  constructor(readonly mode: ProteinMode = "alphafold3") {
     this.files = new Map(artifactNames(mode).map(name => [name, Buffer.from(name === "structure.html" ? "<!doctype html>\n<script>const a = '未改写';</script>" : name)]));
   }
   job?: Job; lost = false; corrupt = false;
@@ -96,17 +95,8 @@ class Star {
     return Object.assign(Readable.from([this.corrupt ? Buffer.from("corrupted") : this.files.get(name)!]), { contentType: proteinContentTypes[name] });
   }
   complete() {
-    this.files.set("result.json", Buffer.from(JSON.stringify({ schema_version: 1, job_id: id, analysis_profile: profiles[this.mode], research_only: true,
-      length: 76, sequence_sha256: sha256(sequence), mean_plddt: 90, ptm: 0.8, residues_below_70: 2,
-      models: Array.from({ length: 5 }, (_, i) => ({ rank: i + 1, mean_plddt: 90, ptm: 0.8 })),
-      settings: { model_type: "alphafold2_ptm", num_models: 5, num_recycle: 3, random_seed: 0, templates: false, relaxation: false },
-      msa: { host: "https://api.colabfold.com", database_version: null }, model_provenance: { learning_only: true }
-    }, null, 2) + "\n"));
-    if (this.mode === "alphafold3") {
-      const result = JSON.parse(readFileSync(new URL("./fixtures/af3-ubiquitin76-result.json", import.meta.url), "utf8"));
-      result.job_id = id;
-      this.files.set("result.json", Buffer.from(JSON.stringify(result, null, 2) + "\n"));
-    }
+    const result = af3Fixture(); result.job_id = id;
+    this.files.set("result.json", Buffer.from(JSON.stringify(result, null, 2) + "\n"));
     Object.assign(this.job!, { state: "completed", result_revision: 1, progress: { phase: "completed" }, artifacts: [...this.files].map(([name, b]) => ({ name, size: b.length, sha256: sha256(b) })) });
   }
 }
@@ -118,13 +108,23 @@ function setup(star = new Star(), path = ":memory:") {
     const key = issueAccessCredential({ subjectId: id, scope: "code", label: "test", expiresAt: new Date(Date.now() + 600000) }); identity.insertAccessCredential(key.record); return key.token;
   });
   const provider: ProviderAdapter = { kind: "fake", health: async () => ({ state: "healthy", checkedAt: new Date() }), async *message() { yield { type: "completed" }; } };
-  const app = buildGateway({ provider, sessionStore: identity, authMode: "credential", alphafoldService: star.mode === "alphafold" ? service : null, alphafold3Service: star.mode === "alphafold3" ? service : null, aipalService: null, panechoService: null, echonetService: null, echonextService: null, imagingService: null, clientEventsStore: null, phoneAuthService: null, logger: { stream: { write(s: string) { logs.push(s); } } } });
+  const app = buildGateway({ provider, sessionStore: identity, authMode: "credential", alphafold3Service: service, aipalService: null, panechoService: null, echonetService: null, echonextService: null, imagingService: null, clientEventsStore: null, phoneAuthService: null, logger: { stream: { write(s: string) { logs.push(s); } } } });
   cleanup.push(() => app.close());
   const request = (method: "GET" | "POST" | "DELETE" | "PUT", suffix: string, body?: unknown, account = 0, headers = {}) => app.inject({ method, url: `/gateway/${star.mode}/v1` + suffix, headers: { authorization: `Bearer ${keys[account]}`, ...(body === undefined ? {} : { "content-type": "application/json" }), ...headers }, payload: body as string });
   const create = (body = input(star.mode)) => request("POST", "/jobs", body, 0, { "idempotency-key": "original-key:123" });
-  return { app, request, create, star, store, service, logs };
+  return { app, request, create, star, store, service, logs, keys };
 }
-for (const mode of ["alphafold", "alphafold3"] as const) {
+const mode = "alphafold3";
+it("AF2 is unregistered and AF3 rejects the retired profile without forwarding", async () => {
+  const t = setup();
+  expect(t.app.hasRoute({ method: "GET", url: "/gateway/alphafold/v1/capabilities" })).toBe(false);
+  for (const suffix of ["/capabilities", "/jobs", `/jobs/${id}/result`, `/jobs/${id}/artifacts/structure.pdb`]) {
+    const result = await t.app.inject({ url: "/gateway/alphafold/v1" + suffix, headers: { authorization: `Bearer ${t.keys[0]}` } });
+    expect(result.statusCode).toBe(404); expect(result.headers.location).toBeUndefined();
+  }
+  expect((await t.request("POST", "/jobs", { ...input(), analysis_profile: "alphafold2-monomer-public-msa-v1" }, 0, { "idempotency-key": "retired-profile" })).statusCode).toBe(422);
+  expect(t.star.calls).toHaveLength(0);
+});
 it(mode + " validates consent/sequence before reserving and discards FASTA title", async () => {
   const t = setup(new Star(mode));
   for (const invalid of [{ sequence, external_msa_consent: false }, { sequence: sequence + "X", external_msa_consent: true }, { sequence: ">one\n" + sequence + "\n>two\n" + sequence, external_msa_consent: true }, { sequence: "A".repeat(131), external_msa_consent: true }, { sequence: "A".repeat(4097), external_msa_consent: true }]) {
@@ -172,4 +172,3 @@ it(mode + " verifies all seven files before HTTP success, preserves JSON/HTML by
   expect(() => parseArtifacts(mode, manifest.slice(1))).toThrow();
   expect(() => parseArtifacts(mode, manifest.map(a => ({ ...a, size: 33554433 })))).toThrow();
 });
-}

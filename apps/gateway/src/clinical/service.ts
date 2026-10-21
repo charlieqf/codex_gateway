@@ -5,7 +5,7 @@ import { ImagingError, sha256 } from "../imaging/contract.js";
 import { ClinicalStore, type Action, type Intent, type Limits } from "./store.js";
 import { capabilities, chunkBytes, ClinicalError, hashPattern, identifier, isProtein, object, owner, parseInput, parseJob, profiles, requireClinical, terminal, usesUpload, type Input, type Job, type Mode } from "./contract.js";
 import { validateEchoResult } from "./echo-result.js";
-import { proteinContentTypes, validateAlphaFold3Result, validateProteinResult } from "./protein-result.js";
+import { proteinContentTypes, validateAlphaFold3Result } from "./protein-result.js";
 
 export type ClinicalClient = StarClient & { source(owner: string, signal?: AbortSignal): Promise<Buffer> };
 export class ClinicalService {
@@ -129,9 +129,7 @@ export class ClinicalService {
     catch (error) { if (error instanceof ImagingError) throw error; throw new ClinicalError(503, "upstream_protocol_error"); }
     const data = object(raw);
     requireClinical(data.schema_version === 1 && data.job_id === id && data.analysis_profile === profiles[this.mode] && data.research_only === true, 503, "upstream_protocol_error");
-    if (this.mode === "alphafold") {
-      validateProteinResult(data, this.owned(subject, id).input?.input);
-    } else if (this.mode === "alphafold3") {
+    if (this.mode === "alphafold3") {
       validateAlphaFold3Result(data, this.owned(subject, id).input?.input);
     } else if (this.mode === "aipal") {
       const p = object(data.probabilities); requireClinical(Object.keys(p).length === 3 && ["ALL", "AML", "APL"].every(k => typeof p[k] === "number" && Number.isFinite(p[k]) && Number(p[k]) >= 0 && Number(p[k]) <= 1) && Math.abs(Object.values(p).reduce<number>((sum, n) => sum + Number(n), 0) - 1) < 0.0001, 503, "upstream_protocol_error");

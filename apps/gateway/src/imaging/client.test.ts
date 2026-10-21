@@ -26,7 +26,7 @@ function client(baseUrl: string, options: Partial<ConstructorParameters<typeof H
   cleanup.push(() => c.close()); return c;
 }
 describe("private imaging HTTPS transport", () => {
-  it.each(["alphafold", "alphafold3"] as const)("%s retains private authentication, original idempotency and structured upstream failures", async mode => {
+  it.each(["alphafold3"] as const)("%s retains private authentication, original idempotency and structured upstream failures", async mode => {
     let observed: IncomingMessage["headers"] = {};
     const url = (await server((req, res) => {
       observed = req.headers; req.resume(); req.on("end", () => {

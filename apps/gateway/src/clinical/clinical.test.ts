@@ -17,7 +17,7 @@ import { ClinicalService } from "./service.js";
 import { resolveClinicalService } from "./runtime.js";
 
 const cleanup: (() => unknown | Promise<unknown>)[] = [];
-type Mode = Exclude<ClinicalMode, "alphafold" | "alphafold3">;
+type Mode = Exclude<ClinicalMode, "alphafold3">;
 afterEach(async () => { for (const fn of cleanup.splice(0).reverse()) await fn(); });
 const bytes = Buffer.from("public cine fixture"), subjects = ["subj_clinical_a", "subj_clinical_b", "subj_no_pilot"];
 export const aipalInput = (): Input => ({ session_id: "private-patient-session", analysis_profile: profiles.aipal, data_policy: "public_or_deidentified", input: {
@@ -158,7 +158,7 @@ describe("clinical public tasks", () => {
       expect(warnings).toHaveLength(1);
     }
   });
-  for (const mode of modes.filter((m): m is Mode => m !== "alphafold" && m !== "alphafold3")) {
+  for (const mode of modes.filter((m): m is Mode => m !== "alphafold3")) {
     it(`${mode}: authoritative keys, owner isolation, forged headers and independent admission`, async () => {
       const t = setup(mode); const created = await t.create(); expect(created.statusCode).toBe(mode === "aipal" ? 202 : 201); const id = created.json().job_id;
       expect(t.star.calls[0]?.owner).toBe(owner(mode, subjects[0]!)); expect(t.star.calls[0]?.body).not.toHaveProperty("owner");

@@ -5,7 +5,7 @@ import { capabilities, chunkBytes, ClinicalError, identifier, isProtein, object,
 import type { ClinicalService } from "./service.js";
 
 type State = { release?: () => void; timer?: NodeJS.Timeout; working: boolean; disconnected: boolean; streaming: boolean; errorCode: string | null };
-export const isClinicalRoute = (url: string) => /^\/gateway\/(?:imaging|aipal|panecho|echonet|echonext|alphafold|alphafold3)\/v1(?:\/|$)/.test(url.split("?", 1)[0]!);
+export const isClinicalRoute = (url: string) => /^\/gateway\/(?:imaging|aipal|panecho|echonet|echonext|alphafold3)\/v1(?:\/|$)/.test(url.split("?", 1)[0]!);
 export function registerClinicalRoutes(root: FastifyInstance, mode: Mode, service: ClinicalService | null) {
   const base = prefix(mode);
   void root.register(async app => {

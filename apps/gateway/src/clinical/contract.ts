@@ -1,17 +1,16 @@
 import { ImagingError, sha256 } from "../imaging/contract.js";
 
-export type ProteinMode = "alphafold" | "alphafold3";
+export type ProteinMode = "alphafold3";
 export type Mode = "aipal" | "panecho" | "echonet" | "echonext" | ProteinMode;
 export type Json = Record<string, unknown>;
-export const modes: readonly Mode[] = ["aipal", "panecho", "echonet", "echonext", "alphafold", "alphafold3"];
-export const profiles = { aipal: "aipal-adult-research-v1", panecho: "panecho-tte-research-v1", echonet: "echonet-a4c-research-v1", echonext: "echonext-mini-ecg-research-v1", alphafold: "alphafold2-monomer-public-msa-v1", alphafold3: "alphafold3-monomer-public-msa-v1" } as const;
+export const modes: readonly Mode[] = ["aipal", "panecho", "echonet", "echonext", "alphafold3"];
+export const profiles = { aipal: "aipal-adult-research-v1", panecho: "panecho-tte-research-v1", echonet: "echonet-a4c-research-v1", echonext: "echonext-mini-ecg-research-v1", alphafold3: "alphafold3-monomer-public-msa-v1" } as const;
 export const chunkBytes = 8 * 1024 * 1024, maxUploadBytes = 512 * 1024 * 1024, retention = 86400;
-export const isProtein = (mode: Mode | undefined): mode is ProteinMode => mode === "alphafold" || mode === "alphafold3";
+export const isProtein = (mode: Mode | undefined): mode is ProteinMode => mode === "alphafold3";
 export const usesUpload = (mode: Mode) => mode !== "aipal" && !isProtein(mode);
 export const uploadLimit = (mode: Mode) => mode === "echonext" ? 16 * 1024 * 1024 : maxUploadBytes;
 export const artifactLimit = (mode: Mode) => mode === "echonet" || mode === "echonext" || isProtein(mode) ? 32 * 1024 * 1024 : maxUploadBytes;
 export const artifactNames = (mode: Mode): string[] => mode === "aipal" ? ["result.json", "report.csv"]
-  : mode === "alphafold" ? ["result.json", "report.csv", "preview.png", "structure.pdb", "scores.json", "structure.html", "models.zip"]
   : mode === "alphafold3" ? ["result.json", "report.csv", "preview.png", "structure.cif", "scores.json", "structure.html", "models.zip"]
   : mode === "echonet" ? ["result.json", "report.csv", "preview.png", "overlay.mp4", "contours.json"] : ["result.json", "report.csv", "preview.png"];
 export const fields = {
@@ -150,7 +149,7 @@ export function capabilities(mode: Mode, available: boolean) {
     ...(mode === "echonet" || mode === "echonext" || isProtein(mode) ? { artifact_names: artifactNames(mode), max_artifact_bytes: artifactLimit(mode) } : {}),
     fields: mode === "aipal" ? Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, { unit: v[0] }]))
       : isProtein(mode) ? { formats: ["sequence", "fasta"], min_residues: 16, max_residues: 130, chains: 1, external_msa: "https://api.colabfold.com", external_msa_consent_required: true, data_policy: "public_or_authorized_sequence", templates: false, relaxation: false,
-        ...(mode === "alphafold3" ? { num_models: 1, num_diffusion_samples: 5, num_recycle: 10, random_seed: 0, structure_format: "mmcif", confidence_unit: "atom", supports_complexes: false, supports_ligands: false, supports_nucleic_acids: false } : { num_models: 5, num_recycle: 3 }), max_sequence_bytes: 4096 }
+        num_models: 1, num_diffusion_samples: 5, num_recycle: 10, random_seed: 0, structure_format: "mmcif", confidence_unit: "atom", supports_complexes: false, supports_ligands: false, supports_nucleic_acids: false, max_sequence_bytes: 4096 }
       : mode === "echonext" ? { formats: ["ge_muse_xml"], max_upload_bytes: uploadLimit(mode), chunk_bytes: chunkBytes, acquisition: "resting_12_lead_ecg", sample_rates_hz: [250, 500], seconds: 10, validated_mv_per_lsb: 0.00488, quality_confirmation_required: true }
       : { formats: ["video", "video_zip", "dicom_zip"], max_upload_bytes: maxUploadBytes, chunk_bytes: chunkBytes, acquisition: "2d_tte",
         ...(mode === "echonet" ? { view: "a4c", cine_count: 1, min_frames: 63, max_frames: 512, normalization: "fixed_public_demo_statistics_learning_only" } : {}) }, poll_after_ms: 2000 };

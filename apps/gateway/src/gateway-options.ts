@@ -115,7 +115,6 @@ export interface GatewayOptions {
   panechoService?: ClinicalService | null;
   echonetService?: ClinicalService | null;
   echonextService?: ClinicalService | null;
-  alphafoldService?: ClinicalService | null;
   alphafold3Service?: ClinicalService | null;
   activeRequestRegistry?: ActiveRequestRegistry;
   localContextAdmissionMode?: LocalContextAdmissionMode;
