@@ -1,5 +1,18 @@
 # System Status
 
+Current Gateway `25e021f79fb07c28e40ae9be7cd728573788a064` is live, deployed
+2026-10-22 22:42:17 UTC and verified at 22:46:12 UTC. The three-provider
+Goldencode pool now retains request failover when TokenSwitch is present.
+Clean Linux tests: 2054 passed / 4 skipped. Deployed-process fault injection:
+12 directions/modes passed plus one real Tencent fallback; public HTTPS:
+six real Chat/Responses calls across all three providers passed, preserving low
+reasoning and finalized usage. Healthy, zero restarts, schema 43 unchanged,
+nine database integrity/FK checks passed. Environment, ports, 22 protected
+files and three other containers were preserved; the smoke account is disabled
+with revoked credentials and zero pending reservations. Cutover recorded one
+transient credentials/current 503. See the
+[three-provider failover release receipt](./gateway-three-provider-failover-release-2026-10-23.zh-CN.md).
+
 Gateway `ea1ca390f8a09792b73b36f8dd3044d53f6c94bd` is live, deployed
 2026-10-22 21:46:52 UTC and verified at 21:49:19 UTC. Permanent gift/topup
 Token credits preserve existing entitlements and usage and cover exhausted
