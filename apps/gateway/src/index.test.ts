@@ -16733,6 +16733,103 @@ async function withTemporaryEnv(
 }
 
 describe("GoldenCode native provider failover", () => {
+  describe("three-provider pool", () => {
+    const members = ["tencent", "tiankuan", "tokenswitch"];
+    const modes = [false, true].flatMap(plain => [false, true].flatMap(stream =>
+      ["chat/completions", "responses"].map(api => ({ plain, stream, api }))));
+    const routes = members.flatMap(first => members.filter(second => second !== first)
+      .flatMap(second => modes.map(mode => ({ first, second, ...mode }))));
+    const payloadFor = ({ api, stream, plain }: typeof modes[number]) => {
+      const payload = nativeFailoverPayload(api, stream);
+      if (plain) { delete payload.tools; delete payload.tool_choice; }
+      return payload;
+    };
+
+    it.each(routes)("switches $first to $second: $api stream=$stream plain=$plain", async (mode) => {
+      await runGoldenCodeFailoverFixture({ members, ...mode, status: 503 }, async ({ app, headers, calls, store }) => {
+        const payload = payloadFor(mode);
+        if (mode.api === "responses") {
+          delete payload.reasoning_effort;
+          payload.reasoning = { effort: "low" };
+        } else payload.reasoning_effort = "low";
+        const response = await app.inject({ method: "POST", url: `/v1/${mode.api}`, headers, payload });
+        expect(response.statusCode, response.body).toBe(200);
+        expect(response.body).toContain(mode.plain ? "failover text ok" : "call_failover_ok");
+        expect(calls.map(call => call.runtime)).toEqual([mode.first, mode.second]);
+        expect(calls.map(call => call.body.reasoning_effort)).toEqual(["low", "low"]);
+        const event = store.listRequestEvents({ limit: 1 })[0]!;
+        expect(event).toMatchObject({ status: "ok", errorCode: null, totalTokens: 12 });
+        expect(event.upstreamAttempts).toHaveLength(2);
+        expect(event.upstreamAttempts?.map(attempt => attempt.upstreamRuntime)).toEqual([mode.first, mode.second]);
+        expect(event.upstreamAttempts?.[0]).toMatchObject({ upstreamHttpStatus: 503 });
+        expect(event.upstreamAttempts?.[1]).toMatchObject({ upstreamHttpStatus: 200 });
+        expect(store.database.prepare("SELECT final_total_tokens FROM token_reservations").all())
+          .toEqual([expect.objectContaining({ final_total_tokens: 12 })]);
+      });
+    });
+
+    it.each(modes)("stops after two failures with a third provider available: $api stream=$stream plain=$plain", async (mode) => {
+      await runGoldenCodeFailoverFixture({ members, plain: mode.plain, bothFail: true, status: 503 }, async ({ app, headers, calls, store }) => {
+        const response = await app.inject({ method: "POST", url: `/v1/${mode.api}`, headers, payload: payloadFor(mode) });
+        expect(publicFailoverError(response.body)).toMatchObject({ code: "upstream_unavailable", automatic_retry_allowed: false });
+        expect(calls).toHaveLength(2);
+        expect(new Set(calls.map(call => call.runtime)).size).toBe(2);
+        expect(store.listRequestEvents({ limit: 1 })[0]?.upstreamAttempts).toHaveLength(2);
+      });
+    });
+
+    it.each(modes.flatMap(mode => [false, true].map(bothEmpty => ({ ...mode, bothEmpty }))))(
+      "settles empty responses: $api stream=$stream plain=$plain bothEmpty=$bothEmpty", async (mode) => {
+        await runGoldenCodeFailoverFixture({ members, first: "tokenswitch", empty: true, ...mode }, async ({ app, headers, calls, store }) => {
+          const response = await app.inject({ method: "POST", url: `/v1/${mode.api}`, headers, payload: payloadFor(mode) });
+          if (mode.bothEmpty) expect(publicFailoverError(response.body).code).toBe("upstream_empty_response");
+          else expect(response.body).toContain(mode.plain ? "failover text ok" : "call_failover_ok");
+          expect(calls).toHaveLength(2);
+          expect(calls[0]?.runtime).toBe("tokenswitch");
+          expect(calls[1]?.runtime).not.toBe("tokenswitch");
+          const decisions = store.database.prepare("SELECT state, charged_usage_json FROM token_charge_decisions").all();
+          expect(decisions).toHaveLength(1);
+          expect(decisions[0]!.state).toBe("applied");
+          expect(JSON.parse(String(decisions[0]!.charged_usage_json)).totalTokens).toBe(mode.bothEmpty ? 0 : 12);
+          expect(store.database.prepare("SELECT final_total_tokens FROM token_reservations").get())
+            .toMatchObject({ final_total_tokens: mode.bothEmpty ? 40 : 32 });
+          expect(store.database.prepare("SELECT total_tokens FROM entitlement_token_windows WHERE window_kind = 'day'").all())
+            .toEqual([expect.objectContaining({ total_tokens: mode.bothEmpty ? 0 : 12 })]);
+        });
+      });
+
+    const boundaries = [
+      { name: "provider authentication", options: { status: 403 }, calls: 1 },
+      { name: "disabled rollout", options: { enabled: false }, calls: 1 },
+      { name: "subject outside rollout", options: { subjects: "another_subject" }, calls: 1 },
+      { name: "partial tool output", options: { partial: true }, calls: 1 },
+      { name: "partial text output", options: { partialText: true, plain: true }, calls: 1 },
+      { name: "argument repair budget", options: { repairThenFail: true }, calls: 2 },
+      { name: "malformed fallback", options: { fallbackInvalid: true }, calls: 2 }
+    ];
+    it.each(boundaries.flatMap(boundary => [false, true].map(stream => ({ ...boundary, stream }))))(
+      "preserves $name protection: stream=$stream", async ({ options, calls: expectedCalls, stream }) => {
+        await runGoldenCodeFailoverFixture({ members, first: "tokenswitch", ...options }, async ({ app, headers, calls, store }) => {
+          const response = await app.inject({ method: "POST", url: "/v1/chat/completions", headers,
+            payload: payloadFor({ api: "chat/completions", stream, plain: "plain" in options }) });
+          expect(response.body).toContain("error");
+          expect(response.body).not.toContain("call_failover_ok");
+          expect(calls).toHaveLength(expectedCalls);
+          expect(store.listRequestEvents({ limit: 1 })[0]?.upstreamAttempts).toHaveLength(expectedCalls);
+        });
+      });
+
+    it.each(modes)("stops at the shared deadline: $api stream=$stream plain=$plain", async (mode) => {
+      await runGoldenCodeFailoverFixture({ members, first: "tokenswitch", hang: true }, async ({ app, headers, calls, store }) => {
+        const response = await app.inject({ method: "POST", url: `/v1/${mode.api}`,
+          headers: { ...headers, "x-medcode-request-timeout-ms": "150" }, payload: payloadFor(mode) });
+        expect(publicFailoverError(response.body)).toMatchObject({ code: "upstream_timeout", automatic_retry_allowed: false });
+        expect(calls).toHaveLength(1);
+        expect(store.listRequestEvents({ limit: 1 })[0]?.upstreamAttempts).toHaveLength(1);
+      });
+    });
+  });
+
   it.each([false, true].flatMap(plain => [false, true].map(stream => ({ plain, stream })) ))(
     "keeps partial fallback failures billable: plain=$plain stream=$stream", async ({ plain, stream }) => {
       await runGoldenCodeFailoverFixture({ empty: true, partialText: plain, partial: !plain }, async ({ app, headers, calls, store }) => {
@@ -17040,6 +17137,7 @@ function nativeFailoverPayload(api: string, stream: boolean): Record<string, unk
 
 async function runGoldenCodeFailoverFixture(options: {
   first?: string; bothFail?: boolean; status?: number | "reset"; enabled?: boolean;
+  members?: string[]; second?: string;
   repairThenFail?: boolean; cooldown?: string; clock?: () => Date; recover?: boolean;
   disabledMember?: string; subjects?: string; fallbackInvalid?: boolean; repairSuccess?: boolean; partial?: boolean; plain?: boolean;
   hang?: boolean; partialText?: boolean; empty?: boolean; bothEmpty?: boolean; omitEmptyUsage?: boolean;
@@ -17048,9 +17146,9 @@ async function runGoldenCodeFailoverFixture(options: {
   store: ReturnType<typeof createModelEntitledStore>["store"] }) => Promise<void>): Promise<void> {
   const first = options.first ?? "tiankuan";
   const calls: Array<{ runtime: string; body: Record<string, unknown> }> = [];
-  const server = await startOpenAICompatibleSseServer((_request, raw, response) => {
+  const server = await startOpenAICompatibleSseServer((request, raw, response) => {
     const body = JSON.parse(raw) as Record<string, unknown>;
-    const runtime = String(body.model).startsWith("official/") ? "tiankuan" : "tencent";
+    const runtime = String(request.headers.authorization).replace(/^Bearer (.+)-test-key$/, "$1");
     calls.push({ runtime, body });
     if (options.empty && (runtime === first || options.bothEmpty)) {
       response.writeHead(200, { "content-type": "text/event-stream" });
@@ -17089,19 +17187,23 @@ async function runGoldenCodeFailoverFixture(options: {
   });
   const config = goldencodePoolConfig();
   config.reasoning = { effort: "high" };
-  config.pool.members = config.pool.members.filter((member) => ["tencent", "tiankuan"].includes(member.runtime));
-  config.pool.members.find((member) => member.runtime === "tencent")!.upstreamModel = "glm-5.3";
+  config.pool.members = config.pool.members.filter((member) => (options.members ?? ["tencent", "tiankuan"]).includes(member.runtime));
+  for (const member of config.pool.members) member.upstreamModel = member.runtime === "tiankuan" ? "official/glm-5.3" : "glm-5.3";
   if (options.disabledMember) config.pool.members.find((member) => member.runtime === options.disabledMember)!.enabled = false;
   let session = "";
   for (let i = 0; i < 1000; i += 1) {
     session = `native-failover-${i}`;
-    if (hrwAccountForKey(`client_session:${session}`, config.pool.members.map((member) => member.id)) === `goldencode-${first}`) break;
+    const affinity = `client_session:${session}`;
+    const memberIds = config.pool.members.map(member => member.id);
+    if (hrwAccountForKey(affinity, memberIds) !== `goldencode-${first}`) continue;
+    if (!options.second || hrwAccountForKey(affinity, memberIds.filter(id => id !== `goldencode-${first}`)) === `goldencode-${options.second}`) break;
   }
   try {
     await withTemporaryEnv({
       MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({ goldencode: config }),
       MEDCODE_TENCENT_TOKENHUB_API_KEY: "tencent-test-key", MEDCODE_TENCENT_TOKENHUB_BASE_URL: server.baseUrl,
       MEDCODE_TIANKUAN_API_KEY: "tiankuan-test-key", MEDCODE_TIANKUAN_BASE_URL: server.baseUrl,
+      MEDCODE_TOKENSWITCH_API_KEY: "tokenswitch-test-key", MEDCODE_TOKENSWITCH_BASE_URL: server.baseUrl,
       GATEWAY_GOLDENCODE_NATIVE_FAILOVER_MODE: options.enabled === false ? undefined : "enforce",
       GATEWAY_GOLDENCODE_FAILOVER_SUBJECT_IDS: options.subjects ?? "subj_dev",
       GATEWAY_GOLDENCODE_QUOTA_COOLDOWN_SECONDS: options.cooldown ?? "0"

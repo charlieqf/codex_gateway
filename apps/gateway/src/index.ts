@@ -2421,7 +2421,8 @@ export function buildGateway(options: GatewayOptions = {}) {
       boundedWriteEnabled(boundedWritePolicy, subject.id);
     const goldencodeRequestFailover = publicModel.id === "goldencode" &&
       publicModel.runtime === "pool" && modality === "text" &&
-      publicModel.pool!.members.every((member) => member.runtime === "tencent" || member.runtime === "tiankuan") &&
+      publicModel.pool!.members.every((member) =>
+        member.runtime === "tencent" || member.runtime === "tiankuan" || member.runtime === "tokenswitch") &&
       goldencodeNativeFailover && (!goldencodeFailoverSubjects.size || goldencodeFailoverSubjects.has(subject.id));
     request.gatewayProviderFailoverEnabled = goldencodeRequestFailover || !!visionRecovery;
     let attempt = chatRuntimeDispatcher.begin({
