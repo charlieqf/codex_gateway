@@ -1,5 +1,19 @@
 # System Status
 
+Gateway `ea1ca390f8a09792b73b36f8dd3044d53f6c94bd` is live, deployed
+2026-10-22 21:46:52 UTC and verified at 21:49:19 UTC. Permanent gift/topup
+Token credits preserve existing entitlements and usage and cover exhausted
+day/month Token allowances. Clean Linux tests: 1960 passed / 4 skipped.
+Public HTTPS: 51 checks passed; two real goldencode/low calls each charged
+135 Tokens exclusively to credits after a synthetic day or month cap was spent.
+Schema 43; migration rehearsal preserved 697,867 existing rows in 29 tables.
+Natural idle: 30.31 seconds; healthy, zero restarts, nine database integrity/FK
+checks passed. Environment, ports, 22 protected files and three other containers
+were preserved. All four smoke subjects are disabled with revoked credentials
+and no pending reservations; audit ledgers remain. See the
+[Token credits release receipt](./gateway-token-credits-release-2026-10-23.zh-CN.md)
+and [identity/payment API contract](../outbox/gateway-token-credits-api-2026-10-23.zh-CN.md).
+
 Gateway `a259d29d378a6748d2227ce8a0cb8680a5373c87` is live, deployed
 2026-10-22 01:56:53 UTC and verified at 01:59:47 UTC. Literature document
 extraction now uses the normal authenticated HTTPS route for current and future

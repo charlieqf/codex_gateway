@@ -1,12 +1,12 @@
 # Gateway 赠送／充值 Token 接口
 
-2026-10-23。供身份后端、支付后端接入评审。本地实现与验证已完成，待 Gateway 发布上线；当前生产尚未部署本功能，不能据此直接调用生产新路径。
+2026-10-23。供身份后端、支付后端接入评审。已上线 Gateway `ea1ca39`，北京时间 2026-10-23 05:49 完成线上验收，可开始联调。
 
 本期确认：每次发放给账户净增加指定数量 Token，永久有效；原免费额度、套餐、已用量、模型 Key 和有效期均保留。套餐日／月 Token 额度不足时，自动使用追加余额。
 
 ## 接口与鉴权
 
-统一前缀 `/gateway/admin/billing/v1`，沿用服务端专用 `Authorization: Bearer <billing-admin-token>`。客户端模型 Key 和身份／支付 access_token 不能调用。生产服务地址沿用 `https://goldencode.instmarket.com.au:1443`，待发布通知后联调。
+统一前缀 `/gateway/admin/billing/v1`，沿用服务端专用 `Authorization: Bearer <billing-admin-token>`。客户端模型 Key 和身份／支付 access_token 不能调用。生产服务地址沿用 `https://goldencode.instmarket.com.au:1443`。
 
 | 用途 | 方法与相对路径 |
 | --- | --- |

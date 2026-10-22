@@ -2,7 +2,7 @@
 
 2026-10-22。适用：身份后端、支付后端。
 
-2026-10-23 补充：赠送／充值净追加 Token 功能已完成本地实现和验证，接口合同见[赠送／充值 Token 接口](gateway-token-credits-api-2026-10-23.zh-CN.md)。该新功能尚未部署生产；下述已有接口与新接口的上线状态须分别确认。
+2026-10-23 补充：赠送／充值净追加 Token 功能已在 Gateway `ea1ca39` 上线并通过公网验收，接口合同见[赠送／充值 Token 接口](gateway-token-credits-api-2026-10-23.zh-CN.md)，身份／支付后端可开始联调。
 
 现有接口支持手机号开户并发放注册免费额度、套餐购买与续费、权益状态变更、用量对账和模型 Key 管理。请重点确认双方的用户映射、商品与套餐映射、支付事件处理和额度展示口径。
 
@@ -143,7 +143,7 @@ Content-Type: application/json
 
 已有付费权益时，应先确定替换规则。`replace_current=true` 会取消旧权益并创建新权益；`replace_scheduled=true` 会取消未来权益；`replace_paused=true` 可配合替换取消暂停权益。不要在冲突后自动开启这些参数。
 
-**不能把套餐替换视为“保留已用量、只追加 Token”。** 本期新增独立 `POST /token-credit-events`，支持 gift／topup，按正整数净追加、永久有效、套餐日／月额度不足后继续消费；保留原权益和用量。具体字段与幂等规则见[新接口合同](gateway-token-credits-api-2026-10-23.zh-CN.md)，生产须待发布后使用。原 `/entitlement-events` 的事件枚举不变；同周期升级结转、upgrade 和 refund 仍未实现。
+**不能把套餐替换视为“保留已用量、只追加 Token”。** 本期已上线独立 `POST /token-credit-events`，支持 gift／topup，按正整数净追加、永久有效、套餐日／月额度不足后继续消费；保留原权益和用量。具体字段与幂等规则见[新接口合同](gateway-token-credits-api-2026-10-23.zh-CN.md)。原 `/entitlement-events` 的事件枚举不变；同周期升级结转、upgrade 和 refund 仍未实现。
 
 资金退款由支付后端处理；需要取消或暂停模型权益时，另发对应事件。现有接口尚不支持金额钱包充值、退款冲正或按价格表扣余额。
 
