@@ -38,6 +38,7 @@ PLAN_TOKEN_LIMITS_COMMAND = "set-plan-token-limits"
 FREE_TOTAL_RESET_COMMAND = "reset-free-total"
 REGISTRATION_RELEASE_COMMAND = "release-registration"
 UNIFIED_KEY_EXPIRY_COMMAND = "extend-unified-key-expiry"
+EXTRA_GIFT_COMMAND = "grant-extra-gift"
 USER_CREDENTIAL_CLASSES = {"desktop", "unknown"}
 SIMPLE_WRITE_COMMANDS = {
     "ensure-account-rpd-minimum",
@@ -108,6 +109,10 @@ def validate_admin_args(admin_args: list[str]) -> tuple[str, str | None]:
     if not admin_args:
         raise ManagementError("An admin CLI write command is required after '--'.")
     command = admin_args[0]
+    if command == EXTRA_GIFT_COMMAND:
+        if len(admin_args) != 2 or not admin_args[1].strip():
+            raise ManagementError("grant-extra-gift requires a reviewed JSON plan path.")
+        return command, None
     if command == UNIFIED_KEY_EXPIRY_COMMAND:
         if len(admin_args) != 2 or not admin_args[1].strip():
             raise ManagementError("extend-unified-key-expiry requires a local reviewed JSON plan path.")
@@ -300,6 +305,13 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
     )
     bulk_plan: dict[str, Any] | None = None
     plan_policy = run_plan_token_policy(r760, args, apply=False) if command == PLAN_TOKEN_LIMITS_COMMAND else None
+    extra_gift = None
+    extra_gift_preview = None
+    if command == EXTRA_GIFT_COMMAND:
+        extra_gift = json.loads(Path(args.admin_args[1]).read_text(encoding="utf-8"))
+        if not isinstance(extra_gift, dict):
+            raise ManagementError("Extra gift plan must be a JSON object.")
+        extra_gift_preview = run_extra_gift(r760, args, extra_gift, apply=False)
     free_reset = run_free_total_reset(r760, args, apply=False) if command == FREE_TOTAL_RESET_COMMAND else None
     unified_operation = None
     unified_preview = None
@@ -329,6 +341,7 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
             "argument_count": len(args.admin_args),
             **({"plan": bulk_plan} if bulk_plan is not None else {}),
             **({"plan": plan_policy} if plan_policy is not None else {}),
+            **({"plan": extra_gift_preview} if extra_gift_preview is not None else {}),
             **({"plan": free_reset} if free_reset is not None else {}),
             **({"plan": unified_preview} if unified_preview is not None else {}),
             **({"plan": release_plan} if release_plan is not None else {}),
@@ -348,6 +361,8 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
         )
         if command == PLAN_TOKEN_LIMITS_COMMAND:
             authority_result = run_plan_token_policy(r760, args, apply=True)
+        elif extra_gift is not None:
+            authority_result = run_extra_gift(r760, args, extra_gift, apply=True)
         elif command == FREE_TOTAL_RESET_COMMAND:
             authority_result = run_free_total_reset(r760, args, apply=True)
         elif unified_operation is not None:
@@ -401,6 +416,18 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
         return result
     finally:
         remove_helper_best_effort(r760, container_path=helper_path)
+
+
+def run_extra_gift(endpoint: RemoteGateway, args: argparse.Namespace, plan: dict[str, Any], *, apply: bool) -> dict[str, Any]:
+    payload = base64.b64encode(json.dumps({**plan, "apply": apply}).encode("utf-8")).decode("ascii")
+    completed = run_ssh(
+        endpoint,
+        f"{docker_command(endpoint)} exec -i -w /app -e R760_EXTRA_GIFT_B64={payload} "
+        f"{shell_word(endpoint.container)} node -",
+        stdin=Path(__file__).with_name("gateway-extra-gift.cjs").read_text(encoding="utf-8"),
+        timeout_seconds=args.timeout_seconds,
+    )
+    return json.loads(completed.stdout)
 
 
 def run_free_total_reset(endpoint: RemoteGateway, args: argparse.Namespace, *, apply: bool) -> dict[str, Any]:

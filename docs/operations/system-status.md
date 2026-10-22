@@ -1,5 +1,18 @@
 # System Status
 
+Gateway `a259d29d378a6748d2227ce8a0cb8680a5373c87` is live, deployed
+2026-10-22 01:56:53 UTC and verified at 01:59:47 UTC. Literature document
+extraction now uses the normal authenticated HTTPS route for current and future
+accounts, with a private R760 worker and a protected token file. Public real-PDF
+upload/completion/catalog, original/refined/selected PNG hashes, cross-account
+denials, 50 MiB upload boundaries and a real goldencode/low call passed. Document
+requests added zero model token reservations. Linux: 1935 passed / 4 skipped.
+Natural idle: 30.31 seconds; healthy, zero restarts, schema 42 unchanged, nine
+active databases passed integrity/FK checks. Protected inputs, other containers
+and ports were preserved; temporary accounts and document artifacts were cleaned.
+Installed Desktop/PPT acceptance remains with the client team. See the
+[literature Gateway receipt](../outbox/literature-gateway-acceptance-2026-10-22.zh-CN.md).
+
 Gateway `8d55a638ec30753094802a063c771b28ee358f17` is live, deployed
 2026-10-21 00:27:40 UTC and verified at 00:32:11 UTC. AF3 is the sole protein
 mode after successful public acceptance followed by immediate AF2 retirement.
