@@ -111,6 +111,7 @@ export interface GatewayOptions {
   imageGenerationBillingFallbacks?: ImageGenerationBillingFallbackInput[];
   visionAssetService?: VisionAssetService | null;
   imagingService?: ImagingService | null;
+  documentEvidence?: NodeJS.ProcessEnv;
   aipalService?: ClinicalService | null;
   panechoService?: ClinicalService | null;
   echonetService?: ClinicalService | null;

@@ -1,0 +1,9 @@
+# Merge into the existing R760 gateway override during approved release.
+# Preserve its image, environment, mounts, networks and all other services.
+services:
+  gateway:
+    environment:
+      CODEX_DOCUMENT_EVIDENCE_URL: http://172.18.0.1:8101
+      CODEX_DOCUMENT_EVIDENCE_TOKEN_FILE: /run/secrets/documents/service.token
+    volumes:
+      - /opt/codex-gateway-r760/secrets/documents:/run/secrets/documents:ro

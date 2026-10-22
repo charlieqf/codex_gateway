@@ -191,6 +191,7 @@ import { registerVisionAssetRoutes } from "./vision-asset-routes.js";
 import { registerImagingRoutes } from "./imaging/routes.js";
 import { resolveImagingService } from "./imaging/runtime.js";
 import { isClinicalRoute, registerClinicalRoutes } from "./clinical/routes.js";
+import { isDocumentRoute, registerDocumentRoutes } from "./documents/routes.js";
 import { resolveClinicalService } from "./clinical/runtime.js";
 import {
   modelNotFoundError,
@@ -869,7 +870,7 @@ export function buildGateway(options: GatewayOptions = {}) {
   });
 
   app.addHook("preHandler", async (request) => {
-    if (!request.routeOptions.config?.public && !isClinicalRoute(request.url)) {
+    if (!request.routeOptions.config?.public && !isClinicalRoute(request.url) && !isDocumentRoute(request.url)) {
       applyClientTurnHeaders(request);
     }
   });
@@ -884,7 +885,7 @@ export function buildGateway(options: GatewayOptions = {}) {
   );
 
   app.addHook("preHandler", async (request) => {
-    if (request.routeOptions.config?.public || isClinicalRoute(request.url)) {
+    if (request.routeOptions.config?.public || isClinicalRoute(request.url) || isDocumentRoute(request.url)) {
       return;
     }
     await cleanupExpiredTokenReservations(tokenBudgetLimiter, request.log, clock());
@@ -908,6 +909,7 @@ export function buildGateway(options: GatewayOptions = {}) {
 
   registerImagingRoutes(app, options.imagingService === undefined
     ? resolveImagingService(process.env, app.log) : options.imagingService);
+  registerDocumentRoutes(app, options.documentEvidence ?? process.env);
   registerClinicalRoutes(app, "aipal", options.aipalService === undefined ? resolveClinicalService("aipal", process.env, app.log) : options.aipalService);
   registerClinicalRoutes(app, "panecho", options.panechoService === undefined ? resolveClinicalService("panecho", process.env, app.log) : options.panechoService);
   registerClinicalRoutes(app, "echonet", options.echonetService === undefined ? resolveClinicalService("echonet", process.env, app.log) : options.echonetService);
