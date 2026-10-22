@@ -174,6 +174,7 @@ export interface TokenUsageSnapshot {
   minute: WindowSnapshot;
   day: WindowSnapshot;
   month: WindowSnapshot;
+  tokenCredits?: import("./token-credits.js").TokenCreditWallet;
   /** Day/month above are paid usage when this independent base allowance exists. */
   freeAllowance?: {
     entitlementId: string;

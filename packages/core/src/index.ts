@@ -19,6 +19,7 @@ export * from "./research.js";
 export * from "./secret-crypto.js";
 export * from "./stores.js";
 export * from "./token-budget.js";
+export * from "./token-credits.js";
 export * from "./types.js";
 export * from "./unified-client-key.js";
 export * from "./utils.js";

@@ -5,6 +5,8 @@ import * as accessCredentials from "./access-credentials.js";
 import * as adminAudit from "./admin-audit.js";
 import * as billingAdminTokens from "./billing-admin-tokens.js";
 import * as billingEvents from "./billing-events.js";
+import * as tokenCredits from "./token-credits.js";
+import type { GrantTokenCreditsInput } from "@codex-gateway/core";
 import * as billingSubjects from "./billing-subjects.js";
 import * as billingIssuance from "./billing-issuance.js";
 import * as externalIdentities from "./external-identities.js";
@@ -363,6 +365,22 @@ export class SqliteGatewayStore implements GatewayStore, IdentityRequestAuditSto
     input: ApplyBillingEntitlementEventInput
   ): ApplyBillingEntitlementEventResult {
     return billingEvents.apply(this.db, input);
+  }
+
+  grantTokenCredits(input: GrantTokenCreditsInput) {
+    return tokenCredits.grant(this.db, input);
+  }
+
+  getTokenCreditWallet(subjectId: string, now?: Date) {
+    return tokenCredits.getWallet(this.db, subjectId, now);
+  }
+
+  getTokenCreditEvent(idempotencyKey: string) {
+    return tokenCredits.getEvent(this.db, idempotencyKey);
+  }
+
+  listTokenCreditEvents(input: { subjectId: string; limit?: number; cursor?: string }) {
+    return tokenCredits.listEvents(this.db, input);
   }
 
   recordBillingProvisioningAttempt(identity: {provider: string; externalUserId: string}, now?: Date): void {

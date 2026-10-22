@@ -84,6 +84,7 @@ import {
 import { renderRealUserIssuePage } from "./real-user-issue-page.js";
 import { captureIdentityInput, markIdentityFacts } from "./http/identity-request-audit.js";
 import { markGatewayError } from "./http/observation.js";
+import { registerBillingTokenCreditRoutes } from "./billing-token-credits.js";
 
 export const billingAdminTokenEnvName = "GATEWAY_BILLING_ADMIN_TOKEN";
 export const billingAdminNextTokenEnvName = "GATEWAY_BILLING_ADMIN_TOKEN_NEXT";
@@ -199,6 +200,10 @@ export function registerBillingAdminRoutes(
   app: FastifyInstance,
   options: BillingAdminRouteOptions
 ): void {
+  registerBillingTokenCreditRoutes(app, { store: options.billingStore, now: () => billingNow(options),
+    preflight: (request, reply) => billingRoutePreflight(request, reply, options),
+    sendError: (request, reply, error) => sendBillingError(request, reply, toBillingGatewayError(error)),
+    securityHeaders: billingSecurityHeaders });
   app.post<{ Body: unknown }>(
     "/gateway/admin/billing/v1/phone-auth-identities",
     billingRouteOptions("phone_identity_prepare"),

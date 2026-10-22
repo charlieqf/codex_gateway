@@ -4,6 +4,7 @@ import { runInTransaction } from "./sql.js";
 import { reverseProvisionalSettlement, type SettlementAllocation } from "./token-settlements.js";
 import { activeFreeAllowance, isFreeAllowance, isRetailPaidPlan } from "./free-allowance.js";
 import { get as getEntitlement } from "./entitlement-queries.js";
+import { findWallet as findCreditWallet, settleChargeInTransaction } from "./token-credits.js";
 import {
   GatewayError,
   validateTokenPolicy,
@@ -67,6 +68,8 @@ export interface TokenReservationListRow {
   freeReservedTokens: number;
   finalFreeTokens: number | null;
   finalPaidTokens: number | null;
+  creditReservedTokens: number;
+  finalCreditTokens: number | null;
   finalCachedPromptTokens: number;
   finalEstimatedTokens: number;
   finalReasoningTokens: number;
@@ -104,6 +107,10 @@ interface ReservationRow {
   free_month_window_start: string | null;
   final_free_tokens: number | null;
   final_paid_tokens: number | null;
+  credit_enabled: number;
+  credit_reserved_tokens: number;
+  final_credit_tokens: number | null;
+  policy_json: string | null;
   scope: Scope;
   upstream_account_id: string | null;
   provider: ProviderKind | null;
@@ -243,11 +250,18 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
       const freeRemaining = free
         ? (freeTotalLimit !== null
             ? this.windowRemaining(input.subjectId, free.id, "period", free.periodStart, freeTotalLimit, now)
-            : this.freeRemaining(input.subjectId, free.id, free.policySnapshot,
+            : this.remainingPeriodicTokens(input.subjectId, free.id, free.policySnapshot,
                 freeWindows.day, freeWindows.month, now))
         : 0;
       const freeReserved = free ? Math.min(reservedTokens, freeRemaining) : 0;
-      const paidReserved = primaryIsOnceFree ? 0 : reservedTokens - freeReserved;
+      const credits = findCreditWallet(this.db, input.subjectId, now);
+      let creditReserved = 0;
+      if (credits) {
+        const paidCapacity = primaryIsOnceFree ? 0 : this.remainingPeriodicTokens(input.subjectId, entitlementId,
+          policy, windows.day, windows.month, now);
+        creditReserved = Math.max(0, reservedTokens - freeReserved - paidCapacity);
+      }
+      const paidReserved = primaryIsOnceFree ? 0 : reservedTokens - freeReserved - creditReserved;
 
       const minuteRejected = this.windowRejection({
         subjectId: input.subjectId,
@@ -263,13 +277,12 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
         return minuteRejected;
       }
 
-      // A Free-only request must fit ENTIRELY within the remaining one-off
-      // allowance: there is no paid ledger to absorb the excess, and the
-      // allowance never resets, so surface the dedicated upgrade code with no
-      // retry hint instead of letting the request overshoot the balance.
-      if (free && freeTotalLimit !== null && entitlementId === free.id && freeRemaining < reservedTokens) {
+      // Free-only access has no paid capacity: admission must fit the lifetime
+      // allowance plus any independent credits. Neither balance resets daily.
+      if (free && freeTotalLimit !== null && entitlementId === free.id && freeRemaining + (credits?.availableTokens ?? 0) < reservedTokens) {
         return tokenRejection("token_total",
-          "Free token allowance exhausted: purchase a monthly or yearly plan to continue.",
+          credits ? "Free token allowance and additional Token credits are insufficient for this request." :
+            "Free token allowance exhausted: purchase a monthly or yearly plan to continue.",
           undefined, {
             scope: "entitlement",
             window: "request",
@@ -279,7 +292,13 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
           }, "free_quota_exhausted");
       }
 
-      const dayRejected = free && paidReserved === 0 ? null : this.windowRejection({
+      if (credits && creditReserved > credits.availableTokens) {
+        return tokenRejection("token_total", "Plan quota and additional Token credits are insufficient for this request.",
+          undefined, { scope: "subject", window: "request", limit: credits.grantedTokens,
+            used: credits.chargedTokens + credits.reservedTokens, requested: creditReserved }, "token_credit_exhausted");
+      }
+
+      const dayRejected = (free || credits) && paidReserved === 0 ? null : this.windowRejection({
         subjectId: input.subjectId,
         entitlementId,
         kind: "day",
@@ -293,7 +312,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
         return dayRejected;
       }
 
-      const monthRejected = free && paidReserved === 0 ? null : this.windowRejection({
+      const monthRejected = (free || credits) && paidReserved === 0 ? null : this.windowRejection({
         subjectId: input.subjectId,
         entitlementId,
         kind: "month",
@@ -347,6 +366,8 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
           free_policy_snapshot_json = ?, free_month_window_start = ? WHERE id = ?`)
           .run(free.id, freeReserved, JSON.stringify(free.policySnapshot), freePeriodStart.toISOString(), reservationId);
       }
+      if (credits) this.db.prepare("UPDATE token_reservations SET credit_enabled = 1, credit_reserved_tokens = ? WHERE id = ?")
+        .run(creditReserved, reservationId);
       return { ok: true, reservationId };
     });
   }
@@ -445,8 +466,10 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
     const windows = this.paidWindowBoundaries(input, now);
     const free = this.freeAllowanceFor(input, now);
     const freeWindows = windowBoundaries(now);
+    const credits = findCreditWallet(this.db, input.subjectId, now);
 
     return {
+      ...(credits ? { tokenCredits: credits } : {}),
       source: input.entitlementId ? "entitlement" : "subject",
       minute: this.readUsageWindow(
         input.subjectId,
@@ -496,6 +519,11 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
     const kinds = normalizeTokenWindowKinds(input.windows);
     const before = await this.getCurrentUsage({ ...input, now });
     const expiredReservations = runInTransaction(this.db, "BEGIN IMMEDIATE", () => {
+      if (this.db.prepare("SELECT 1 FROM token_reservations WHERE subject_id = ? AND credit_enabled = 1 AND finalized_at IS NULL LIMIT 1")
+        .get(input.subjectId)) {
+        throw new GatewayError({ code: "quota_reset_conflict", httpStatus: 409,
+          message: "Token credit requests are unsettled; retry quota reset after settlement." });
+      }
       let expired = 0;
       for (const kind of kinds) {
         const windowStart = tokenWindowStart(kind, windows);
@@ -578,6 +606,8 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
       freeReservedTokens: row.free_reserved_tokens,
       finalFreeTokens: row.final_free_tokens,
       finalPaidTokens: row.final_paid_tokens,
+      creditReservedTokens: row.credit_reserved_tokens,
+      finalCreditTokens: row.final_credit_tokens,
       finalCachedPromptTokens: row.final_cached_prompt_tokens,
       finalEstimatedTokens: row.final_estimated_tokens,
       finalReasoningTokens: row.final_reasoning_tokens ?? 0,
@@ -691,7 +721,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
           addUsage(row.subject_id, row.free_entitlement_id, "period",
             row.free_month_window_start, freeUsage, now);
         } else {
-          freeTokens = Math.min(charged.totalTokens, this.freeRemaining(row.subject_id,
+          freeTokens = Math.min(charged.totalTokens, this.remainingPeriodicTokens(row.subject_id,
             row.free_entitlement_id, freePolicy, row.day_window_start, row.free_month_window_start, now));
           const freeUsage = portionOfUsage(charged, freeTokens);
           paidUsage = subtractUsage(charged, freeUsage);
@@ -703,9 +733,25 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
         }
       }
       const primary = row.entitlement_id ? getEntitlement(this.db, row.entitlement_id) : null;
-      this.db.prepare("UPDATE token_reservations SET final_free_tokens = ?, final_paid_tokens = ? WHERE id = ?")
-        .run(primary && isFreeAllowance(primary) ? charged.totalTokens : freeTokens,
-          primary && isRetailPaidPlan(primary.planId) ? paidUsage.totalTokens : 0, row.id);
+      let creditTokens = 0;
+      if (row.credit_enabled && row.policy_json) {
+        const policy = validateTokenPolicy(JSON.parse(row.policy_json));
+        const ownLifetimeFree = row.entitlement_id === row.free_entitlement_id && row.free_policy_snapshot_json &&
+          validateTokenPolicy(JSON.parse(row.free_policy_snapshot_json)).tokensTotal !== null;
+        const capacity = ownLifetimeFree ? 0 : this.remainingPeriodicTokens(row.subject_id, row.entitlement_id,
+          policy, row.day_window_start, row.month_window_start, now);
+        creditTokens = Math.max(0, paidUsage.totalTokens - capacity);
+        paidUsage = subtractUsage(paidUsage, portionOfUsage(paidUsage, creditTokens));
+        // Provider usage can exceed its estimate. Record that debt rather than
+        // silently waiving tokens; future admission uses max(0, balance-reserved).
+        settleChargeInTransaction(this.db, {
+          reservationId: row.id, requestId: row.request_id, subjectId: row.subject_id,
+          tokens: creditTokens, phase: correcting ? "correction" : "initial", now
+        });
+      }
+      this.db.prepare("UPDATE token_reservations SET final_free_tokens = ?, final_paid_tokens = ?, final_credit_tokens = ? WHERE id = ?")
+        .run(primary && isFreeAllowance(primary) ? charged.totalTokens - creditTokens : freeTokens,
+          primary && isRetailPaidPlan(primary.planId) ? paidUsage.totalTokens : 0, creditTokens, row.id);
       addUsage(
         row.subject_id,
         row.entitlement_id,
@@ -889,12 +935,13 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
     return windowBoundaries(now, period);
   }
 
-  private freeRemaining(subjectId: string, entitlementId: string, policy: TokenLimitPolicy,
+  private remainingPeriodicTokens(subjectId: string, entitlementId: string | null, policy: TokenLimitPolicy,
     day: Date | string, month: Date | string, now: Date): number {
     return Math.max(0, Math.min(...([
       ["day", day, policy.tokensPerDay], ["month", month, policy.tokensPerMonth]
     ] as const).map(([kind, start, limit]) => limit === null ? Infinity : limit -
-      this.windowUsed(subjectId, entitlementId, kind, start) - this.activeReserved(subjectId, entitlementId, kind, start, now))));
+      this.windowUsed(subjectId, entitlementId, kind, start) -
+      this.activeReserved(subjectId, entitlementId, kind, start, now))));
   }
 
   /** Remaining capacity of a non-rolling window, e.g. a one-off Free allowance. */
@@ -1011,7 +1058,8 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
     const column = kind === "period" ? "free_month_window_start" : `${kind}_window_start`;
     // The free ledger always counts free_reserved_tokens; the primary ledger
     // for a shared request counts only its paid share.
-    const share = kind === "minute" || ledger === "free" ? "reserved_tokens" : "reserved_tokens - free_reserved_tokens";
+    const share = kind === "minute" ? "reserved_tokens" : ledger === "free" ? "free_reserved_tokens" :
+      "reserved_tokens - free_reserved_tokens - credit_reserved_tokens";
     const row = entitlementId
       ? (this.db
           .prepare(
@@ -1031,7 +1079,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
           | undefined)
       : (this.db
           .prepare(
-            `SELECT COALESCE(SUM(reserved_tokens), 0) AS reserved
+            `SELECT COALESCE(SUM(${share}), 0) AS reserved
              FROM token_reservations
              WHERE subject_id = ?
                AND entitlement_id IS NULL
@@ -1353,7 +1401,7 @@ function tokenRejection(
   message: string,
   retryAfterSeconds?: number,
   details?: LimitDetails,
-  errorCode: "rate_limited" | "free_quota_exhausted" = "rate_limited"
+  errorCode: "rate_limited" | "free_quota_exhausted" | "token_credit_exhausted" = "rate_limited"
 ): LimitRejection {
   return {
     ok: false,
@@ -1382,6 +1430,10 @@ function reservationColumns(): string {
     "free_month_window_start",
     "final_free_tokens",
     "final_paid_tokens",
+    "credit_enabled",
+    "credit_reserved_tokens",
+    "final_credit_tokens",
+    "policy_json",
     "scope",
     "upstream_account_id",
     "provider",

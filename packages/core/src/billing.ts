@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import type { TokenCreditStore } from "./token-credits.js";
 import type {
   Entitlement,
   PeriodKind,
@@ -235,7 +236,7 @@ export interface DisableBillingSubjectResult extends BillingSubjectDetails {
   cancelledEntitlementIds: string[];
 }
 
-export interface BillingAdminStore {
+export interface BillingAdminStore extends TokenCreditStore {
   /** Internal issuance fence; normalize only contact labels, never expiry/rate or login state. */
   inspectBillingIssuance(input: BillingIssuanceInspection): { upstreamUserId: string; upstreamKeyId: string };
   recordBillingProvisioningAttempt(identity: {provider: string; externalUserId: string}, now?: Date): void;

@@ -9,6 +9,7 @@ import { migrateDailyFreeAllowancesToOnce, paidPlanSql, recoverReplacedFreeAllow
 import { identityRequestAuditSchema } from "./identity-request-audit.js";
 import { modelCallSchema, modelCallCapacitySchema } from "./model-calls.js";
 import { tokenSettlementSchema } from "./token-settlements.js";
+import { tokenCreditSchema } from "./token-credits.js";
 
 export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogger): void {
   db.exec(`
@@ -1208,6 +1209,9 @@ export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogge
        AND json_type(rate_json, '$.requestsPerDay') IN ('integer', 'real')
        AND json_extract(rate_json, '$.requestsPerDay') < 500;
   `, logger);
+  if (tableExists(db, "subjects") && tableExists(db, "token_reservations")) {
+    applyMigration(db, 43, tokenCreditSchema, logger);
+  }
 }
 
 export function migrateClientEventsSchema(db: DatabaseSync): void {

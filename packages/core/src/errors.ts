@@ -38,6 +38,8 @@ export const gatewayErrorCodes = [
   "invalid_entitlement_transition",
   "quota_reset_conflict",
   "free_quota_exhausted",
+  "token_credit_exhausted",
+  "token_credit_event_not_found",
   "model_not_found",
   "model_not_allowed_for_credential",
   "rate_limited",

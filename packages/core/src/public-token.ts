@@ -1,4 +1,5 @@
 import type { TokenLimitPolicy, TokenUsageSnapshot, WindowSnapshot } from "./token-budget.js";
+import { publicTokenCreditWallet } from "./token-credits.js";
 
 export function publicTokenPolicy(policy: TokenLimitPolicy) {
   return {
@@ -26,7 +27,9 @@ export function publicTokenUsage(usage: TokenUsageSnapshot) {
         month: publicTokenWindow(usage.freeAllowance.month),
         ...(usage.freeAllowance.total ? { total: publicTokenWindow(usage.freeAllowance.total) } : {})
       }
-    } : {})
+    } : {}),
+    ...(usage.tokenCredits ? { accounting_mode: "free_then_plan_then_credits_v1",
+      token_credits: publicTokenCreditWallet(usage.tokenCredits) } : {})
   };
 }
 
