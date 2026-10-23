@@ -26,7 +26,7 @@ function sessionFor(model, runtime) {
 }
 let issued, entitlement, failure;
 async function call(api, payload, session, label) {
-  const started = Date.now(), callId = randomUUID();
+  const started = Date.now(), callId = Date.now() + "_" + randomUUID();
   const response = await fetch(origin + "/v1/" + api, { method: "POST", redirect: "error",
     headers: { ...headers(), "x-medcode-client-session-id": session, "x-medcode-call-id": callId,
       "x-medcode-request-timeout-ms": "90000" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(100000) });
@@ -59,6 +59,23 @@ async function call(api, payload, session, label) {
   assert(ledger?.finalized_at); assert.equal(ledger.final_total_tokens, event.totalTokens);
   Object.assign(item, { passed: true, runtime: event.upstreamRuntime, upstream_model: event.upstreamModel,
     total_tokens: event.totalTokens, ledger_finalized: true, reasoning_effort: event.effectiveReasoningEffort });
+  if (label === "same-session-switch") {
+    const receipt = await fetch(origin + "/gateway/model-calls/" + callId,
+      { headers: headers(), signal: AbortSignal.timeout(10000) });
+    assert.equal(receipt.status, 200); assert.equal((await receipt.json()).state, "completed");
+    const count = () => db.prepare("SELECT count(*) n FROM token_reservations WHERE subject_id=?").get(subject).n;
+    const before = count();
+    const replayHeaders = { ...headers(), "x-medcode-client-session-id": session,
+      "x-medcode-call-id": callId, "x-medcode-request-timeout-ms": "90000" };
+    const replay = await fetch(origin + "/v1/" + api, { method: "POST", headers: replayHeaders,
+      body: JSON.stringify(payload), signal: AbortSignal.timeout(10000) });
+    assert.equal(replay.status, 200); assert.equal(await replay.text(), body);
+    const conflict = await fetch(origin + "/v1/" + api, { method: "POST", headers: replayHeaders,
+      body: JSON.stringify({ ...payload, model: payload.model === "goldencode" ? "goldencode-d" : "goldencode" }),
+      signal: AbortSignal.timeout(10000) });
+    assert.equal(conflict.status, 409); assert.equal((await conflict.json()).error.code, "model_call_conflict");
+    assert.equal(count(), before); item.receipt_replay_no_extra_charge = true; item.reused_id_model_change_rejected = true;
+  }
   persist(); console.log(JSON.stringify({ public_check: item }));
   return { text, calls };
 }
