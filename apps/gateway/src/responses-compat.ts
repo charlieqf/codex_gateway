@@ -48,7 +48,7 @@ export interface ResponsesResult {
 
 export function parseResponsesRequest(
   body: unknown,
-  requiredModel = "goldencode",
+  requiredModel: string | readonly string[] = ["goldencode", "goldencode-d"],
   observation?: VisionObservation
 ): ParsedResponsesRequest | GatewayError {
   if (!isRecord(body)) {
@@ -59,8 +59,9 @@ export function parseResponsesRequest(
   if (!model) {
     return invalidRequest("model must be a non-empty string.");
   }
-  if (model !== requiredModel) {
-    return invalidRequest(`This Responses endpoint requires model=${requiredModel}.`);
+  const allowedModels = typeof requiredModel === "string" ? [requiredModel] : requiredModel;
+  if (!allowedModels.includes(model)) {
+    return invalidRequest(`This Responses endpoint requires model=${allowedModels.join(" or ")}.`);
   }
 
   if (body.stream !== undefined && typeof body.stream !== "boolean") {

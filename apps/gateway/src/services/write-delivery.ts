@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { Ajv } from "ajv";
-import { GatewayError, isRecord, type ToolValidationDetails } from "@codex-gateway/core";
+import { GatewayError, isRecord, isGoldenCodeCloudModel, type ToolValidationDetails } from "@codex-gateway/core";
 import {
   createInitialChatCompletionChunk, createFinalChatCompletionChunk, toolArgumentValidation,
   type ChatCompletionRequest, type ChatCompletionShape, type OpenAIChatToolCall,
@@ -99,7 +99,7 @@ export function negotiateWriteDelivery(input: {
   policy: BoundedWritePolicy;
 }): WriteDeliveryNegotiation | undefined {
   if (input.policy.mode !== "delivery" || !boundedWriteEnabled(input.policy, input.subjectId) ||
-      !input.request.stream || input.request.model !== "goldencode" || input.request.images?.length ||
+      !input.request.stream || !isGoldenCodeCloudModel(input.request.model) || input.request.images?.length ||
       !ordinaryWriteTool(input.request)) return;
   const caps = header(input.headers, "x-medcode-client-capabilities", 1024)?.split(",").map((s) => s.trim());
   if (!caps?.includes(writeDeliveryCapability) || header(input.headers, "x-medcode-write-delivery-version") !== "1" ||

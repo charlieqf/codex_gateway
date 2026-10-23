@@ -6,6 +6,13 @@ import {
 
 const publicModelIdPattern = /^[a-z][a-z0-9._-]{0,63}$/;
 
+/** Standard Desktop choices; explicit service/model restrictions remain separate. */
+export const desktopPublicModelIds = ["goldencode", "goldencode-d", "goldencode-local"];
+
+export function isGoldenCodeCloudModel(id: string): boolean {
+  return id === "goldencode" || id === "goldencode-d";
+}
+
 export function normalizeAllowedPublicModels(
   value: readonly string[] | null | undefined,
   knownPublicModelIds?: Iterable<string>,

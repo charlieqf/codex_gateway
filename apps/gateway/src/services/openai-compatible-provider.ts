@@ -427,6 +427,13 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
       return { reasoning };
     }
     const effort = reasoning.effort;
+    // DeepSeek separates the thinking switch from its low/high/max budget.
+    // Do not rely on a vendor's default or change GLM payloads.
+    if (/^deepseek(?:\/|[-])/i.test(this.options.upstreamModel) && typeof effort === "string") {
+      return effort === "none"
+        ? { thinking: { type: "disabled" } }
+        : { thinking: { type: "enabled" }, reasoning_effort: effort };
+    }
     return typeof effort === "string" && effort.length > 0
       ? { reasoning_effort: effort }
       : {};

@@ -1212,6 +1212,18 @@ export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogge
   if (tableExists(db, "subjects") && tableExists(db, "token_reservations")) {
     applyMigration(db, 43, tokenCreditSchema, logger);
   }
+  // Extend only the previous standard Desktop model set. Restricted one-model
+  // and custom credentials, unrestricted keys, plans and quotas are unchanged.
+  if (columnExists(db, "access_credentials", "allowed_public_models_json")) {
+    applyMigration(db, 44, `
+      UPDATE access_credentials
+         SET allowed_public_models_json = '["goldencode","goldencode-d","goldencode-local"]'
+       WHERE json_valid(allowed_public_models_json)
+         AND json_array_length(allowed_public_models_json) = 2
+         AND EXISTS (SELECT 1 FROM json_each(allowed_public_models_json) WHERE value = 'goldencode')
+         AND EXISTS (SELECT 1 FROM json_each(allowed_public_models_json) WHERE value = 'goldencode-local');
+    `, logger);
+  }
 }
 
 export function migrateClientEventsSchema(db: DatabaseSync): void {

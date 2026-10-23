@@ -8,6 +8,12 @@ import {
 } from "./responses-compat.js";
 
 describe("Responses compatibility", () => {
+  it("accepts the DeepSeek public id while retaining an explicitly pinned endpoint", () => {
+    const body = { model: "goldencode-d", input: "Hello", reasoning: { effort: "low" } };
+    expect(parseResponsesRequest(body)).toMatchObject({ chatRequest: { model: "goldencode-d", reasoningEffort: "low" } });
+    expect(parseResponsesRequest(body, "goldencode")).toBeInstanceOf(GatewayError);
+    expect(parseResponsesRequest({ ...body, model: "unknown" })).toBeInstanceOf(GatewayError);
+  });
   it("maps Codex message, function tools, and unsupported built-in tools to Chat Completions", () => {
     const parsed = parseResponsesRequest({
       model: "goldencode",

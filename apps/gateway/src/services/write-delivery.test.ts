@@ -63,6 +63,10 @@ describe("bounded ordinary write classification", () => {
 });
 
 describe("S request admission", () => {
+  it("negotiates the same delivery contract for the DeepSeek cloud model", () => {
+    expect(negotiateWriteDelivery({ request: { ...request(), model: "goldencode-d" }, headers: headers(),
+      requestId: "req_deepseek", subjectId: "subj-contract-fixture", policy: { mode: "delivery", limits: {} } })).toBeDefined();
+  });
   it("is off by default and supports independent A plus subject canaries", () => {
     expect(boundedWritePolicyFromEnv({}).mode).toBe("disabled");
     expect(boundedWriteEnabled({ mode: "error", subjectIds: ["s1"] }, "s2")).toBe(false);

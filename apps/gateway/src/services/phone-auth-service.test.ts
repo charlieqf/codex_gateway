@@ -410,7 +410,7 @@ describe("PhoneAuthService", () => {
     expect(
       fixture.store.getAccessCredentialByPrefix(fixture.backing.record.prefix)
         ?.allowedPublicModels
-    ).toEqual(["goldencode", "goldencode-local"]);
+    ).toEqual(["goldencode", "goldencode-d", "goldencode-local"]);
     fixture.store.close();
   });
 });

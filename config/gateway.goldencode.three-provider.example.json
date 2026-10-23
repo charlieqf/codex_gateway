@@ -24,5 +24,30 @@
         {"id": "goldencode-tokenswitch", "runtime": "tokenswitch", "upstreamModel": "glm-5.3", "enabled": true}
       ]
     }
+  },
+  "goldencode-d": {
+    "displayName": "GoldenCode DeepSeek",
+    "runtime": "pool",
+    "contextWindow": 200000,
+    "maxContextWindow": 200000,
+    "upstreamContextWindow": 1048576,
+    "maxOutputTokens": 128000,
+    "enabled": true,
+    "reasoning": {
+      "effort": "high",
+      "supportedEfforts": ["low", "high", "max"],
+      "legacyAliases": {"none": "low", "medium": "high"}
+    },
+    "pool": {
+      "selection": {
+        "strategy": "hrw_sticky",
+        "stickyKeyOrder": ["client_session", "credential", "subject"]
+      },
+      "requireAllMembers": false,
+      "members": [
+        {"id": "goldencode-d-tencent", "runtime": "tencent", "upstreamModel": "deepseek-v4.1-flash-1017", "enabled": true},
+        {"id": "goldencode-d-tiankuan", "runtime": "tiankuan", "upstreamModel": "deepseek-v4.1-flash", "enabled": true}
+      ]
+    }
   }
 }

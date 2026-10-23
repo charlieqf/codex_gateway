@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { generateKeyPairSync, randomUUID } from "node:crypto";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
@@ -3095,7 +3095,7 @@ describe("gateway phase 1 routes", () => {
           ? store.getAccessCredentialByPrefix(unified.codexCredentialPrefix)
               ?.allowedPublicModels
           : null
-      ).toEqual(["goldencode", "goldencode-local"]);
+      ).toEqual(["goldencode", "goldencode-d", "goldencode-local"]);
       expect(upstreamV2Client.calls).toHaveLength(1);
       expect(upstreamV2Client.calls[0]).toMatchObject({
         externalProvider: "medevidence_backend",
@@ -17111,6 +17111,51 @@ describe("GoldenCode native provider failover", () => {
   });
 });
 
+describe("GoldenCode DeepSeek pool", () => {
+  const cases = ["tencent", "tiankuan"].flatMap(first =>
+    ["chat/completions", "responses"].flatMap(api =>
+      [false, true].flatMap(stream => [false, true].map(plain => ({ first, api, stream, plain })))));
+  it.each(cases)("routes $api stream=$stream plain=$plain from $first to the other DeepSeek member", async ({ first, api, stream, plain }) => {
+    await runGoldenCodeFailoverFixture({ publicModel: "goldencode-d", first, plain }, async ({ app, headers, calls, store }) => {
+      const payload: Record<string, unknown> = { ...nativeFailoverPayload(api, stream), model: "goldencode-d" };
+      if (plain) { delete payload.tools; delete payload.tool_choice; }
+      const response = await app.inject({ method: "POST", url: `/v1/${api}`, headers, payload });
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain(plain ? "failover text ok" : "lookup");
+      expect(calls.map(call => call.runtime)).toEqual([first, first === "tencent" ? "tiankuan" : "tencent"]);
+      for (const call of calls) {
+        expect(call.body.model).toBe(call.runtime === "tencent" ? "deepseek-v4.1-flash-1017" : "deepseek-v4.1-flash");
+        expect(call.body.thinking).toEqual({ type: "enabled" });
+      }
+      expect(store.listRequestEvents({ limit: 1 })[0]).toMatchObject({ publicModelId: "goldencode-d" });
+    });
+  });
+
+  it("lists the independent cloud pools, preserves sticky routing and enforces credential restrictions", async () => {
+    await runGoldenCodeFailoverFixture({ publicModel: "goldencode-d", first: "tiankuan", plain: true, recover: true }, async ({ app, headers, calls, store }) => {
+      const models = await app.inject({ method: "GET", url: "/v1/models", headers });
+      expect(models.json().data.map((model: { id: string }) => model.id)).toEqual(["goldencode", "goldencode-d"]);
+      for (let i = 0; i < 2; i++) {
+        const response = await app.inject({ method: "POST", url: "/v1/chat/completions", headers,
+          payload: { model: "goldencode-d", messages: [{ role: "user", content: "Reply OK" }], max_tokens: 64 } });
+        expect(response.statusCode).toBe(200);
+      }
+      expect(calls.map(call => call.runtime)).toEqual(["tiankuan", "tencent", "tencent"]);
+      const restrictedKey = issueAccessCredential({ subjectId: "subj_dev", label: "Restricted", scope: "code",
+        expiresAt: new Date("2030-02-01T00:00:00Z"), allowedPublicModels: ["goldencode"], knownPublicModelIds: ["goldencode", "goldencode-d"] });
+      store.insertAccessCredential(restrictedKey.record);
+      const restrictedHeaders = { ...headers, authorization: `Bearer ${restrictedKey.token}` };
+      const restricted = await app.inject({ method: "GET", url: "/v1/models", headers: restrictedHeaders });
+      // Discovery is a service catalog; credential restrictions apply at execution.
+      expect(restricted.json().data.map((model: { id: string }) => model.id)).toEqual(["goldencode", "goldencode-d"]);
+      const denied = await app.inject({ method: "POST", url: "/v1/responses", headers: restrictedHeaders,
+        payload: { model: "goldencode-d", input: "Reply OK" } });
+      expect(denied.statusCode).toBe(403);
+      expect(calls).toHaveLength(3);
+    });
+  });
+});
+
 function publicFailoverError(body: string): Record<string, unknown> {
   expect(body).not.toContain("[DONE]");
   expect(body).not.toContain("response.completed");
@@ -17136,6 +17181,7 @@ function nativeFailoverPayload(api: string, stream: boolean): Record<string, unk
 }
 
 async function runGoldenCodeFailoverFixture(options: {
+  publicModel?: "goldencode" | "goldencode-d";
   first?: string; bothFail?: boolean; status?: number | "reset"; enabled?: boolean;
   members?: string[]; second?: string;
   repairThenFail?: boolean; cooldown?: string; clock?: () => Date; recover?: boolean;
@@ -17185,22 +17231,28 @@ async function runGoldenCodeFailoverFixture(options: {
       usage: { prompt_tokens: 7, completion_tokens: 5, total_tokens: 12 } })}\n\n`);
     response.end("data: [DONE]\n\n");
   });
-  const config = goldencodePoolConfig();
+  const publicModel = options.publicModel ?? "goldencode";
+  const cloudModels = JSON.parse(readFileSync(new URL("../../../config/gateway.goldencode.three-provider.example.json", import.meta.url), "utf8"));
+  const config: ReturnType<typeof goldencodePoolConfig> = publicModel === "goldencode-d"
+    ? cloudModels[publicModel] : goldencodePoolConfig();
   config.reasoning = { effort: "high" };
   config.pool.members = config.pool.members.filter((member) => (options.members ?? ["tencent", "tiankuan"]).includes(member.runtime));
-  for (const member of config.pool.members) member.upstreamModel = member.runtime === "tiankuan" ? "official/glm-5.3" : "glm-5.3";
+  if (publicModel === "goldencode") {
+    for (const member of config.pool.members) member.upstreamModel = member.runtime === "tiankuan" ? "official/glm-5.3" : "glm-5.3";
+  }
   if (options.disabledMember) config.pool.members.find((member) => member.runtime === options.disabledMember)!.enabled = false;
   let session = "";
   for (let i = 0; i < 1000; i += 1) {
     session = `native-failover-${i}`;
     const affinity = `client_session:${session}`;
     const memberIds = config.pool.members.map(member => member.id);
-    if (hrwAccountForKey(affinity, memberIds) !== `goldencode-${first}`) continue;
-    if (!options.second || hrwAccountForKey(affinity, memberIds.filter(id => id !== `goldencode-${first}`)) === `goldencode-${options.second}`) break;
+    if (hrwAccountForKey(affinity, memberIds) !== `${publicModel}-${first}`) continue;
+    if (!options.second || hrwAccountForKey(affinity, memberIds.filter(id => id !== `${publicModel}-${first}`)) === `${publicModel}-${options.second}`) break;
   }
   try {
     await withTemporaryEnv({
-      MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({ goldencode: config }),
+      MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModel === "goldencode-d" ? { ...cloudModels, [publicModel]: config } : { goldencode: config }),
+      MEDCODE_PUBLIC_MODEL_ID: publicModel === "goldencode-d" ? "goldencode" : process.env.MEDCODE_PUBLIC_MODEL_ID,
       MEDCODE_TENCENT_TOKENHUB_API_KEY: "tencent-test-key", MEDCODE_TENCENT_TOKENHUB_BASE_URL: server.baseUrl,
       MEDCODE_TIANKUAN_API_KEY: "tiankuan-test-key", MEDCODE_TIANKUAN_BASE_URL: server.baseUrl,
       MEDCODE_TOKENSWITCH_API_KEY: "tokenswitch-test-key", MEDCODE_TOKENSWITCH_BASE_URL: server.baseUrl,
@@ -17208,7 +17260,7 @@ async function runGoldenCodeFailoverFixture(options: {
       GATEWAY_GOLDENCODE_FAILOVER_SUBJECT_IDS: options.subjects ?? "subj_dev",
       GATEWAY_GOLDENCODE_QUOTA_COOLDOWN_SECONDS: options.cooldown ?? "0"
     }, async () => {
-      const { store, headers } = createModelEntitledStore(["goldencode"]);
+      const { store, headers } = createModelEntitledStore(publicModel === "goldencode-d" ? ["goldencode", "goldencode-d"] : ["goldencode"]);
       const app = buildGateway({ authMode: "credential", provider: new FakeProvider(), sessionStore: store,
         observationStore: store, tokenBudgetLimiter: createSqliteTokenBudgetLimiter({ db: store.database }),
         logger: false, ...(options.clock ? { now: options.clock } : {}) });

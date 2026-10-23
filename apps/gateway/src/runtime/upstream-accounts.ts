@@ -1,5 +1,6 @@
 import {
   GatewayError,
+  isGoldenCodeCloudModel,
   type GatewayStore,
   type ProviderAdapter,
   type UpstreamAccount
@@ -209,7 +210,7 @@ export function createPublicModelPoolRouters(
           onQuotaStateChanged: (accountId, state) => log.info({
             public_model_id: model.id, upstream_account_id: accountId, quota_circuit: state
           }, "Provider quota circuit state changed."),
-          quotaCooldownMs: model.id === "goldencode" && model.pool.members.every((m) => m.runtime === "tencent" || m.runtime === "tiankuan")
+          quotaCooldownMs: isGoldenCodeCloudModel(model.id) && model.pool.members.every((m) => m.runtime === "tencent" || m.runtime === "tiankuan")
             ? quotaCooldownMs(process.env.GATEWAY_GOLDENCODE_QUOTA_COOLDOWN_SECONDS) : undefined,
           softAffinity: "credential",
           cooldown: defaultUpstreamCooldown(),

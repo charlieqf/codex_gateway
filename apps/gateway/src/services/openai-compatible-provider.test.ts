@@ -18,6 +18,20 @@ import { ProviderStreamSummaryCollector } from "./provider-stream.js";
 import { OpenAICompatibleProviderAdapter } from "./openai-compatible-provider.js";
 
 describe("OpenAICompatibleProviderAdapter", () => {
+  it.each(["low", "high", "max", "none"])("sets DeepSeek thinking explicitly for %s", async effort => {
+    let captured: Record<string, unknown> = {};
+    const provider = new OpenAICompatibleProviderAdapter({ providerKind: "tencent", apiKey: "synthetic", apiKeyEnv: "UNUSED",
+      baseUrl: "https://synthetic.invalid/v1", upstreamModel: "deepseek-v4.1-flash-1017", timeoutMs: 1000,
+      reasoning: { effort: "high" }, reasoningParameterStyle: "effort_field",
+      fetchImpl: async (_url, init) => {
+        captured = JSON.parse(String(init?.body));
+        return new Response('data: {"choices":[{"delta":{"content":"OK"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n');
+      } });
+    await collectProviderMessage({ provider, upstreamAccount: openRouterAccount(), subject: testSubject(),
+      session: testSession(), scope: "code", message: "Reply OK", reasoningEffort: effort });
+    expect(captured.thinking).toEqual({ type: effort === "none" ? "disabled" : "enabled" });
+    expect(captured.reasoning_effort).toBe(effort === "none" ? undefined : effort);
+  });
   it("reports only semantic increments and keeps progress failures outside model output", async () => {
     const observations: string[] = [];
     const deltas = [{ role: "assistant" }, {}, { reasoning_content: "private reasoning" },

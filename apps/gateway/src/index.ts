@@ -7,6 +7,7 @@ import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import {
   checkAccessCredentialState,
   credentialAllowsPublicModel,
+  isGoldenCodeCloudModel,
   decryptSecret,
   formatAccessCredentialPublicPrefix,
   GatewayError,
@@ -2417,9 +2418,9 @@ export function buildGateway(options: GatewayOptions = {}) {
     let statelessAttempts = 1;
     const gatewayContext = getGatewayContext(request);
     const { subject, scope } = gatewayContext;
-    const boundedWriteForRequest = publicModel.id === "goldencode" && modality === "text" &&
+    const boundedWriteForRequest = isGoldenCodeCloudModel(publicModel.id) && modality === "text" &&
       boundedWriteEnabled(boundedWritePolicy, subject.id);
-    const goldencodeRequestFailover = publicModel.id === "goldencode" &&
+    const goldencodeRequestFailover = isGoldenCodeCloudModel(publicModel.id) &&
       publicModel.runtime === "pool" && modality === "text" &&
       publicModel.pool!.members.every((member) =>
         member.runtime === "tencent" || member.runtime === "tiankuan" || member.runtime === "tokenswitch") &&
@@ -2433,7 +2434,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       subject,
       scope,
       affinityKey,
-      quotaRequest: publicModel.id === "goldencode" && modality === "text" ? {
+      quotaRequest: isGoldenCodeCloudModel(publicModel.id) && modality === "text" ? {
         promptTokens: estimatePromptTokens(chatMessagesToPrompt(parsed, { includeToolsContext: false }),
           chatCompletionEstimateExtras(parsed, false, "tencent")),
         maximumOutputTokens: parsed.maximumOutputTokens ?? publicModel.maxOutputTokens

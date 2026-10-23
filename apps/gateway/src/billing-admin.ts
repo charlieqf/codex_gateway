@@ -2,6 +2,7 @@ import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   defaultPublicModelAliasGroups,
+  desktopPublicModelIds,
   mergeEntitlementTokenPolicy,
   normalizeMainlandChinaPhone,
   billingPayloadHash,
@@ -2639,7 +2640,7 @@ function isCredentialActive(credential: AccessCredentialRecord, now: Date): bool
 }
 
 const realUserIssueTimeoutMs = 45_000;
-const realUserDesktopPublicModelIds = ["goldencode", "goldencode-local"];
+const realUserDesktopPublicModelIds = desktopPublicModelIds;
 
 function billingActorTokenPrefix(request: FastifyRequest): string | null {
   const authorization = request.headers.authorization;

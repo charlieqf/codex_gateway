@@ -8,6 +8,7 @@ import {
 } from "node:crypto";
 import {
   checkAccessCredentialState,
+  desktopPublicModelIds,
   decryptSecret,
   encryptSecret,
   extractUnifiedClientKeyPrefix,
@@ -394,7 +395,7 @@ export class PhoneAuthService {
         medevidence_base_url:
           existingMedevidenceOrigin ?? phoneAuthLegacyMedevidenceOrigin
       },
-      backingAllowedPublicModels: ["goldencode", "goldencode-local"],
+      backingAllowedPublicModels: [...desktopPublicModelIds],
       requestId: input.requestId,
       now
     };
