@@ -1,7 +1,8 @@
 # GoldenCode DeepSeek 模型合同
 
 实现目标：在保留 `goldencode` 和 `goldencode-local` 的同时，增加 `goldencode-d`。
-本文是候选版本合同；上线状态以部署验收记录和鉴权后的 `GET /v1/models` 为准。
+2026-10-23 已上线并完成公网验收，见[发布记录](../operations/goldencode-d-release-2026-10-23.zh-CN.md)
+和[客户端接入说明](../outbox/goldencode-model-switching-client-guide-2026-10-23.zh-CN.md)。
 
 | 公共 ID | 上游 | 用途 |
 | --- | --- | --- |

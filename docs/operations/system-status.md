@@ -1,6 +1,24 @@
 # System Status
 
-Current Gateway `25e021f79fb07c28e40ae9be7cd728573788a064` is live, deployed
+Current Gateway `954eb3bedca6648405fa419d232cdb4a43dbe8fc` is live, deployed
+2026-10-23 03:15:27 UTC and verified at 03:19:45 UTC. The public catalog now has
+`goldencode` (three GLM-5.3 providers), `goldencode-d` (Tencent DeepSeek V4.1
+Flash 1017 and TianKuan 260910), and the retained `goldencode-local`.
+Both cloud models expose low/high/max reasoning, default high; switching models
+preserves the selected tier. Schema 44 extends standard two-model credentials
+without changing custom restrictions, plans, balances or usage. Clean Linux:
+2078 passed / 4 skipped; final-image upstream preflight: 11 calls passed;
+public HTTPS: 14 real calls passed, including same-session GLM/DeepSeek/GLM,
+three receipt replays without duplicate charging and three model-change conflicts.
+Healthy, zero restarts, nine database integrity/FK checks passed, smoke account
+disabled with revoked credentials and no pending reservations. The controlled
+drain/recreate window lasted about 58 seconds and recorded 17 HTTP 503 and three
+HTTP 502 responses, including health probes. Ports, 20 other protected files and
+three other containers were preserved. See the
+[DeepSeek release receipt](./goldencode-d-release-2026-10-23.zh-CN.md) and
+[client model-switching guide](../outbox/goldencode-model-switching-client-guide-2026-10-23.zh-CN.md).
+
+Gateway `25e021f79fb07c28e40ae9be7cd728573788a064` was deployed
 2026-10-22 22:42:17 UTC and verified at 22:46:12 UTC. The three-provider
 Goldencode pool now retains request failover when TokenSwitch is present.
 Clean Linux tests: 2054 passed / 4 skipped. Deployed-process fault injection:
