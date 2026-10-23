@@ -20,6 +20,10 @@
   同一会话尽量固定；保留既有故障切换开关、共享调用预算、取消及已输出内容限制。
 - `reasoning_effort`（Chat）或 `reasoning.effort`（Responses）支持 low/high/max，默认 high。
   为保持客户端兼容，none 映射为 low、medium 映射为 high；不宣称 none 关闭推理。
+- `goldencode` 与 `goldencode-d` 的公共三档相同；切换模型时保留用户所选档位，
+  不自动升降。首次无选择时用 high。UI 仅列 low/high/max，不把 none 显示成关闭思考。
+  两家 DeepSeek 上游已直测三档及 thinking.disabled；公共接口目前仍按上述兼容规则处理。
+  不把上游支持的开关或数值范围自动当成公共 Gateway 已开放的能力。
 - 配置上限为 200,000 上下文、128,000 最大输出，以上线后 `/v1/models` 为准。
 - 本次 DeepSeek 入口提供文本和客户端 function tools；未配置视觉路由，不宣称图片能力。
   `goldencode` 的既有视觉路由保持原配置。
@@ -36,6 +40,11 @@
 确认其终态后发起新请求，使用新的 model-call ID；不可用同一幂等调用 ID 更换模型重放。
 保持 client session ID 可维持各模型池内部的会话亲和性，但两个池不共享上游缓存或隐式状态。
 切换不重置用户额度，工具执行结果也不能因切换而重复执行。
+
+持久化 model-call 回执协议只适用于 Chat Completions；ID 格式为
+`<13位Unix毫秒时间戳>_<UUID>`。Responses 当前没有同等回执保证，
+也不支持 `previous_response_id`，需显式重放完整 input。断连后旧调用为 unknown 时，
+不能据此认定未执行并自动换模型重试；需先核对已收到结果和已执行工具。
 
 从 `goldencode` 的视觉会话切到本次文本／工具版 `goldencode-d` 时，不能直接发送含图片的历史。
 客户端应保留原模型，或明确移除图片后让用户继续；不能静默丢弃图片语义。

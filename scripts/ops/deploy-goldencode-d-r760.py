@@ -19,6 +19,8 @@ import urllib.error
 import urllib.request
 
 REV = sys.argv[1]
+assert sys.argv[2:] in ([], ["--drain-without-idle"])
+drain_without_idle = sys.argv[2:] == ["--drain-without-idle"]
 assert re.fullmatch(r"[0-9a-f]{40}", REV)
 ROOT = pathlib.Path("/opt/codex-gateway-r760")
 RELEASE = ROOT / "releases" / REV
@@ -158,7 +160,7 @@ drain = ["python3", str(RELEASE / "scripts/ops/gateway-drain.py"), "--container"
 idle_start = None
 until = time.monotonic() + 900
 health_js = "fetch('http://127.0.0.1:8787/gateway/health').then(r=>r.json()).then(v=>console.log(JSON.stringify(v.lifecycle)))"
-while time.monotonic() < until:
+while not drain_without_idle and time.monotonic() < until:
     lifecycle = json.loads(run(["docker", "exec", meta["Id"], "node", "-e", health_js]))
     assert not lifecycle["draining"]
     idle_start = (idle_start or time.monotonic()) if lifecycle["active_requests"] == lifecycle["active_work"] == 0 else None
@@ -166,7 +168,8 @@ while time.monotonic() < until:
         break
     time.sleep(2)
 else:
-    raise RuntimeError("No 30-second natural idle window; production unchanged")
+    if not drain_without_idle:
+        raise RuntimeError("No 30-second natural idle window; production unchanged")
 
 changed = False
 started = datetime.datetime.now(datetime.timezone.utc).isoformat()
