@@ -8,11 +8,15 @@ import { sourcePassages } from "./source-passages.js";
 
 export const practicalProfilePolicy = Object.freeze({
   version: "doctor_practical_profile.v1", maximumModelCalls: 6,
+  reservedEditorCalls: 2,
   maximumPageReads: 4, maximumPublicationSearches: 2, maximumPublicationReads: 5,
   maximumOutputTokens: 6000
 });
 type Citation = { sourceId: string; passageId: string };
 type SupportedText = { text: string; citations: Citation[] };
+const failureReasons = ["draft_contract_rejected", "editor_response_invalid", "editor_contract_rejected",
+  "evidence_insufficient", "review_budget_unavailable"] as const;
+type PracticalProfileFailure = typeof failureReasons[number];
 export interface PracticalProfileDraft {
   facts: Array<SupportedText & { type: "position" | "expertise" | "education_and_career" | "research_direction" | "representative_output" }>;
   background: SupportedText[];
@@ -30,6 +34,8 @@ export interface PracticalProfileState {
   observations: Array<{ action: string; result: unknown }>;
   candidate: PracticalProfileDraft | null;
   approved: PracticalProfileDraft | null;
+  lastFailure?: PracticalProfileFailure;
+  editorFailures?: number;
 }
 export interface PracticalProfileInput {
   doctor: DoctorResearchRunInput["doctor"];
@@ -42,6 +48,7 @@ export interface PracticalProfileInput {
   dependencies: {
     signal: AbortSignal;
     timing(): InvestigationTiming;
+    remainingModelCalls?(): number;
     save(state: PracticalProfileState): Promise<void>;
     generate(input: { role: "author" | "editor"; attempt: number; system: string; prompt: string }): Promise<string>;
     readPage(url: string): Promise<FrozenOfficialSource>;
@@ -78,11 +85,12 @@ ${academicQuestionGuidance}
 Check the person's identity relationships, important appointments, expertise, research attribution, career and representative outputs against the sources. Understand translation and historical versus current employment. Never treat a matching name or a coauthor's unit as proof of authorship. Keep the already verified identity and its limitations. Check background and reference answers too; proposed questions may ask about an unknown matter but answers must identify it as something to confirm, not invent an answer or speak as the person.
 Do not demand a long review, minimum lengths, numerical citations in questions or heavy study-design tables. Sparse but useful sourced information is acceptable. Reject biographical or personal interview questions and replace them with field-oriented academic questions that satisfy the five-question coverage above. Correct or remove unsupported optional claims directly, retain sound material, and keep the result concise in the requested language. Do not add facts from memory.
 Check dates against service_timing.request_date: source access dates do not make historical reports current. Describe an old planned event as a plan reported at that time, not as a future or recent development. Preserve qualification abbreviations when a translated academic rank is unsupported; remove generic career-path claims not present in sources. Keep representative publications to titles and topics: remove treatment conclusions and drug-food or prescribing advice. Avoid repeating verified identity limitations in draft.limitations, because the service retains those separately.
-Return {"approved":true,"draft":{...complete corrected draft with the same schema...}} when your final edited version is supported. You are responsible for checking your edits against these sources. If an important identity conflict or missing essential evidence cannot be handled by omitting optional material, return {"approved":false,"issues":["specific issue and necessary evidence"]}. No extra tools are available in this editorial call.`;
+Judge academic relevance and dimension coverage by meaning, including synonyms and ordinary medical terminology; do not require particular keywords. If a question or the set needs correction, identify the question index and missing dimension or evidence in your issues. Check all five questions and the requested coverage before approving.
+Return {"approved":true,"draft":{...complete corrected draft with the same schema...}} when your final edited version is supported. You are responsible for checking your edits against these sources. If an important identity conflict or missing essential evidence cannot be handled by omitting optional material, return {"approved":false,"issues":["specific issue and necessary evidence"]}. Return exactly one JSON object: no Markdown, commentary, edits field or text after the object. No extra tools are available in this editorial call.`;
 
 export async function preparePracticalProfile(input: PracticalProfileInput): Promise<{
   outcome: "resolved"; draft: PracticalProfileDraft; state: PracticalProfileState;
-} | { outcome: "unresolved"; reason: "budget_exhausted" | "draft_contract_rejected"; state: PracticalProfileState }> {
+} | { outcome: "unresolved"; reason: PracticalProfileFailure; state: PracticalProfileState }> {
   const d = input.dependencies;
   const fingerprint = hash({ doctor: input.doctor, identity: input.identity, language: input.language,
     pages: input.pages.map(p => [p.sourceId, p.contentSha256]),
@@ -96,7 +104,9 @@ export async function preparePracticalProfile(input: PracticalProfileInput): Pro
       !Number.isSafeInteger(state.calls) || state.calls < 0 || state.calls > practicalProfilePolicy.maximumModelCalls ||
       !Number.isSafeInteger(state.pageReads) || state.pageReads < 0 || state.pageReads > practicalProfilePolicy.maximumPageReads ||
       !Array.isArray(state.pages) || state.pages.length > state.pageReads || !Array.isArray(state.searches) || state.searches.length > practicalProfilePolicy.maximumPublicationSearches ||
-      !Array.isArray(state.publications) || state.publications.length > practicalProfilePolicy.maximumPublicationReads || !Array.isArray(state.observations)) throw new Error("Practical profile checkpoint mismatch.");
+      !Array.isArray(state.publications) || state.publications.length > practicalProfilePolicy.maximumPublicationReads || !Array.isArray(state.observations) ||
+      (state.lastFailure !== undefined && !failureReasons.includes(state.lastFailure)) ||
+      (state.editorFailures !== undefined && (!Number.isSafeInteger(state.editorFailures) || state.editorFailures < 0 || state.editorFailures > practicalProfilePolicy.reservedEditorCalls))) throw new Error("Practical profile checkpoint mismatch.");
   const pages = () => unique([...input.pages, ...state.pages], p => p.sourceId);
   const sources = () => practicalSources(pages(), state.publications);
   const save = async () => {
@@ -109,9 +119,17 @@ export async function preparePracticalProfile(input: PracticalProfileInput): Pro
   const observe = (action: string, result: unknown) => { state.observations.push({ action, result }); };
   let rejectionMessage: string | null = null;
   let rejectionCount = 0;
+  const unresolved = (reason = state.lastFailure ?? "review_budget_unavailable") => ({ outcome: "unresolved" as const, reason, state });
+  const remainingCalls = () => Math.max(0, Math.min(practicalProfilePolicy.maximumModelCalls - state.calls,
+    d.remainingModelCalls?.() ?? practicalProfilePolicy.maximumModelCalls));
   if (state.approved) return { outcome: "resolved", draft: validateDraft(state.approved, sources(), input.language, input.doctor.name), state };
-  while (state.calls < practicalProfilePolicy.maximumModelCalls) {
+  for (let remaining = remainingCalls(); remaining > 0; remaining = remainingCalls()) {
     const role = state.candidate ? "editor" : "author";
+    // Author calls include retrieval. Never spend the final review/repair slots
+    // on another draft or an optional lookup, including after lease recovery.
+    if (role === "author" && remaining <= practicalProfilePolicy.reservedEditorCalls) return unresolved();
+    if (role === "editor" && (state.editorFailures ?? 0) >= practicalProfilePolicy.reservedEditorCalls) return unresolved();
+    const mustDraft = role === "author" && remaining === practicalProfilePolicy.reservedEditorCalls + 1;
     const material = sources();
     const visible = role === "editor" ? editorialSources(state.candidate!, material, input.identity) : material.map(source => ({ ...source,
       passages: source.passages.filter(p => p.offset < 10_000 || identityPassageIds(source, input.identity).has(p.passageId)) }));
@@ -120,33 +138,54 @@ export async function preparePracticalProfile(input: PracticalProfileInput): Pro
       ...(input.interviewFocus ? { interview_focus: input.interviewFocus } : {}),
       service_timing: d.timing(), sources: visible,
       ...(state.candidate ? { candidate: state.candidate } : {}),
-      remaining: { model_calls_including_editor: practicalProfilePolicy.maximumModelCalls - state.calls,
+      remaining: { model_calls_including_editor: remaining,
+        author_calls_before_review: Math.max(0, remaining - practicalProfilePolicy.reservedEditorCalls),
+        reserved_editor_calls: Math.min(practicalProfilePolicy.reservedEditorCalls, remaining),
         page_reads: practicalProfilePolicy.maximumPageReads - state.pageReads,
         publication_searches: practicalProfilePolicy.maximumPublicationSearches - state.searches.length,
         publication_reads: practicalProfilePolicy.maximumPublicationReads - state.publications.length },
       publication_searches: state.searches, observations: state.observations.slice(-8) };
     while (bytes(prompt) > 110_000 && prompt.observations.length) prompt.observations.shift();
     if (bytes(prompt) > 120_000) throw new PracticalProfileBudgetError("prompt_bytes");
+    const instructions = [role === "author" ? authorSystem : editorSystem, investigationTimingGuidance];
+    if (mustDraft) instructions.push("This is the last author call before reserved review. Return a draft using the captured evidence; omit unsupported optional claims and state limitations. Do not request actions or new evidence.");
+    if (role === "editor" && state.editorFailures) instructions.push("The previous editorial response failed the output contract. Return one complete JSON object only, with an explicit approved boolean and the required draft or issues. Recheck the supplied sources; do not append editing notes or infer approval from an invalid response.");
     state.calls++; await save();
     const text = await d.generate({ role, attempt: state.calls,
-      system: `${role === "author" ? authorSystem : editorSystem}\n${investigationTimingGuidance}`, prompt: JSON.stringify(prompt) });
+      system: instructions.join("\n"), prompt: JSON.stringify(prompt) });
     let response: Record<string, unknown>;
     try { response = parse(text); } catch (error) {
-      observe("invalid_response", { message: (error as Error).message, previous_response: text.slice(0, 9000) }); await save(); continue;
+      state.lastFailure = role === "editor" ? "editor_response_invalid" : "draft_contract_rejected";
+      if (role === "editor") state.editorFailures = (state.editorFailures ?? 0) + 1;
+      observe("invalid_response", { role, message: (error as Error).message, previous_response: text.slice(0, 9000) }); await save(); continue;
     }
     if (role === "editor") {
       if (response.approved === true) {
         try { state.approved = validateDraft(response.draft, material, input.language, input.doctor.name); }
-        catch (error) { observe("invalid_edited_draft", (error as Error).message); await save(); continue; }
+        catch (error) {
+          state.lastFailure = "editor_contract_rejected"; state.editorFailures = (state.editorFailures ?? 0) + 1;
+          observe("invalid_edited_draft", (error as Error).message); await save(); continue;
+        }
+        delete state.lastFailure; delete state.editorFailures;
         await save(); return { outcome: "resolved", draft: state.approved, state };
       }
+      if (response.approved !== false || !Array.isArray(response.issues) || response.issues.length < 1 ||
+          response.issues.length > 8 || !response.issues.every(issue => string(issue, 1, 2000))) {
+        state.lastFailure = "editor_response_invalid"; state.editorFailures = (state.editorFailures ?? 0) + 1;
+        observe("invalid_response", { role, message: "Return approved true with a complete draft, or approved false with 1-8 specific issues." }); await save(); continue;
+      }
+      state.lastFailure = "evidence_insufficient"; delete state.editorFailures;
       observe("editor_needs_evidence", { previous_draft: state.candidate,
-        issues: Array.isArray(response.issues) ? response.issues.slice(0, 8) : ["Return approved true with your supported edited draft, or approved false with specific issues."] });
+        issues: response.issues });
       state.candidate = null; await save(); continue;
     }
     if (response.draft !== undefined) {
-      try { state.candidate = validateDraft(response.draft, material, input.language, input.doctor.name); rejectionMessage = null; rejectionCount = 0; }
+      try {
+        state.candidate = validateDraft(response.draft, material, input.language, input.doctor.name);
+        rejectionMessage = null; rejectionCount = 0; delete state.lastFailure; delete state.editorFailures;
+      }
       catch (error) {
+        state.lastFailure = "draft_contract_rejected";
         const message = (error as Error).message;
         observe("invalid_draft", { message, previous_draft: response.draft });
         // The rejection is fed back, so a model that can act on it recovers. One that
@@ -162,7 +201,12 @@ export async function preparePracticalProfile(input: PracticalProfileInput): Pro
       await save(); continue;
     }
     if (!Array.isArray(response.actions) || response.actions.length < 1 || response.actions.length > 3) {
+      state.lastFailure = "draft_contract_rejected";
       observe("invalid_actions", "Use 1-3 tools or submit draft."); await save(); continue;
+    }
+    if (mustDraft) {
+      observe("review_budget_reserved", "No further retrieval can leave room for a draft, review and repair.");
+      await save(); return unresolved();
     }
     for (const action of response.actions) {
       if (!object(action)) { observe("invalid_action", "Action must be an object."); continue; }
@@ -206,7 +250,7 @@ export async function preparePracticalProfile(input: PracticalProfileInput): Pro
       await save();
     }
   }
-  return { outcome: "unresolved", reason: "budget_exhausted", state };
+  return unresolved();
   function fatal(error: unknown) { d.signal.throwIfAborted(); if (d.isFatalError(error)) throw error; }
 }
 
@@ -266,10 +310,10 @@ function validateDraft(raw: unknown, sources: ReturnType<typeof practicalSources
   });
   if (issues.length) throw new Error(issues.join("\n"));
   if (new Set(qa.map(item => item.question.trim())).size !== 5) throw new Error("Use five distinct questions.");
-  validateAcademicQuestions(qa.map(item => item.question), language, doctorName);
+  rejectPersonalQuestions(qa.map(item => item.question), language, doctorName);
   return { facts, background, qa, limitations: raw.limitations as string[] };
 }
-function validateAcademicQuestions(questions: readonly string[], language: "zh-CN" | "en", doctorName: string): void {
+function rejectPersonalQuestions(questions: readonly string[], language: "zh-CN" | "en", doctorName: string): void {
   const normalizedName = doctorName.trim().toLocaleLowerCase();
   // 他/她 not after 其: "其他的/其他在研" compare treatments, not people. `her` not before
   // a digit: "HER-2" is a biomarker. A bare "position" is usually a treatment's
@@ -277,24 +321,13 @@ function validateAcademicQuestions(questions: readonly string[], language: "zh-C
   const personal = language === "zh-CN"
     ? /(?:您|你|该医生|这位医生|医生本人|教授本人|(?<!其)[他她])(?:的|目前|未来|如何|为什么|是否|曾|在|最|对|会|计划|希望|认为|看待|选择|从事|获得|担任|加入|带领|团队|经历|职业)|(?:职务|职位|任职|履历|教育经历|职业经历|学术组织|社会任职|荣誉|奖项|个人情况|个人经历|个人计划|所在团队)/u
     : /\b(?:you|your|the doctor|this doctor|the physician|this physician|the professor|his|her(?!-?\d)|job title|career history|education history|professional biography|award|honou?r|society role|organization role|personal plan)\b/iu;
-  const academic = language === "zh-CN"
-    ? /(?:前沿|进展|研究|机制|证据|试验|临床|诊疗|治疗|预后|生物标志物|分子|耐药|免疫|靶向|技术|方法|模型|转化|筛查|诊断|风险|争议|局限|挑战|方向|趋势|策略|队列|真实世界|多学科|指南|精准|分层|验证|创新|未来)/u
-    : /\b(?:research|evidence|trial|clinical|mechanism|biomarker|therapy|treatment|diagnosis|outcome|prognosis|resistance|method|model|translation|screening|risk|controversy|controversies|limitation|challenge|direction|trend|strategy|cohort|guideline|precision|validation|innovation|future|frontier|advance|advances|emerging)\b|immun|targeted/iu;
   const personalQuestions = questions.filter(question => {
     const normalized = question.toLocaleLowerCase();
     return personal.test(question) || (normalizedName.length >= 2 && normalized.includes(normalizedName));
   });
   if (personalQuestions.length) throw new Error("Questions must concern the verified field, not the person's biography, role, awards, team, opinions or plans.");
-  if (questions.some(question => !academic.test(question))) throw new Error("Every question must be academically substantive and concern research, evidence, methods, controversies, advances or translation in the field.");
-  const dimensions = [
-    /(?:前沿|进展|突破|新型|新兴|frontier|advance|emerging|novel)/iu,
-    /(?:方向|趋势|空白|争议|瓶颈|挑战|未满足|direction|trend|gap|controvers|challenge|unmet)/iu,
-    /(?:证据|试验|研究|机制|方法|队列|数据|评价|evidence|trial|study|research|mechanism|method|cohort|data|evaluation)/iu,
-    /(?:转化|实践|临床应用|落地|未来|验证|推广|translation|clinical practice|implementation|future|validation)/iu
-  ];
-  if (dimensions.filter(pattern => questions.some(question => pattern.test(question))).length < 3) {
-    throw new Error("The five questions must span at least three academic dimensions: advances, directions or gaps, evidence or methods, and future translation or validation.");
-  }
+  // Academic scope and coverage require semantic review. A keyword whitelist
+  // rejected valid medical questions and could be bypassed by adding "research".
 }
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 const string = (v: unknown, min: number, max: number): v is string => typeof v === "string" && v.trim().length >= min && v.length <= max;
@@ -312,6 +345,15 @@ function parse(text: string): Record<string, unknown> {
     const candidate = text.trim()
       .replace(/^```(?:json)?[ \t]*\r?\n/u, "")
       .replace(/[ \t]*\r?\n?```$/u, "");
+    // Recover one redundant closing brace only when removing it leaves one
+    // complete object. Extra fields, prose, multiple values and missing approval
+    // still require a bounded model repair; never select a JSON prefix.
+    if (candidate.endsWith("}")) {
+      try {
+        const complete = JSON.parse(candidate.slice(0, -1));
+        if (object(complete)) return complete;
+      } catch { /* Continue with the existing complete-draft envelope recovery. */ }
+    }
     const envelope = /^\{\s*"draft"\s*:\s*(\{[\s\S]*\})$/u.exec(candidate);
     if (!envelope) throw error;
     value = { draft: JSON.parse(envelope[1]!) };

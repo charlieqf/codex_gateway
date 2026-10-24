@@ -3871,6 +3871,64 @@ describe("Research Worker controlled-beta workflow", () => {
     fixture.store.close();
   });
 
+  it.each([
+    ["draft_contract", "model_contract_error", "draft_contract_rejected"],
+    ["editor_json", "model_contract_error", "editor_response_invalid"],
+    ["editor_citations", "model_contract_error", "editor_contract_rejected"],
+    ["evidence", "insufficient_research_evidence", "evidence_insufficient"],
+    ["remaining_budget", "resource_budget_exceeded", "review_budget_unavailable"]
+  ] as const)("classifies practical profile %s without publishing an unreviewed artifact", async (defect, reason, detail) => {
+    const fixture = createLeasedWorkflowFixture(`practical_failure_${defect}`);
+    const source = (await adapters().fetchApprovedSource("src_official_1", new AbortController().signal))!;
+    const citations = [{ sourceId: source.sourceId, passageId: "text_0" }];
+    const draft = { facts: [], background: [{ text: "Synthetic public profile.", citations }],
+      qa: Array.from({ length: 5 }, (_, index) => ({ question: `Which evidence gaps need further investigation (${index})?`, answer: "Synthetic answer.", citations })), limitations: [] };
+    let authors = 0, editors = 0, modelCalls = 0;
+    const diagnostics: string[] = [];
+    const limits = { ...workflowPolicy().budgets, llmCalls: defect === "remaining_budget" ? 6 : 14, outputTokens: 84000 };
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease, store: fixture.store, artifactRoot: fixture.artifactRoot,
+      adapters: { ...adapters(),
+        async searchWeb() { return [{ url: source.url, title: source.title, snippet: "Profile" }]; },
+        async readWebPage() { return source; }
+      },
+      modelClient: { model: "test-model", async generate(request) {
+        modelCalls++;
+        let value: unknown;
+        if (request.stage === "discover_identity" && request.attempt === 1) value = { actions: [{ type: "search", query: "Example Doctor Example Hospital" }] };
+        else if (request.stage === "discover_identity" && request.attempt === 2) value = { actions: [{ type: "read", url: source.url }] };
+        else if (request.stage === "discover_identity") value = { identity: { name: "Example Doctor", institution: "Example Hospital", department: "Cardiology",
+          citations: ["person", "institution", "department", "authority"].map(aspect => ({ aspect, sourceId: source.sourceId, passageId: "text_0", explanation: "Synthetic source relationship." })) } };
+        else if (request.stage === "resolve_identity") value = { accepted: true, issues: [] };
+        else if (request.stage === "synthesize_review") {
+          authors++;
+          value = defect === "draft_contract" ? { draft: {} }
+            : defect === "evidence" && authors <= 3 ? { actions: [{ type: "read_source", sourceId: source.sourceId }] } : { draft };
+        } else if (request.stage === "validate_outputs") {
+          editors++;
+          if (defect === "editor_json") value = '{"approved":true';
+          else if (defect === "editor_citations") {
+            const bad = structuredClone(draft); bad.qa[0]!.citations = [{ sourceId: "src_not_read", passageId: "text_0" }];
+            value = { approved: true, draft: bad };
+          } else value = { approved: false, issues: ["A biography cannot support this treatment claim."] };
+        } else throw new Error(`Unexpected stage: ${request.stage}`);
+        return { text: typeof value === "string" ? value : JSON.stringify(value), gatewayRequestId: `req_${defect}_${modelCalls}`,
+          usage: { promptTokens: 100, completionTokens: 100, totalTokens: 200 } };
+      } },
+      policy: { ...workflowPolicy(), identityAgentEnabled: true, budgets: limits },
+      onValidationFailure(event) { diagnostics.push(...event.errorCodes); },
+      signal: new AbortController().signal, now: () => fixture.now
+    });
+    expect(outcome).toEqual({ outcome: "failed", reason });
+    expect(diagnostics).toContain(`practical_profile_${detail}`);
+    expect(modelCalls).toBeLessThanOrEqual(limits.llmCalls);
+    if (defect === "remaining_budget") expect(authors).toBe(0);
+    if (defect.startsWith("editor_")) expect(editors).toBe(2);
+    expect(fixture.store.getRunResultForSubject(fixture.lease.run.runId, fixture.lease.run.subjectId)).toBeNull();
+    expect(existsSync(fixture.artifactRoot)).toBe(false);
+    fixture.store.close();
+  });
+
   it("resumes a transient second Agent model call without replaying its successful web search", async () => {
     const fixture = createLeasedWorkflowFixture("agent_model_resume");
     const source = (await adapters().fetchApprovedSource("src_official_1", new AbortController().signal))!;

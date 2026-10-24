@@ -259,8 +259,8 @@ export async function executeDoctorResearchWorkflow(input: {
     let finalized: DoctorResearchModelOutput;
     if (practicalProfile) {
       const prepared = await collectPracticalProfile(context, identity);
-      if (!prepared) return { outcome: "failed", reason: "resource_budget_exceeded" };
-      finalized = prepared;
+      if (prepared.outcome === "unresolved") return { outcome: "failed", reason: prepared.reason };
+      finalized = prepared.output;
     } else {
     const doctorLookupBrief =
       context.run.mode === "brief" && input.policy.doctorLookupBriefEnabled === true;
@@ -1006,6 +1006,13 @@ class WorkflowContext {
     } catch { /* Diagnostic sinks must not change task outcomes. */ }
   }
 
+  remainingModelCalls(): number {
+    // Consult the durable total, including calls made before a worker restart.
+    const totals = this.charge({ externalRequests: 0, externalResponseBytes: 0,
+      llmCalls: 0, inputTokens: 0, outputTokens: 0 });
+    return Math.max(0, this.input.policy.budgets.llmCalls - totals.llmCalls);
+  }
+
   private reserveModel(
     system: string,
     prompt: string,
@@ -1203,7 +1210,7 @@ class WorkflowContext {
     return this.input.policy.hardDeadlineMs - wallElapsed;
   }
 
-  private charge(charge: ResearchRunBudgetLimits): void {
+  private charge(charge: ResearchRunBudgetLimits): ResearchRunBudgetLimits {
     this.checkActiveDeadline();
     const result = this.input.store.chargeRunBudget({
       token: this.token,
@@ -1217,6 +1224,7 @@ class WorkflowContext {
     if (result.outcome === "budget_exceeded") {
       throw new WorkflowBudgetError(result.limit);
     }
+    return result.totals;
   }
 }
 
@@ -2059,7 +2067,10 @@ export function replayDoctorResearchSynthesis(input: {
   };
 }
 
-async function collectPracticalProfile(context: WorkflowContext, identity: ResolvedDoctorResearchIdentity): Promise<DoctorResearchModelOutput | null> {
+async function collectPracticalProfile(context: WorkflowContext, identity: ResolvedDoctorResearchIdentity): Promise<
+  { outcome: "resolved"; output: DoctorResearchModelOutput } |
+  { outcome: "unresolved"; reason: "resource_budget_exceeded" | "insufficient_research_evidence" | "model_contract_error" }
+> {
   const { store, adapters, policy, signal } = context.input;
   if (!identity.investigatedIdentity || !identity.investigationPages || !store.readAgentState || !store.writeAgentState || !adapters.readWebPage) {
     throw new Error("Practical profile requires reviewed identity, source provenance and durable state.");
@@ -2073,6 +2084,7 @@ async function collectPracticalProfile(context: WorkflowContext, identity: Resol
     language: context.run.language, ...(loaded.payload ? { restoredState: loaded.payload as PracticalProfileState } : {}),
     dependencies: {
       signal, timing: () => context.investigationTiming(),
+      remainingModelCalls: () => context.remainingModelCalls(),
       isFatalError: error => error instanceof WorkflowBudgetError || error instanceof WorkflowFencedError || error instanceof ResearchSearchQuotaError,
       save: async state => {
         const saved = store.writeAgentState!({ token: context.token, stage: "collect_profile_evidence", progressPercent: 25,
@@ -2092,12 +2104,18 @@ async function collectPracticalProfile(context: WorkflowContext, identity: Resol
       })).text
     }
   });
-  // A model that cannot satisfy the draft contract is a contract breach, not a
-  // budget failure; reporting it as the latter sends diagnosis after the wrong cause.
-  if (result.outcome === "unresolved" && result.reason === "draft_contract_rejected") {
-    throw new WorkflowModelContractError(new Error("Practical profile draft rejected repeatedly by the draft contract."));
+  if (result.outcome === "unresolved") {
+    const editorialFailure = result.reason.startsWith("editor_") || result.reason === "evidence_insufficient";
+    context.reportValidationFailure(editorialFailure || result.state.candidate ? "validate_outputs" : "synthesize_review",
+      result.state.calls, [`practical_profile_${result.reason}`],
+      [`profile_calls=${result.state.calls}`, `remaining_run_calls=${context.remainingModelCalls()}`]);
+    if (result.reason === "review_budget_unavailable") {
+      context.reportBudgetFailure("practical_profile_review", result.state.calls, practicalProfilePolicy.maximumModelCalls);
+      return { outcome: "unresolved", reason: "resource_budget_exceeded" };
+    }
+    return { outcome: "unresolved", reason: result.reason === "evidence_insufficient"
+      ? "insufficient_research_evidence" : "model_contract_error" };
   }
-  if (result.outcome !== "resolved") { context.reportBudgetFailure("practical_profile_investigation"); return null; }
   const output = assemblePracticalProfile({ doctor: context.run.input.doctor, identity: identity.investigatedIdentity,
     ...(context.run.input.interviewTopics ? { interviewTopics: context.run.input.interviewTopics } : {}),
     canonicalIdentityId: identity.canonicalIdentityId, pages: identity.investigationPages, draft: result.draft, state: result.state,
@@ -2110,7 +2128,7 @@ async function collectPracticalProfile(context: WorkflowContext, identity: Resol
     output_sha256: sha256(JSON.stringify(output)), publication_count: output.review.references.length });
   await context.checkpoint("generate_questions", 73, { question_count: output.predicted_questions.length });
   await context.checkpoint("generate_answers", 80, { answer_count: output.answers.length });
-  return output;
+  return { outcome: "resolved", output };
 }
 
 async function collectAgentResearchEvidence(

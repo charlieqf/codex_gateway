@@ -230,6 +230,91 @@ describe("Practical profile scope, provenance and durable recovery (scripted mod
     expect(f.input.dependencies.generate).toHaveBeenCalledTimes(5);
   });
 
+  it("sends medical questions without whitelist keywords to semantic editing without rewriting them", async () => {
+    const responses: unknown[] = []; const f = fixture(responses);
+    f.input.language = "zh-CN";
+    const draft = structuredClone(f.draft);
+    draft.qa = [
+      "RARG重排AML作为一种被新定义的白血病类型，当前国际上对其认识处于什么阶段？",
+      "在血液系统恶性肿瘤中，蛋白酶体抑制剂的疗效受到哪些限制？",
+      "同种异体移植对浆细胞骨髓瘤患者的移植前克隆性造血有何影响？",
+      "遗传易感因素在MDS发病中有什么新近认识？以Oncostatin M（OSM）缺乏为例。",
+      "ICC新界定的MDS/AML重叠entity中，IPSS-M与ELN分类体系应如何选择与配合使用？"
+    ].map(question => ({ question, answer: "Synthetic answer, subject to independent editing.", citations: f.draft.qa[0]!.citations }));
+    responses.push({ draft }, { approved: false, issues: ["qa/2: add a field-evidence source; cover translational validation."] },
+      { draft: f.draft }, { approved: true, draft: f.draft });
+    expect(await preparePracticalProfile(f.input)).toMatchObject({ outcome: "resolved", draft: f.draft });
+    const calls = vi.mocked(f.input.dependencies.generate).mock.calls.map(([request]) => request);
+    expect(calls.map(r => r.role)).toEqual(["author", "editor", "author", "editor"]);
+    expect(JSON.parse(calls[1]!.prompt).candidate.qa).toEqual(draft.qa);
+    expect(calls[1]!.system).toContain("Judge academic relevance and dimension coverage by meaning");
+    expect(calls[2]!.prompt).toContain("qa/2: add a field-evidence source");
+  });
+
+  it.each(["extra_fields", "fenced_commentary"])("reserves the sixth call to repair an editor response with %s", async defect => {
+    const responses: unknown[] = []; const f = fixture(responses);
+    const lookup = { actions: [{ type: "search_publications", query: "cardiology" }] };
+    const approved = JSON.stringify({ approved: true, draft: f.draft });
+    const malformed = defect === "extra_fields" ? approved + ',"edits":["Formatting notes"]'
+      : "```json\n" + approved + "\n```\nEditorial notes after the JSON.";
+    responses.push(lookup, lookup, lookup, { draft: f.draft }, malformed, approved);
+    expect(await preparePracticalProfile(f.input)).toMatchObject({ outcome: "resolved", state: { calls: 6 } });
+    const calls = vi.mocked(f.input.dependencies.generate).mock.calls.map(([r]) => r);
+    expect(calls.map(r => r.role)).toEqual(["author", "author", "author", "author", "editor", "editor"]);
+    expect(JSON.parse(calls[3]!.prompt).remaining).toMatchObject({ model_calls_including_editor: 3, author_calls_before_review: 1, reserved_editor_calls: 2 });
+    expect(calls[3]!.system).toContain("last author call");
+    expect(calls[5]!.system).toContain("previous editorial response failed");
+    expect(f.input.dependencies.searchPublications).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not spend the reserved editorial calls on more retrieval or another unreviewable draft", async () => {
+    const responses: unknown[] = []; const f = fixture(responses);
+    const lookup = { actions: [{ type: "search_publications", query: "cardiology" }] };
+    responses.push(lookup, lookup, lookup, { actions: [{ type: "read_page", url: "https://hospital.example/career" }] });
+    const result = await preparePracticalProfile(f.input);
+    expect(result).toMatchObject({ outcome: "unresolved", reason: "review_budget_unavailable", state: { calls: 4, candidate: null, approved: null } });
+    expect(f.input.dependencies.readPage).not.toHaveBeenCalled();
+    expect(await preparePracticalProfile({ ...f.input, restoredState: f.saved() })).toMatchObject({ outcome: "unresolved", reason: "review_budget_unavailable" });
+    expect(f.input.dependencies.generate).toHaveBeenCalledTimes(4);
+  });
+
+  it("keeps an evidence rejection when too few calls remain to redraft and review", async () => {
+    const responses: unknown[] = []; const f = fixture(responses);
+    const lookup = { actions: [{ type: "search_publications", query: "cardiology" }] };
+    responses.push(lookup, lookup, lookup, { draft: f.draft }, { approved: false, issues: ["A biography cannot support the treatment conclusion."] });
+    expect(await preparePracticalProfile(f.input)).toMatchObject({ outcome: "unresolved", reason: "evidence_insufficient", state: { calls: 5, approved: null } });
+    expect(f.input.dependencies.generate).toHaveBeenCalledTimes(5);
+  });
+
+  it.each(["extra_json", "missing_approval", "bad_citation"])("bounds editor repairs across recovery and never approves %s", async defect => {
+    const responses: unknown[] = []; const f = fixture(responses);
+    const bad = structuredClone(f.draft); bad.qa[0]!.citations[0]!.sourceId = "src_invented";
+    const invalid = defect === "extra_json" ? JSON.stringify({ approved: true, draft: f.draft }) + ' {"approved":false}'
+      : defect === "missing_approval" ? { draft: f.draft } : { approved: true, draft: bad };
+    responses.push({ draft: f.draft }, invalid, invalid);
+    const reason = defect === "bad_citation" ? "editor_contract_rejected" : "editor_response_invalid";
+    expect(await preparePracticalProfile(f.input)).toMatchObject({ outcome: "unresolved", reason, state: { approved: null, editorFailures: 2 } });
+    expect(await preparePracticalProfile({ ...f.input, restoredState: f.saved() })).toMatchObject({ outcome: "unresolved", reason });
+    expect(f.input.dependencies.generate).toHaveBeenCalledTimes(3);
+  });
+
+  it("respects the remaining run budget rather than resetting it at the profile boundary", async () => {
+    const responses: unknown[] = []; const f = fixture(responses);
+    f.input.dependencies.remainingModelCalls = () => 2;
+    expect(await preparePracticalProfile(f.input)).toMatchObject({ outcome: "unresolved", reason: "review_budget_unavailable", state: { calls: 0 } });
+    expect(f.input.dependencies.generate).not.toHaveBeenCalled();
+    f.input.dependencies.remainingModelCalls = () => 3 - vi.mocked(f.input.dependencies.generate).mock.calls.length;
+    responses.push({ draft: f.draft }, JSON.stringify({ approved: true, draft: f.draft }) + ' {}', { approved: true, draft: f.draft });
+    expect(await preparePracticalProfile(f.input)).toMatchObject({ outcome: "resolved", state: { calls: 3 } });
+  });
+
+  it("recovers a single redundant closing brace without changing content or skipping review", async () => {
+    const responses: unknown[] = []; const f = fixture(responses);
+    responses.push(JSON.stringify({ draft: f.draft }) + "\n}", { approved: true, draft: f.draft });
+    expect(await preparePracticalProfile(f.input)).toMatchObject({ outcome: "resolved", draft: f.draft });
+    expect(vi.mocked(f.input.dependencies.generate).mock.calls.map(([r]) => r.role)).toEqual(["author", "editor"]);
+  });
+
   it("rejects biographical questions and accepts field-oriented academic replacements", async () => {
     const responses: unknown[] = []; const f = fixture(responses);
     const biographical = structuredClone(f.draft);
