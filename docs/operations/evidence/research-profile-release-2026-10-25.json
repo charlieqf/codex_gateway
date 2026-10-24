@@ -1,0 +1,487 @@
+{
+  "revision": "9db1efa7329287903e09f0d87232d050a2805453",
+  "build": [
+    "Test Files  108 passed | 2 skipped (110)",
+    "Tests  2093 passed | 4 skipped (2097)",
+    "Duration  80.66s (transform 19.74s, setup 0ms, import 52.16s, tests 192.33s, environment 13ms)"
+  ],
+  "cutover": {
+    "mode": "cutover",
+    "revision": "9db1efa7329287903e09f0d87232d050a2805453",
+    "worker_id": "ef4ae6fa95e4ba5bc43b2359399eacdce7056f2df4c6ef23228367cf35d78010",
+    "health": "healthy",
+    "restarts": 0,
+    "current_unchanged": true,
+    "other_containers_preserved": 3,
+    "protected_files_preserved": 17,
+    "public_health": [
+      {
+        "http": 200,
+        "ready": true,
+        "draining": false
+      },
+      {
+        "http": 200,
+        "ready": true,
+        "draining": false
+      }
+    ],
+    "integrity": {
+      "quick_check": "ok",
+      "fk": 0
+    },
+    "cutover_at": "2026-10-24T21:12:58.287754+00:00",
+    "deployed_at": "2026-10-24T21:13:09.770714+00:00"
+  },
+  "verification": {
+    "mode": "verify",
+    "revision": "9db1efa7329287903e09f0d87232d050a2805453",
+    "worker_id": "ef4ae6fa95e4ba5bc43b2359399eacdce7056f2df4c6ef23228367cf35d78010",
+    "health": "healthy",
+    "restarts": 0,
+    "current_unchanged": true,
+    "other_containers_preserved": 3,
+    "protected_files_preserved": 17,
+    "public_health": [
+      {
+        "http": 200,
+        "ready": true,
+        "draining": false
+      },
+      {
+        "http": 200,
+        "ready": true,
+        "draining": false
+      }
+    ],
+    "integrity": {
+      "quick_check": "ok",
+      "fk": 0
+    },
+    "cutover_at": "2026-10-24T21:12:58.287754+00:00",
+    "deployed_at": "2026-10-24T21:13:09.770714+00:00"
+  },
+  "deployed_regressions": {
+    "at": "2026-10-24T21:14:46.241Z",
+    "policy": {
+      "version": "doctor_practical_profile.v1",
+      "maximumModelCalls": 6,
+      "reservedEditorCalls": 2,
+      "maximumPageReads": 4,
+      "maximumPublicationSearches": 2,
+      "maximumPublicationReads": 5,
+      "maximumOutputTokens": 6000
+    },
+    "passed": true,
+    "checks": [
+      {
+        "name": "medical_questions_reach_semantic_editor_unchanged",
+        "calls": 2,
+        "passed": true
+      },
+      {
+        "name": "reserved_editor_retry_trailing_fields",
+        "calls": 6,
+        "passed": true
+      },
+      {
+        "name": "reserved_editor_retry_fenced_prose",
+        "calls": 6,
+        "passed": true
+      },
+      {
+        "name": "reject_and_bound_after_resume_extra_json",
+        "calls": 3,
+        "passed": true
+      },
+      {
+        "name": "reject_and_bound_after_resume_bad_citation",
+        "calls": 3,
+        "passed": true
+      },
+      {
+        "name": "reject_and_bound_after_resume_missing_approval",
+        "calls": 3,
+        "passed": true
+      },
+      {
+        "name": "single_extra_brace_still_requires_editor",
+        "calls": 2,
+        "passed": true
+      },
+      {
+        "name": "durable_remaining_budget_guard",
+        "calls": 0,
+        "passed": true
+      }
+    ]
+  },
+  "public_smoke": {
+    "started_at": "2026-10-24T21:14:16.291Z",
+    "completed_at": "2026-10-24T21:16:41.561Z",
+    "runs": [
+      "drr_e81a42814b47446faa1276dea42c069c"
+    ],
+    "terminal": {
+      "status": "succeeded",
+      "error": null,
+      "elapsed_seconds": 145
+    },
+    "idempotency": {
+      "replay_same_run": true,
+      "changed_topic_http": 409
+    },
+    "qa_count": 5,
+    "artifacts": [
+      {
+        "kind": "profile",
+        "bytes": 4311,
+        "sha256": "93a6ce8f38110438c2335630f792da8a17907f42b03a0ff8d9f22e6b42b03bdb"
+      },
+      {
+        "kind": "review",
+        "bytes": 2134,
+        "sha256": "7055512d0b0bc0260d853b1887275bca9ec616fa3d190b1ba69a8b5cc260537f"
+      },
+      {
+        "kind": "questions",
+        "bytes": 499,
+        "sha256": "ef5473cc8d5955dee44f5af7e6372ef9d305c047be80fddfdfa00a0d80a14190"
+      },
+      {
+        "kind": "answers",
+        "bytes": 5662,
+        "sha256": "b0e54eec31720ad7e65054d4340621ee8d83e698c03f83345408f1bcc8ff342f"
+      }
+    ],
+    "quality": {
+      "status": "passed_with_warnings",
+      "warnings": [
+        "practical_profile_scope_limited"
+      ],
+      "checks": [
+        "doctor_practical_profile.v1",
+        "doctor_identity_resolution",
+        "practical_profile_fact_review",
+        "claim_source_closure",
+        "five_question_answer_contract",
+        "field_academic_question_contract"
+      ]
+    },
+    "stages": [
+      {
+        "stage": "discover_identity",
+        "attempt": 1,
+        "duration_ms": 2119,
+        "error_code": null
+      },
+      {
+        "stage": "discover_identity",
+        "attempt": 2,
+        "duration_ms": 2564,
+        "error_code": null
+      },
+      {
+        "stage": "discover_identity",
+        "attempt": 3,
+        "duration_ms": 8570,
+        "error_code": null
+      },
+      {
+        "stage": "resolve_identity",
+        "attempt": 4,
+        "duration_ms": 2202,
+        "error_code": null
+      },
+      {
+        "stage": "synthesize_review",
+        "attempt": 1,
+        "duration_ms": 3963,
+        "error_code": null
+      },
+      {
+        "stage": "synthesize_review",
+        "attempt": 2,
+        "duration_ms": 4250,
+        "error_code": null
+      },
+      {
+        "stage": "synthesize_review",
+        "attempt": 3,
+        "duration_ms": 51288,
+        "error_code": null
+      },
+      {
+        "stage": "validate_outputs",
+        "attempt": 4,
+        "duration_ms": 59675,
+        "error_code": null
+      }
+    ],
+    "cleanup": {
+      "active_credentials": 0,
+      "pending_reservations": 0,
+      "unfinished_runs": 0,
+      "revoked_public_status": 401,
+      "subject_state": "disabled",
+      "plan_state": "deprecated"
+    },
+    "passed": true
+  },
+  "cleanup": {
+    "at": "2026-10-24T21:17:06.424Z",
+    "subject_id": "subj_research_profile_release_f3ab51be-bd8d-40c9-bc11-cabba0357ed4",
+    "runs": [
+      "drr_e81a42814b47446faa1276dea42c069c"
+    ],
+    "files_removed": 4,
+    "rows_removed": {
+      "research_checkpoints": 13,
+      "research_identity_candidates": 0,
+      "research_claims": 7,
+      "research_references": 5,
+      "research_sources": 6,
+      "research_run_results": 1,
+      "research_artifacts": 4
+    },
+    "audit_preserved": true,
+    "telemetry": [
+      {
+        "run_id": "drr_e81a42814b47446faa1276dea42c069c",
+        "stages": [
+          {
+            "stage": "discover_identity",
+            "attempt": 1,
+            "duration_ms": 2119,
+            "error_code": null
+          },
+          {
+            "stage": "discover_identity",
+            "attempt": 2,
+            "duration_ms": 2564,
+            "error_code": null
+          },
+          {
+            "stage": "discover_identity",
+            "attempt": 3,
+            "duration_ms": 8570,
+            "error_code": null
+          },
+          {
+            "stage": "resolve_identity",
+            "attempt": 4,
+            "duration_ms": 2202,
+            "error_code": null
+          },
+          {
+            "stage": "synthesize_review",
+            "attempt": 1,
+            "duration_ms": 3963,
+            "error_code": null
+          },
+          {
+            "stage": "synthesize_review",
+            "attempt": 2,
+            "duration_ms": 4250,
+            "error_code": null
+          },
+          {
+            "stage": "synthesize_review",
+            "attempt": 3,
+            "duration_ms": 51288,
+            "error_code": null
+          },
+          {
+            "stage": "validate_outputs",
+            "attempt": 4,
+            "duration_ms": 59675,
+            "error_code": null
+          }
+        ],
+        "budget": {
+          "run_id": "drr_e81a42814b47446faa1276dea42c069c",
+          "external_requests": 42,
+          "external_response_bytes": 84000000,
+          "llm_calls": 8,
+          "input_tokens": 123785,
+          "output_tokens": 36000,
+          "updated_at": "2026-10-24T21:15:40.339Z"
+        }
+      }
+    ],
+    "integrity": {
+      "quick_check": "ok",
+      "fk": 0
+    },
+    "passed": true
+  },
+  "final_runtime": {
+    "at": "2026-10-24T21:17:21.513264+00:00",
+    "containers": [
+      {
+        "service": "gateway",
+        "revision": "954eb3bedca6648405fa419d232cdb4a43dbe8fc",
+        "health": "healthy",
+        "restarts": 0,
+        "oom": false
+      },
+      {
+        "service": "research-worker",
+        "revision": "9db1efa7329287903e09f0d87232d050a2805453",
+        "health": "healthy",
+        "restarts": 0,
+        "oom": false
+      },
+      {
+        "service": "research-maintenance",
+        "revision": "44c7bdd76d47ea434e006e9ea4dc7d3482df4383",
+        "health": "healthy",
+        "restarts": 0,
+        "oom": false
+      },
+      {
+        "service": "research-llm-gateway",
+        "revision": "2126e7c283142a46c53611eff4a0b899e82fd103",
+        "health": "healthy",
+        "restarts": 0,
+        "oom": false
+      }
+    ],
+    "databases": [],
+    "logs": {
+      "gateway": {
+        "levels": {
+          "30": 174
+        },
+        "error_codes": {}
+      },
+      "research-worker": {
+        "levels": {
+          "info": 8
+        },
+        "error_codes": {}
+      },
+      "research-maintenance": {
+        "levels": {},
+        "error_codes": {}
+      },
+      "research-llm-gateway": {
+        "levels": {
+          "30": 32
+        },
+        "error_codes": {}
+      }
+    },
+    "worker_heartbeat": [
+      {
+        "worker_id": "research-production-worker-1",
+        "version": "research-profile-9db1efa73292",
+        "state": "ready",
+        "last_seen_at": "2026-10-24T21:17:20.223Z"
+      }
+    ],
+    "active_research_runs": [],
+    "build_summary": [
+      "Test Files  108 passed | 2 skipped (110)",
+      "Tests  2093 passed | 4 skipped (2097)",
+      "Duration  80.66s (transform 19.74s, setup 0ms, import 52.16s, tests 192.33s, environment 13ms)"
+    ]
+  },
+  "database_checks": [
+    {
+      "path": "/data/docker/volumes/codex_gateway_r760_gateway_state/_data/client-events.db",
+      "quick_check": "ok",
+      "fk": 0
+    },
+    {
+      "path": "/data/docker/volumes/codex_gateway_r760_gateway_state/_data/clinical/aipal.db",
+      "quick_check": "ok",
+      "fk": 0
+    },
+    {
+      "path": "/data/docker/volumes/codex_gateway_r760_gateway_state/_data/clinical/alphafold.db",
+      "quick_check": "ok",
+      "fk": 0
+    },
+    {
+      "path": "/data/docker/volumes/codex_gateway_r760_gateway_state/_data/clinical/alphafold3.db",
+      "quick_check": "ok",
+      "fk": 0
+    },
+    {
+      "path": "/data/docker/volumes/codex_gateway_r760_gateway_state/_data/clinical/echonet.db",
+      "quick_check": "ok",
+      "fk": 0
+    },
+    {
+      "path": "/data/docker/volumes/codex_gateway_r760_gateway_state/_data/clinical/echonext.db",
+      "quick_check": "ok",
+      "fk": 0
+    },
+    {
+      "path": "/data/docker/volumes/codex_gateway_r760_gateway_state/_data/clinical/panecho.db",
+      "quick_check": "ok",
+      "fk": 0
+    },
+    {
+      "path": "/data/docker/volumes/codex_gateway_r760_gateway_state/_data/gateway.db",
+      "quick_check": "ok",
+      "fk": 0
+    },
+    {
+      "path": "/data/docker/volumes/codex_gateway_r760_gateway_state/_data/imaging/control.db",
+      "quick_check": "ok",
+      "fk": 0
+    },
+    {
+      "path": "/data/docker/volumes/codex_gateway_r760_research_production_backups/_data/drb_097791494cb2426496bd365e79d41b1e/research.snapshot.db",
+      "quick_check": "ok",
+      "fk": 0
+    },
+    {
+      "path": "/data/docker/volumes/codex_gateway_r760_research_production_backups/_data/drb_188eb6de11174c1694250f6f128cf9d3/research.snapshot.db",
+      "quick_check": "ok",
+      "fk": 0
+    },
+    {
+      "path": "/data/docker/volumes/codex_gateway_r760_research_production_backups/_data/drb_1e5980c5663c4cbdbfdd8cb5e23059fd/research.snapshot.db",
+      "quick_check": "ok",
+      "fk": 0
+    },
+    {
+      "path": "/data/docker/volumes/codex_gateway_r760_research_production_backups/_data/drb_2f3c7ae7ffbf4904a26550240e9a7336/research.snapshot.db",
+      "quick_check": "ok",
+      "fk": 0
+    },
+    {
+      "path": "/data/docker/volumes/codex_gateway_r760_research_production_backups/_data/drb_d4bb6dcd6a6c4251ae325a540a07eae8/research.snapshot.db",
+      "quick_check": "ok",
+      "fk": 0
+    },
+    {
+      "path": "/data/docker/volumes/codex_gateway_r760_research_production_backups/_data/drb_f80cf6e181fa472ebe84a250a3036786/research.snapshot.db",
+      "quick_check": "ok",
+      "fk": 0
+    },
+    {
+      "path": "/data/docker/volumes/codex_gateway_r760_research_production_llm_gateway_state/_data/client-events.db",
+      "quick_check": "ok",
+      "fk": 0
+    },
+    {
+      "path": "/data/docker/volumes/codex_gateway_r760_research_production_llm_gateway_state/_data/gateway.db",
+      "quick_check": "ok",
+      "fk": 0
+    },
+    {
+      "path": "/data/docker/volumes/codex_gateway_r760_research_production_llm_gateway_state/_data/research-readiness.db",
+      "quick_check": "ok",
+      "fk": 0
+    },
+    {
+      "path": "/data/docker/volumes/codex_gateway_r760_research_production_state/_data/research.db",
+      "quick_check": "ok",
+      "fk": 0
+    }
+  ]
+}

@@ -1,5 +1,34 @@
 # System Status
 
+Research Worker `9db1efa7329287903e09f0d87232d050a2805453` is live as of
+2026-10-24 21:13:09 UTC, verified at 21:17:21 UTC. Semantic academic editing
+replaces keyword gates; existing call budgets reserve final review and one repair.
+Clean Linux: 2093 tests passed / 4 skipped. Eight deployed-worker fault checks
+passed; a real public Research task succeeded in 145 seconds, with five Q&A pairs
+and four downloaded artifacts verified by size/SHA-256. Synthetic credentials
+and artifacts were cleaned, preserving audit records. Worker and public Gateway
+are healthy with zero restarts; no Research runs remain active. Public Gateway
+stays on `954eb3b`; its current/previous links and three other containers are
+unchanged. See the [release receipt](./research-profile-release-2026-10-25.zh-CN.md).
+
+Follow-up on the six Research failures: they cover three distinct inputs, all
+later succeeded on resubmission; all 12 replacement artifacts passed size/hash
+checks. Exact deployed-code reproduction confirmed academic-keyword false
+rejections and unreserved final-review calls. Two final editor responses already
+contained approval but failed JSON parsing due to appended material. All 65
+underlying model calls completed with `stop`. No application/production changes
+were made. See the [six-task investigation](./research-six-failures-investigation-2026-10-24.zh-CN.md).
+
+Read-only 24-hour review through 2026-10-24 06:59:58 UTC: Gateway remains
+healthy on `954eb3b`, with no restart/OOM. Of 944 model requests, 920 succeeded,
+20 were cancelled, one hit the free allowance, two failed tool schema validation,
+and one image request hit a GPU thermal/monitoring safety stop. Separately, one
+account's 15 Research tasks had nine successes and six profile-stage failures:
+all exhausted six calls with a candidate but no approved draft. Final public
+health at 07:17:16 UTC was ready; nine database integrity/FK checks and ledger
+reconciliation passed. Paid daily Token caps remain removed. See the
+[2026-10-24 review and concrete follow-ups](./gateway-24h-review-2026-10-24.zh-CN.md).
+
 Current Gateway `954eb3bedca6648405fa419d232cdb4a43dbe8fc` is live, deployed
 2026-10-23 03:15:27 UTC and verified at 03:19:45 UTC. The public catalog now has
 `goldencode` (three GLM-5.3 providers), `goldencode-d` (Tencent DeepSeek V4.1
