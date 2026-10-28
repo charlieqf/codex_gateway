@@ -5,10 +5,21 @@ import types
 import unittest
 from unittest.mock import patch
 
-from gateway_release_idle import wait_for_natural_idle
+from gateway_release_idle import release_idle_seconds, wait_for_natural_idle
 
 
 class ReleaseIdleTests(unittest.TestCase):
+    def test_release_default_and_explicit_short_window(self):
+        self.assertEqual(release_idle_seconds([]), 30)
+        self.assertEqual(release_idle_seconds(["--enable-vision"]), 30)
+        self.assertEqual(release_idle_seconds(["--enable-vision", "--idle-stable-seconds=5"]), 5)
+
+    def test_release_rejects_bypass_invalid_window_and_duplicate_flags(self):
+        for flags in (["--drain-without-idle"], ["--idle-stable-seconds=0"], ["--idle-stable-seconds=1"],
+                      ["--idle-stable-seconds=5"] * 2, ["--enable-vision"] * 2):
+            with self.subTest(flags=flags), self.assertRaisesRegex(ValueError, "Unsupported release flags"):
+                release_idle_seconds(flags)
+
     def exercise(self, status, timeout=60, stable_seconds=30):
         self.now = 0
 
