@@ -32,7 +32,7 @@ class DrainTests(unittest.TestCase):
             sleep.assert_called_once_with(1)
             run.assert_any_call(["docker", "kill", "--signal=SIGUSR2", "pinned-container"])
 
-    def exercise_shared_gate(self, *, busy=False, racing=False, interrupt=False, resume_failure=False, timeout=900, idle_seconds=30):
+    def exercise_shared_gate(self, *, busy=False, racing=False, interrupt=False, resume_failure=False, timeout=900):
         clock = [0]
         signals = []
         closed = [False]
@@ -58,7 +58,7 @@ class DrainTests(unittest.TestCase):
         with patch.object(drain, "run", side_effect=run), patch.object(drain, "status", side_effect=status), \
              patch.object(drain.time, "monotonic", side_effect=lambda: clock[0]), \
              patch.object(drain.time, "sleep", side_effect=lambda seconds: clock.__setitem__(0, clock[0] + seconds)), \
-             patch("sys.argv", ["drain", "--timeout", str(timeout), "--idle-timeout", "60", "--idle-stable-seconds", str(idle_seconds)]), \
+             patch("sys.argv", ["drain", "--timeout", str(timeout), "--idle-timeout", "60"]), \
              patch("sys.stdout", io.StringIO()) as stdout, patch("sys.stderr", io.StringIO()) as stderr:
             if resume_failure:
                 with self.assertRaisesRegex(RuntimeError, "could not verify recovery"):
@@ -85,21 +85,6 @@ class DrainTests(unittest.TestCase):
         signals, closed = self.exercise_shared_gate()
         self.assertEqual(signals, [(40, "--signal=SIGUSR2")])
         self.assertTrue(closed)
-
-    def test_explicit_short_window_still_waits_for_zero_work(self):
-        signals, closed = self.exercise_shared_gate(idle_seconds=5)
-        self.assertEqual(signals, [(16, "--signal=SIGUSR2")])
-        self.assertTrue(closed)
-
-    def test_short_window_retains_30_second_drain_and_resume_on_race(self):
-        signals, closed = self.exercise_shared_gate(idle_seconds=5, racing=True)
-        self.assertEqual(signals, [(16, "--signal=SIGUSR2"), (46, "--signal=SIGCONT")])
-        self.assertFalse(closed)
-
-    def test_short_window_never_signals_while_work_remains(self):
-        signals, closed = self.exercise_shared_gate(idle_seconds=5, busy=True)
-        self.assertEqual(signals, [])
-        self.assertFalse(closed)
 
     def test_long_timeout_cannot_hold_admission_closed_for_900_seconds(self):
         signals, closed = self.exercise_shared_gate(racing=True)

@@ -86,16 +86,6 @@ registry. Do not source the env in a shell; `node --env-file` loads it as data.
 python3 -B "$RELEASE/scripts/ops/deploy-goldencode-d-r760.py" "$REV" --enable-vision
 ```
 
-The default natural-idle window remains 30 seconds. When an explicitly selected
-short window is appropriate after prolonged busy traffic, the reviewed control
-scripts also accept `--idle-stable-seconds=5`. Both request and background-work
-counts must stay zero for the entire window; this option never skips idle checks
-or increases the 30-second drain cap. New work racing with the drain still causes
-bounded recovery of admission. Record the selected window in the release receipt.
-For an ops-only control-script update, run the committed caller and its sibling
-drain/helper files from the same immutable control artifact against the already
-verified application revision. Do not mix individual scripts from dirty checkouts.
-
 The shared `gateway-drain.py` requires a 30-second natural idle window with both active requests and
 background work at zero. Admission stays open during this wait; if no window is
 available within 15 minutes, the release stops without changing production.

@@ -2,13 +2,6 @@
 import time
 
 
-def release_idle_seconds(flags):
-    allowed = {"--enable-vision", "--idle-stable-seconds=5"}
-    if len(flags) != len(set(flags)) or set(flags) - allowed:
-        raise ValueError("Unsupported release flags; bypassing the natural idle window is disabled")
-    return 5 if "--idle-stable-seconds=5" in flags else 30
-
-
 def validate_lifecycle(value):
     if not isinstance(value, dict) or type(value.get("draining")) is not bool:
         raise RuntimeError("Runtime has no drain protocol; signal was not sent")
@@ -40,4 +33,4 @@ def wait_for_natural_idle(status, *, timeout=900, stable_seconds=30,
         else:
             idle_since = None
         sleep(min(2, max(0, until - monotonic())))
-    raise RuntimeError(f"No {stable_seconds}-second natural idle window; production unchanged")
+    raise RuntimeError("No 30-second natural idle window; production unchanged")

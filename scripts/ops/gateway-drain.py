@@ -37,8 +37,6 @@ def main():
     parser.add_argument("--container", default="codex_gateway_r760-gateway-1")
     parser.add_argument("--timeout", type=int, default=30, help="Drain/resume polling seconds (capped at 30)")
     parser.add_argument("--idle-timeout", type=int, default=900, help="Wait for natural idle with admission open")
-    parser.add_argument("--idle-stable-seconds", type=int, choices=(5, 30), default=30,
-                        help="Continuous zero-request/zero-work window; default 30, explicit short window 5")
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
     if args.timeout <= 0 or args.idle_timeout <= 30:
@@ -58,7 +56,7 @@ def main():
     # All callers, including the generic cutover script, get the same gate.
     # This check fails without sending any signal if traffic never goes idle.
     wait_for_natural_idle(lambda: status(container), timeout=args.idle_timeout,
-                          stable_seconds=args.idle_stable_seconds, monotonic=time.monotonic, sleep=time.sleep)
+                          monotonic=time.monotonic, sleep=time.sleep)
     try:
         run(["docker", "kill", "--signal=SIGUSR2", container])
         print(json.dumps(await_state(container, timeout, False)))

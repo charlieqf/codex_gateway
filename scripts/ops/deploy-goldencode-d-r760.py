@@ -1,6 +1,6 @@
 """Authorized R760 release of the DeepSeek model pool after release preparation.
 
-Usage: python3 deploy-goldencode-d-r760.py <committed-and-pushed-revision> [--enable-vision] [--idle-stable-seconds=5]
+Usage: python3 deploy-goldencode-d-r760.py <committed-and-pushed-revision> [--enable-vision]
 Requires the standard release-prepare backup/state, a tested image tagged with
 that revision, and migration rehearsal. Changes only Gateway image + registry.
 Vision requires backups/release-<rev[:12]>/vision-candidate.env from prepare,
@@ -20,11 +20,11 @@ import sys
 import time
 import urllib.error
 import urllib.request
-from gateway_release_idle import release_idle_seconds
 
 REV = sys.argv[1]
 flags = sys.argv[2:]
-idle_seconds = release_idle_seconds(flags)
+if len(flags) != len(set(flags)) or set(flags) - {"--enable-vision"}:
+    raise ValueError("Unsupported release flags; bypassing the natural idle window is disabled")
 enable_vision = "--enable-vision" in flags
 assert re.fullmatch(r"[0-9a-f]{40}", REV)
 ROOT = pathlib.Path("/opt/codex-gateway-r760")
@@ -173,10 +173,8 @@ protected -= {ENVFILE.resolve(), OVERRIDE.resolve()}
 fingerprints = {str(p): (sha(p), p.stat().st_mode & 0o777) for p in protected}
 mounts = {m["Destination"]: m["Source"] for m in meta["Mounts"]}
 dbpath = pathlib.Path(mounts["/var/lib/codex-gateway"]) / "gateway.db"
-# Use the same immutable control-script revision as this caller. This permits
-# an ops-only update to deploy an already-built, independently verified image.
-drain = ["python3", str(pathlib.Path(__file__).resolve().with_name("gateway-drain.py")), "--container", meta["Id"],
-         "--timeout", "30", "--idle-stable-seconds", str(idle_seconds)]
+drain = ["python3", str(RELEASE / "scripts/ops/gateway-drain.py"), "--container", meta["Id"],
+         "--timeout", "30"]
 
 # The shared drain helper waits for natural idle and caps closed admission.
 
@@ -220,7 +218,6 @@ except (Exception, KeyboardInterrupt):
     raise
 
 result = {"revision": REV, "previous": state["previous_revision"], "schema": 44,
-          "idle_stable_seconds": idle_seconds,
           "operation": "enable-deepseek-vision" if enable_vision else "add-deepseek-model",
           "started_at": started, "completed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
           "changed_env": [MODEL_ENV] if proposed_env != env_bytes else [], "protected_files_preserved": len(fingerprints),
