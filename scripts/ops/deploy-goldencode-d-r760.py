@@ -7,6 +7,7 @@ that revision, and migration rehearsal. Changes only Gateway image + registry.
 import datetime
 import fcntl
 import hashlib
+import importlib.util
 import json
 import os
 import pathlib
@@ -19,8 +20,10 @@ import urllib.error
 import urllib.request
 
 REV = sys.argv[1]
-assert sys.argv[2:] in ([], ["--drain-without-idle"])
-drain_without_idle = sys.argv[2:] == ["--drain-without-idle"]
+flags = sys.argv[2:]
+assert len(flags) == len(set(flags)) and set(flags) <= {"--drain-without-idle", "--enable-vision"}
+drain_without_idle = "--drain-without-idle" in flags
+enable_vision = "--enable-vision" in flags
 assert re.fullmatch(r"[0-9a-f]{40}", REV)
 ROOT = pathlib.Path("/opt/codex-gateway-r760")
 RELEASE = ROOT / "releases" / REV
@@ -126,10 +129,8 @@ assert not old_env.get("MEDCODE_PUBLIC_MODELS_JSON_FILE"), "File registry requir
 assert old_env["GATEWAY_GOLDENCODE_NATIVE_FAILOVER_MODE"] == "enforce"
 assert not old_env.get("GATEWAY_GOLDENCODE_FAILOVER_SUBJECT_IDS", "").strip()
 registry = json.loads(old_env[MODEL_ENV])
-assert "goldencode-d" not in registry and "goldencode-local" in registry
+assert ("goldencode-d" in registry) == enable_vision and "goldencode-local" in registry
 assert {m["runtime"] for m in registry["goldencode"]["pool"]["members"] if m.get("enabled", True)} == {"tencent", "tiankuan", "tokenswitch"}
-new_model = json.loads((RELEASE / "config/gateway.goldencode.three-provider.example.json").read_text())["goldencode-d"]
-proposed_registry = {**registry, "goldencode-d": new_model}
 env_bytes, override_bytes = ENVFILE.read_bytes(), OVERRIDE.read_bytes()
 env_stat, override_stat = ENVFILE.stat(), OVERRIDE.stat()
 assert env_stat.st_mode & 0o777 == 0o600
@@ -137,8 +138,20 @@ lines = env_bytes.decode().splitlines(keepends=True)
 matches = [i for i, line in enumerate(lines) if line.startswith(MODEL_ENV + "=")]
 assert len(matches) == 1
 assert json.loads(lines[matches[0]].split("=", 1)[1].strip().strip("'\"")) == registry
-lines[matches[0]] = MODEL_ENV + "=" + json.dumps(proposed_registry, separators=(",", ":")) + "\n"
-proposed_env = "".join(lines).encode()
+if enable_vision:
+    sys.dont_write_bytecode = True
+    spec = importlib.util.spec_from_file_location("vision_prepare", RELEASE / "scripts/ops/prepare-deepseek-vision.py")
+    helper = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(helper)
+    proposed_env, changed_registry = helper.prepare_env(env_bytes)
+    assert changed_registry, "Vision route already configured; no deployment needed"
+    proposed_registry = json.loads(next(line.split("=", 1)[1] for line in proposed_env.decode().splitlines()
+                                        if line.startswith(MODEL_ENV + "=")))
+else:
+    new_model = json.loads((RELEASE / "config/gateway.goldencode.three-provider.example.json").read_text())["goldencode-d"]
+    proposed_registry = {**registry, "goldencode-d": new_model}
+    lines[matches[0]] = MODEL_ENV + "=" + json.dumps(proposed_registry, separators=(",", ":")) + "\n"
+    proposed_env = "".join(lines).encode()
 override = override_bytes.decode()
 block = re.search(r"(?ms)^  gateway:\n.*?(?=^  \S|^\S|\Z)", override)
 assert block
@@ -211,6 +224,7 @@ except (Exception, KeyboardInterrupt):
     raise
 
 result = {"revision": REV, "previous": state["previous_revision"], "schema": 44,
+          "operation": "enable-deepseek-vision" if enable_vision else "add-deepseek-model",
           "started_at": started, "completed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
           "changed_env": [MODEL_ENV], "protected_files_preserved": len(fingerprints),
           "other_containers_preserved": len(state["others"]), "image_id": candidate["Id"]}

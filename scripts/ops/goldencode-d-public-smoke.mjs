@@ -8,6 +8,7 @@ import { createSqliteStore } from "@codex-gateway/store-sqlite";
 import { hrwAccountForKey } from "../../apps/gateway/dist/test-support.js";
 
 const origin = "https://goldencode.instmarket.com.au:1443";
+const visionSmoke = process.argv.includes("--vision");
 const run = "deepseek_release_smoke_" + randomUUID(), subject = "subj_" + run, plan = "plan_" + run;
 const store = createSqliteStore({ path: process.env.GATEWAY_SQLITE_PATH }), db = store.database;
 const registry = JSON.parse(process.env.MEDCODE_PUBLIC_MODELS_JSON);
@@ -25,7 +26,7 @@ function sessionFor(model, runtime) {
   throw new Error("No provider session found");
 }
 let issued, entitlement, failure;
-async function call(api, payload, session, label) {
+async function call(api, payload, session, label, vision = false) {
   const started = Date.now(), callId = Date.now() + "_" + randomUUID();
   const response = await fetch(origin + "/v1/" + api, { method: "POST", redirect: "error",
     headers: { ...headers(), "x-medcode-client-session-id": session, "x-medcode-call-id": callId,
@@ -53,7 +54,13 @@ async function call(api, payload, session, label) {
   }
   let event;
   for (let i = 0; i < 30; i++) { event = store.listRequestEvents({ requestId })[0]; if (event) break; await sleep(100); }
-  assert.equal(event?.status, "ok"); assert.equal(event.upstreamRuntime, runtimeFor(payload.model, session));
+  assert.equal(event?.status, "ok"); assert.equal(event.upstreamRuntime, vision ? "xai" : runtimeFor(payload.model, session));
+  assert.equal(event.publicModelId, payload.model);
+  if (vision) {
+    assert.equal(event.upstreamModel, registry[payload.model].vision.upstreamModel);
+    assert.equal(event.requestedReasoningEffort, payload.model === "goldencode-d" ? "max" : "high");
+    assert.equal(event.effectiveReasoningEffort, "high");
+  }
   assert(event.totalTokens > 0);
   const ledger = db.prepare("SELECT final_total_tokens,finalized_at FROM token_reservations WHERE subject_id=? AND request_id=?").get(subject, requestId);
   assert(ledger?.finalized_at); assert.equal(ledger.final_total_tokens, event.totalTokens);
@@ -100,6 +107,42 @@ try {
   const models = await fetch(origin + "/v1/models", { headers: headers(), signal: AbortSignal.timeout(10000) });
   assert.equal(models.status, 200); report.models = (await models.json()).data;
   for (const id of modelIds) assert(report.models.some(m => m.id === id)); persist();
+  if (visionSmoke) {
+    const { default: sharp } = await import("sharp");
+    const segments = [[12, 0, 66, 12], [78, 12, 12, 66], [78, 90, 12, 66],
+      [12, 156, 66, 12], [0, 90, 12, 66], [0, 12, 12, 66], [12, 78, 66, 12]];
+    const digits = ["abc", "abcdg", "bc", "abcdfg"].map((enabled, index) => [...enabled].map(letter => {
+      const [x, y, width, height] = segments[letter.charCodeAt(0) - 97];
+      return `<rect x="${60 + index * 130 + x}" y="${150 + y}" width="${width}" height="${height}" fill="black"/>`;
+    }).join("")).join("");
+    const png = await sharp(Buffer.from(`<svg width="640" height="480" xmlns="http://www.w3.org/2000/svg"><rect width="640" height="480" fill="white"/>${digits}</svg>`)).png().toBuffer();
+    const image = `data:image/png;base64,${png.toString("base64")}`;
+    const prompt = "Read the four-digit number shown in this image. Answer with only those four digits.";
+    for (const [model, api, stream] of [
+      ["goldencode-d", "chat/completions", false], ["goldencode-d", "chat/completions", true],
+      ["goldencode-d", "responses", false], ["goldencode-d", "responses", true],
+      ["goldencode", "chat/completions", false]
+    ]) {
+      const effort = model === "goldencode-d" ? "max" : "high";
+      const payload = api === "responses"
+        ? { model, stream, reasoning: { effort }, max_output_tokens: 1024, input: [{ type: "message", role: "user", content: [
+            { type: "input_text", text: prompt }, { type: "input_image", image_url: image }] }] }
+        : { model, stream, reasoning_effort: effort, max_tokens: 1024, messages: [{ role: "user", content: [
+            { type: "text", text: prompt }, { type: "image_url", image_url: { url: image } }] }] };
+      const result = await call(api, payload, run + "_vision", "vision-" + model + "-" + api + "-" + stream, true);
+      const item = report.checks.at(-1);
+      item.synthetic_answer = result.text.slice(0, 80);
+      item.content_matched = /7319/.test(result.text);
+      item.passed = item.content_matched;
+      persist();
+    }
+    const result = await call("chat/completions", { model: "goldencode-d", reasoning_effort: "max", max_tokens: 1024,
+      messages: [{ role: "user", content: "Reply with only PREFLIGHT_OK" }] }, run + "_vision", "deepseek-text-after-vision");
+    assert(result.text.includes("PREFLIGHT_OK"));
+    assert.equal(report.checks.at(-1).reasoning_effort, "max");
+    assert(report.checks.filter(item => item.label.startsWith("vision-")).every(item => item.content_matched),
+      "Synthetic image answer mismatch");
+  } else {
   for (const runtime of ["tencent", "tiankuan"]) {
     const first = await call("chat/completions", { model: "goldencode-d", reasoning_effort: "low", max_tokens: 1024,
       messages: [{ role: "user", content: prompt }], tools: [{ type: "function", function: tool }], tool_choice: "required" },
@@ -129,6 +172,7 @@ try {
   for (const model of ["goldencode", "goldencode-d", "goldencode"]) {
     const result = await call("chat/completions", { model, reasoning_effort: "low", max_tokens: 512, messages: history }, switchSession, "same-session-switch");
     assert(result.text.includes("SWITCH_739")); history.push({ role: "assistant", content: result.text }, { role: "user", content: "Repeat the remembered marker only." });
+  }
   }
 } catch (error) {
   failure = { name: error.name, code: error.code ?? null, message: "Public smoke assertion or transport failed",
