@@ -1,5 +1,16 @@
 # System Status
 
+Gateway `1efc613f32bbd2a2068d18e1f7cc0639a44a7d03` is live as of
+2026-10-28 03:17:21 UTC, verified at 03:20:29 UTC. Vision adaptation never upgrades
+a public tier; missing lower tiers return the full recovery contract, and xAI
+defaults no longer depend on the text runtime. The rollout runbook and shared
+smoke helpers were exercised: 501 related tests, 11 ops tests, two real candidate
+checks and six public checks passed. Production environment and three other
+containers are unchanged; Gateway is healthy with zero restarts/OOM, database
+integrity/FKs and synthetic cleanup passed. Cutover observed about 52 seconds of
+503/502 responses. See the [follow-up receipt](./cloud-vision-followup-2026-10-28.zh-CN.md)
+and [complete rollout procedure](./cloud-vision-rollout.md).
+
 Gateway `007f5073428ead3457c7f786b139aa6a4bddedb2` is live as of
 2026-10-28 02:47:52 UTC, verified at 02:50:46 UTC. Both cloud models route images
 to xAI/grok-4.5 with one public tier policy: default high, none→low, medium→high,
