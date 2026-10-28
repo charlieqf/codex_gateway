@@ -29,7 +29,8 @@
 - 2026-10-28 视觉修订：启用视觉配置后，`goldencode` 和 `goldencode-d` 的图片请求均由 xAI 处理，
   纯文本仍分别进入 GLM／DeepSeek 池。上线状态以当日发布记录为准。
   公共档位仍是 low/high/max，默认 high；none→low、medium→high 先按公共合同归一化，
-  视觉不支持的有效档位映射到配置支持的最高档（当前 max→high），审计保留 requested/effective。
+  视觉不支持的有效档位映射到不高于它的最近可用档（当前 max→high），没有更低可用档时返回完整的
+  `unsupported_reasoning_effort` 恢复合同，不自动升档；审计保留 requested/effective。
 - 客户端回传完整可见消息、assistant tool_calls 和 tool 结果。云端适配器沿用
   现有对话文本重建机制，以 system/user 消息调用上游；不原样重放上游 assistant
   推理消息，不保存或向客户端暴露私有 reasoning_content。每轮由所选模型重新推理。
@@ -61,6 +62,9 @@
 增加 DeepSeek，应另行显式授权。
 
 ## 发布要求
+
+视觉启用及后续代码更新按[完整操作顺序](../operations/cloud-vision-rollout.md)执行，包含候选文件固定路径、
+`node --env-file` 预检、`--enable-vision` 切换和 `--vision` 公网验收。
 
 首次添加 DeepSeek 的旧流程只合并示例的文本配置，必须排除 `vision`。
 视觉启用使用 `prepare-deepseek-vision.py` 从现网 GLM 复制原始视觉配置；预检和切换使用同一候选文件，

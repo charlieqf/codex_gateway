@@ -1,8 +1,10 @@
 """Authorized R760 release of the DeepSeek model pool after release preparation.
 
-Usage: python3 deploy-goldencode-d-r760.py <committed-and-pushed-revision>
+Usage: python3 deploy-goldencode-d-r760.py <committed-and-pushed-revision> [--enable-vision] [--drain-without-idle]
 Requires the standard release-prepare backup/state, a tested image tagged with
 that revision, and migration rehearsal. Changes only Gateway image + registry.
+Vision requires backups/release-<rev[:12]>/vision-candidate.env from prepare,
+then preflight with that file. See docs/operations/cloud-vision-rollout.md.
 """
 import datetime
 import fcntl
@@ -144,7 +146,7 @@ if enable_vision:
     helper = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(helper)
     proposed_env, changed_registry = helper.prepare_env(env_bytes)
-    assert changed_registry, "Vision route already configured; no deployment needed"
+    # A later code release may keep the already-enabled route unchanged.
     assert (BACKUP / "vision-candidate.env").read_bytes() == proposed_env, "Preflight candidate is stale or differs from deployment"
     proposed_registry = json.loads(next(line.split("=", 1)[1] for line in proposed_env.decode().splitlines()
                                         if line.startswith(MODEL_ENV + "=")))
@@ -230,7 +232,7 @@ except (Exception, KeyboardInterrupt):
 result = {"revision": REV, "previous": state["previous_revision"], "schema": 44,
           "operation": "enable-deepseek-vision" if enable_vision else "add-deepseek-model",
           "started_at": started, "completed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-          "changed_env": [MODEL_ENV], "protected_files_preserved": len(fingerprints),
+          "changed_env": [MODEL_ENV] if proposed_env != env_bytes else [], "protected_files_preserved": len(fingerprints),
           "other_containers_preserved": len(state["others"]), "image_id": candidate["Id"]}
 (BACKUP / "deepseek-deployment.json").write_text(json.dumps(result, indent=2))
 print(json.dumps(result))

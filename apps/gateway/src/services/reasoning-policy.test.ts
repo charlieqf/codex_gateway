@@ -27,6 +27,32 @@ describe("public vision reasoning policy", () => {
     expect(resolve(model("goldencode"), "xhigh", "goldencode", "vision")).toBeInstanceOf(GatewayError);
   });
 
+  it("chooses the nearest lower tier and never upgrades a request or an alias", () => {
+    const sparse = model("goldencode-d", { effort: "medium", supportedEfforts: ["none", "medium"] });
+    expect(resolve(sparse, "low", sparse.id, "vision")).toMatchObject({ effective: "none" });
+    expect(resolve(sparse, "high", sparse.id, "vision")).toMatchObject({ effective: "medium" });
+    const upwardAlias = model("goldencode-d", { effort: "high", supportedEfforts: ["none", "high"], legacyAliases: { low: "high" } });
+    expect(resolve(upwardAlias, "low", upwardAlias.id, "vision")).toMatchObject({ effective: "none" });
+  });
+
+  it.each(["low", undefined])("returns the complete recovery contract when no lower tier exists: %s", (requested) => {
+    const sparse = model("goldencode-d", { effort: "medium", supportedEfforts: ["medium", "high"] });
+    sparse.reasoning!.effort = "low";
+    expect(resolve(sparse, requested, sparse.id, "vision")).toMatchObject({
+      code: "unsupported_reasoning_effort", httpStatus: 400, contractVersion: 1,
+      recommendedAction: "use_supported_reasoning_effort", recoveryOwner: "client",
+      parameter: "reasoning_effort", requestedValue: "low", supportedValues: ["medium", "high"]
+    });
+  });
+
+  it("uses vision capabilities for a Codex text runtime without an explicit vision list", () => {
+    const codex = model("goldencode-d");
+    codex.id = "custom-codex";
+    codex.runtime = "codex";
+    expect(resolve(codex, undefined, codex.id, "vision")).toMatchObject({ requested: null, effective: "high", source: "default" });
+    expect(resolve(codex, "max", codex.id, "vision")).toMatchObject({ effective: "high", normalized: true });
+  });
+
   it("respects explicit capability lists, snake-case aliases, and inherited reasoning", () => {
     const custom = model("goldencode-d", { effort: "xhigh", supported_efforts: ["low", "xhigh"] });
     expect(resolve(custom, "max", custom.id, "vision")).toMatchObject({ effective: "xhigh", normalizationReason: "vision_capability" });

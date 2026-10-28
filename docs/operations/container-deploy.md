@@ -1,5 +1,9 @@
 # R760 Gateway Container Deployment
 
+For shared GLM/DeepSeek vision enablement or updates, follow the
+[cloud vision rollout sequence](./cloud-vision-rollout.md) for the exact candidate
+path, isolated preflight, deployment flags and public smoke.
+
 Last updated: 2026-08-31.
 
 This runbook covers the current authoritative R760 Compose project. Historical

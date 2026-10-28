@@ -6,6 +6,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { issueAccessCredential, validateFeaturePolicy } from "@codex-gateway/core";
 import { createSqliteStore } from "@codex-gateway/store-sqlite";
 import { hrwAccountForKey } from "../../apps/gateway/dist/test-support.js";
+import { smokeImage, smokePayload, smokeText } from "./vision-smoke-helpers.mjs";
 
 const origin = "https://goldencode.instmarket.com.au:1443";
 const visionSmoke = process.argv.includes("--vision");
@@ -39,18 +40,17 @@ async function call(api, payload, session, label, vision = false) {
   const frames = payload.stream ? body.split("\n").filter(line => line.startsWith("data: ") && line !== "data: [DONE]")
     .map(line => JSON.parse(line.slice(6))) : [JSON.parse(body)];
   assert(!frames.some(frame => frame.error || frame.type === "response.failed"), "Public error frame");
-  let text = "", calls = [];
+  const text = smokeText(api, payload.stream === true, frames);
+  let calls = [];
   if (api === "responses") {
     const terminal = payload.stream ? frames.find(f => f.type === "response.completed")?.response : frames[0];
     assert(terminal, "Missing Responses completion");
     calls = terminal.output.filter(i => i.type === "function_call").map(i => ({ id: i.call_id, name: i.name, arguments: i.arguments }));
-    text = terminal.output.filter(i => i.type === "message").flatMap(i => i.content).filter(i => i.type === "output_text").map(i => i.text).join("");
   } else if (!payload.stream) {
     const message = frames[0].choices[0].message;
-    text = message.content ?? ""; calls = (message.tool_calls ?? []).map(i => ({ id: i.id, ...i.function }));
+    calls = (message.tool_calls ?? []).map(i => ({ id: i.id, ...i.function }));
   } else {
     assert(body.includes("data: [DONE]"), "Missing Chat terminator");
-    text = frames.map(f => f.choices?.[0]?.delta?.content ?? "").join("");
   }
   let event;
   for (let i = 0; i < 30; i++) { event = store.listRequestEvents({ requestId })[0]; if (event) break; await sleep(100); }
@@ -108,27 +108,14 @@ try {
   assert.equal(models.status, 200); report.models = (await models.json()).data;
   for (const id of modelIds) assert(report.models.some(m => m.id === id)); persist();
   if (visionSmoke) {
-    const { default: sharp } = await import("sharp");
-    const segments = [[12, 0, 66, 12], [78, 12, 12, 66], [78, 90, 12, 66],
-      [12, 156, 66, 12], [0, 90, 12, 66], [0, 12, 12, 66], [12, 78, 66, 12]];
-    const digits = ["abc", "abcdg", "bc", "abcdfg"].map((enabled, index) => [...enabled].map(letter => {
-      const [x, y, width, height] = segments[letter.charCodeAt(0) - 97];
-      return `<rect x="${60 + index * 130 + x}" y="${150 + y}" width="${width}" height="${height}" fill="black"/>`;
-    }).join("")).join("");
-    const png = await sharp(Buffer.from(`<svg width="640" height="480" xmlns="http://www.w3.org/2000/svg"><rect width="640" height="480" fill="white"/>${digits}</svg>`)).png().toBuffer();
-    const image = `data:image/png;base64,${png.toString("base64")}`;
-    const prompt = "Read the four-digit number shown in this image. Answer with only those four digits.";
+    const image = await smokeImage();
     for (const [model, api, stream] of [
       ["goldencode-d", "chat/completions", false], ["goldencode-d", "chat/completions", true],
       ["goldencode-d", "responses", false], ["goldencode-d", "responses", true],
       ["goldencode", "chat/completions", false]
     ]) {
       const effort = "max";
-      const payload = api === "responses"
-        ? { model, stream, reasoning: { effort }, max_output_tokens: 1024, input: [{ type: "message", role: "user", content: [
-            { type: "input_text", text: prompt }, { type: "input_image", image_url: image }] }] }
-        : { model, stream, reasoning_effort: effort, max_tokens: 1024, messages: [{ role: "user", content: [
-            { type: "text", text: prompt }, { type: "image_url", image_url: { url: image } }] }] };
+      const payload = smokePayload({ model, api, vision: true, stream, effort }, image);
       const result = await call(api, payload, run + "_vision", "vision-" + model + "-" + api + "-" + stream, true);
       const item = report.checks.at(-1);
       item.synthetic_answer = result.text.slice(0, 80);
@@ -136,9 +123,9 @@ try {
       item.passed = item.content_matched;
       persist();
     }
-    const result = await call("chat/completions", { model: "goldencode-d", reasoning_effort: "max", max_tokens: 1024,
-      messages: [{ role: "user", content: "Reply with only PREFLIGHT_OK" }] }, run + "_vision", "deepseek-text-after-vision");
-    assert(result.text.includes("PREFLIGHT_OK"));
+    const result = await call("chat/completions", smokePayload({ model: "goldencode-d", api: "chat/completions",
+      vision: false, stream: false, effort: "max" }, image), run + "_vision", "deepseek-text-after-vision");
+    assert(result.text.includes("TEXT_OK"));
     assert.equal(report.checks.at(-1).reasoning_effort, "max");
     assert(report.checks.filter(item => item.label.startsWith("vision-")).every(item => item.content_matched),
       "Synthetic image answer mismatch");

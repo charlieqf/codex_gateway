@@ -7,6 +7,7 @@ const maxRequestReasoningEfforts = ["minimal", "low", "medium", "high", "xhigh"]
 const standardRequestReasoningEfforts = ["none", "low", "medium", "high"] as const;
 
 const localOpenAIReasoningEfforts = ["none", "low", "medium", "high", "xhigh"] as const;
+const reasoningEffortOrder = ["none", "minimal", "low", "medium", "high", "xhigh", "max"];
 
 const legacyStandardReasoningModelIds = new Set([
   "specialist",
@@ -41,13 +42,21 @@ export function resolveChatCompletionReasoningEffort(
     const supported = supportedReasoningEffortsForModel(model, "vision")?.values ?? [];
     if (supported.includes(publicTier.effective)) return publicTier;
     const alias = model.vision.reasoning?.legacyAliases?.[publicTier.effective];
-    const highest = ["max", "xhigh", "high", "medium", "low", "minimal", "none"]
+    const requestedRank = reasoningEffortOrder.indexOf(publicTier.effective);
+    const noHigher = (effort: string) => {
+      const rank = reasoningEffortOrder.indexOf(effort);
+      return rank >= 0 && rank <= requestedRank;
+    };
+    const nearestLower = reasoningEffortOrder.slice(0, requestedRank + 1).reverse()
       .find(effort => supported.includes(effort));
-    const effective = alias && supported.includes(alias) ? alias : highest;
+    const effective = alias && supported.includes(alias) && noHigher(alias) ? alias : nearestLower;
     if (effective) return { ...publicTier, effective, source: "legacy_normalization",
       normalized: true, normalizationReason: "vision_capability" };
     return new GatewayError({ code: "unsupported_reasoning_effort",
-      message: `No compatible vision reasoning tier for model '${requestModelId}'.`, httpStatus: 400 });
+      message: `No vision reasoning tier at or below '${publicTier.effective}' for model '${requestModelId}'.`,
+      httpStatus: 400, contractVersion: 1, recommendedAction: "use_supported_reasoning_effort",
+      recoveryOwner: "client", parameter: "reasoning_effort", requestedValue: requested ?? publicTier.effective,
+      supportedValues: supported });
   }
   const reasoning = reasoningConfigForModel(model, modality);
   if (requested === undefined) {
@@ -130,6 +139,10 @@ function supportedReasoningEffortsForModel(
   const configured = reasoningConfigForModel(model, modality)?.supportedEfforts;
   if (configured) {
     return { values: configured };
+  }
+  // Vision is dispatched to xAI regardless of the model's text runtime.
+  if (modality === "vision" && model.vision?.runtime === "xai") {
+    return { values: standardRequestReasoningEfforts };
   }
   if (isMaxReasoningModel(model)) {
     return { values: maxRequestReasoningEfforts };

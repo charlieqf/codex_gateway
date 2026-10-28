@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { isolatedProviderEnv, smokePayload, smokeText } from "./vision-smoke-helpers.mjs";
+import { isolatedProviderEnv, smokeImage, smokePayload, smokeText } from "./vision-smoke-helpers.mjs";
 
 const registry = JSON.parse(process.env.MEDCODE_PUBLIC_MODELS_JSON || "{}");
 assert.ok(!process.env.MEDCODE_PUBLIC_MODELS_JSON_FILE, "A file-backed registry needs separate preflight preparation");
@@ -27,7 +27,6 @@ process.env.MEDCODE_VISION_XAI_TIMEOUT_MS = "60000";
 const { buildGateway } = await import(pathToFileURL(path.resolve("apps/gateway/dist/index.js")));
 const { issueAccessCredential, validateFeaturePolicy } = await import("@codex-gateway/core");
 const { createSqliteStore, createSqliteTokenBudgetLimiter } = await import("@codex-gateway/store-sqlite");
-const { default: sharp } = await import("sharp");
 const store = createSqliteStore({ path: ":memory:" });
 const now = new Date();
 const subject = "deepseek-vision-preflight";
@@ -48,16 +47,7 @@ const app = buildGateway({ authMode: "credential", logger: false, provider,
   clientEventsStore: null, phoneAuthService: null, visionAssetService: null,
   imagingService: null, aipalService: null, panechoService: null, echonetService: null,
   echonextService: null, alphafold3Service: null });
-// Seven-segment digits use rectangles, so the fixture needs no container fonts.
-const segments = [[12, 0, 66, 12], [78, 12, 12, 66], [78, 90, 12, 66],
-  [12, 156, 66, 12], [0, 90, 12, 66], [0, 12, 12, 66], [12, 78, 66, 12]];
-const digits = ["abc", "abcdg", "bc", "abcdfg"].map((enabled, index) =>
-  [...enabled].map(letter => {
-    const [x, y, width, height] = segments[letter.charCodeAt(0) - 97];
-    return `<rect x="${60 + index * 130 + x}" y="${150 + y}" width="${width}" height="${height}" fill="black"/>`;
-  }).join("")).join("");
-const png = await sharp(Buffer.from(`<svg width="640" height="480" xmlns="http://www.w3.org/2000/svg"><rect width="640" height="480" fill="white"/>${digits}</svg>`)).png().toBuffer();
-const image = `data:image/png;base64,${png.toString("base64")}`;
+const image = await smokeImage();
 let routingPassed = 0;
 const contentChecks = [];
 const failures = [];
