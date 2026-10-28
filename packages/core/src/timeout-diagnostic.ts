@@ -17,6 +17,7 @@ export function diagnoseTimeout(input: TimeoutDiagnosticInput) {
   const progress = record(attempt?.streamProgress);
   const failure = input.failure ?? record(attempt?.failure);
   const trigger = input.terminalSource === "gateway_deadline" ? "gateway_deadline"
+    : input.terminalSource === "gateway_output_budget" ? "gateway_output_budget"
     : failure?.kind === "http_timeout" ? "provider_http_timeout"
     : failure?.kind === "headers_timeout" ? "headers_timeout"
     : failure?.kind === "body_timeout" ? "body_timeout"

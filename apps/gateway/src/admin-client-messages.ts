@@ -702,7 +702,7 @@ export function renderAdminClientMessagesPage(input: { authRequired?: boolean } 
         const phases = { awaiting_headers: '等待上游响应头', awaiting_body: '等待上游响应体',
           reasoning_only: '仅有推理，尚无正文或工具', tool_arguments_incomplete: '工具参数尚未完成',
           content_incomplete: '已有正文但尚未完成', stream_without_semantic_output: '收到流数据但无有效内容', unknown: '证据不足' };
-        const triggers = { gateway_deadline: 'Gateway 总时限', provider_http_timeout: '上游 HTTP 超时',
+        const triggers = { gateway_deadline: 'Gateway 总时限', gateway_output_budget: 'Gateway 首次结果等待预算', provider_http_timeout: '上游 HTTP 超时',
           headers_timeout: '响应头读取超时', body_timeout: '响应体读取超时', connect_timeout: '连接超时', unknown: '来源未确认' };
         const diagnosticText = diagnostic ? '<br>&nbsp;&nbsp;超时诊断：' + escapeHtml(triggers[diagnostic.trigger] || '来源未确认') +
           ' · ' + escapeHtml(phases[diagnostic.phase] || '证据不足') +

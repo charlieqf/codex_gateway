@@ -516,6 +516,14 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
       originHint: context.originHint,
       kindHint: context.kindHint
     });
+    // Preserve an internal gateway abort marker through normalization, while
+    // retaining the adapter's actual stage and HTTP status. It distinguishes a
+    // bounded attempt cutoff from cancellation of the whole client request.
+    const abortFailure = input.signal?.aborted && input.signal.reason instanceof GatewayError
+      ? input.signal.reason.providerFailure : undefined;
+    if (failure.origin === "gateway" && abortFailure?.origin === "gateway") {
+      failure.transportCode = abortFailure.transportCode ?? failure.transportCode;
+    }
     const normalizedBase =
       input.signal?.aborted && input.signal.reason instanceof GatewayError
         ? input.signal.reason

@@ -10,6 +10,10 @@ const attempt = {
 };
 
 describe("timeout diagnostics", () => {
+  it("distinguishes the first-output budget from the original request deadline", () => {
+    expect(diagnoseTimeout({ errorCode: "upstream_timeout", terminalSource: "gateway_output_budget", attempts: [attempt] }))
+      .toMatchObject({ trigger: "gateway_output_budget", phase: "reasoning_only" });
+  });
   it("does not infer a timeout phase or transport cause without supporting evidence", () => {
     expect(diagnoseTimeout({ errorCode: "upstream_timeout", attempts: [{
       errorCode: "upstream_timeout", streamProgress: { responseBytes: 0 }

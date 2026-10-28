@@ -16471,7 +16471,7 @@ function imageFeaturePolicy() {
   });
 }
 
-function createModelEntitledStore(allowedModels: string[] | null) {
+function createModelEntitledStore(allowedModels: string[] | null, estimateMissingUsage = false) {
   const store = createSqliteStore({ path: ":memory:" });
   const issued = issueAccessCredential({
     subjectId: "subj_dev",
@@ -16491,7 +16491,7 @@ function createModelEntitledStore(allowedModels: string[] | null) {
     id: `plan_models_${allowedModels?.join("_") || "legacy"}_v1`,
     displayName: "Model Trial",
     scopeAllowlist: ["code"],
-    policy: unrestrictedTokenPolicy(),
+    policy: { ...unrestrictedTokenPolicy(), ...(estimateMissingUsage ? { missingUsageCharge: "estimate" as const } : {}) },
     featurePolicy: validateFeaturePolicy({
       capabilities: ["chat", "tools"],
       ...(allowedModels
@@ -16733,6 +16733,42 @@ async function withTemporaryEnv(
 }
 
 describe("GoldenCode native provider failover", () => {
+  it.each(["reset", "eof"].flatMap(reasoningBreak => [false, true].flatMap(stream =>
+    ["chat/completions", "responses"].map(api => ({ reasoningBreak, stream, api })))))(
+    "recovers reasoning SSE $reasoningBreak with one settlement: $api stream=$stream", async mode => {
+      await runGoldenCodeFailoverFixture({ reasoningBreak: mode.reasoningBreak as "reset" | "eof", first: "tokenswitch",
+        members: ["tokenswitch", "tencent", "tiankuan"] }, async ({ app, headers, calls, store }) => {
+        const payload = nativeFailoverPayload(mode.api, mode.stream);
+        const callHeaders = { ...headers, "x-medcode-call-id": `${Date.now()}_${randomUUID()}`,
+          "x-medcode-request-timeout-ms": "900000" };
+        const response = await app.inject({ method: "POST", url: `/v1/${mode.api}`, headers: callHeaders, payload });
+        expect(response.statusCode, response.body).toBe(200);
+        expect(response.body).toContain("call_failover_ok");
+        expect(response.body).not.toContain("private reasoning");
+        expect(calls).toHaveLength(2);
+        expect(calls[0]?.runtime).toBe("tokenswitch");
+        expect(calls[1]?.runtime).not.toBe("tokenswitch");
+        expect(calls.map(call => call.body.reasoning_effort)).toEqual(["high", "high"]);
+        const event = store.listRequestEvents({ limit: 1 })[0]!;
+        expect(event).toMatchObject({ status: "ok", errorCode: null, usageSource: "estimate" });
+        expect(event.upstreamAttempts).toMatchObject([
+          { totalTokens: null, failure: { stage: "streaming" }, streamProgress: { reasoningChars: 17 } },
+          { totalTokens: 12, errorCode: null }
+        ]);
+        const reservations = store.database.prepare("SELECT finalized_at, final_usage_source, final_total_tokens FROM token_reservations").all();
+        expect(reservations).toHaveLength(1);
+        expect(reservations[0]).toMatchObject({ finalized_at: expect.any(String), final_usage_source: "estimate" });
+        expect(reservations[0]!.final_total_tokens).toBeGreaterThan(12);
+        expect(store.database.prepare("SELECT COUNT(*) AS n FROM token_charge_decisions").get()).toMatchObject({ n: 0 });
+        if (mode.api === "chat/completions") {
+          const replay = await app.inject({ method: "POST", url: `/v1/${mode.api}`, headers: callHeaders, payload });
+          expect(replay.body).toBe(response.body);
+          expect(calls).toHaveLength(2);
+          expect(store.database.prepare("SELECT COUNT(*) AS n FROM token_reservations").get()).toMatchObject({ n: 1 });
+        }
+      });
+    });
+
   describe("three-provider pool", () => {
     const members = ["tencent", "tiankuan", "tokenswitch"];
     const modes = [false, true].flatMap(plain => [false, true].flatMap(stream =>
@@ -17306,6 +17342,7 @@ async function runGoldenCodeFailoverFixture(options: {
   repairThenFail?: boolean; cooldown?: string; clock?: () => Date; recover?: boolean;
   disabledMember?: string; subjects?: string; fallbackInvalid?: boolean; repairSuccess?: boolean; partial?: boolean; plain?: boolean;
   hang?: boolean; partialText?: boolean; empty?: boolean; bothEmpty?: boolean; omitEmptyUsage?: boolean;
+  reasoningBreak?: "reset" | "eof";
 }, run: (fixture: { app: ReturnType<typeof buildGateway>; headers: Record<string, string>;
   calls: Array<{ runtime: string; body: Record<string, unknown> }>;
   store: ReturnType<typeof createModelEntitledStore>["store"] }) => Promise<void>): Promise<void> {
@@ -17315,6 +17352,13 @@ async function runGoldenCodeFailoverFixture(options: {
     const body = JSON.parse(raw) as Record<string, unknown>;
     const runtime = String(request.headers.authorization).replace(/^Bearer (.+)-test-key$/, "$1");
     calls.push({ runtime, body });
+    if (options.reasoningBreak && runtime === first) {
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(`data: ${JSON.stringify({ choices: [{ delta: { reasoning_content: "private reasoning" } }] })}\n\n`);
+      // Let the real HTTP parser consume the reasoning before breaking transport.
+      setTimeout(() => options.reasoningBreak === "reset" ? response.destroy() : response.end(), 10);
+      return;
+    }
     if (options.empty && (runtime === first || options.bothEmpty)) {
       response.writeHead(200, { "content-type": "text/event-stream" });
       response.write(`data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: "network_error" }],
@@ -17379,7 +17423,7 @@ async function runGoldenCodeFailoverFixture(options: {
       GATEWAY_GOLDENCODE_FAILOVER_SUBJECT_IDS: options.subjects ?? "subj_dev",
       GATEWAY_GOLDENCODE_QUOTA_COOLDOWN_SECONDS: options.cooldown ?? "0"
     }, async () => {
-      const { store, headers } = createModelEntitledStore(publicModel === "goldencode-d" ? ["goldencode", "goldencode-d"] : ["goldencode"]);
+      const { store, headers } = createModelEntitledStore(publicModel === "goldencode-d" ? ["goldencode", "goldencode-d"] : ["goldencode"], !!options.reasoningBreak);
       const app = buildGateway({ authMode: "credential", provider: new FakeProvider(), sessionStore: store,
         observationStore: store, tokenBudgetLimiter: createSqliteTokenBudgetLimiter({ db: store.database }),
         logger: false, ...(options.clock ? { now: options.clock } : {}) });

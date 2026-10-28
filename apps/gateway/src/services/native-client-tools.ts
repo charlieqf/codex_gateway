@@ -27,6 +27,7 @@ import {
 import { estimatePromptTokens } from "./token-budget-hook.js";
 import { type ChatRuntimeContext } from "./chat-runtime-dispatcher.js";
 import { NativeCallBudget, runNativeToolFailover } from "./native-tool-failover.js";
+import { createNativeOutputBudget } from "./native-output-budget.js";
 import { isRecoverableEmptyResponse } from "./empty-response-policy.js";
 import { VisionRequestRecovery, runVisionRequestRecovery } from "./vision-request-recovery.js";
 import type {
@@ -52,8 +53,9 @@ export async function runNativeWithFailover(input: NativeClientToolsInput & {
   outputCommitted: () => boolean;
   selected: (runtime: ChatRuntimeContext) => void;
 }): Promise<StrictClientToolsResult | GatewayError> {
-  const execute = (runtime: ChatRuntimeContext, callBudget?: NativeCallBudget, retry = false) => runNativeClientTools({
-    ...input, callBudget, emptyResponseRecovery: input.failover && !input.visionRecovery,
+  const execute = (runtime: ChatRuntimeContext, callBudget?: NativeCallBudget, retry = false,
+    observation: Pick<NativeClientToolsInput, "signal" | "onModelProgress"> = {}) => runNativeClientTools({
+    ...input, ...observation, callBudget, emptyResponseRecovery: input.failover && !input.visionRecovery,
     request: { ...input.request, maximumOutputTokens: input.request.maximumOutputTokens ?? runtime.limits.maxOutputTokens },
     onNativeCall: runtime.updateQuotaRequest,
     failoverAttempt: retry || runtime.runtimeInstanceId !== input.runtime.runtimeInstanceId,
@@ -78,7 +80,23 @@ export async function runNativeWithFailover(input: NativeClientToolsInput & {
       if (fields.to) reportModelProgress(input.onModelProgress, "retrying");
       input.log?.info({ request_id: input.requestId, ...fields }, "Native tool provider failover assessed.");
     },
-    execute
+    execute: async (runtime, budget) => {
+      const outputBudget = createNativeOutputBudget({ ...input, signal: input.signal!,
+        enabled: budget.used === 0 && runtime.publicModelId === "goldencode" &&
+          !input.request.images?.length && !!runtime.beginRetry });
+      try {
+        const result = await execute(runtime, budget, false, {
+          signal: outputBudget.signal,
+          onModelProgress: event => { outputBudget.observe(event); reportModelProgress(input.onModelProgress, event); }
+        });
+        const timeout = outputBudget.error();
+        if (!timeout) return result;
+        const summary = result instanceof GatewayError ? providerStreamSummaryFromError(result) : result.providerSummary;
+        const classifiedTimeout = new GatewayError({ ...timeout, providerFailure: { ...timeout.providerFailure!,
+          stage: summary?.failure?.stage ?? "unknown", upstreamStatus: summary?.upstreamHttpStatus ?? null } });
+        return summary ? attachProviderStreamSummary(classifiedTimeout, { ...summary, completed: false }) : classifiedTimeout;
+      } finally { outputBudget.cleanup(); }
+    }
   });
   if (result instanceof GatewayError) return result;
   return { ...result, usage: openAIUsageFromTokenUsage(result.providerSummary?.usage ?? undefined) };

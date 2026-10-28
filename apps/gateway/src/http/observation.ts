@@ -12,6 +12,7 @@ import type {
 } from "@codex-gateway/core";
 import { summarizeUpstreamAttemptPurposes } from "@codex-gateway/core";
 import { markIdentityFacts } from "./identity-request-audit.js";
+import { isNativeOutputBudgetFailure } from "../services/native-output-budget.js";
 
 export function startObservation(request: FastifyRequest): void {
   request.gatewayObservationStartedAt = new Date();
@@ -105,6 +106,7 @@ export function markProviderEvent(
   }
   if (
     event.type === "error" &&
+    !isNativeOutputBudgetFailure(event.providerFailure) &&
     (event.code === "client_aborted" || event.code === "upstream_timeout") &&
     (!event.providerFailure || ["client_aborted", "deadline_exceeded"].includes(event.providerFailure.kind))
   ) {
@@ -138,6 +140,8 @@ export function markProviderCallFinished(
     request.gatewayTerminalSource = "client_abort";
   } else if (reasonCode === "upstream_timeout") {
     request.gatewayTerminalSource = "gateway_deadline";
+  } else if (request.gatewayErrorCode && isNativeOutputBudgetFailure(request.gatewayProviderFailure)) {
+    request.gatewayTerminalSource = "gateway_output_budget";
   } else if (request.gatewayErrorCode) {
     request.gatewayTerminalSource =
       request.gatewayProviderFailure?.origin === "network" || request.gatewayProviderFailure?.origin === "proxy"
