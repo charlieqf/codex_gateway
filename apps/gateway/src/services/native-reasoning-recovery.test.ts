@@ -86,7 +86,7 @@ function fixture(timeoutMs = 900_000, options: { failover?: boolean; model?: str
     onProviderEvent: event => markProviderEvent(observation, event),
     onModelProgress: event => progress.push(event), log: { info: (fields, message) =>
       (message === "Native first-output budget assessed." ? budgetDecisions : decisions).push(fields), warn: vi.fn() },
-    request: { model: "goldencode", stream: true, messages: [{ role: "user", content: "Continue after previous tool result" }],
+    request: { model: options.model ?? "goldencode", stream: true, messages: [{ role: "user", content: "Continue after previous tool result" }],
       ...(options.images ? { images: [{ imageUrl: "https://synthetic.invalid/image.png" }] } : {}),
       tools: [{ type: "function", function: { name: "lookup", parameters: { type: "object" } } }],
       toolChoice: "auto", maximumOutputTokens: 64000 }, prompt: "Continue after previous tool result",
@@ -106,6 +106,36 @@ const flush = () => vi.advanceTimersByTimeAsync(0);
 describe("native recovery with controlled SSE and the original deadline", () => {
   beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date("2026-10-28T00:00:00Z")); });
   afterEach(() => { vi.useRealTimers(); });
+
+  it.each(["goldencode", "goldencode-d"].flatMap(model =>
+    ["complete", "deadline", "reset", "cancel"].map(ending => ({ model, ending }))))
+  ("supports configured 30-minute reasoning: $model $ending", async ({ model, ending }) => {
+    const f = fixture(1_800_000, { model }); await flush();
+    f.streams[0]!.send(delta({ reasoning_content: "thinking" })); await flush();
+    await vi.advanceTimersByTimeAsync(1_200_000);
+    expect(f.streams[0]!.signal.aborted).toBe(false);
+    expect(f.streams).toHaveLength(1);
+    if (ending === "complete") {
+      f.streams[0]!.finish();
+      expect(await f.promise).toMatchObject({ content: "answer", usage: { total_tokens: 12 } });
+    } else if (ending === "reset") {
+      f.streams[0]!.fail(); await flush();
+      expect(f.streams).toHaveLength(2);
+      expect(f.decisions[0]?.remaining_ms).toBe(600_000);
+      f.streams[1]!.finish();
+      expect(await f.promise).toMatchObject({ content: "answer", usage: { total_tokens: 12 } });
+    } else if (ending === "cancel") {
+      f.parent.abort(new GatewayError({ code: "client_aborted", message: "cancelled", httpStatus: 499 }));
+      expect(await f.promise).toMatchObject({ code: "client_aborted" });
+    } else {
+      f.streams[0]!.send(delta({ reasoning_content: "still progressing" })); await flush();
+      await vi.advanceTimersByTimeAsync(600_000);
+      expect(await f.promise).toMatchObject({ code: "upstream_timeout" });
+      expect(f.streams).toHaveLength(1);
+    }
+    expect(f.requests.every(r => r.reasoning_effort === "high" && r.max_tokens === 64000)).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
 
   it.each(["reset", "eof"])("recovers reasoning-only %s once, retains usage uncertainty and effort", async ending => {
     const f = fixture(); await flush();
@@ -251,7 +281,7 @@ describe("native recovery with controlled SSE and the original deadline", () => 
 
   it.each(["814s-reasoning", "880s-generating", "590s-short-budget", "disabled", "other-model", "images"])("preserves normal long task %s", async kind => {
     const f = fixture(kind === "590s-short-budget" ? 600_000 : 900_000,
-      { failover: kind !== "disabled", model: kind === "other-model" ? "goldencode-d" : "goldencode", images: kind === "images" });
+      { failover: kind !== "disabled", model: kind === "other-model" ? "goldencode-local" : "goldencode", images: kind === "images" });
     await flush(); f.streams[0]!.send(delta({ reasoning_content: "thinking" }));
     if (kind === "880s-generating") f.streams[0]!.send(delta({ content: "partial " }));
     await flush();
@@ -350,15 +380,30 @@ describe("native recovery with controlled SSE and the original deadline", () => 
     expect(f.budgetDecisions).toContainEqual({ unavailable_reason: "backup_selection_failed", primary_continues: true });
   });
 
-  it.each([[900_000, 10_000], [1_200_000, 0]])("reserves recovery from remaining time (total=%s, setup=%s)", async (total, setupMs) => {
-    const f = fixture(total, { setupMs }); await flush();
-    const budget = total - setupMs - 60_000 - 5_000;
+  it.each(["goldencode", "goldencode-d"].flatMap(model =>
+    [[900_000, 10_000, 825_000], [1_200_000, 0, 835_000], [1_800_000, 0, 835_000], [1_800_000, 10_000, 835_000]]
+      .map(([total, setupMs, budget]) => ({ model, total: total!, setupMs: setupMs!, budget: budget! }))))
+  ("caps silent attempts while preserving recovery time: $model total=$total setup=$setupMs", async ({ model, total, setupMs, budget }) => {
+    const f = fixture(total, { setupMs, model }); await flush();
     expect(f.budgetDecisions[0]).toMatchObject({ first_output_budget_ms: budget, unavailable_reason: null });
     await vi.advanceTimersByTimeAsync(budget - 1);
     expect(f.streams[0]!.signal.aborted).toBe(false);
     await vi.advanceTimersByTimeAsync(1);
     expect(f.streams).toHaveLength(2);
+    expect(f.decisions[0]?.remaining_ms).toBe(total - setupMs - budget);
     f.streams[1]!.finish();
     expect(await f.promise).not.toBeInstanceOf(GatewayError);
+  });
+
+  it.each(["goldencode", "goldencode-d"])("retains the primary past 835s when %s has no backup", async model => {
+    const f = fixture(1_800_000, { model }); await flush();
+    vi.mocked(f.first.beginRetry!).mockReturnValue(new GatewayError({ code: "rate_limited", message: "busy", httpStatus: 429 }));
+    await vi.advanceTimersByTimeAsync(835_000);
+    expect(f.streams[0]!.signal.aborted).toBe(false);
+    expect(f.streams).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(865_000);
+    f.streams[0]!.finish();
+    expect(await f.promise).toMatchObject({ content: "answer" });
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

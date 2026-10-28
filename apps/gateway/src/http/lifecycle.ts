@@ -60,7 +60,8 @@ export function installGatewayLifecycle(app: FastifyInstance): GatewayLifecycle 
   return lifecycle;
 }
 
-export function installGatewayShutdown(app: FastifyInstance, timeoutMs = 900_000): () => void {
+// Allow a 30-minute call plus final settlement/reader cleanup to finish.
+export function installGatewayShutdown(app: FastifyInstance, timeoutMs = 1_860_000): () => void {
   let closing = false;
   const drain = () => { app.gatewayLifecycle.drain(); app.log.info(app.gatewayLifecycle.snapshot(), "Gateway draining."); };
   const resume = () => { if (!closing) app.gatewayLifecycle.resume(); };

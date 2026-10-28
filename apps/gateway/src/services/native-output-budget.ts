@@ -3,6 +3,8 @@ import { createChatRequestDeadline } from "./chat-request-deadline.js";
 
 // Long requests with no model activity reserve 60s for recovery plus 5s for
 // teardown, measured from the original deadline (including time spent queued).
+// Keep silent first attempts capped at the original 835s even when the total
+// budget is 30 minutes; a longer reasoning budget must not delay recovery.
 // T:38T3AH0N still received reasoning at 834.965s: elapsed time alone is not
 // evidence that an active stream should be discarded. Once reasoning starts,
 // leave it under the original deadline; actual stream failures can still recover.
@@ -29,7 +31,8 @@ export function createNativeOutputBudget(input: {
 }) {
   let timeoutError: GatewayError | undefined;
   const remaining = input.deadlineAt ? input.deadlineAt.getTime() - input.now().getTime() : 0;
-  const available = remaining - NATIVE_STREAM_RECOVERY_RESERVE_MS - NATIVE_RECOVERY_TEARDOWN_MS;
+  const available = Math.min(remaining, NATIVE_LONG_REQUEST_MS) -
+    NATIVE_STREAM_RECOVERY_RESERVE_MS - NATIVE_RECOVERY_TEARDOWN_MS;
   const reason = !input.enabled ? "ineligible" : !input.deadlineAt ? "finite_deadline_required" :
     (input.requestTimeoutMs ?? remaining) < NATIVE_LONG_REQUEST_MS ? "short_request" :
     available <= 0 ? "insufficient_time" : input.signal.aborted ? "request_ended" : null;

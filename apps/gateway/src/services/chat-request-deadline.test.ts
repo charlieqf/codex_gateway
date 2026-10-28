@@ -38,10 +38,22 @@ describe("chat request deadline", () => {
     expect(parseRequestedChatRequestTimeoutMs("900000")).toBe(900000);
     expect(parseRequestedChatRequestTimeoutMs("1")).toBe(1);
     expect(parseRequestedChatRequestTimeoutMs("0")).toBeInstanceOf(GatewayError);
-    expect(parseRequestedChatRequestTimeoutMs("900001")).toBeInstanceOf(GatewayError);
+    expect(parseRequestedChatRequestTimeoutMs("900001")).toBe(900001);
+    expect(parseRequestedChatRequestTimeoutMs("1800000")).toBe(1800000);
+    expect(parseRequestedChatRequestTimeoutMs("1800001")).toBeInstanceOf(GatewayError);
     expect(parseRequestedChatRequestTimeoutMs(["1000", "2000"])).toBeInstanceOf(
       GatewayError
     );
+  });
+
+  it.each(["goldencode", "goldencode-d"])("uses configured 30-minute budgets for %s while honoring shorter callers", model => {
+    const policy = parseChatRequestTimeoutPolicy({ MEDCODE_CHAT_REQUEST_TIMEOUT_MS: "600000",
+      MEDCODE_CHAT_REQUEST_TIMEOUTS_JSON: JSON.stringify({ models: { goldencode: 1800000, "goldencode-d": 1800000 } }) });
+    expect(resolveChatRequestTimeoutMs(policy, model, "tiankuan")).toBe(1800000);
+    expect(resolveChatRequestTimeoutMs(policy, model, "tiankuan", 1800000)).toBe(1800000);
+    expect(resolveChatRequestTimeoutMs(policy, model, "tiankuan", 900000)).toBe(900000);
+    expect(resolveChatRequestTimeoutMs(policy, model, "tiankuan", 120000)).toBe(120000);
+    expect(resolveChatRequestTimeoutMs(policy, "other", "tiankuan", 1800000)).toBe(600000);
   });
 
   it("falls back safely when JSON configuration is invalid", () => {

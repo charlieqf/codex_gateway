@@ -74,7 +74,7 @@ export function parseRequestedChatRequestTimeoutMs(
     return invalidRequestedTimeout();
   }
   const parsed = Number(value);
-  if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > 900_000) {
+  if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > 1_800_000) {
     return invalidRequestedTimeout();
   }
   return parsed;
@@ -179,7 +179,7 @@ function invalidRequestedTimeout(): GatewayError {
   return new GatewayError({
     code: "invalid_request",
     message:
-      "x-medcode-request-timeout-ms must be an integer from 1 through 900000.",
+      "x-medcode-request-timeout-ms must be an integer from 1 through 1800000.",
     httpStatus: 400
   });
 }

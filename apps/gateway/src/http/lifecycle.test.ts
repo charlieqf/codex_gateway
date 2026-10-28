@@ -1,7 +1,7 @@
 import Fastify from "fastify";
 import http from "node:http";
 import { expect, it, vi } from "vitest";
-import { installGatewayLifecycle } from "./lifecycle.js";
+import { installGatewayLifecycle, installGatewayShutdown } from "./lifecycle.js";
 
 it("releases an execution lease if setup throws before the normal finalizer", async () => {
   const app = Fastify();
@@ -16,6 +16,31 @@ it("releases an execution lease if setup throws before the normal finalizer", as
     expect(release).toHaveBeenCalledOnce();
     await lifecycle.waitForIdle(1000);
   } finally { await app.close(); }
+});
+
+it("allows a 30-minute in-flight call and cleanup to finish during shutdown", async () => {
+  const app = Fastify();
+  const lifecycle = installGatewayLifecycle(app);
+  const endWork = lifecycle.hold("work");
+  const closed = vi.spyOn(app, "close");
+  const exited = vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
+  const previousHandlers = new Set(process.listeners("SIGTERM"));
+  const remove = installGatewayShutdown(app);
+  const shutdown = process.listeners("SIGTERM").find(handler => !previousHandlers.has(handler))!;
+  vi.useFakeTimers();
+  try {
+    shutdown("SIGTERM");
+    await vi.advanceTimersByTimeAsync(1_800_000);
+    expect(lifecycle.draining).toBe(true);
+    expect(exited).not.toHaveBeenCalled();
+    expect(closed).not.toHaveBeenCalled();
+    endWork();
+    await vi.advanceTimersByTimeAsync(25);
+    expect(closed).toHaveBeenCalledOnce();
+    expect(exited).not.toHaveBeenCalled();
+  } finally {
+    endWork(); remove(); vi.useRealTimers(); exited.mockRestore(); await app.close();
+  }
 });
 
 it("drains actual handler work even after its HTTP client disconnects, rejecting new admission", async () => {

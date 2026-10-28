@@ -1,4 +1,4 @@
-import { GatewayError } from "@codex-gateway/core";
+import { GatewayError, isGoldenCodeCloudModel } from "@codex-gateway/core";
 import { reportModelProgress } from "./model-call-progress.js";
 import {
   classifyOversizedWrite,
@@ -85,7 +85,7 @@ export async function runNativeWithFailover(input: NativeClientToolsInput & {
       const outputBudget = createNativeOutputBudget({ ...input, signal: input.signal!,
         prepareRetry,
         onDecision: fields => input.log?.info({ request_id: input.requestId, ...fields }, "Native first-output budget assessed."),
-        enabled: budget.used === 0 && runtime.publicModelId === "goldencode" &&
+        enabled: budget.used === 0 && isGoldenCodeCloudModel(runtime.publicModelId) &&
           !input.request.images?.length && !!runtime.beginRetry });
       try {
         const result = await execute(runtime, budget, false, {
