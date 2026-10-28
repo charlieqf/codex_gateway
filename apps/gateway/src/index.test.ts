@@ -17112,6 +17112,99 @@ describe("GoldenCode native provider failover", () => {
 });
 
 describe("GoldenCode DeepSeek pool", () => {
+  it.each(["chat/completions", "responses"].flatMap(api => [false, true].flatMap(stream =>
+    [undefined, "max"].map(effort => ({ api, stream, effort })))))(
+    "shares xAI vision across cloud models and retains DeepSeek text: $api stream=$stream effort=$effort", async ({ api, stream, effort }) => {
+      const captured: CapturedOpenAICompatibleRequest[] = [];
+      const upstream = await startOpenAICompatibleCaptureServer("vision-or-text-ok", captured);
+      const registry = JSON.parse(readFileSync(new URL("../../../config/gateway.goldencode.three-provider.example.json", import.meta.url), "utf8"));
+      const image = "data:image/png;base64,aGVsbG8=";
+      try {
+        await withTemporaryEnv({
+          MEDCODE_PUBLIC_MODEL_ID: "goldencode",
+          MEDCODE_PUBLIC_MODELS_JSON_FILE: undefined,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(registry),
+          MEDCODE_TENCENT_TOKENHUB_API_KEY: "text-test-key",
+          MEDCODE_TENCENT_TOKENHUB_API_KEY_ENV: undefined,
+          MEDCODE_TENCENT_TOKENHUB_BASE_URL: upstream.baseUrl,
+          MEDCODE_TIANKUAN_API_KEY: undefined,
+          MEDCODE_TIANKUAN_API_KEY_FILE: undefined,
+          MEDCODE_TIANKUAN_API_KEY_ENV: undefined,
+          MEDCODE_TOKENSWITCH_API_KEY: undefined,
+          MEDCODE_TOKENSWITCH_BASE_URL: undefined,
+          MEDCODE_VISION_XAI_API_KEY: "vision-test-key",
+          MEDCODE_VISION_XAI_API_KEY_ENV: undefined,
+          MEDCODE_VISION_XAI_BASE_URL: upstream.baseUrl
+        }, async () => {
+          const { store, headers } = createModelEntitledStore(["goldencode", "goldencode-d"]);
+          const app = buildGateway({ authMode: "credential", sessionStore: store, observationStore: store,
+            tokenBudgetLimiter: createSqliteTokenBudgetLimiter({ db: store.database }),
+            provider: new FakeProvider(), logger: false });
+          try {
+            // Keep the image in history while switching models, then send a text-only request.
+            for (const [index, model] of ["goldencode", "goldencode-d", "goldencode", "goldencode-d"].entries()) {
+              const hasImage = index < 3;
+              const response = await app.inject({ method: "POST", url: `/v1/${api}`,
+                headers: { ...headers, "x-medcode-client-session-id": "cloud-vision-switch" },
+                payload: { model, stream, ...(api === "responses" ? {
+                  ...(model === "goldencode-d" && effort ? { reasoning: { effort } } : {}),
+                  input: [
+                    { type: "message", role: "user", content: [
+                      { type: "input_text", text: "Describe this chart." },
+                      ...(hasImage ? [{ type: "input_image", image_url: image, detail: "high" }] : [])
+                    ] },
+                    { type: "message", role: "user", content: [{ type: "input_text", text: "Continue." }] }
+                  ]
+                } : {
+                  ...(model === "goldencode-d" && effort ? { reasoning_effort: effort } : {}),
+                  messages: [
+                    { role: "user", content: [
+                      { type: "text", text: "Describe this chart." },
+                      ...(hasImage ? [{ type: "image_url", image_url: { url: image, detail: "high" } }] : [])
+                    ] },
+                    { role: "user", content: "Continue." }
+                  ]
+                }) }
+              });
+              expect(response.statusCode, response.body).toBe(200);
+              expect(response.body).toContain("vision-or-text-ok");
+              if (stream) expect(response.body).toContain(api === "responses" ? "response.completed" : "[DONE]");
+              expect(captured).toHaveLength(index + 1);
+              expect(captured[index].body.model).toBe(hasImage ? "grok-4.5" : "deepseek-v4.1-flash-1017");
+              expect(captured[index].headers.authorization).toBe(`Bearer ${hasImage ? "vision-test-key" : "text-test-key"}`);
+              if (hasImage) {
+                expect(JSON.stringify(captured[index].body.messages)).toContain(image);
+                expect(captured[index].body.store).toBe(false);
+              }
+              const event = store.listRequestEvents({ limit: 1 })[0];
+              expect(event).toMatchObject({ status: "ok", publicModelId: model,
+                provider: hasImage ? "xai" : "tencent", totalTokens: 9,
+                visionObservation: { wireImageCount: hasImage ? 1 : 0 } });
+              if (model === "goldencode-d" && effort === "max") {
+                expect(captured[index].body.reasoning_effort).toBe(hasImage ? "high" : "max");
+                expect(event).toMatchObject({ requestedReasoningEffort: "max",
+                  effectiveReasoningEffort: hasImage ? "high" : "max", reasoningEffortNormalized: hasImage });
+              }
+            }
+            const restricted = issueAccessCredential({ subjectId: "subj_dev", label: "GLM only", scope: "code",
+              expiresAt: new Date("2030-02-01T00:00:00Z"), allowedPublicModels: ["goldencode"],
+              knownPublicModelIds: ["goldencode", "goldencode-d"] });
+            store.insertAccessCredential(restricted.record);
+            const denied = await app.inject({ method: "POST", url: "/v1/chat/completions",
+              headers: { authorization: `Bearer ${restricted.token}` },
+              payload: { model: "goldencode-d", messages: [{ role: "user", content: [
+                { type: "image_url", image_url: { url: image } }
+              ] }] } });
+            expect(denied.statusCode).toBe(403);
+            expect(captured).toHaveLength(4);
+            expect(store.database.prepare("SELECT final_total_tokens FROM token_reservations").all())
+              .toEqual(Array.from({ length: 4 }, () => expect.objectContaining({ final_total_tokens: 9 })));
+          } finally { await app.close(); }
+        });
+      } finally { await upstream.close(); }
+    }
+  );
+
   const cases = ["tencent", "tiankuan"].flatMap(first =>
     ["chat/completions", "responses"].flatMap(api =>
       [false, true].flatMap(stream => [false, true].map(plain => ({ first, api, stream, plain })))));
