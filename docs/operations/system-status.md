@@ -1,5 +1,16 @@
 # System Status
 
+Gateway `007f5073428ead3457c7f786b139aa6a4bddedb2` is live as of
+2026-10-28 02:47:52 UTC, verified at 02:50:46 UTC. Both cloud models route images
+to xAI/grok-4.5 with one public tier policy: default high, none→low, medium→high,
+vision max→high; DeepSeek text max remains max. All 497 related tests and nine
+operations-script tests passed, followed by two real candidate checks and six
+public HTTPS checks. Synthetic credentials were revoked and pending reservations
+are zero; both databases passed integrity/FK checks. Gateway is healthy with zero
+restarts/OOM; three other containers and ports are unchanged. Cutover observed
+about 40 seconds of 503/502 responses. Desktop's local D image restriction still
+requires a client release. See the [release and review receipt](./cloud-vision-release-2026-10-28.zh-CN.md).
+
 Research Worker `9db1efa7329287903e09f0d87232d050a2805453` is live as of
 2026-10-24 21:13:09 UTC, verified at 21:17:21 UTC. Semantic academic editing
 replaces keyword gates; existing call budgets reserve final review and one repair.
