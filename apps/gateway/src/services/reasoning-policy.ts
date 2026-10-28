@@ -33,6 +33,22 @@ export function resolveChatCompletionReasoningEffort(
   requestModelId: string,
   modality: "text" | "vision"
 ): ResolvedReasoningEffort | GatewayError {
+  // An explicit public tier contract also applies to image requests. Resolve
+  // defaults and legacy aliases once, then adapt only to the vision capability.
+  if (modality === "vision" && model.vision?.enabled && model.reasoning?.supportedEfforts) {
+    const publicTier = resolveChatCompletionReasoningEffort(model, requested, requestModelId, "text");
+    if (publicTier instanceof GatewayError || publicTier.effective === null) return publicTier;
+    const supported = supportedReasoningEffortsForModel(model, "vision")?.values ?? [];
+    if (supported.includes(publicTier.effective)) return publicTier;
+    const alias = model.vision.reasoning?.legacyAliases?.[publicTier.effective];
+    const highest = ["max", "xhigh", "high", "medium", "low", "minimal", "none"]
+      .find(effort => supported.includes(effort));
+    const effective = alias && supported.includes(alias) ? alias : highest;
+    if (effective) return { ...publicTier, effective, source: "legacy_normalization",
+      normalized: true, normalizationReason: "vision_capability" };
+    return new GatewayError({ code: "unsupported_reasoning_effort",
+      message: `No compatible vision reasoning tier for model '${requestModelId}'.`, httpStatus: 400 });
+  }
   const reasoning = reasoningConfigForModel(model, modality);
   if (requested === undefined) {
     return {

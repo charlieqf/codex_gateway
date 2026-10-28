@@ -26,8 +26,10 @@
   两家 DeepSeek 上游已直测三档及 thinking.disabled；公共接口目前仍按上述兼容规则处理。
   不把上游支持的开关或数值范围自动当成公共 Gateway 已开放的能力。
 - 配置上限为 200,000 上下文、128,000 最大输出，以上线后 `/v1/models` 为准。
-- 本次 DeepSeek 入口提供文本和客户端 function tools；未配置视觉路由，不宣称图片能力。
-  `goldencode` 的既有视觉路由保持原配置。
+- 2026-10-28 视觉修订：启用视觉配置后，`goldencode` 和 `goldencode-d` 的图片请求均由 xAI 处理，
+  纯文本仍分别进入 GLM／DeepSeek 池。上线状态以当日发布记录为准。
+  公共档位仍是 low/high/max，默认 high；none→low、medium→high 先按公共合同归一化，
+  视觉不支持的有效档位映射到配置支持的最高档（当前 max→high），审计保留 requested/effective。
 - 客户端回传完整可见消息、assistant tool_calls 和 tool 结果。云端适配器沿用
   现有对话文本重建机制，以 system/user 消息调用上游；不原样重放上游 assistant
   推理消息，不保存或向客户端暴露私有 reasoning_content。每轮由所选模型重新推理。
@@ -47,8 +49,8 @@
 也不支持 `previous_response_id`，需显式重放完整 input。断连后旧调用为 unknown 时，
 不能据此认定未执行并自动换模型重试；需先核对已收到结果和已执行工具。
 
-从 `goldencode` 的视觉会话切到本次文本／工具版 `goldencode-d` 时，不能直接发送含图片的历史。
-客户端应保留原模型，或明确移除图片后让用户继续；不能静默丢弃图片语义。
+视觉修订上线后，两个云模型间切换应保留图片历史，不再要求移除图片。
+客户端必须允许两个入口发送图片；本地模型仍按其实际能力校验，不能静默丢弃图片语义。
 
 ## 授权和迁移
 
@@ -60,8 +62,9 @@
 
 ## 发布要求
 
-将 `config/gateway.goldencode.three-provider.example.json` 中的 **goldencode-d 单个条目**
-合并到现网 registry；不能整份覆盖，现网 GLM、local、vision 配置必须完整保留。
+首次添加 DeepSeek 的旧流程只合并示例的文本配置，必须排除 `vision`。
+视觉启用使用 `prepare-deepseek-vision.py` 从现网 GLM 复制原始视觉配置；预检和切换使用同一候选文件，
+不能从示例硬编码上游配置，也不能整份覆盖现网 registry。
 沿用两家既有密钥、base URL 和 900000 ms 超时。备份后从已测试的 main 提交部署，
 验证迁移、三个模型可见、两家真实工具往返、Chat/Responses 流式及非流式、GLM 回归和
 临时测试凭据清理。配置回退只移除新增条目；不恢复数据库覆盖上线后业务记录。

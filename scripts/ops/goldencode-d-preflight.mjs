@@ -9,7 +9,9 @@ import { createSqliteStore, createSqliteTokenBudgetLimiter } from "@codex-gatewa
 
 const example = JSON.parse(readFileSync(new URL("../../config/gateway.goldencode.three-provider.example.json", import.meta.url)));
 const existing = JSON.parse(process.env.MEDCODE_PUBLIC_MODELS_JSON || JSON.stringify(example));
-process.env.MEDCODE_PUBLIC_MODELS_JSON = JSON.stringify({ ...existing, "goldencode-d": example["goldencode-d"] });
+const textOnlyDeepSeek = structuredClone(example["goldencode-d"]);
+delete textOnlyDeepSeek.vision;
+process.env.MEDCODE_PUBLIC_MODELS_JSON = JSON.stringify({ ...existing, "goldencode-d": textOnlyDeepSeek });
 process.env.MEDCODE_PUBLIC_MODEL_ID = "goldencode";
 process.env.GATEWAY_GOLDENCODE_NATIVE_FAILOVER_MODE = "enforce";
 process.env.GATEWAY_GOLDENCODE_FAILOVER_SUBJECT_IDS = "";

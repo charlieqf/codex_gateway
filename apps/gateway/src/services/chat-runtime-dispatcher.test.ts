@@ -132,9 +132,8 @@ describe("chat runtime dispatcher pool runtime", () => {
     vision.release();
   });
 
-  it.each(["goldencode", "goldencode-d"])("fails %s vision when xAI is unavailable instead of falling back to text", (id) => {
+  it("fails vision when xAI is unavailable instead of falling back to text", () => {
     const model = goldencodeModel();
-    model.id = id;
     model.vision = {
       runtime: "xai",
       upstreamModel: "grok-4.5",

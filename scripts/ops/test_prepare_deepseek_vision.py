@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 
 spec = importlib.util.spec_from_file_location("prepare_vision", pathlib.Path(__file__).with_name("prepare-deepseek-vision.py"))
@@ -35,22 +36,20 @@ class PrepareVisionTest(unittest.TestCase):
         self.assertEqual(result.splitlines(keepends=True)[3:], original.splitlines(keepends=True)[3:])
         expected = copy.deepcopy(self.registry)
         expected["goldencode-d"]["vision"] = copy.deepcopy(expected["goldencode"]["vision"])
-        expected["goldencode-d"]["vision"]["reasoning"]["legacyAliases"] = {"max": "high"}
-        expected["goldencode-d"]["vision"]["reasoning"]["supportedEfforts"] = ["none", "low", "medium", "high"]
         self.assertEqual(json.loads(result.splitlines()[2].split(b"=", 1)[1]), expected)
         self.assertEqual(prepare.prepare_env(result), (result, False))
 
-    def test_preserves_native_max_and_rejects_conflicting_reasoning(self):
-        self.registry["goldencode"]["vision"]["reasoning"]["supportedEfforts"] = ["low", "high", "max"]
-        result, _ = prepare.prepare_env(self.env())
-        registry = json.loads(result.splitlines()[2].split(b"=", 1)[1])
-        self.assertEqual(registry["goldencode-d"]["vision"], registry["goldencode"]["vision"])
-        self.registry["goldencode"]["vision"]["reasoning"] = {"supportedEfforts": ["low"]}
-        with self.assertRaises(ValueError):
-            prepare.prepare_env(self.env())
-        self.registry["goldencode"]["vision"]["reasoning"] = {"legacyAliases": {"max": "low"}}
-        with self.assertRaises(ValueError):
-            prepare.prepare_env(self.env())
+    def test_preserves_inherited_and_custom_reasoning_without_injecting_defaults(self):
+        for reasoning in (None, {"effort": "xhigh", "supportedEfforts": ["low", "xhigh"]},
+                          {"effort": "high", "supported_efforts": ["low", "high"],
+                           "legacy_aliases": {"max": "high"}}):
+            if reasoning is None:
+                self.registry["goldencode"]["vision"].pop("reasoning", None)
+            else:
+                self.registry["goldencode"]["vision"]["reasoning"] = reasoning
+            result, _ = prepare.prepare_env(self.env())
+            registry = json.loads(result.splitlines()[2].split(b"=", 1)[1])
+            self.assertEqual(registry["goldencode-d"]["vision"], registry["goldencode"]["vision"])
 
     def test_rejects_conflicting_or_disabled_target_route(self):
         for value in ({"enabled": False}, {"runtime": "xai", "upstreamModel": "different"}):
@@ -90,6 +89,15 @@ class PrepareVisionTest(unittest.TestCase):
             self.assertNotEqual(again.returncode, 0)
             self.assertEqual(candidate.read_bytes(), expected)
             self.assertEqual(source.read_bytes(), self.env())
+
+    def test_candidate_is_not_published_when_flush_fails(self):
+        with tempfile.TemporaryDirectory() as folder:
+            candidate = pathlib.Path(folder) / "candidate.env"
+            with mock.patch.object(prepare.os, "fsync", side_effect=OSError("simulated disk failure")):
+                with self.assertRaises(OSError):
+                    prepare.write_candidate(candidate, self.env())
+            self.assertFalse(candidate.exists())
+            self.assertEqual(list(pathlib.Path(folder).iterdir()), [])
 
 
 if __name__ == "__main__":

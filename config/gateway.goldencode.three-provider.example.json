@@ -46,7 +46,7 @@
       "upstreamModel": "grok-4.5",
       "contextWindow": 200000,
       "maxOutputTokens": 128000,
-      "reasoning": {"effort": "medium", "supportedEfforts": ["none", "low", "medium", "high"], "legacyAliases": {"max": "high"}},
+      "reasoning": {"effort": "medium"},
       "enabled": true
     },
     "reasoning": {

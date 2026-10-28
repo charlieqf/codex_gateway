@@ -17112,8 +17112,33 @@ describe("GoldenCode native provider failover", () => {
 });
 
 describe("GoldenCode DeepSeek pool", () => {
+  it.each(["goldencode", "goldencode-d"])("does not send %s images into its text pool when xAI is unavailable", async (model) => {
+    const captured: CapturedOpenAICompatibleRequest[] = [];
+    const upstream = await startOpenAICompatibleCaptureServer("unexpected-text-call", captured);
+    const registry = JSON.parse(readFileSync(new URL("../../../config/gateway.goldencode.three-provider.example.json", import.meta.url), "utf8"));
+    try {
+      await withTemporaryEnv({ MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(registry), MEDCODE_PUBLIC_MODELS_JSON_FILE: undefined,
+        MEDCODE_TENCENT_TOKENHUB_API_KEY: "text-test-key", MEDCODE_TENCENT_TOKENHUB_API_KEY_ENV: undefined,
+        MEDCODE_TENCENT_TOKENHUB_BASE_URL: upstream.baseUrl, MEDCODE_VISION_XAI_API_KEY: undefined,
+        MEDCODE_VISION_XAI_API_KEY_FILE: undefined, MEDCODE_VISION_XAI_API_KEY_ENV: undefined,
+        MEDCODE_IMAGE_BILLING_FALLBACK_KEYS_FILE: undefined }, async () => {
+        const { store, headers } = createModelEntitledStore([model]);
+        const app = buildGateway({ authMode: "credential", sessionStore: store, observationStore: store,
+          provider: new FakeProvider(), logger: false });
+        try {
+          const response = await app.inject({ method: "POST", url: "/v1/chat/completions", headers,
+            payload: { model, reasoning_effort: "max", messages: [{ role: "user", content: [
+              { type: "image_url", image_url: { url: "data:image/png;base64,aGVsbG8=" } }] }] } });
+          expect(response.statusCode).toBe(503);
+          expect(response.json().error.code).toBe("service_unavailable");
+          expect(captured).toHaveLength(0);
+        } finally { await app.close(); }
+      });
+    } finally { await upstream.close(); }
+  });
+
   it.each(["chat/completions", "responses"].flatMap(api => [false, true].flatMap(stream =>
-    [undefined, "max"].map(effort => ({ api, stream, effort })))))(
+    [undefined, "none", "low", "medium", "high", "max"].map(effort => ({ api, stream, effort })))))(
     "shares xAI vision across cloud models and retains DeepSeek text: $api stream=$stream effort=$effort", async ({ api, stream, effort }) => {
       const captured: CapturedOpenAICompatibleRequest[] = [];
       const upstream = await startOpenAICompatibleCaptureServer("vision-or-text-ok", captured);
@@ -17147,7 +17172,7 @@ describe("GoldenCode DeepSeek pool", () => {
               const response = await app.inject({ method: "POST", url: `/v1/${api}`,
                 headers: { ...headers, "x-medcode-client-session-id": "cloud-vision-switch" },
                 payload: { model, stream, ...(api === "responses" ? {
-                  ...(model === "goldencode-d" && effort ? { reasoning: { effort } } : {}),
+                  ...(effort ? { reasoning: { effort } } : {}),
                   input: [
                     { type: "message", role: "user", content: [
                       { type: "input_text", text: "Describe this chart." },
@@ -17156,7 +17181,7 @@ describe("GoldenCode DeepSeek pool", () => {
                     { type: "message", role: "user", content: [{ type: "input_text", text: "Continue." }] }
                   ]
                 } : {
-                  ...(model === "goldencode-d" && effort ? { reasoning_effort: effort } : {}),
+                  ...(effort ? { reasoning_effort: effort } : {}),
                   messages: [
                     { role: "user", content: [
                       { type: "text", text: "Describe this chart." },
@@ -17180,11 +17205,12 @@ describe("GoldenCode DeepSeek pool", () => {
               expect(event).toMatchObject({ status: "ok", publicModelId: model,
                 provider: hasImage ? "xai" : "tencent", totalTokens: 9,
                 visionObservation: { wireImageCount: hasImage ? 1 : 0 } });
-              if (model === "goldencode-d" && effort === "max") {
-                expect(captured[index].body.reasoning_effort).toBe(hasImage ? "high" : "max");
-                expect(event).toMatchObject({ requestedReasoningEffort: "max",
-                  effectiveReasoningEffort: hasImage ? "high" : "max", reasoningEffortNormalized: hasImage });
-              }
+              const effective = effort === "none" || effort === "low" ? "low"
+                : effort === "max" && !hasImage ? "max" : "high";
+              expect(captured[index].body.reasoning_effort).toBe(effective);
+              expect(event).toMatchObject({ requestedReasoningEffort: effort ?? null,
+                effectiveReasoningEffort: effective,
+                reasoningEffortNormalized: effort === "none" || effort === "medium" || (effort === "max" && hasImage) });
             }
             const restricted = issueAccessCredential({ subjectId: "subj_dev", label: "GLM only", scope: "code",
               expiresAt: new Date("2030-02-01T00:00:00Z"), allowedPublicModels: ["goldencode"],

@@ -145,10 +145,14 @@ if enable_vision:
     spec.loader.exec_module(helper)
     proposed_env, changed_registry = helper.prepare_env(env_bytes)
     assert changed_registry, "Vision route already configured; no deployment needed"
+    assert (BACKUP / "vision-candidate.env").read_bytes() == proposed_env, "Preflight candidate is stale or differs from deployment"
     proposed_registry = json.loads(next(line.split("=", 1)[1] for line in proposed_env.decode().splitlines()
                                         if line.startswith(MODEL_ENV + "=")))
 else:
     new_model = json.loads((RELEASE / "config/gateway.goldencode.three-provider.example.json").read_text())["goldencode-d"]
+    # Historical add-model workflow is text-only. Vision requires --enable-vision
+    # and the live source route, never the illustrative example's endpoint.
+    new_model.pop("vision", None)
     proposed_registry = {**registry, "goldencode-d": new_model}
     lines[matches[0]] = MODEL_ENV + "=" + json.dumps(proposed_registry, separators=(",", ":")) + "\n"
     proposed_env = "".join(lines).encode()

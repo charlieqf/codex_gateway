@@ -5,6 +5,7 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { isolatedProviderEnv, smokePayload, smokeText } from "./vision-smoke-helpers.mjs";
 
 const registry = JSON.parse(process.env.MEDCODE_PUBLIC_MODELS_JSON || "{}");
 assert.ok(!process.env.MEDCODE_PUBLIC_MODELS_JSON_FILE, "A file-backed registry needs separate preflight preparation");
@@ -12,22 +13,14 @@ assert.equal(registry.goldencode?.vision?.runtime, "xai");
 assert.notEqual(registry.goldencode.vision.enabled, false);
 assert.ok(registry["goldencode-d"]);
 assert.notEqual(registry["goldencode-d"].enabled, false);
-const visionConfig = structuredClone(registry.goldencode.vision);
-visionConfig.reasoning ??= {};
-visionConfig.reasoning.supportedEfforts ??= ["none", "low", "medium", "high"];
-if (!visionConfig.reasoning.supportedEfforts.includes("max")) {
-  assert.ok(visionConfig.reasoning.supportedEfforts.includes("high"));
-  visionConfig.reasoning.legacyAliases ??= {};
-  assert.ok(!visionConfig.reasoning.legacyAliases.max || visionConfig.reasoning.legacyAliases.max === "high");
-  visionConfig.reasoning.legacyAliases.max = "high";
-}
-if (registry["goldencode-d"].vision) assert.deepEqual(registry["goldencode-d"].vision, visionConfig);
-registry["goldencode-d"].vision = visionConfig;
+// The caller must supply the exact prepared candidate via --env-file. Never
+// reconstruct or modify the registry here; deployment compares these same bytes.
+assert.deepEqual(registry["goldencode-d"].vision, registry.goldencode.vision,
+  "Supply the prepared candidate environment with matching cloud vision routes");
 // Do not inherit database paths, snapshots, side services or background jobs.
-for (const name of Object.keys(process.env)) {
-  if (!/^(PATH|HOME|NODE_EXTRA_CA_CERTS|HTTPS_PROXY|HTTP_PROXY|NO_PROXY|MEDCODE_IMAGE_BILLING_FALLBACK_KEYS_FILE)$/.test(name) &&
-      !/^MEDCODE_(VISION_XAI_|TENCENT_TOKENHUB_|TIANKUAN_)/.test(name)) delete process.env[name];
-}
+const providerEnv = isolatedProviderEnv(process.env);
+for (const name of Object.keys(process.env)) delete process.env[name];
+Object.assign(process.env, providerEnv);
 process.env.MEDCODE_PUBLIC_MODELS_JSON = JSON.stringify(registry);
 process.env.MEDCODE_PUBLIC_MODEL_ID = "goldencode";
 process.env.MEDCODE_VISION_XAI_TIMEOUT_MS = "60000";
@@ -80,13 +73,8 @@ const checks = process.argv.includes("--responses-control") ? [
 try {
   for (const [model, api, vision, stream] of checks) {
     try {
-      const prompt = vision ? "Read the four-digit number shown in this image. Answer with only those four digits." : "Reply with only TEXT_OK.";
-      const effort = model === "goldencode-d" ? "max" : "high";
-      const payload = api === "responses"
-        ? { model, stream, reasoning: { effort }, max_output_tokens: 1024, input: [{ type: "message", role: "user", content: [
-            { type: "input_text", text: prompt }, { type: "input_image", image_url: image } ] }] }
-        : { model, stream, reasoning_effort: effort, max_tokens: 1024, messages: [{ role: "user", content: vision
-            ? [{ type: "text", text: prompt }, { type: "image_url", image_url: { url: image } }] : prompt }] };
+      const effort = "max";
+      const payload = smokePayload({ model, api, vision, stream, effort }, image);
       const response = await app.inject({ method: "POST", url: `/v1/${api}`, payload,
         headers: { authorization: `Bearer ${key.token}`, "x-medcode-client-session-id": "vision-preflight",
           "x-medcode-request-timeout-ms": "60000" } });
@@ -104,10 +92,7 @@ try {
       const frames = stream ? response.body.split("\n").filter(line => line.startsWith("data: ") && line !== "data: [DONE]")
         .map(line => JSON.parse(line.slice(6))) : [response.json()];
       assert.ok(!frames.some(frame => frame.error || frame.type === "response.failed"));
-      const text = api === "responses"
-        ? frames.find(frame => frame.type === "response.completed")?.response?.output
-            ?.flatMap(item => item.content ?? []).map(item => item.text ?? "").join("")
-        : frames[0].choices?.[0]?.message?.content;
+      const text = smokeText(api, stream, frames);
       const contentMatched = (vision ? /7319/ : /TEXT_OK/).test(text ?? "");
       contentChecks.push(contentMatched);
       console.log(JSON.stringify({ model, api, content_matched: contentMatched,
@@ -118,8 +103,10 @@ try {
       assert.equal(ledger.final_total_tokens, event.totalTokens);
       routingPassed++;
     } catch (error) {
-      failures.push({ model, api, error: error.code ?? error.name });
-      console.log(JSON.stringify({ model, api, passed: false, error: error.code ?? error.name }));
+      const failure = { model, api, vision, stream, error: error.code ?? error.name,
+        location: error.stack?.split("\n").find(line => line.includes("deepseek-vision-preflight.mjs:"))?.trim() };
+      failures.push(failure);
+      console.log(JSON.stringify({ ...failure, passed: false }));
     }
   }
   assert.equal(store.database.prepare("SELECT count(*) AS n FROM token_reservations WHERE finalized_at IS NULL").get().n, 0);

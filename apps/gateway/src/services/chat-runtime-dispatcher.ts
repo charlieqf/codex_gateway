@@ -209,10 +209,7 @@ function beginVisionRuntime(
     runtimeInstanceId: virtualAccount.id,
     providerKind: virtualAccount.provider,
     upstreamModel: vision.upstreamModel,
-    reasoningEffort:
-      input.reasoningEffortSource !== "default"
-        ? input.reasoningEffort
-        : reasoningEffortFromConfig(vision.reasoning) ?? input.reasoningEffort,
+    reasoningEffort: input.reasoningEffort ?? reasoningEffortFromConfig(vision.reasoning),
     limits: {
       contextWindow: vision.contextWindow,
       maxOutputTokens: vision.maxOutputTokens

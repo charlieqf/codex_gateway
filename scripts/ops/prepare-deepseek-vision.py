@@ -1,7 +1,7 @@
 """Prepare, but never activate, the R760 DeepSeek vision configuration.
 
-Copy the live goldencode vision configuration to goldencode-d, with the cloud
-max tier mapped to vision high when max is not natively supported. The source
+Copy the live goldencode vision configuration exactly to goldencode-d. Public
+tier adaptation belongs to the Gateway reasoning policy. The source
 env file is never modified. With no --output this is a read-only dry run; an output
 is created exclusively with mode 0600 and contains credentials from the source.
 Do not print, commit, or upload that file. Deployment still requires the normal
@@ -13,6 +13,7 @@ import hashlib
 import json
 import os
 import pathlib
+import tempfile
 
 
 REGISTRY_KEY = "MEDCODE_PUBLIC_MODELS_JSON"
@@ -46,17 +47,6 @@ def prepare_env(original):
     for key in ("contextWindow", "maxOutputTokens"):
         if type(vision.get(key)) is not int or vision[key] <= 0:
             raise ValueError("The source vision limits must be positive integers")
-    reasoning = vision.setdefault("reasoning", {})
-    if not isinstance(reasoning, dict):
-        raise ValueError("Expected a vision reasoning object")
-    supported = reasoning.setdefault("supportedEfforts", ["none", "low", "medium", "high"])
-    if "max" not in supported:
-        if "high" not in supported:
-            raise ValueError("The source vision route cannot map the cloud max tier to high")
-        aliases = reasoning.setdefault("legacyAliases", {})
-        if not isinstance(aliases, dict) or aliases.get("max", "high") != "high":
-            raise ValueError("Conflicting vision max reasoning mapping")
-        aliases["max"] = "high"
     if target.get("vision") == vision:
         return original, False
     if target.get("vision") is not None:
@@ -80,13 +70,25 @@ def main():
         # JSON parse errors may include secret-bearing input; never emit them.
         parser.exit(1, "Registry validation failed; source unchanged.\n")
     if args.output:
-        fd = os.open(args.output, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        with os.fdopen(fd, "wb") as output:
-            output.write(proposed)
+        write_candidate(args.output, proposed)
     print(json.dumps({"changed": changed, "changed_field": "goldencode-d.vision" if changed else None,
                       "source_sha256": hashlib.sha256(original).hexdigest(),
                       "proposed_sha256": hashlib.sha256(proposed).hexdigest(),
                       "candidate_written": args.output is not None, "activated": False}))
+
+
+def write_candidate(path, contents):
+    # Publish a complete, fsynced candidate atomically without replacing an
+    # existing file. A hard link gives no-replace semantics on Linux and Windows.
+    fd, temporary = tempfile.mkstemp(prefix=".vision-", dir=path.parent)
+    try:
+        with os.fdopen(fd, "wb") as output:
+            output.write(contents)
+            output.flush()
+            os.fsync(output.fileno())
+        os.link(temporary, path)
+    finally:
+        os.unlink(temporary)
 
 
 if __name__ == "__main__":

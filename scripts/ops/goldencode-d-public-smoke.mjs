@@ -58,7 +58,7 @@ async function call(api, payload, session, label, vision = false) {
   assert.equal(event.publicModelId, payload.model);
   if (vision) {
     assert.equal(event.upstreamModel, registry[payload.model].vision.upstreamModel);
-    assert.equal(event.requestedReasoningEffort, payload.model === "goldencode-d" ? "max" : "high");
+    assert.equal(event.requestedReasoningEffort, "max");
     assert.equal(event.effectiveReasoningEffort, "high");
   }
   assert(event.totalTokens > 0);
@@ -123,7 +123,7 @@ try {
       ["goldencode-d", "responses", false], ["goldencode-d", "responses", true],
       ["goldencode", "chat/completions", false]
     ]) {
-      const effort = model === "goldencode-d" ? "max" : "high";
+      const effort = "max";
       const payload = api === "responses"
         ? { model, stream, reasoning: { effort }, max_output_tokens: 1024, input: [{ type: "message", role: "user", content: [
             { type: "input_text", text: prompt }, { type: "input_image", image_url: image }] }] }
