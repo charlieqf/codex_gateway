@@ -43,15 +43,16 @@ class ReleaseIdleTests(unittest.TestCase):
             with self.subTest(state=state), self.assertRaises(RuntimeError):
                 self.exercise(lambda _: state)
 
-    def test_removed_bypass_is_rejected_before_host_access(self):
+    def test_bypass_and_shortened_window_are_rejected_before_host_access(self):
         script = pathlib.Path(__file__).with_name("deploy-goldencode-d-r760.py")
-        with patch.dict(sys.modules, {"fcntl": types.SimpleNamespace()}), \
-             patch.object(sys, "argv", [str(script), "f" * 40, "--drain-without-idle"]), \
-             patch("subprocess.run") as run, patch("pathlib.Path.open") as opening:
-            with self.assertRaisesRegex(ValueError, "bypassing"):
-                runpy.run_path(str(script), run_name="__main__")
-            run.assert_not_called()
-            opening.assert_not_called()
+        for flag in ("--drain-without-idle", "--idle-stable-seconds=5"):
+            with self.subTest(flag=flag), patch.dict(sys.modules, {"fcntl": types.SimpleNamespace()}), \
+                 patch.object(sys, "argv", [str(script), "f" * 40, flag]), \
+                 patch("subprocess.run") as run, patch("pathlib.Path.open") as opening:
+                with self.assertRaisesRegex(ValueError, "bypassing"):
+                    runpy.run_path(str(script), run_name="__main__")
+                run.assert_not_called()
+                opening.assert_not_called()
 
 
 if __name__ == "__main__":

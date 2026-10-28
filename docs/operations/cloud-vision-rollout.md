@@ -86,6 +86,10 @@ registry. Do not source the env in a shell; `node --env-file` loads it as data.
 python3 -B "$RELEASE/scripts/ops/deploy-goldencode-d-r760.py" "$REV" --enable-vision
 ```
 
+Retain the 30-second continuous natural-idle window. The operator explicitly
+confirmed this requirement on 2026-10-28; prolonged busy traffic does not authorize
+shortening it. The temporary five-second option was withdrawn after that decision.
+
 The shared `gateway-drain.py` requires a 30-second natural idle window with both active requests and
 background work at zero. Admission stays open during this wait; if no window is
 available within 15 minutes, the release stops without changing production.
