@@ -86,9 +86,15 @@ registry. Do not source the env in a shell; `node --env-file` loads it as data.
 python3 -B "$RELEASE/scripts/ops/deploy-goldencode-d-r760.py" "$REV" --enable-vision
 ```
 
-By default the script waits for a 30-second natural idle window, then drains active
-work. For an authorized maintenance window, append `--drain-without-idle` to close
-admission immediately and wait for existing work; it does not force-cancel requests.
+The script requires a 30-second natural idle window with both active requests and
+background work at zero. Admission stays open during this wait; if no window is
+available within 15 minutes, the release stops without changing production.
+`--drain-without-idle` was removed after the 2026-10-28 outage: it closed model and
+login admission for several minutes while one long request finished. Do not use an
+older script to bypass this guard. After the idle check, drain has a 30-second
+timeout; a race with new work must resume the pinned old instance and fail the
+release, not cancel that work or recreate the service. This single-container
+procedure still has a short cutover interruption; it is not a zero-downtime rollout.
 Record public health throughout cutover as required by the deployment runbook.
 
 The script regenerates the candidate from the current live env and requires

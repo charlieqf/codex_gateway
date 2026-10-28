@@ -1,6 +1,6 @@
 """Authorized R760 release of the DeepSeek model pool after release preparation.
 
-Usage: python3 deploy-goldencode-d-r760.py <committed-and-pushed-revision> [--enable-vision] [--drain-without-idle]
+Usage: python3 deploy-goldencode-d-r760.py <committed-and-pushed-revision> [--enable-vision]
 Requires the standard release-prepare backup/state, a tested image tagged with
 that revision, and migration rehearsal. Changes only Gateway image + registry.
 Vision requires backups/release-<rev[:12]>/vision-candidate.env from prepare,
@@ -20,11 +20,12 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from gateway_release_idle import wait_for_natural_idle
 
 REV = sys.argv[1]
 flags = sys.argv[2:]
-assert len(flags) == len(set(flags)) and set(flags) <= {"--drain-without-idle", "--enable-vision"}
-drain_without_idle = "--drain-without-idle" in flags
+if len(flags) != len(set(flags)) or set(flags) - {"--enable-vision"}:
+    raise ValueError("Unsupported release flags; bypassing the natural idle window is disabled")
 enable_vision = "--enable-vision" in flags
 assert re.fullmatch(r"[0-9a-f]{40}", REV)
 ROOT = pathlib.Path("/opt/codex-gateway-r760")
@@ -173,22 +174,12 @@ protected -= {ENVFILE.resolve(), OVERRIDE.resolve()}
 fingerprints = {str(p): (sha(p), p.stat().st_mode & 0o777) for p in protected}
 mounts = {m["Destination"]: m["Source"] for m in meta["Mounts"]}
 dbpath = pathlib.Path(mounts["/var/lib/codex-gateway"]) / "gateway.db"
-drain = ["python3", str(RELEASE / "scripts/ops/gateway-drain.py"), "--container", meta["Id"]]
+drain = ["python3", str(RELEASE / "scripts/ops/gateway-drain.py"), "--container", meta["Id"],
+         "--timeout", "30"]
 
 # Avoid closing admission while ordinary users have active work.
-idle_start = None
-until = time.monotonic() + 900
-health_js = "fetch('http://127.0.0.1:8787/gateway/health').then(r=>r.json()).then(v=>console.log(JSON.stringify(v.lifecycle)))"
-while not drain_without_idle and time.monotonic() < until:
-    lifecycle = json.loads(run(["docker", "exec", meta["Id"], "node", "-e", health_js]))
-    assert not lifecycle["draining"]
-    idle_start = (idle_start or time.monotonic()) if lifecycle["active_requests"] == lifecycle["active_work"] == 0 else None
-    if idle_start and time.monotonic() - idle_start >= 30:
-        break
-    time.sleep(2)
-else:
-    if not drain_without_idle:
-        raise RuntimeError("No 30-second natural idle window; production unchanged")
+health_js = "fetch('http://127.0.0.1:8787/gateway/health',{signal:AbortSignal.timeout(5000)}).then(r=>r.json()).then(v=>console.log(JSON.stringify(v.lifecycle)))"
+wait_for_natural_idle(lambda: json.loads(run(["docker", "exec", meta["Id"], "node", "-e", health_js])))
 
 changed = False
 started = datetime.datetime.now(datetime.timezone.utc).isoformat()

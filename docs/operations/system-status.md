@@ -1,5 +1,17 @@
 # System Status
 
+Gateway `0072aea0cf40a57b09536f9bb35c6ffe0ba6175d` is live as of
+2026-10-28 07:59:12 UTC, verified at 08:06:22 UTC. Reasoning-only interrupted native
+calls now have bounded recovery within the original deadline and shared call budget.
+All 12 public checks and 10 isolated deployed-image stream checks passed; database
+integrity, synthetic cleanup, protected configuration and the other three containers
+are verified. The rollout caused about four minutes of model/login unavailability
+because admission was closed while a long request drained. Service recovered;
+50 successful bootstrap calls and four logins were observed by 08:07:46 UTC.
+The release tool's idle bypass was removed and drain timeout reduced to 30 seconds
+in main without another production restart. See the
+[release and outage record](./native-reasoning-recovery-release-2026-10-28.zh-CN.md).
+
 Gateway `1efc613f32bbd2a2068d18e1f7cc0639a44a7d03` is live as of
 2026-10-28 03:17:21 UTC, verified at 03:20:29 UTC. Vision adaptation never upgrades
 a public tier; missing lower tiers return the full recovery contract, and xAI
