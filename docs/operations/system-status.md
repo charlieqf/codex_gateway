@@ -1,5 +1,17 @@
 # System Status
 
+Gateway `fee6fb0a437ef9c7120fce586e832498020529ec` is live as of
+2026-10-28 11:15:00 UTC, verified at 11:21:34 UTC. Active reasoning now disarms the
+local first-output cutoff while retaining the original deadline and safe recovery
+for actual stream failures. Known usage remains the billing floor across attempts.
+Clean-image tests: 2205 passed, four skipped; 12 public checks and 21 isolated
+deployed-image checks passed. Gateway is healthy with zero restarts/OOM; database
+integrity, synthetic cleanup, protected configuration and other containers passed.
+Cutover observed 503/502 samples spanning about 20.4 seconds. A five-second idle
+window was used before the operator's preference for 30 seconds was received;
+that option was subsequently withdrawn and the 30-second requirement is retained.
+See the [release receipt and execution deviation](./native-healthy-reasoning-release-2026-10-28.zh-CN.md).
+
 Gateway `0072aea0cf40a57b09536f9bb35c6ffe0ba6175d` is live as of
 2026-10-28 07:59:12 UTC, verified at 08:06:22 UTC. Reasoning-only interrupted native
 calls now have bounded recovery within the original deadline and shared call budget.
