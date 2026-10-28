@@ -62,7 +62,11 @@ def main():
             "--entrypoint", "node", "-v", str(candidate) + ":/run/vision-candidate.env:ro"]
     for destination, source in provider_file_mounts(live).items():
         args += ["-v", source + ":" + destination + ":ro"]
-    args += [image["Id"], "--env-file=/run/vision-candidate.env",
+    live_env = dict(value.split("=", 1) for value in live["Config"]["Env"])
+    # Node 24 does not activate env proxying when NODE_USE_ENV_PROXY is loaded
+    # only through --env-file. Match the live process's startup setting explicitly.
+    proxy_args = ["--use-env-proxy"] if live_env.get("NODE_USE_ENV_PROXY") == "1" else []
+    args += [image["Id"], *proxy_args, "--env-file=/run/vision-candidate.env",
              "/app/scripts/ops/deepseek-vision-preflight.mjs", "--responses-control"]
     result = {"revision": revision, "image_id": image["Id"], "candidate_sha256": candidate_hash,
               "preflight_rc": None}

@@ -62,10 +62,15 @@ The wrapper pins the prepared live container and candidate image, mounts only th
 candidate and required provider secret files read-only, and invokes:
 
 ```text
-node --env-file=/run/vision-candidate.env /app/scripts/ops/deepseek-vision-preflight.mjs --responses-control
+node --use-env-proxy --env-file=/run/vision-candidate.env /app/scripts/ops/deepseek-vision-preflight.mjs --responses-control
 ```
 
 It does **not** mount production databases. Gateway state is in memory.
+The wrapper includes `--use-env-proxy` when the live `NODE_USE_ENV_PROXY` is `1`.
+With Node 24, merely loading that variable through `--env-file` did not activate
+proxying in the verified R760 probe; without the flag xAI timed out while the
+same request with the flag reached the upstream. Keep this startup flag aligned
+with production rather than treating such a timeout as a provider outage.
 The isolated preflight process uses root to read the root-owned 0600 candidate;
 the production Gateway user is unchanged. It tests
 both cloud models with MAX and real xAI image requests. It records
