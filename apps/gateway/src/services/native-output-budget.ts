@@ -1,10 +1,12 @@
 import { GatewayError, type ModelProgressEvent, type ProviderFailureClassification } from "@codex-gateway/core";
 import { createChatRequestDeadline } from "./chat-request-deadline.js";
 
-// 72-hour samples on 2026-10-28 include successful 814s/810s reasoning calls.
-// Long requests reserve 60s for recovery plus 5s for teardown. Calculate the
-// first attempt's time from the original deadline, including time spent queued.
-// This is a first-output budget, not an idle timeout or a new request deadline.
+// Long requests with no model activity reserve 60s for recovery plus 5s for
+// teardown, measured from the original deadline (including time spent queued).
+// T:38T3AH0N still received reasoning at 834.965s: elapsed time alone is not
+// evidence that an active stream should be discarded. Once reasoning starts,
+// leave it under the original deadline; actual stream failures can still recover.
+// No idle threshold is inferred from these sparse samples.
 export const NATIVE_LONG_REQUEST_MS = 900_000;
 export const NATIVE_STREAM_RECOVERY_RESERVE_MS = 60_000;
 export const NATIVE_RECOVERY_TEARDOWN_MS = 5_000;
@@ -33,7 +35,7 @@ export function createNativeOutputBudget(input: {
     available <= 0 ? "insufficient_time" : input.signal.aborted ? "request_ended" : null;
   if (input.enabled) input.onDecision?.({ remaining_ms: remaining, first_output_budget_ms: reason ? null : available,
     recovery_reserve_ms: NATIVE_STREAM_RECOVERY_RESERVE_MS, teardown_ms: NATIVE_RECOVERY_TEARDOWN_MS,
-    unavailable_reason: reason });
+    preserve_reasoning: true, unavailable_reason: reason });
   const deadline = createChatRequestDeadline({ timeoutMs: reason ? 0 : available,
     parentSignals: [input.signal], now: input.now(), onTimeout: () => {
       if (input.signal.aborted || input.outputCommitted()) return null;
@@ -57,9 +59,12 @@ export function createNativeOutputBudget(input: {
     } });
   return {
     signal: deadline.signal,
-    // Stop on even buffered text or partial tools. Never discard generated work
-    // merely because validation has not yet allowed client delivery.
-    observe: (event: ModelProgressEvent) => { if (event === "generating" || event === "validating") deadline.clearTimeout(); },
+    // Reasoning is upstream work, not client delivery. Disarm only this local
+    // cutoff; keep the parent's deadline/cancellation and failure recovery intact.
+    // Buffered text and partial tools also remain protected before delivery.
+    observe: (event: ModelProgressEvent) => {
+      if (event === "reasoning" || event === "generating" || event === "validating") deadline.clearTimeout();
+    },
     error: () => timeoutError,
     cleanup: deadline.cleanup
   };

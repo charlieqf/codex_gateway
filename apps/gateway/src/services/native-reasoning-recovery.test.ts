@@ -141,9 +141,52 @@ describe("native recovery with controlled SSE and the original deadline", () => 
     expect(f.streams).toHaveLength(1); expect(f.first.beginRetry).not.toHaveBeenCalled();
   });
 
-  it("cuts off continuous reasoning at 835s, cancels the old reader before switching", async () => {
+  it.each(["complete", "deadline", "disconnect"])("preserves active reasoning past the first-output budget: %s", async ending => {
     const f = fixture(); await flush();
-    for (let i = 0; i < 83; i++) { f.streams[0]!.send(delta({ reasoning_content: "thinking" })); await vi.advanceTimersByTimeAsync(10_000); }
+    for (let i = 0; i < 83; i++) {
+      f.streams[0]!.send(delta({ reasoning_content: "thinking" }));
+      await vi.advanceTimersByTimeAsync(10_000);
+    }
+    await vi.advanceTimersByTimeAsync(4_965);
+    f.streams[0]!.send(delta({ reasoning_content: "still progressing" })); await flush();
+    await vi.advanceTimersByTimeAsync(35);
+    expect(f.streams).toHaveLength(1); expect(f.streams[0]!.signal.aborted).toBe(false);
+    expect(f.first.beginRetry).not.toHaveBeenCalled();
+    if (ending === "complete") {
+      await vi.advanceTimersByTimeAsync(15_000); f.streams[0]!.finish();
+      expect(await f.promise).toMatchObject({ content: "answer", usage: { total_tokens: 12 } });
+    } else if (ending === "disconnect") {
+      f.streams[0]!.fail(); await flush();
+      expect(f.streams).toHaveLength(2); f.streams[1]!.finish();
+      expect(await f.promise).toMatchObject({ content: "answer", usage: { total_tokens: 12 } });
+    } else {
+      await vi.advanceTimersByTimeAsync(64_999);
+      f.streams[0]!.send(delta({ reasoning_content: "still progressing" })); await flush();
+      expect(f.streams[0]!.signal.aborted).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(await f.promise).toMatchObject({ code: "upstream_timeout", message: "MedCode service timed out." });
+      expect(f.streams).toHaveLength(1); expect(f.first.beginRetry).not.toHaveBeenCalled();
+    }
+    expect(f.requests.every(r => r.reasoning_effort === "high" && r.max_tokens === 64000)).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("does not invent an idle deadline after a reasoning event", async () => {
+    const f = fixture(); await flush();
+    f.streams[0]!.send(delta({ reasoning_content: "thinking" })); await flush();
+    await vi.advanceTimersByTimeAsync(850_000);
+    expect(f.streams[0]!.signal.aborted).toBe(false);
+    f.streams[0]!.finish(); expect(await f.promise).not.toBeInstanceOf(GatewayError);
+    expect(f.first.beginRetry).not.toHaveBeenCalled();
+  });
+
+  it("cuts off a stream with no model activity, cancels the old reader before switching", async () => {
+    const f = fixture(); await flush();
+    // Transport frames and empty reasoning are not evidence of model progress.
+    for (let i = 0; i < 83; i++) {
+      f.streams[0]!.send(delta({ role: "assistant", reasoning_content: "" }));
+      await vi.advanceTimersByTimeAsync(10_000);
+    }
     expect(f.streams).toHaveLength(1);
     await vi.advanceTimersByTimeAsync(NATIVE_NO_OUTPUT_MS - 830_000);
     expect(f.streams[0]!.cancelled).toBe(true); expect(f.streams).toHaveLength(2);
@@ -222,7 +265,7 @@ describe("native recovery with controlled SSE and the original deadline", () => 
 
   it.each(["length", "content_filter", "stop"])("does not retry a received %s terminal reason when DONE stalls", async finishReason => {
     const f = fixture(); await flush();
-    f.streams[0]!.send({ choices: [{ delta: { reasoning_content: "thinking" }, finish_reason: finishReason }] });
+    f.streams[0]!.send({ choices: [{ delta: {}, finish_reason: finishReason }] });
     await vi.advanceTimersByTimeAsync(NATIVE_NO_OUTPUT_MS);
     const count = f.streams.length;
     if (count > 1) { f.streams[1]!.finish(); }
@@ -236,7 +279,6 @@ describe("native recovery with controlled SSE and the original deadline", () => 
   it.each([false, true])("separates internal cutoff from whole-request cancellation (fallback=%s)", async recover => {
     const f = fixture(); await flush();
     if (!recover) vi.mocked(f.first.beginRetry!).mockReturnValue(new GatewayError({ code: "rate_limited", httpStatus: 429, message: "busy" }));
-    f.streams[0]!.send(delta({ reasoning_content: "thinking" }));
     await vi.advanceTimersByTimeAsync(NATIVE_NO_OUTPUT_MS);
     if (recover) f.streams[1]!.finish();
     else { await vi.advanceTimersByTimeAsync(15_000); f.streams[0]!.finish(); }
@@ -276,10 +318,9 @@ describe("native recovery with controlled SSE and the original deadline", () => 
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it("keeps a progressing primary alive when no backup can be acquired", async () => {
+  it("keeps a waiting primary alive when no backup can be acquired", async () => {
     const f = fixture(); await flush();
     vi.mocked(f.first.beginRetry!).mockReturnValue(new GatewayError({ code: "rate_limited", httpStatus: 429, message: "busy" }));
-    f.streams[0]!.send(delta({ reasoning_content: "thinking" }));
     await vi.advanceTimersByTimeAsync(850_000);
     expect(f.streams[0]!.signal.aborted).toBe(false);
     f.streams[0]!.finish();
@@ -290,7 +331,6 @@ describe("native recovery with controlled SSE and the original deadline", () => 
 
   it("releases an unused backup after slow teardown without changing error attribution", async () => {
     const f = fixture(900_000, { abortDelayMs: 6_000 }); await flush();
-    f.streams[0]!.send(delta({ reasoning_content: "thinking" }));
     await vi.advanceTimersByTimeAsync(NATIVE_NO_OUTPUT_MS + 6_000);
     const result = await f.promise;
     expect(result).toMatchObject({ code: "upstream_timeout", message: "The model did not produce deliverable output within the first-attempt budget." });
@@ -312,7 +352,6 @@ describe("native recovery with controlled SSE and the original deadline", () => 
 
   it.each([[900_000, 10_000], [1_200_000, 0]])("reserves recovery from remaining time (total=%s, setup=%s)", async (total, setupMs) => {
     const f = fixture(total, { setupMs }); await flush();
-    f.streams[0]!.send(delta({ reasoning_content: "thinking" }));
     const budget = total - setupMs - 60_000 - 5_000;
     expect(f.budgetDecisions[0]).toMatchObject({ first_output_budget_ms: budget, unavailable_reason: null });
     await vi.advanceTimersByTimeAsync(budget - 1);

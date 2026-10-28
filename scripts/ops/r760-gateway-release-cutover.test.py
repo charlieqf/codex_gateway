@@ -48,7 +48,9 @@ class CutoverTests(unittest.TestCase):
                     return subprocess.CompletedProcess(args, int(failed), "", "synthetic replacement failure" if failed else "")
                 raise AssertionError(f"Unexpected command: {args}")
 
-            real_path = pathlib.Path
+            # Path.__new__ consults pathlib.Path on Python 3.10; mocking that
+            # factory breaks its concrete-class selection. Retain Posix/WindowsPath.
+            real_path = type(root)
 
             def host_path(value):
                 return root if value == "/opt/codex-gateway-r760" else real_path(value)
