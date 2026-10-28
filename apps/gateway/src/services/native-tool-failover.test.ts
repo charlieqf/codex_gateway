@@ -130,6 +130,9 @@ describe("native failover request lifecycle", () => {
       now: () => new Date(), outputCommitted: () => false, execute, selected: vi.fn() });
     expect(result).toBe(original);
     expect(execute).toHaveBeenCalledTimes(1);
+    // No replacement became current; the caller still owns this lease.
+    expect(runtime.release).not.toHaveBeenCalled();
+    runtime.release();
     expect(runtime.release).toHaveBeenCalledTimes(1);
   });
 

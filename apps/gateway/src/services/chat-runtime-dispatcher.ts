@@ -298,7 +298,13 @@ function contextFromLease(input: {
 }): ChatRuntimeContext {
   const { lease } = input;
   const beginInput = input.input;
-  const session = beginInput.createSession(beginInput.subject.id, lease.upstreamAccount.id);
+  let session: GatewaySession;
+  try {
+    session = beginInput.createSession(beginInput.subject.id, lease.upstreamAccount.id);
+  } catch (error) {
+    lease.release();
+    throw error;
+  }
   return {
     publicModelId: beginInput.model.id,
     runtime: input.runtime,

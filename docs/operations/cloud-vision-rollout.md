@@ -86,13 +86,16 @@ registry. Do not source the env in a shell; `node --env-file` loads it as data.
 python3 -B "$RELEASE/scripts/ops/deploy-goldencode-d-r760.py" "$REV" --enable-vision
 ```
 
-The script requires a 30-second natural idle window with both active requests and
+The shared `gateway-drain.py` requires a 30-second natural idle window with both active requests and
 background work at zero. Admission stays open during this wait; if no window is
 available within 15 minutes, the release stops without changing production.
 `--drain-without-idle` was removed after the 2026-10-28 outage: it closed model and
 login admission for several minutes while one long request finished. Do not use an
-older script to bypass this guard. After the idle check, drain has a 30-second
-timeout; a race with new work must resume the pinned old instance and fail the
+older script to bypass this guard. This also protects the generic release and
+component cutover callers. After the idle check, drain defaults to and is capped at
+30 seconds (including older callers passing 180/900, with a stderr warning naming
+the requested and effective values); a race with new work must
+resume the pinned old instance and fail the
 release, not cancel that work or recreate the service. This single-container
 procedure still has a short cutover interruption; it is not a zero-downtime rollout.
 Record public health throughout cutover as required by the deployment runbook.

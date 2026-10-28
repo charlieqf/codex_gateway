@@ -16471,7 +16471,8 @@ function imageFeaturePolicy() {
   });
 }
 
-function createModelEntitledStore(allowedModels: string[] | null, estimateMissingUsage = false) {
+function createModelEntitledStore(allowedModels: string[] | null, estimateMissingUsage = false,
+  missingUsageCharge?: "none" | "estimate" | "reserve") {
   const store = createSqliteStore({ path: ":memory:" });
   const issued = issueAccessCredential({
     subjectId: "subj_dev",
@@ -16491,7 +16492,8 @@ function createModelEntitledStore(allowedModels: string[] | null, estimateMissin
     id: `plan_models_${allowedModels?.join("_") || "legacy"}_v1`,
     displayName: "Model Trial",
     scopeAllowlist: ["code"],
-    policy: { ...unrestrictedTokenPolicy(), ...(estimateMissingUsage ? { missingUsageCharge: "estimate" as const } : {}) },
+    policy: { ...unrestrictedTokenPolicy(), ...(estimateMissingUsage ? { missingUsageCharge: "estimate" as const } : {}),
+      ...(missingUsageCharge ? { missingUsageCharge } : {}) },
     featurePolicy: validateFeaturePolicy({
       capabilities: ["chat", "tools"],
       ...(allowedModels
@@ -16734,10 +16736,11 @@ async function withTemporaryEnv(
 
 describe("GoldenCode native provider failover", () => {
   it.each(["reset", "eof"].flatMap(reasoningBreak => [false, true].flatMap(stream =>
-    ["chat/completions", "responses"].map(api => ({ reasoningBreak, stream, api })))))(
-    "recovers reasoning SSE $reasoningBreak with one settlement: $api stream=$stream", async mode => {
+    ["chat/completions", "responses"].flatMap(api => (["none", "estimate", "reserve"] as const)
+      .map(missingUsageCharge => ({ reasoningBreak, stream, api, missingUsageCharge }))))))(
+    "recovers reasoning SSE $reasoningBreak with one settlement: $api stream=$stream missing=$missingUsageCharge", async mode => {
       await runGoldenCodeFailoverFixture({ reasoningBreak: mode.reasoningBreak as "reset" | "eof", first: "tokenswitch",
-        members: ["tokenswitch", "tencent", "tiankuan"] }, async ({ app, headers, calls, store }) => {
+        members: ["tokenswitch", "tencent", "tiankuan"], missingUsageCharge: mode.missingUsageCharge }, async ({ app, headers, calls, store }) => {
         const payload = nativeFailoverPayload(mode.api, mode.stream);
         const callHeaders = { ...headers, "x-medcode-call-id": `${Date.now()}_${randomUUID()}`,
           "x-medcode-request-timeout-ms": "900000" };
@@ -16750,15 +16753,14 @@ describe("GoldenCode native provider failover", () => {
         expect(calls[1]?.runtime).not.toBe("tokenswitch");
         expect(calls.map(call => call.body.reasoning_effort)).toEqual(["high", "high"]);
         const event = store.listRequestEvents({ limit: 1 })[0]!;
-        expect(event).toMatchObject({ status: "ok", errorCode: null, usageSource: "estimate" });
+        expect(event).toMatchObject({ status: "ok", errorCode: null, usageSource: "provider", totalTokens: 12 });
         expect(event.upstreamAttempts).toMatchObject([
           { totalTokens: null, failure: { stage: "streaming" }, streamProgress: { reasoningChars: 17 } },
           { totalTokens: 12, errorCode: null }
         ]);
         const reservations = store.database.prepare("SELECT finalized_at, final_usage_source, final_total_tokens FROM token_reservations").all();
         expect(reservations).toHaveLength(1);
-        expect(reservations[0]).toMatchObject({ finalized_at: expect.any(String), final_usage_source: "estimate" });
-        expect(reservations[0]!.final_total_tokens).toBeGreaterThan(12);
+        expect(reservations[0]).toMatchObject({ finalized_at: expect.any(String), final_usage_source: "provider", final_total_tokens: 12 });
         expect(store.database.prepare("SELECT COUNT(*) AS n FROM token_charge_decisions").get()).toMatchObject({ n: 0 });
         if (mode.api === "chat/completions") {
           const replay = await app.inject({ method: "POST", url: `/v1/${mode.api}`, headers: callHeaders, payload });
@@ -16768,6 +16770,18 @@ describe("GoldenCode native provider failover", () => {
         }
       });
     });
+
+  it.each([1, 2] as const)("charges the known repair usage with missingUsageCharge=none (unknown attempt %s)", async unknownRepairUsage => {
+    await runGoldenCodeFailoverFixture({ repairSuccess: true, unknownRepairUsage, missingUsageCharge: "none" }, async ({ app, headers, calls, store }) => {
+      const response = await app.inject({ method: "POST", url: "/v1/chat/completions", headers,
+        payload: nativeFailoverPayload("chat/completions", false) });
+      expect(response.statusCode, response.body).toBe(200);
+      expect(calls).toHaveLength(2);
+      expect(store.listRequestEvents({ limit: 1 })[0]).toMatchObject({ status: "ok", totalTokens: 12, usageSource: "provider" });
+      expect(store.database.prepare("SELECT final_total_tokens,final_usage_source FROM token_reservations").all())
+        .toEqual([{ final_total_tokens: 12, final_usage_source: "provider" }]);
+    });
+  });
 
   describe("three-provider pool", () => {
     const members = ["tencent", "tiankuan", "tokenswitch"];
@@ -17343,6 +17357,7 @@ async function runGoldenCodeFailoverFixture(options: {
   disabledMember?: string; subjects?: string; fallbackInvalid?: boolean; repairSuccess?: boolean; partial?: boolean; plain?: boolean;
   hang?: boolean; partialText?: boolean; empty?: boolean; bothEmpty?: boolean; omitEmptyUsage?: boolean;
   reasoningBreak?: "reset" | "eof";
+  missingUsageCharge?: "none" | "estimate" | "reserve"; unknownRepairUsage?: 1 | 2;
 }, run: (fixture: { app: ReturnType<typeof buildGateway>; headers: Record<string, string>;
   calls: Array<{ runtime: string; body: Record<string, unknown> }>;
   store: ReturnType<typeof createModelEntitledStore>["store"] }) => Promise<void>): Promise<void> {
@@ -17389,9 +17404,10 @@ async function runGoldenCodeFailoverFixture(options: {
       response.write(`data: ${JSON.stringify({ choices: [{ delta: { content: "failover text ok" }, finish_reason: "stop" }], usage: { prompt_tokens: 7, completion_tokens: 5, total_tokens: 12 } })}\n\n`);
       response.end("data: [DONE]\n\n"); return;
     }
+    if (options.unknownRepairUsage) response.write(`data: ${JSON.stringify({ choices: [{ delta: { reasoning_content: "repair reasoning" } }] })}\n\n`);
     response.write(`data: ${JSON.stringify({ choices: [{ delta: { tool_calls: [{ index: 0, id: "call_failover_ok", type: "function",
       function: { name: "lookup", arguments: repair ? '{"query":' : '{"query":"test"}' } }] }, finish_reason: "tool_calls" }],
-      usage: { prompt_tokens: 7, completion_tokens: 5, total_tokens: 12 } })}\n\n`);
+      ...(calls.length === options.unknownRepairUsage ? {} : { usage: { prompt_tokens: 7, completion_tokens: 5, total_tokens: 12 } }) })}\n\n`);
     response.end("data: [DONE]\n\n");
   });
   const publicModel = options.publicModel ?? "goldencode";
@@ -17423,7 +17439,7 @@ async function runGoldenCodeFailoverFixture(options: {
       GATEWAY_GOLDENCODE_FAILOVER_SUBJECT_IDS: options.subjects ?? "subj_dev",
       GATEWAY_GOLDENCODE_QUOTA_COOLDOWN_SECONDS: options.cooldown ?? "0"
     }, async () => {
-      const { store, headers } = createModelEntitledStore(publicModel === "goldencode-d" ? ["goldencode", "goldencode-d"] : ["goldencode"], !!options.reasoningBreak);
+      const { store, headers } = createModelEntitledStore(publicModel === "goldencode-d" ? ["goldencode", "goldencode-d"] : ["goldencode"], !!options.reasoningBreak, options.missingUsageCharge);
       const app = buildGateway({ authMode: "credential", provider: new FakeProvider(), sessionStore: store,
         observationStore: store, tokenBudgetLimiter: createSqliteTokenBudgetLimiter({ db: store.database }),
         logger: false, ...(options.clock ? { now: options.clock } : {}) });

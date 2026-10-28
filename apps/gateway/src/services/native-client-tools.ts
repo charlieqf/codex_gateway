@@ -49,6 +49,7 @@ export async function runNativeWithFailover(input: NativeClientToolsInput & {
   visionRecovery?: VisionRequestRecovery;
   runtime: ChatRuntimeContext;
   deadlineAt: Date | null;
+  requestTimeoutMs?: number;
   now: () => Date;
   outputCommitted: () => boolean;
   selected: (runtime: ChatRuntimeContext) => void;
@@ -80,8 +81,10 @@ export async function runNativeWithFailover(input: NativeClientToolsInput & {
       if (fields.to) reportModelProgress(input.onModelProgress, "retrying");
       input.log?.info({ request_id: input.requestId, ...fields }, "Native tool provider failover assessed.");
     },
-    execute: async (runtime, budget) => {
+    execute: async (runtime, budget, prepareRetry) => {
       const outputBudget = createNativeOutputBudget({ ...input, signal: input.signal!,
+        prepareRetry,
+        onDecision: fields => input.log?.info({ request_id: input.requestId, ...fields }, "Native first-output budget assessed."),
         enabled: budget.used === 0 && runtime.publicModelId === "goldencode" &&
           !input.request.images?.length && !!runtime.beginRetry });
       try {
@@ -92,7 +95,7 @@ export async function runNativeWithFailover(input: NativeClientToolsInput & {
         const timeout = outputBudget.error();
         if (!timeout) return result;
         const summary = result instanceof GatewayError ? providerStreamSummaryFromError(result) : result.providerSummary;
-        const classifiedTimeout = new GatewayError({ ...timeout, providerFailure: { ...timeout.providerFailure!,
+        const classifiedTimeout = new GatewayError({ ...timeout, message: timeout.message, providerFailure: { ...timeout.providerFailure!,
           stage: summary?.failure?.stage ?? "unknown", upstreamStatus: summary?.upstreamHttpStatus ?? null } });
         return summary ? attachProviderStreamSummary(classifiedTimeout, { ...summary, completed: false }) : classifiedTimeout;
       } finally { outputBudget.cleanup(); }

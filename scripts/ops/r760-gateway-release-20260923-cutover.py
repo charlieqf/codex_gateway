@@ -104,6 +104,8 @@ with readonly(dbpath) as db:
     assert db.execute("SELECT max(version) FROM schema_migrations").fetchone()[0] <= EXPECTED_SCHEMA, "refusing schema regression"
 # Old runtimes without drain support fail closed here. The first upgrade needs
 # an explicit maintenance ingress gate; reservation counts are never a fallback.
+# The shared helper waits for stable natural idle with admission open, caps drain
+# at 30 seconds and resumes the pinned instance on an interrupted/failed drain.
 drain_command = ["python3", str(RELEASE / "scripts/ops/gateway-drain.py"), "--container", meta["Id"]]
 
 cutover_at = datetime.datetime.now(datetime.timezone.utc)

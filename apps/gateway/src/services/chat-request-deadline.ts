@@ -9,6 +9,7 @@ export interface ChatRequestTimeoutPolicy {
 export interface ChatRequestDeadline {
   signal: AbortSignal;
   deadlineAt: Date | null;
+  clearTimeout(): void;
   cleanup(): void;
 }
 
@@ -83,10 +84,12 @@ export function createChatRequestDeadline(options: {
   timeoutMs: number;
   parentSignals?: Array<AbortSignal | undefined>;
   now?: Date;
+  onTimeout?: () => GatewayError | null;
 }): ChatRequestDeadline {
   const controller = new AbortController();
   const listeners: Array<{ signal: AbortSignal; listener: () => void }> = [];
   let timer: NodeJS.Timeout | null = null;
+  const clearTimer = () => { if (timer) clearTimeout(timer); timer = null; };
 
   const abortFrom = (signal: AbortSignal) => {
     if (!controller.signal.aborted) {
@@ -110,13 +113,12 @@ export function createChatRequestDeadline(options: {
   const deadlineAt = timeoutMs > 0 ? new Date((options.now ?? new Date()).getTime() + timeoutMs) : null;
   if (timeoutMs > 0 && !controller.signal.aborted) {
     timer = setTimeout(() => {
-      controller.abort(
-        new GatewayError({
+      const error = options.onTimeout ? options.onTimeout() : new GatewayError({
           code: "upstream_timeout",
           message: "MedCode service timed out.",
           httpStatus: 504
-        })
-      );
+        });
+      if (error) controller.abort(error);
     }, timeoutMs);
     timer.unref?.();
   }
@@ -124,11 +126,9 @@ export function createChatRequestDeadline(options: {
   return {
     signal: controller.signal,
     deadlineAt,
+    clearTimeout: clearTimer,
     cleanup: () => {
-      if (timer) {
-        clearTimeout(timer);
-        timer = null;
-      }
+      clearTimer();
       for (const { signal, listener } of listeners) {
         signal.removeEventListener("abort", listener);
       }

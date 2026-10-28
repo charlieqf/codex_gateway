@@ -20,7 +20,6 @@ import sys
 import time
 import urllib.error
 import urllib.request
-from gateway_release_idle import wait_for_natural_idle
 
 REV = sys.argv[1]
 flags = sys.argv[2:]
@@ -177,9 +176,7 @@ dbpath = pathlib.Path(mounts["/var/lib/codex-gateway"]) / "gateway.db"
 drain = ["python3", str(RELEASE / "scripts/ops/gateway-drain.py"), "--container", meta["Id"],
          "--timeout", "30"]
 
-# Avoid closing admission while ordinary users have active work.
-health_js = "fetch('http://127.0.0.1:8787/gateway/health',{signal:AbortSignal.timeout(5000)}).then(r=>r.json()).then(v=>console.log(JSON.stringify(v.lifecycle)))"
-wait_for_natural_idle(lambda: json.loads(run(["docker", "exec", meta["Id"], "node", "-e", health_js])))
+# The shared drain helper waits for natural idle and caps closed admission.
 
 changed = False
 started = datetime.datetime.now(datetime.timezone.utc).isoformat()

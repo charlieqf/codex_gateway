@@ -43,6 +43,28 @@ const subject: Subject = {
 };
 
 describe("chat runtime dispatcher pool runtime", () => {
+  it("releases a candidate lease if creating its session throws", () => {
+    const model = goldencodeModel();
+    model.pool!.members = model.pool!.members.slice(0, 2);
+    const router = poolRouter(model, 1);
+    const dispatcher = createChatRuntimeDispatcher({ codexRouter: router,
+      openRouterAdapterForModel: () => null, poolRouterForModel: () => router });
+    let failSession = false;
+    const first = dispatcher.begin({ model, reasoningEffort: "high", reasoningEffortSource: "request",
+      subject, scope: "code", affinityKey: "candidate-cleanup", createSession: (subjectId, accountId) => {
+        if (failSession) throw new Error("session unavailable");
+        return createSession(subjectId, accountId);
+      } });
+    if (first instanceof GatewayError) throw first;
+    try {
+      failSession = true;
+      expect(() => first.beginRetry!({ excludeAccountIds: [first.runtimeInstanceId] })).toThrow("session unavailable");
+      failSession = false;
+      const next = first.beginRetry!({ excludeAccountIds: [first.runtimeInstanceId] });
+      expect(next).not.toBeInstanceOf(GatewayError);
+      if (!(next instanceof GatewayError)) next.release();
+    } finally { first.release(); }
+  });
   it("dispatches an isolated local OpenAI-compatible model through its virtual account", () => {
     const localProvider = new FakeProvider();
     const registry = resolvePublicModelRegistry({
@@ -345,7 +367,7 @@ function goldencodeModel(): PublicModelConfig {
   return model;
 }
 
-function poolRouter(model: PublicModelConfig): UpstreamAccountRouter {
+function poolRouter(model: PublicModelConfig, maxConcurrent = 10): UpstreamAccountRouter {
   return new UpstreamAccountRouter(
     model.pool!.members.map(
       (member): UpstreamAccountRuntimeInput => ({
@@ -359,7 +381,7 @@ function poolRouter(model: PublicModelConfig): UpstreamAccountRouter {
           cooldownUntil: null
         },
         provider: new FakeProvider(),
-        maxConcurrent: 10
+        maxConcurrent
       })
     ),
     {

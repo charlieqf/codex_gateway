@@ -2771,6 +2771,7 @@ export function buildGateway(options: GatewayOptions = {}) {
         } else if (nativeClientTools) {
           const onProviderError = createProviderErrorLogger(request);
           const nativeResult = await runNativeWithFailover({
+            requestTimeoutMs: chatRequestTimeoutMs,
             failover: nativeFailover,
             visionRecovery,
             runtime: attempt,
@@ -3183,6 +3184,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       } else if (nativeClientTools) {
         const onProviderError = createProviderErrorLogger(request);
         const nativeResult = await runNativeWithFailover({
+          requestTimeoutMs: chatRequestTimeoutMs,
           failover: nativeFailover,
           visionRecovery,
           runtime: attempt,

@@ -5,17 +5,18 @@ import { OpenAICompatibleProviderAdapter } from "./openai-compatible-provider.js
 import type { ChatRuntimeContext } from "./chat-runtime-dispatcher.js";
 import { providerStreamSummaryFromError } from "./provider-stream.js";
 import { createChatRequestDeadline } from "./chat-request-deadline.js";
-import { NATIVE_NO_OUTPUT_MS } from "./native-output-budget.js";
+import { NATIVE_STREAM_RECOVERY_RESERVE_MS, NATIVE_RECOVERY_TEARDOWN_MS } from "./native-output-budget.js";
 import type { FastifyRequest } from "fastify";
 import { markProviderCallFinished, markProviderEvent } from "../http/observation.js";
 import { markProviderStreamSummary } from "../http/provider-telemetry.js";
 
 const reset = () => new TypeError("terminated", { cause: Object.assign(new Error("socket closed"), { code: "UND_ERR_SOCKET" }) });
 const delta = (value: object) => ({ choices: [{ delta: value }] });
+const NATIVE_NO_OUTPUT_MS = 900_000 - NATIVE_STREAM_RECOVERY_RESERVE_MS - NATIVE_RECOVERY_TEARDOWN_MS;
 
-function fixture(timeoutMs = 900_000, options: { failover?: boolean; model?: string; headersPending?: boolean } = {}) {
+function fixture(timeoutMs = 900_000, options: { failover?: boolean; model?: string; headersPending?: boolean; setupMs?: number; abortDelayMs?: number; images?: boolean } = {}) {
   const parent = new AbortController();
-  const deadline = createChatRequestDeadline({ timeoutMs, parentSignals: [parent.signal] });
+  const deadline = createChatRequestDeadline({ timeoutMs: timeoutMs - (options.setupMs ?? 0), parentSignals: [parent.signal] });
   const streams: Array<{
     send: (value: object) => void; fail: () => void; eof: () => void; finish: (toolArgs?: string, usage?: boolean) => void;
     signal: AbortSignal; cancelled: boolean;
@@ -27,8 +28,9 @@ function fixture(timeoutMs = 900_000, options: { failover?: boolean; model?: str
   let committed = false;
   function runtime(id: "tokenswitch" | "tencent"): ChatRuntimeContext {
     const adapter = new OpenAICompatibleProviderAdapter({ providerKind: id, apiKey: "test", apiKeyEnv: "UNUSED",
-      baseUrl: "https://synthetic.invalid/v1", upstreamModel: "glm-5.3", timeoutMs: 900_000,
+      baseUrl: "https://synthetic.invalid/v1", upstreamModel: "glm-5.3", timeoutMs,
       reasoningParameterStyle: "effort_field", fetchImpl: async (_url, init) => {
+        order.push(`call:${id}`);
         requests.push(JSON.parse(String(init?.body)));
         const signal = init!.signal!;
         if (options.headersPending && requests.length === 1) {
@@ -41,7 +43,10 @@ function fixture(timeoutMs = 900_000, options: { failover?: boolean; model?: str
         const body = new ReadableStream<Uint8Array>({ start: value => { stream = value; },
           cancel: () => { state.cancelled = true; signal.removeEventListener("abort", abort); } });
         const send = (text: string) => stream.enqueue(new TextEncoder().encode(text));
-        const abort = () => { state.cancelled = true; order.push(`abort:${id}`); stream.error(signal.reason); signal.removeEventListener("abort", abort); };
+        const abort = () => { state.cancelled = true; order.push(`abort:${id}`);
+          if (options.abortDelayMs) setTimeout(() => stream.error(signal.reason), options.abortDelayMs);
+          else stream.error(signal.reason);
+          signal.removeEventListener("abort", abort); };
         const state = { signal, cancelled: false,
           send: (value: object) => send(`data: ${JSON.stringify(value)}\n\n`),
           fail: () => { stream.error(reset()); signal.removeEventListener("abort", abort); },
@@ -68,18 +73,21 @@ function fixture(timeoutMs = 900_000, options: { failover?: boolean; model?: str
       beginRetry: vi.fn() };
   }
   const first = runtime("tokenswitch"), second = runtime("tencent");
-  first.beginRetry = vi.fn(() => { order.push("select:tencent"); return second; });
+  first.beginRetry = vi.fn(() => { order.push("acquire:tencent"); return second; });
   second.beginRetry = vi.fn(() => { throw new Error("third attempt forbidden"); });
   let selected = first;
   const decisions: Record<string, unknown>[] = [];
+  const budgetDecisions: Record<string, unknown>[] = [];
   const promise = runNativeWithFailover({ runtime: first, provider: first.adapter, upstreamAccount: first.adapterInputUpstreamAccount,
     upstreamRuntime: first.runtime, upstreamModel: first.upstreamModel, subject: first.subject, scope: first.scope,
     session: first.session, reasoningEffort: "high", failover: options.failover ?? true,
-    signal: deadline.signal, deadlineAt: deadline.deadlineAt, now: () => new Date(),
-    selected: next => { selected = next; }, outputCommitted: () => committed,
+    signal: deadline.signal, deadlineAt: deadline.deadlineAt, requestTimeoutMs: timeoutMs, now: () => new Date(),
+    selected: next => { selected = next; order.push(`select:${next.runtime}`); }, outputCommitted: () => committed,
     onProviderEvent: event => markProviderEvent(observation, event),
-    onModelProgress: event => progress.push(event), log: { info: fields => decisions.push(fields), warn: vi.fn() },
+    onModelProgress: event => progress.push(event), log: { info: (fields, message) =>
+      (message === "Native first-output budget assessed." ? budgetDecisions : decisions).push(fields), warn: vi.fn() },
     request: { model: "goldencode", stream: true, messages: [{ role: "user", content: "Continue after previous tool result" }],
+      ...(options.images ? { images: [{ imageUrl: "https://synthetic.invalid/image.png" }] } : {}),
       tools: [{ type: "function", function: { name: "lookup", parameters: { type: "object" } } }],
       toolChoice: "auto", maximumOutputTokens: 64000 }, prompt: "Continue after previous tool result",
     nativeToolForceRequiredMode: "disabled",
@@ -90,8 +98,8 @@ function fixture(timeoutMs = 900_000, options: { failover?: boolean; model?: str
     markProviderCallFinished(observation, deadline.signal);
     return result;
   }).finally(() => { selected.release(); deadline.cleanup(); });
-  return { parent, deadline, streams, first, second, progress, order, requests, promise, decisions, observation,
-    commit: () => { committed = true; } };
+  return { parent, deadline, streams, first, second, progress, order, requests, promise, decisions, budgetDecisions, observation,
+    selected: () => selected, commit: () => { committed = true; } };
 }
 const flush = () => vi.advanceTimersByTimeAsync(0);
 
@@ -106,7 +114,7 @@ describe("native recovery with controlled SSE and the original deadline", () => 
     expect(f.streams).toHaveLength(2);
     f.streams[1]!.finish();
     const result = await f.promise;
-    expect(result).toMatchObject({ content: "answer", usage: null, providerSummary: { completed: true, usage: null, failure: null } });
+    expect(result).toMatchObject({ content: "answer", usage: { total_tokens: 12 }, providerSummary: { completed: true, usage: { totalTokens: 12 }, failure: null } });
     expect(result).not.toBeInstanceOf(GatewayError);
     if (result instanceof GatewayError) return;
     expect(result.providerSummary?.attempts).toMatchObject([{ errorCode: ending === "reset" ? "upstream_unavailable" : "upstream_incomplete_stream", totalTokens: null }, { errorCode: null, totalTokens: 12 }]);
@@ -115,7 +123,8 @@ describe("native recovery with controlled SSE and the original deadline", () => 
     expect(f.requests.map(r => r.max_tokens)).toEqual([64000, 64000]);
     expect(f.progress.filter(p => p === "attempt_started")).toHaveLength(2);
     expect(f.progress).toContain("retrying");
-    expect(f.order.indexOf("release:tokenswitch")).toBeLessThan(f.order.indexOf("select:tencent"));
+    expect(f.budgetDecisions).toHaveLength(1);
+    expect(f.order.indexOf("release:tokenswitch")).toBeLessThan(f.order.indexOf("call:tencent"));
     expect(f.first.release).toHaveBeenCalledTimes(1); expect(f.second.release).toHaveBeenCalledTimes(1);
     expect(vi.getTimerCount()).toBe(0);
   });
@@ -140,6 +149,7 @@ describe("native recovery with controlled SSE and the original deadline", () => 
     expect(f.streams[0]!.cancelled).toBe(true); expect(f.streams).toHaveLength(2);
     expect(f.deadline.signal.aborted).toBe(false);
     expect(f.order.indexOf("abort:tokenswitch")).toBeLessThan(f.order.indexOf("select:tencent"));
+    expect(f.order.indexOf("acquire:tencent")).toBeLessThan(f.order.indexOf("abort:tokenswitch"));
     f.streams[1]!.finish();
     const result = await f.promise;
     expect(result).toMatchObject({ content: "answer", providerSummary: { attempts: [
@@ -170,10 +180,11 @@ describe("native recovery with controlled SSE and the original deadline", () => 
     if (reason === "deadline") expect(providerStreamSummaryFromError(result as GatewayError)?.attempts).toHaveLength(2);
   });
 
-  it.each(["committed", "time"])("rechecks %s after selecting a backup", async reason => {
+  it.each(["committed", "time", "cancel"])("rechecks %s after selecting a backup", async reason => {
     const f = fixture(60_001); await flush();
     vi.mocked(f.first.beginRetry!).mockImplementation(() => {
       if (reason === "committed") f.commit();
+      else if (reason === "cancel") f.parent.abort();
       else vi.setSystemTime(new Date(Date.now() + 2));
       return f.second;
     });
@@ -181,6 +192,7 @@ describe("native recovery with controlled SSE and the original deadline", () => 
     expect(await f.promise).toBeInstanceOf(GatewayError);
     expect(f.streams).toHaveLength(1);
     expect(f.second.release).toHaveBeenCalledTimes(1);
+    expect(f.selected()).toBe(f.first);
   });
 
   it("never replaces an actual request cancellation with the first-output timeout", async () => {
@@ -194,9 +206,9 @@ describe("native recovery with controlled SSE and the original deadline", () => 
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it.each(["814s-reasoning", "880s-generating", "590s-short-budget", "disabled", "other-model"])("preserves normal long task %s", async kind => {
+  it.each(["814s-reasoning", "880s-generating", "590s-short-budget", "disabled", "other-model", "images"])("preserves normal long task %s", async kind => {
     const f = fixture(kind === "590s-short-budget" ? 600_000 : 900_000,
-      { failover: kind !== "disabled", model: kind === "other-model" ? "goldencode-d" : "goldencode" });
+      { failover: kind !== "disabled", model: kind === "other-model" ? "goldencode-d" : "goldencode", images: kind === "images" });
     await flush(); f.streams[0]!.send(delta({ reasoning_content: "thinking" }));
     if (kind === "880s-generating") f.streams[0]!.send(delta({ content: "partial " }));
     await flush();
@@ -204,6 +216,7 @@ describe("native recovery with controlled SSE and the original deadline", () => 
     expect(f.streams).toHaveLength(1); expect(f.streams[0]!.signal.aborted).toBe(false);
     f.streams[0]!.finish();
     expect(await f.promise).not.toBeInstanceOf(GatewayError);
+    if (["disabled", "other-model", "images"].includes(kind)) expect(f.budgetDecisions).toHaveLength(0);
     expect(vi.getTimerCount()).toBe(0);
   });
 
@@ -216,6 +229,8 @@ describe("native recovery with controlled SSE and the original deadline", () => 
     const result = await f.promise;
     expect(count).toBe(1);
     expect(result).toBeInstanceOf(GatewayError);
+    expect((result as GatewayError).message).toContain("first-attempt budget");
+    expect(f.second.release).toHaveBeenCalledTimes(1);
   });
 
   it.each([false, true])("separates internal cutoff from whole-request cancellation (fallback=%s)", async recover => {
@@ -224,10 +239,12 @@ describe("native recovery with controlled SSE and the original deadline", () => 
     f.streams[0]!.send(delta({ reasoning_content: "thinking" }));
     await vi.advanceTimersByTimeAsync(NATIVE_NO_OUTPUT_MS);
     if (recover) f.streams[1]!.finish();
-    await f.promise;
+    else { await vi.advanceTimersByTimeAsync(15_000); f.streams[0]!.finish(); }
+    const result = await f.promise;
+    if (result instanceof GatewayError) expect(result.message).not.toBe("");
     expect(f.observation.gatewayCancelObserved).toBe(false);
     expect(f.observation.gatewayCancelRequested).toBe(false);
-    expect(f.observation.gatewayTerminalSource).toBe(recover ? "provider_response" : "gateway_output_budget");
+    expect(f.observation.gatewayTerminalSource).toBe("provider_response");
   });
 
   it.each([0, 1, -1])("retains usage uncertainty through nested repair summary (missing attempt=%s)", async missing => {
@@ -240,7 +257,7 @@ describe("native recovery with controlled SSE and the original deadline", () => 
     const result = await f.promise;
     expect(result).not.toBeInstanceOf(GatewayError);
     if (result instanceof GatewayError) return;
-    expect(result.providerSummary?.usage?.totalTokens ?? null).toBe(missing < 0 ? 24 : null);
+    expect(result.providerSummary?.usage?.totalTokens ?? null).toBe(missing < 0 ? 24 : 12);
     expect(result.providerSummary?.attempts.map(a => a.totalTokens)).toEqual([missing === 0 ? null : 12, missing === 1 ? null : 12]);
     expect(f.first.beginRetry).not.toHaveBeenCalled();
   });
@@ -257,5 +274,52 @@ describe("native recovery with controlled SSE and the original deadline", () => 
       { errorCode: null } ] } });
     expect(f.observation.gatewayCancelObserved).toBe(false);
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("keeps a progressing primary alive when no backup can be acquired", async () => {
+    const f = fixture(); await flush();
+    vi.mocked(f.first.beginRetry!).mockReturnValue(new GatewayError({ code: "rate_limited", httpStatus: 429, message: "busy" }));
+    f.streams[0]!.send(delta({ reasoning_content: "thinking" }));
+    await vi.advanceTimersByTimeAsync(850_000);
+    expect(f.streams[0]!.signal.aborted).toBe(false);
+    f.streams[0]!.finish();
+    expect(await f.promise).not.toBeInstanceOf(GatewayError);
+    expect(f.streams).toHaveLength(1);
+    expect(f.budgetDecisions).toContainEqual({ unavailable_reason: "backup_unavailable", primary_continues: true });
+  });
+
+  it("releases an unused backup after slow teardown without changing error attribution", async () => {
+    const f = fixture(900_000, { abortDelayMs: 6_000 }); await flush();
+    f.streams[0]!.send(delta({ reasoning_content: "thinking" }));
+    await vi.advanceTimersByTimeAsync(NATIVE_NO_OUTPUT_MS + 6_000);
+    const result = await f.promise;
+    expect(result).toMatchObject({ code: "upstream_timeout", message: "The model did not produce deliverable output within the first-attempt budget." });
+    expect(f.selected()).toBe(f.first); expect(f.requests).toHaveLength(1);
+    expect(f.second.release).toHaveBeenCalledTimes(1);
+    expect(f.second.recordError).not.toHaveBeenCalled(); expect(f.first.recordError).not.toHaveBeenCalled();
+    expect(f.decisions.at(-1)).toMatchObject({ from: "tokenswitch", to: null, unavailable_reason: "insufficient_time" });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("does not abort the primary or throw from a timer if backup selection fails unexpectedly", async () => {
+    const f = fixture(); await flush();
+    vi.mocked(f.first.beginRetry!).mockImplementation(() => { throw new Error("selection failed"); });
+    await vi.advanceTimersByTimeAsync(850_000);
+    expect(f.streams[0]!.signal.aborted).toBe(false);
+    f.streams[0]!.finish(); expect(await f.promise).not.toBeInstanceOf(GatewayError);
+    expect(f.budgetDecisions).toContainEqual({ unavailable_reason: "backup_selection_failed", primary_continues: true });
+  });
+
+  it.each([[900_000, 10_000], [1_200_000, 0]])("reserves recovery from remaining time (total=%s, setup=%s)", async (total, setupMs) => {
+    const f = fixture(total, { setupMs }); await flush();
+    f.streams[0]!.send(delta({ reasoning_content: "thinking" }));
+    const budget = total - setupMs - 60_000 - 5_000;
+    expect(f.budgetDecisions[0]).toMatchObject({ first_output_budget_ms: budget, unavailable_reason: null });
+    await vi.advanceTimersByTimeAsync(budget - 1);
+    expect(f.streams[0]!.signal.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(f.streams).toHaveLength(2);
+    f.streams[1]!.finish();
+    expect(await f.promise).not.toBeInstanceOf(GatewayError);
   });
 });

@@ -62,7 +62,7 @@ export async function runNativeToolFailover<T extends { providerSummary: Provide
   deadlineAt: Date | null;
   now: () => Date;
   outputCommitted: () => boolean;
-  execute: (runtime: ChatRuntimeContext, budget: NativeCallBudget) => Promise<T | GatewayError>;
+  execute: (runtime: ChatRuntimeContext, budget: NativeCallBudget, prepareRetry: () => boolean) => Promise<T | GatewayError>;
   selected: (runtime: ChatRuntimeContext) => void;
   onDecision?: (fields: Record<string, unknown>) => void;
 }): Promise<T | GatewayError> {
@@ -78,79 +78,112 @@ export async function runNativeToolFailover<T extends { providerSummary: Provide
     });
   };
   let runtime = input.runtime;
-  let pendingRetry: { error: GatewayError; minimumRemainingMs: number } | undefined;
-  while (true) {
-    const beforeCallError = requestEndError();
-    if (beforeCallError) return withHistory(beforeCallError, summaries);
-    if (pendingRetry && (input.outputCommitted() ||
-        (input.deadlineAt && input.deadlineAt.getTime() - input.now().getTime() < pendingRetry.minimumRemainingMs))) {
-      input.onDecision?.({ from: runtime.runtime, to: null, calls_used: budget.used,
-        unavailable_reason: input.outputCommitted() ? "output_committed" : "insufficient_time_after_selection" });
-      return withHistory(pendingRetry.error, summaries, !input.outputCommitted(), budget.used);
+  let preparedRetry: ChatRuntimeContext | undefined;
+  let pendingRetry: { error: GatewayError; minimumRemainingMs: number; decision: Record<string, unknown> } | undefined;
+  const prepareRetry = (): boolean => {
+    if (budget.remaining <= 0 || input.signal.aborted || input.outputCommitted() || !runtime.beginRetry ||
+        !input.deadlineAt || input.deadlineAt.getTime() - input.now().getTime() < NATIVE_STREAM_RECOVERY_RESERVE_MS) return false;
+    if (preparedRetry) return true;
+    const next = runtime.beginRetry({ excludeAccountIds: new Set([...excluded, runtime.runtimeInstanceId]) });
+    if (next instanceof GatewayError) return false;
+    // Selection may itself consume time or observe cancellation/delivery.
+    if (input.signal.aborted || input.outputCommitted() ||
+        input.deadlineAt.getTime() - input.now().getTime() < NATIVE_STREAM_RECOVERY_RESERVE_MS) {
+      next.release();
+      return false;
     }
-    const result = await input.execute(runtime, budget);
-    const summary = result instanceof GatewayError ? providerStreamSummaryFromError(result) : result.providerSummary;
-    if (summary) summaries.push(summary);
-    const afterCallError = requestEndError();
-    if (afterCallError) return withHistory(afterCallError, summaries);
-    if (!(result instanceof GatewayError)) {
-      runtime.recordSuccess();
-      const combined = preserveUnknownReasoningUsage(combineSuccessfulProviderStreamSummaries(summaries), summaries);
-      if (combined && !input.outputCommitted()) combined.userCharge = emptyResponseCharge(summaries, budget.used);
-      return { ...result, providerSummary: combined };
+    preparedRetry = next;
+    return true;
+  };
+  try {
+    while (true) {
+      const beforeCallError = requestEndError();
+      if (beforeCallError) return withHistory(beforeCallError, summaries);
+      if (pendingRetry && (input.outputCommitted() ||
+          (input.deadlineAt && input.deadlineAt.getTime() - input.now().getTime() < pendingRetry.minimumRemainingMs))) {
+        input.onDecision?.({ from: runtime.runtime, to: null, calls_used: budget.used,
+          unavailable_reason: input.outputCommitted() ? "output_committed" : "insufficient_time_after_selection" });
+        return withHistory(pendingRetry.error, summaries, !input.outputCommitted(), budget.used);
+      }
+      if (pendingRetry) {
+        const next = preparedRetry!;
+        input.selected(next);
+        const selectedEndError = requestEndError();
+        if (selectedEndError || input.outputCommitted() ||
+            (input.deadlineAt && input.deadlineAt.getTime() - input.now().getTime() < pendingRetry.minimumRemainingMs)) {
+          // Even a synchronous metadata observer can observe cancellation. Leave
+          // the original attempt as the attribution/lease owner if no call starts.
+          input.selected(runtime);
+          return withHistory(selectedEndError ?? pendingRetry.error, summaries, !input.outputCommitted(), budget.used);
+        }
+        preparedRetry = undefined;
+        runtime.release();
+        runtime = next;
+        input.onDecision?.({ ...pendingRetry.decision,
+          remaining_ms: input.deadlineAt ? input.deadlineAt.getTime() - input.now().getTime() : null });
+        pendingRetry = undefined;
+      }
+      const dispatchError = requestEndError();
+      if (dispatchError) return withHistory(dispatchError, summaries);
+      const result = await input.execute(runtime, budget, prepareRetry);
+      const summary = result instanceof GatewayError ? providerStreamSummaryFromError(result) : result.providerSummary;
+      if (summary) summaries.push(summary);
+      const afterCallError = requestEndError();
+      if (afterCallError) return withHistory(afterCallError, summaries);
+      if (!(result instanceof GatewayError)) {
+        runtime.recordSuccess();
+        const combined = combineSuccessfulProviderStreamSummaries(summaries);
+        if (combined && !input.outputCommitted()) combined.userCharge = emptyResponseCharge(summaries, budget.used);
+        return { ...result, providerSummary: combined };
+      }
+      // Spending our first-output budget is not evidence of an unhealthy provider.
+      if (result.code !== "client_aborted" && !isNativeOutputBudgetFailure(result.providerFailure)) {
+        runtime.recordError(result);
+      }
+      const reasoningRecovery = isRecoverableReasoningStream(result);
+      const remainingMs = input.deadlineAt ? input.deadlineAt.getTime() - input.now().getTime() : null;
+      const minimumRemainingMs = reasoningRecovery ? NATIVE_STREAM_RECOVERY_RESERVE_MS : 1000;
+      const canRetry = budget.remaining > 0 && canFailoverNativeError(result, summary, true) &&
+        !input.signal.aborted && !input.outputCommitted() &&
+        (remainingMs === null ? !reasoningRecovery : remainingMs >= minimumRemainingMs) && runtime.beginRetry;
+      if (!canRetry) {
+        input.onDecision?.({ from: runtime.runtime, to: null, reason: result.providerFailure,
+          calls_used: budget.used, remaining_ms: remainingMs, output_committed: input.outputCommitted(),
+          recovery_kind: reasoningRecovery ? "reasoning_stream" : "native",
+          unavailable_reason: budget.remaining <= 0 ? "call_budget_exhausted" : input.outputCommitted() ? "output_committed" :
+            remainingMs === null && reasoningRecovery ? "finite_deadline_required" :
+            remainingMs !== null && remainingMs < minimumRemainingMs ? "insufficient_time" : "ineligible_or_unavailable" });
+        return withHistory(result, summaries, !input.outputCommitted(), budget.used);
+      }
+      excluded.add(runtime.runtimeInstanceId);
+      const previous = runtime;
+      const next = preparedRetry ?? previous.beginRetry!({ excludeAccountIds: excluded });
+      const decision = { from: previous.runtime, to: next instanceof GatewayError ? null : next.runtime,
+        reason: result.providerFailure, calls_used: budget.used,
+        remaining_ms: remainingMs, recovery_kind: reasoningRecovery ? "reasoning_stream" : "native",
+        unavailable_reason: next instanceof GatewayError ? next.code : null };
+      if (next instanceof GatewayError) {
+        input.onDecision?.(decision);
+        return withHistory(result, summaries, !input.outputCommitted(), budget.used);
+      }
+      preparedRetry = next;
+      pendingRetry = { error: result, minimumRemainingMs, decision };
     }
-    // Spending our first-output budget is not evidence of an unhealthy provider.
-    if (result.code !== "client_aborted" && !isNativeOutputBudgetFailure(result.providerFailure)) {
-      runtime.recordError(result);
-    }
-    const reasoningRecovery = isRecoverableReasoningStream(result);
-    const remainingMs = input.deadlineAt ? input.deadlineAt.getTime() - input.now().getTime() : null;
-    const minimumRemainingMs = reasoningRecovery ? NATIVE_STREAM_RECOVERY_RESERVE_MS : 1000;
-    const canRetry = budget.remaining > 0 && canFailoverNativeError(result, summary, true) &&
-      !input.signal.aborted && !input.outputCommitted() &&
-      (remainingMs === null ? !reasoningRecovery : remainingMs >= minimumRemainingMs) && runtime.beginRetry;
-    if (!canRetry) {
-      input.onDecision?.({ from: runtime.runtime, to: null, reason: result.providerFailure,
-        calls_used: budget.used, remaining_ms: remainingMs, output_committed: input.outputCommitted(),
-        recovery_kind: reasoningRecovery ? "reasoning_stream" : "native",
-        unavailable_reason: budget.remaining <= 0 ? "call_budget_exhausted" : input.outputCommitted() ? "output_committed" :
-          remainingMs === null && reasoningRecovery ? "finite_deadline_required" :
-          remainingMs !== null && remainingMs < minimumRemainingMs ? "insufficient_time" : "ineligible_or_unavailable" });
-      return withHistory(result, summaries, !input.outputCommitted(), budget.used);
-    }
-    excluded.add(runtime.runtimeInstanceId);
-    const previous = runtime;
-    previous.release();
-    const next = previous.beginRetry!({ excludeAccountIds: excluded });
-    if (!(next instanceof GatewayError)) {
-      runtime = next;
-      input.selected(next);
-    }
-    input.onDecision?.({ from: previous.runtime, to: next instanceof GatewayError ? null : next.runtime,
-      reason: result.providerFailure, calls_used: budget.used,
-      remaining_ms: remainingMs, recovery_kind: reasoningRecovery ? "reasoning_stream" : "native",
-      unavailable_reason: next instanceof GatewayError ? next.code : null });
-    if (next instanceof GatewayError) return withHistory(result, summaries, !input.outputCommitted(), budget.used);
-    pendingRetry = { error: result, minimumRemainingMs };
+  } finally {
+    // An acquired candidate that never becomes the active attempt owns no
+    // request outcome. Release its capacity without relabeling the request.
+    preparedRetry?.release();
   }
 }
 
 function withHistory(error: GatewayError, summaries: ProviderStreamSummary[], allowChargeDecision = false, expectedAttempts?: number): GatewayError {
-  const combined = preserveUnknownReasoningUsage(combineProviderStreamSummaries(summaries), summaries);
+  // Known usage is a billing lower bound even when another attempt is unknown.
+  // Per-attempt null usage remains available for diagnostics; never replace a
+  // provider-reported amount with the plan's missing-usage fallback (possibly 0).
+  const combined = combineProviderStreamSummaries(summaries);
   if (!combined) return error;
   if (allowChargeDecision) combined.userCharge = emptyResponseCharge(summaries, expectedAttempts);
   // Each execution already recorded its outcome. Cancellation must not rewrite that history.
   return attachProviderStreamSummary(error, { ...combined, completed: false, failure: error.providerFailure ?? null },
     { preserveAttemptOutcomes: true });
-}
-
-function preserveUnknownReasoningUsage(combined: ProviderStreamSummary | null, summaries: ProviderStreamSummary[]): ProviderStreamSummary | null {
-  // A fallback's usage is not the usage of both calls. Keep per-attempt reports,
-  // and use the existing reservation's missing-usage policy for the request.
-  if (combined && summaries.some(summary =>
-    (!summary.usage && (summary.streamProgress?.reasoningChars ?? 0) > 0) ||
-    summary.attempts.some(attempt => attempt.totalTokens === null && (attempt.streamProgress?.reasoningChars ?? 0) > 0))) {
-    combined.usage = null;
-  }
-  return combined;
 }
