@@ -1,10 +1,10 @@
 import { GatewayError, type ModelProgressEvent, type ProviderFailureClassification } from "@codex-gateway/core";
 import { createChatRequestDeadline } from "./chat-request-deadline.js";
 
-// Long requests with no model activity reserve 60s for recovery plus 5s for
-// teardown, measured from the original deadline (including time spent queued).
-// Keep silent first attempts capped at the original 835s even when the total
-// budget is 30 minutes; a longer reasoning budget must not delay recovery.
+// Long requests with no model activity wait at most 835s from attempt start.
+// The original deadline (including time spent queued) further limits that wait
+// to the remaining request budget minus 60s recovery and 5s teardown.
+// A longer total budget must not delay recovery beyond the 835s attempt cap.
 // T:38T3AH0N still received reasoning at 834.965s: elapsed time alone is not
 // evidence that an active stream should be discarded. Once reasoning starts,
 // leave it under the original deadline; actual stream failures can still recover.
