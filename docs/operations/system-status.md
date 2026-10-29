@@ -1,5 +1,18 @@
 # System Status
 
+Gateway `d84f60b898b5bb58831816cd41012034cadf54ce` is live as of
+2026-10-29 08:49:50 UTC. Five internal Plans now provide a live daily request
+floor of 1,000, covering 253 internal subjects (29 in the supplied workbook,
+224 outside it); higher/unlimited credential limits remain intact. Credentials,
+entitlement snapshots and Token policies were not rewritten. Clean-image tests:
+2235 passed, four skipped. Public credential checks passed for 247 current-key
+subjects; the entire internal cohort passed effective-policy checks. Gateway,
+both databases, protected settings and the three other containers passed
+verification. The required 30-second idle window was retained; non-ready probe
+samples spanned about 20.4 seconds. The existing in-memory daily request counters
+reset with the deployment restart; Token ledgers were retained. See the
+[release and self-review record](./internal-request-floor-release-2026-10-29.zh-CN.md).
+
 Gateway `3b54c9eec0942e0719630153d27e101b7b6f0328` is live as of
 2026-10-28 23:53:23 UTC, verified at 23:56:42 UTC. Both cloud models accept
 1800000 ms requests and have 1800-second budgets; live receipts confirm the
