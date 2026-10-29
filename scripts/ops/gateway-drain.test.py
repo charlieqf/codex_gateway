@@ -2,6 +2,10 @@ import importlib.util
 import io
 import json
 import pathlib
+import shutil
+import subprocess
+import sys
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -12,6 +16,18 @@ metadata = json.dumps({"id": "pinned-container", "command": ["node", "/app/apps/
 
 
 class DrainTests(unittest.TestCase):
+    def test_direct_invocation_leaves_the_release_directory_unchanged(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            for name in ("gateway-drain.py", "gateway_release_idle.py"):
+                shutil.copyfile(pathlib.Path(__file__).with_name(name), root / name)
+            before = {p.name: p.read_bytes() for p in root.iterdir()}
+            result = subprocess.run([sys.executable, "-E", str(root / "gateway-drain.py"), "--help"],
+                                    capture_output=True, text=True, timeout=15)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual({p.name for p in root.iterdir()}, set(before))
+            self.assertEqual({p.name: p.read_bytes() for p in root.iterdir()}, before)
+
     def test_unsupported_runtime_never_receives_signal(self):
         with patch.object(drain, "run", side_effect=[metadata, "null"]) as run, patch("sys.argv", ["drain"]):
             with self.assertRaisesRegex(RuntimeError, "no drain protocol"):

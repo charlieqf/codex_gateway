@@ -1,6 +1,6 @@
 # 放宽长推理总时限：实现与验证
 
-2026-10-29。目标是把 `goldencode` 和 `goldencode-d` 的单次模型调用总预算统一放宽至最多 30 分钟。无需新增能力声明、协议版本、协商流程或配置开关。本文记录发布前实现与验证；用户随后授权提交、推送和 Gateway 配套配置部署，实际上线结果另记发布收据。Desktop 工作区不在本次修改范围内。
+2026-10-29。目标是把 `goldencode` 和 `goldencode-d` 的单次模型调用总预算统一放宽至最多 30 分钟。无需新增能力声明、协议版本、协商流程或配置开关。本文保留发布前实现与验证记录；随后已按用户授权上线 `3b54c9e` 及配套配置，详见[发布收据](../operations/long-reasoning-timeout-release-2026-10-29.zh-CN.md)。Desktop 工作区不在本次修改范围内。
 
 ## 最终实现
 
@@ -15,7 +15,7 @@
 
 ## 发布时应使用的现有配置
 
-以下仅为待发布配置值，本次没有写入生产：
+以下为本次发布使用的配置值，已合并写入 R760 并核验实际容器：
 
 ```dotenv
 MEDCODE_CHAT_REQUEST_TIMEOUTS_JSON={"models":{"goldencode":1800000,"goldencode-d":1800000}}
@@ -26,7 +26,7 @@ MEDCODE_TENCENT_TOKENHUB_TIMEOUT_MS=1800000
 
 应用时合并现有 JSON 中的 models/runtimes/defaultMs 和其他模型条目，不能用示例整体覆盖。默认 600000 及其他模型已有预算保留；增大 adapter 时限不会突破每个请求的总截止时间。两个目标模型使用相同预算，不再让 `goldencode-d` 落到默认 600 秒。
 
-只读核对 R760 时，现网版本仍为 `fee6fb0a437ef9c7120fce586e832498020529ec`；实际值为：默认 600000、goldencode 900000、goldencode-d 无单独配置、三个 adapter 均为 900000、容器停止宽限 910 秒。这些值尚未变更。
+发布前只读核对 R760 时，版本为 `fee6fb0a437ef9c7120fce586e832498020529ec`；实际值为：默认 600000、goldencode 900000、goldencode-d 无单独配置、三个 adapter 均为 900000、容器停止宽限 910 秒。发布后的两个模型及三个 adapter 均为 1800000，停止宽限 1870 秒，默认值保持 600000。
 
 R760 的实际 env 文件为 `/opt/codex-gateway-r760/shared/config/gateway.container.env`，发布时需备份后合并上述值，不能把更新示例当成生产已生效。实际 Compose 文件按顺序为发布目录的 `compose.azure.yml`、`compose.research-production.yml` 和主机的 `/opt/codex-gateway-r760/shared/config/compose.r760.override.yml`。尽管文件名含 azure，第一份也用于 R760；当前主机覆盖文件没有 gateway 的 `stop_grace_period`，910 秒来自发布目录第一份文件。采用修改后的发布模板并重建容器即可得到 1870 秒，发布后必须通过容器 inspect 核实实际值，不能仅检查仓库文本。
 

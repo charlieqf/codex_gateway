@@ -8,6 +8,10 @@ import json
 import subprocess
 import sys
 import time
+
+# Release directories must remain immutable: even historical callers that omit
+# python -B must not leave helper bytecode that blocks the next release prepare.
+sys.dont_write_bytecode = True
 from gateway_release_idle import validate_lifecycle, wait_for_natural_idle
 
 

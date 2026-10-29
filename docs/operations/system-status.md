@@ -1,5 +1,16 @@
 # System Status
 
+Gateway `3b54c9eec0942e0719630153d27e101b7b6f0328` is live as of
+2026-10-28 23:53:23 UTC, verified at 23:56:42 UTC. Both cloud models accept
+1800000 ms requests and have 1800-second budgets; live receipts confirm the
+same deadline. Three cloud adapters use 1800 seconds and container stop grace
+is 1870 seconds. Clean-image tests: 2224 passed, four skipped; ten public checks,
+database integrity and synthetic cleanup passed. Gateway is healthy with zero
+restarts/OOM. Other containers and protected settings are preserved. The required
+30-second idle window was used; non-ready samples spanned about 19.4 seconds.
+See the [release receipt](./long-reasoning-timeout-release-2026-10-29.zh-CN.md)
+and [release latency review](./gateway-release-latency-review-2026-10-29.zh-CN.md).
+
 Gateway `fee6fb0a437ef9c7120fce586e832498020529ec` is live as of
 2026-10-28 11:15:00 UTC, verified at 11:21:34 UTC. Active reasoning now disarms the
 local first-output cutoff while retaining the original deadline and safe recovery
