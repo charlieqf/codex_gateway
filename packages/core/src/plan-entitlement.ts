@@ -1,4 +1,4 @@
-import type { Scope } from "./types.js";
+import type { RateLimitPolicy, Scope } from "./types.js";
 import {
   decodeStoredFeaturePolicy,
   defaultFeaturePolicy,
@@ -122,6 +122,26 @@ export function validatePlanFeaturePolicy(policy: unknown): FeaturePolicy {
 
 export function decodePlanFeaturePolicy(policy: unknown): FeaturePolicy {
   return decodeStoredFeaturePolicy(policy ?? defaultFeaturePolicy());
+}
+
+/** A live Plan benefit, deliberately not copied into entitlement snapshots.
+ * Existing and future holders receive increases without rewriting credentials.
+ * Null credential limits remain unlimited; other limits are not affected.
+ */
+export function applyEntitlementRequestRateFloor(
+  rate: RateLimitPolicy,
+  access: EntitlementAccessDecision,
+  scope: Scope
+): RateLimitPolicy {
+  if (access.status !== "active" || !access.entitlement.scopeAllowlist.includes(scope)) {
+    return rate;
+  }
+  const floor = access.plan?.metadata?.requestRateFloor;
+  if (!floor || typeof floor !== "object" || Array.isArray(floor)) return rate;
+  const daily = (floor as Record<string, unknown>).requestsPerDay;
+  if (typeof daily !== "number" || !Number.isSafeInteger(daily) || daily < 1 ||
+      rate.requestsPerDay === null || rate.requestsPerDay >= daily) return rate;
+  return { ...rate, requestsPerDay: daily };
 }
 
 export function mergeEntitlementTokenPolicy(

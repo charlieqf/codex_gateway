@@ -171,6 +171,7 @@ export type AdminAuditAction =
   | "token-overrun"
   | "token-reservation-expired"
   | "plan-create"
+  | "plan-request-policy-update"
   | "plan-deprecate"
   | "entitlement-grant"
   | "entitlement-renew"

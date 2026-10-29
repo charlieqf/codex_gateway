@@ -811,6 +811,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       credentialAuthHook(request, reply, {
         store: credentialStore,
         unifiedClientKeyStore,
+        planEntitlementStore,
         provider,
         upstreamAccount,
         now: clock

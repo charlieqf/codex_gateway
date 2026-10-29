@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import {
+  applyEntitlementRequestRateFloor,
   checkAccessCredentialState,
   extractAccessCredentialPrefix,
   extractUnifiedClientKeyPrefix,
@@ -8,6 +9,7 @@ import {
   verifyAccessCredentialToken,
   verifyUnifiedClientKeyToken,
   type CredentialAuthStore,
+  type PlanEntitlementStore,
   type ProviderAdapter,
   type UnifiedClientKeyStore,
   type UpstreamAccount
@@ -43,6 +45,7 @@ export async function devAuthHook(
 export interface CredentialAuthOptions {
   store: CredentialAuthStore;
   unifiedClientKeyStore?: UnifiedClientKeyStore;
+  planEntitlementStore?: PlanEntitlementStore;
   provider: ProviderAdapter;
   upstreamAccount: UpstreamAccount;
   now?: () => Date;
@@ -63,6 +66,15 @@ export async function credentialAuthHook(
     return;
   }
 
+  if (result.credential.rate && options.planEntitlementStore) {
+    result.credential.rate = applyEntitlementRequestRateFloor(
+      result.credential.rate,
+      options.planEntitlementStore.entitlementAccessForSubject(
+        result.subject.id, options.now?.() ?? new Date()
+      ),
+      result.scope
+    );
+  }
   request.gatewayContext = result;
 }
 

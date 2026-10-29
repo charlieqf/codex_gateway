@@ -36,6 +36,7 @@ GATEWAY_DB_PATH = "/var/lib/codex-gateway/gateway.db"
 BULK_USER_RPM_COMMAND = "ensure-user-rpm-minimum"
 PLAN_TOKEN_LIMITS_COMMAND = "set-plan-token-limits"
 INTERNAL_DAILY_LIMITS_COMMAND = "raise-internal-daily-limits"
+INTERNAL_REQUEST_FLOOR_COMMAND = "raise-internal-request-floor"
 INTERNAL_IMAGE_GRANTS_COMMAND = "grant-internal-image-batch"
 FREE_TOTAL_RESET_COMMAND = "reset-free-total"
 REGISTRATION_RELEASE_COMMAND = "release-registration"
@@ -115,9 +116,9 @@ def validate_admin_args(admin_args: list[str]) -> tuple[str, str | None]:
         if len(admin_args) != 2 or not admin_args[1].strip():
             raise ManagementError("grant-internal-image-batch requires a reviewed JSON plan path.")
         return command, None
-    if command == INTERNAL_DAILY_LIMITS_COMMAND:
+    if command in (INTERNAL_DAILY_LIMITS_COMMAND, INTERNAL_REQUEST_FLOOR_COMMAND):
         if len(admin_args) not in (2, 3) or not admin_args[1].strip() or len(admin_args[1]) > 500:
-            raise ManagementError("raise-internal-daily-limits requires a reason and, for apply, the preview revision.")
+            raise ManagementError(f"{command} requires a reason and, for apply, the preview revision.")
         if len(admin_args) == 3 and not re.fullmatch(r"[a-f0-9]{64}", admin_args[2]):
             raise ManagementError("Expected the SHA-256 revision from --what-if.")
         return command, None
@@ -336,6 +337,21 @@ def run_internal_daily_limits(endpoint: RemoteGateway, args: argparse.Namespace,
     return json.loads(completed.stdout)
 
 
+def run_internal_request_floor(endpoint: RemoteGateway, args: argparse.Namespace, *, apply: bool) -> dict[str, Any]:
+    operation = {"reason": args.admin_args[1], "apply": apply}
+    if len(args.admin_args) == 3:
+        operation["expectedRevision"] = args.admin_args[2]
+    payload = base64.b64encode(json.dumps(operation).encode("utf-8")).decode("ascii")
+    completed = run_ssh(
+        endpoint,
+        f"{docker_command(endpoint)} exec -i -w /app -e R760_INTERNAL_REQUEST_FLOOR_B64={payload} "
+        f"{shell_word(endpoint.container)} node -",
+        stdin=Path(__file__).with_name("gateway-internal-request-floor.cjs").read_text(encoding="utf-8"),
+        timeout_seconds=args.timeout_seconds,
+    )
+    return json.loads(completed.stdout)
+
+
 def execute(args: argparse.Namespace) -> dict[str, Any]:
     command, subcommand = validate_admin_args(args.admin_args)
     r760 = r760_endpoint(args)
@@ -356,6 +372,11 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
     if command == INTERNAL_DAILY_LIMITS_COMMAND:
         internal_daily = run_internal_daily_limits(r760, args, apply=False)
         if not args.what_if and (len(args.admin_args) != 3 or args.admin_args[2] != internal_daily["revision"]):
+            raise ManagementError("Apply requires the unchanged revision from --what-if.")
+    internal_request_floor = None
+    if command == INTERNAL_REQUEST_FLOOR_COMMAND:
+        internal_request_floor = run_internal_request_floor(r760, args, apply=False)
+        if not args.what_if and (len(args.admin_args) != 3 or args.admin_args[2] != internal_request_floor["revision"]):
             raise ManagementError("Apply requires the unchanged revision from --what-if.")
     plan_policy = run_plan_token_policy(r760, args, apply=False) if command == PLAN_TOKEN_LIMITS_COMMAND else None
     extra_gift = None
@@ -395,6 +416,7 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
             **({"plan": bulk_plan} if bulk_plan is not None else {}),
             **({"plan": internal_grants_preview} if internal_grants_preview is not None else {}),
             **({"plan": internal_daily} if internal_daily is not None else {}),
+            **({"plan": internal_request_floor} if internal_request_floor is not None else {}),
             **({"plan": plan_policy} if plan_policy is not None else {}),
             **({"plan": extra_gift_preview} if extra_gift_preview is not None else {}),
             **({"plan": free_reset} if free_reset is not None else {}),
@@ -418,6 +440,8 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
             authority_result = run_internal_image_grants(r760, args, internal_grants, apply=True)
         elif command == INTERNAL_DAILY_LIMITS_COMMAND:
             authority_result = run_internal_daily_limits(r760, args, apply=True)
+        elif command == INTERNAL_REQUEST_FLOOR_COMMAND:
+            authority_result = run_internal_request_floor(r760, args, apply=True)
         elif command == PLAN_TOKEN_LIMITS_COMMAND:
             authority_result = run_plan_token_policy(r760, args, apply=True)
         elif extra_gift is not None:
