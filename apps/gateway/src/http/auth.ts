@@ -66,16 +66,26 @@ export async function credentialAuthHook(
     return;
   }
 
-  if (result.credential.rate && options.planEntitlementStore) {
-    result.credential.rate = applyEntitlementRequestRateFloor(
-      result.credential.rate,
-      options.planEntitlementStore.entitlementAccessForSubject(
-        result.subject.id, options.now?.() ?? new Date()
-      ),
-      result.scope
-    );
-  }
   request.gatewayContext = result;
+  const config = request.routeOptions.config;
+  const needsCredentialRate = (!config?.skipRateLimit && !config?.rateLimitProfile) ||
+    request.routeOptions.url === "/gateway/credentials/current";
+  if (needsCredentialRate && result.credential.rate && options.planEntitlementStore) {
+    try {
+      result.credential.rate = applyEntitlementRequestRateFloor(
+        result.credential.rate,
+        options.planEntitlementStore.entitlementAccessForSubject(
+          result.subject.id, options.now?.() ?? new Date()
+        ),
+        result.scope
+      );
+    } catch {
+      sendGatewayError(request, reply, new GatewayError({
+        code: "service_unavailable", message: "Plan entitlement service is unavailable.", httpStatus: 503
+      }));
+      return;
+    }
+  }
 }
 
 function authenticateDevBearer(

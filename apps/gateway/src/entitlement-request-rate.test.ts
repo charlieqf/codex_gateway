@@ -1,8 +1,10 @@
-import { describe, expect, it } from "vitest";
-import { issueAccessCredential, issueUnifiedClientKey, type ProviderAdapter, type TokenLimitPolicy } from "@codex-gateway/core";
+import { describe, expect, it, vi } from "vitest";
+import type { FastifyReply, FastifyRequest } from "fastify";
+import { applyEntitlementRequestRateFloor, issueAccessCredential, issueUnifiedClientKey, type ProviderAdapter, type TokenLimitPolicy, type UpstreamAccount } from "@codex-gateway/core";
 import { createSqliteStore } from "@codex-gateway/store-sqlite";
 import { buildGateway } from "./index.js";
 import { InMemoryRequestRateLimiter } from "./services/rate-limiter.js";
+import { credentialAuthHook } from "./http/auth.js";
 
 const now = new Date("2026-10-29T08:00:00Z");
 const policy: TokenLimitPolicy = { tokensPerMinute: null, tokensPerDay: null, tokensPerMonth: null,
@@ -31,6 +33,7 @@ function fixture(daily: number | null = 600) {
   const app = buildGateway({ authMode: "credential", provider, sessionStore: store,
     rateLimiter: limiter, now: () => now, logger: false });
   app.get("/request-floor-test", async request => ({ rate: request.gatewayContext?.credential.rate }));
+  app.get("/independent-limit-test", { config: { skipRateLimit: true } }, async () => ({ ok: true }));
   const setFloor = (value: unknown = 1000) => store.database.prepare("UPDATE plans SET metadata_json=? WHERE id='internal-plan'")
     .run(JSON.stringify({ requestRateFloor: { requestsPerDay: value } }));
   const get = (url = "/gateway/credentials/current", token = issued.token) =>
@@ -96,5 +99,37 @@ describe("live Plan daily request benefit", () => {
     const f = fixture();
     try { f.setFloor(value); expect((await f.get()).json().credential.rate.requestsPerDay).toBe(600); }
     finally { await f.close(); }
+  });
+
+  it("does not consult Plan state for diagnostics/independent asset limits; protects ordinary admission on lookup failure", async () => {
+    const f = fixture();
+    const lookup = vi.spyOn(f.store, "entitlementAccessForSubject").mockImplementation(() => { throw new Error("private database error"); });
+    try {
+      expect((await f.get("/independent-limit-test")).statusCode).toBe(200);
+      const assetRequest = { headers: { authorization: `Bearer ${f.issued.token}` },
+        routeOptions: { config: { rateLimitProfile: "vision_read_url" } } } as unknown as FastifyRequest;
+      await credentialAuthHook(assetRequest, {} as FastifyReply, { store: f.store, planEntitlementStore: f.store,
+        provider, upstreamAccount: {} as UpstreamAccount, now: () => now });
+      expect(assetRequest.gatewayContext?.credential.rate?.requestsPerDay).toBe(600);
+      expect(lookup).not.toHaveBeenCalled();
+      const response = await f.get("/request-floor-test");
+      expect(response.statusCode).toBe(503);
+      expect(response.json().error.code).toBe("service_unavailable");
+      expect(response.body).not.toContain("private database error");
+    } finally { lookup.mockRestore(); await f.close(); }
+  });
+
+  it("does not confer the benefit outside scope or before/after an entitlement period", async () => {
+    const f = fixture();
+    try {
+      f.setFloor();
+      const access = f.store.entitlementAccessForSubject("internal", now);
+      expect(applyEntitlementRequestRateFloor(f.issued.record.rate, access, "medical")).toEqual(f.issued.record.rate);
+      for (const at of [new Date("2026-10-28"), new Date("2027-01-02")]) {
+        const atAccess = f.store.entitlementAccessForSubject("internal", at);
+        expect(applyEntitlementRequestRateFloor(f.issued.record.rate, atAccess, "code")).toEqual(f.issued.record.rate);
+      }
+      expect(applyEntitlementRequestRateFloor(f.issued.record.rate, { status: "legacy" }, "code")).toEqual(f.issued.record.rate);
+    } finally { await f.close(); }
   });
 });
