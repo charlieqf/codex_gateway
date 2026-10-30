@@ -1,6 +1,7 @@
 import { setTimeout as delay } from "node:timers/promises";
 import { GatewayError } from "@codex-gateway/core";
-import { NativeCallBudget } from "./native-tool-failover.js";
+import { isRecoverableReasoningStream, NativeCallBudget } from "./native-tool-failover.js";
+import { NATIVE_STREAM_RECOVERY_RESERVE_MS } from "./native-output-budget.js";
 import {
   attachProviderStreamSummary, combineProviderStreamSummaries, combineSuccessfulProviderStreamSummaries,
   providerStreamSummaryFromError, type ProviderStreamSummary
@@ -42,7 +43,11 @@ export class VisionRequestRecovery {
     if (this.endError(input)) return false;
     if (this.contentDelivered) return stop("content_delivered");
     const failure = input.error.providerFailure;
-    const retryable = ["upstream_unavailable", "upstream_timeout", "rate_limited"].includes(input.error.code) && failure && (
+    // A reset after HTTP 200 is safe to replay only with positive parser evidence
+    // that the stream contained reasoning alone, with no visible or tool output.
+    const reasoningReset = input.error.code === "upstream_unavailable" &&
+      isRecoverableReasoningStream(input.error, input.summary);
+    const retryable = reasoningReset || ["upstream_unavailable", "upstream_timeout", "rate_limited"].includes(input.error.code) && failure && (
       failure.origin === "provider" && ["after_headers", "streaming"].includes(failure.stage) &&
         [408, 429, 500, 502, 503, 504].includes(failure.upstreamStatus ?? 0) ||
       failure.origin === "network" && failure.stage === "before_headers" &&
@@ -50,21 +55,23 @@ export class VisionRequestRecovery {
     );
     if (!retryable) return stop("not_retryable");
     if (this.budget.remaining <= 0) return stop("calls_exhausted");
-    if (input.summary && (input.summary.semanticOutputChars > 0 || input.summary.toolCallCount > 0)) {
+    if (!reasoningReset && input.summary && (input.summary.semanticOutputChars > 0 || input.summary.toolCallCount > 0)) {
       return stop("response_started");
     }
     const rateLimited = failure?.upstreamStatus === 429;
     if (rateLimited && input.error.upstreamRetryAfterSeconds === undefined) return stop("retry_after_missing");
     const waitMs = rateLimited ? Math.max(250, input.error.upstreamRetryAfterSeconds! * 1000) : 250;
-    // Reserve at least one second for the next call; waiting never resets the deadline.
-    if (input.deadlineAt && input.deadlineAt.getTime() - input.now().getTime() < waitMs + 1000) {
+    const reserveMs = reasoningReset ? NATIVE_STREAM_RECOVERY_RESERVE_MS : 1000;
+    if (reasoningReset && !input.deadlineAt) return stop("deadline_insufficient");
+    // Reasoning recovery keeps the same reserve as text recovery and never resets the deadline.
+    if (input.deadlineAt && input.deadlineAt.getTime() - input.now().getTime() < waitMs + reserveMs) {
       return stop(input.now() >= input.deadlineAt ? "deadline_exhausted" : "deadline_insufficient");
     }
     try { await delay(waitMs, undefined, { signal: input.signal }); }
     catch { return stop(input.signal.reason instanceof GatewayError &&
       input.signal.reason.code === "upstream_timeout" ? "deadline_exhausted" : "cancelled"); }
     if (this.endError(input)) return false;
-    if (input.deadlineAt && input.deadlineAt.getTime() - input.now().getTime() < 1000) return stop("deadline_insufficient");
+    if (input.deadlineAt && input.deadlineAt.getTime() - input.now().getTime() < reserveMs) return stop("deadline_insufficient");
     this.stopReason = null;
     return true;
   }

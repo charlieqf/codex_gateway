@@ -4,6 +4,19 @@ import { VisionRequestRecovery, runVisionRequestRecovery } from "./vision-reques
 import type { NativeCallBudget } from "./native-tool-failover.js";
 import { attachProviderStreamSummary, ProviderStreamSummaryCollector, providerStreamSummaryFromError } from "./provider-stream.js";
 
+function reasoningReset() {
+  const error = new GatewayError({ code: "upstream_unavailable", message: "synthetic socket reset", httpStatus: 503,
+    providerFailure: { origin: "network", kind: "connection_reset", stage: "streaming",
+      upstreamStatus: 200, transportCode: "UND_ERR_SOCKET" } });
+  const collector = new ProviderStreamSummaryCollector();
+  collector.record({ type: "error", code: error.code, message: error.message, providerFailure: error.providerFailure!,
+    responseSummary: { upstreamHttpStatus: 200, finishReason: null, semanticOutputChars: 119, visibleOutputChars: 0,
+      terminationKind: "error", streamProgress: { responseBytes: 1409, responseChunks: 5,
+        firstResponseByteMs: 10003, lastResponseByteMs: 13362, sseDataEvents: 5, reasoningChars: 119,
+        observedToolCallCount: 0, toolArgumentBytes: 0 } } });
+  return attachProviderStreamSummary(error, collector.snapshot());
+}
+
 function failure(status = 500) {
   return new GatewayError({ code: status === 429 ? "rate_limited" : "upstream_unavailable", message: "synthetic",
     httpStatus: 503, upstreamStatus: status,
@@ -13,6 +26,55 @@ function failure(status = 500) {
 
 describe("vision recovery shared budget and deadline", () => {
   afterEach(() => vi.useRealTimers());
+
+  it("recovers the observed reasoning-only vision socket reset once and retains both attempts", async () => {
+    const state = new VisionRequestRecovery(1);
+    const failed = reasoningReset();
+    const completed = new ProviderStreamSummaryCollector();
+    completed.record({ type: "message_delta", text: "image answer" });
+    completed.record({ type: "completed", usage: { promptTokens: 10, completionTokens: 2, totalTokens: 12 },
+      responseSummary: { upstreamHttpStatus: 200, finishReason: "stop", terminationKind: "finish_reason_and_done" } });
+    const execute = vi.fn(async (budget: NativeCallBudget, retry: boolean) => {
+      budget.consume();
+      return retry ? { providerSummary: completed.snapshot() } : failed;
+    });
+    const result = await runVisionRequestRecovery({ recovery: state, signal: new AbortController().signal,
+      deadlineAt: new Date(Date.now() + 120000), now: () => new Date(), outputCommitted: () => false, execute });
+    expect(execute).toHaveBeenCalledTimes(2);
+    expect(state.snapshot()).toMatchObject({ attempts: 2, stop_reason: null });
+    expect(result).not.toBeInstanceOf(GatewayError);
+    if (result instanceof GatewayError) return;
+    expect(result.providerSummary).toMatchObject({ completed: true, usage: { totalTokens: 12 }, attempts: [
+      { errorCode: "upstream_unavailable", totalTokens: null }, { errorCode: null, totalTokens: 12 }
+    ] });
+  });
+
+  it("does not make a third vision call after two reasoning resets", async () => {
+    const state = new VisionRequestRecovery(1);
+    const execute = vi.fn(async (budget: NativeCallBudget) => { budget.consume(); return reasoningReset(); });
+    const result = await runVisionRequestRecovery({ recovery: state, signal: new AbortController().signal,
+      deadlineAt: new Date(Date.now() + 120000), now: () => new Date(), outputCommitted: () => false, execute });
+    expect(execute).toHaveBeenCalledTimes(2);
+    expect(state.stopReason).toBe("calls_exhausted");
+    expect(providerStreamSummaryFromError(result as GatewayError)?.attempts).toHaveLength(2);
+  });
+
+  it.each(["missing_progress", "no_reasoning", "text", "tool_fragment", "delivered", "cancelled", "no_deadline", "short_deadline"])
+  ("does not replay a vision stream with %s", async condition => {
+    const error = reasoningReset();
+    const summary = providerStreamSummaryFromError(error)!;
+    const controller = new AbortController();
+    if (condition === "missing_progress") delete summary.streamProgress;
+    if (condition === "no_reasoning") summary.streamProgress!.reasoningChars = 0;
+    if (condition === "text") summary.visibleOutputChars = 1;
+    if (condition === "tool_fragment") summary.streamProgress!.toolArgumentBytes = 1;
+    if (condition === "cancelled") controller.abort();
+    const state = new VisionRequestRecovery(1);
+    const result = await state.prepareRetry({ error, summary, signal: controller.signal,
+      deadlineAt: condition === "no_deadline" ? null : new Date(Date.now() + (condition === "short_deadline" ? 60000 : 120000)),
+      now: () => new Date(), outputCommitted: condition === "delivered" });
+    expect(result).toBe(false);
+  });
 
   it.each(["cancelled", "deadline_exhausted"] as const)("does not start a call after %s", async (reason) => {
     const state = new VisionRequestRecovery(4);
