@@ -1,5 +1,20 @@
 # System Status
 
+Gateway `6067ea300476be7962841a39f16cbf2580dae825` is live as of
+2026-10-31 10:17:35 UTC; online verification passed at 10:20:18 UTC.
+Vision requests that lose the upstream connection after reasoning-only output
+can now recover within the existing two-call budget and original deadline.
+The operator-required natural idle window was 60.210 seconds, with admission
+open and zero active requests/work. Public probes observed approximately 22.6
+seconds from the first non-ready sample to the first recovered sample.
+Clean-image tests: 2,245 passed, four skipped. All 13 installed-code fault
+injection checks and six real public model checks passed; both databases,
+synthetic cleanup, 21 protected files and four other containers were verified.
+At 10:23:59 UTC, two subsequent non-smoke DeepSeek text calls had succeeded,
+with no natural vision call yet; Gateway was ready with zero restarts/OOM.
+See the [release and verification receipt](./vision-reasoning-reset-release-2026-10-31.zh-CN.md),
+including the pre-existing OCR fixture issue and test-process proxy correction.
+
 Gateway `d84f60b898b5bb58831816cd41012034cadf54ce` is live as of
 2026-10-29 08:49:50 UTC. Five internal Plans now provide a live daily request
 floor of 1,000, covering 253 internal subjects (29 in the supplied workbook,
