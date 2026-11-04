@@ -1,5 +1,20 @@
 # System Status
 
+Gateway `3cb59adcf8a4a45dd05fb6bf8ac582f80d57b58d` is live as of
+2026-11-04 20:47:08 UTC (Beijing 2026-11-05 04:47); verified at 20:47:58 UTC.
+Tool-schema validation now bounds retained Ajv compiler graphs by whole tool
+sets while preserving cross-tool references and validators used by active calls.
+The required five-minute natural idle window reached 313.438 seconds with
+admission open; heartbeat and credential queries were permitted. Public probes
+observed 11.2 seconds from the first non-ready sample to the first recovery.
+Clean-image tests: 2,261 passed, four skipped. Installed-code regression checks,
+10,000 repeated schema requests under a 64 MiB heap cap, and four real public
+Tencent/Tiankuan tool calls passed. Both databases, synthetic cleanup, 21 protected
+files and four other containers passed verification. Gateway is healthy with
+zero restarts/OOM since replacement; long-duration production memory stability
+remains to be observed. Image generation settings and GPU services were unchanged.
+See the [release and verification receipt](./ajv-tool-cache-release-2026-11-05.zh-CN.md).
+
 Gateway `6067ea300476be7962841a39f16cbf2580dae825` is live as of
 2026-10-31 10:17:35 UTC; online verification passed at 10:20:18 UTC.
 Vision requests that lose the upstream connection after reasoning-only output
