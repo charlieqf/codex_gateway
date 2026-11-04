@@ -41,7 +41,7 @@ export function defaultImageGenerationFeaturePolicy(): ImageGenerationFeaturePol
     enabled: true,
     allowedModels: ["medcode-image-default"],
     defaultModel: "medcode-image-default",
-    allowedSizes: ["1024x1024", "1024x1536", "1536x1024", "auto"],
+    allowedSizes: ["1024x1024", "1024x1536", "1536x1024", "1536x512", "auto"],
     allowedQualities: ["low", "medium", "high", "auto"],
     allowedFormats: ["jpeg", "webp", "png"]
   };

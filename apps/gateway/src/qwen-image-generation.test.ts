@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import sharp from "sharp";
-import { QwenImageGenerationProvider, finalizeImageGenerationResult, type ImageGenerationRequest } from "./image-generation.js";
+import { QwenImageGenerationProvider, finalizeImageGenerationResult, parseImageGenerationRequest, resolveImageUpstreamModel, type ImageGenerationRequest } from "./image-generation.js";
+import { GatewayError, defaultImageGenerationFeaturePolicy } from "@codex-gateway/core";
 import { createDefaultImageGenerationProvider, parseImagePrimaryProvider, resolveImageGenerationBillingFallbacks } from "./runtime/image-providers.js";
 import { validateRuntimeEnvironment } from "./runtime/auth-config.js";
 
@@ -10,7 +11,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe("Qwen image primary", () => {
   it("receives PNG from Qwen and returns real JPEG bytes at the requested size", async () => {
     const png = await sharp({ create: { width: 1024, height: 1024, channels: 4, background: "#fff" } }).png().toBuffer();
-    const fetcher = vi.fn(async () => new Response(JSON.stringify({ data: [{ b64_json: png.toString("base64"), mime_type: "image/png" }] }), { status: 200 }));
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ evaluation: { steps: 30 }, data: [{ b64_json: png.toString("base64"), mime_type: "image/png" }] }), { status: 200 }));
     vi.stubGlobal("fetch", fetcher);
     const provider = new QwenImageGenerationProvider({ apiKey: "test", baseUrl: "http://private-qwen:8191" });
     const result = await provider.generate({ request, upstreamModel: "qwen-image-2.1" });
@@ -31,6 +32,59 @@ describe("Qwen image primary", () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ detail: "GPU busy" }), { status })));
     const provider = new QwenImageGenerationProvider({ apiKey: "test", baseUrl: "http://private-qwen:8191" });
     await expect(provider.generate({ request, upstreamModel: "qwen-image-2.1" })).rejects.toMatchObject({ upstreamStatus: status });
+  });
+
+  it.each([["low", 30], ["medium", 40], ["high", 50], ["auto", 40], [undefined, 40]] as const)(
+    "sends and confirms the %s quality profile with a real reference and strict 3:1 output", async (quality, steps) => {
+      const reference = (await sharp({ create: { width: 64, height: 64, channels: 4, background: "#05a" } }).png().toBuffer()).toString("base64");
+      const png = (await sharp({ create: { width: 1536, height: 512, channels: 4, background: "#fff" } }).png().toBuffer()).toString("base64");
+      const parsed = parseImageGenerationRequest({ prompt: "Preserve the logo", size: "1536x512", quality,
+        reference_image: { b64_json: reference } }, { maxPromptChars: 1000 });
+      if (parsed instanceof GatewayError) throw parsed;
+      const fetcher = vi.fn(async () => new Response(JSON.stringify({ evaluation: { steps }, data: [{ b64_json: png, mime_type: "image/png" }] })));
+      vi.stubGlobal("fetch", fetcher);
+      const provider = new QwenImageGenerationProvider({ apiKey: "test", baseUrl: "http://private-qwen" });
+      const result = await provider.generate({ request: parsed, upstreamModel: "qwen-image-2.1" });
+      expect(JSON.parse(String((fetcher.mock.calls[0] as unknown as [string, RequestInit])[1].body)))
+        .toMatchObject({ image_b64: reference, num_inference_steps: steps, size: "1536x512" });
+      expect(result.generation_parameters).toMatchObject({ size: "1536x512", inference_steps: steps, reference_images: 1, mode: "edit" });
+      const final = await finalizeImageGenerationResult({ request: parsed, result });
+      expect(await sharp(Buffer.from(final.data[0].b64_json, "base64")).metadata()).toMatchObject({ width: 1536, height: 512, format: "jpeg" });
+    });
+
+  it("rejects malformed, oversized and non-image references before contacting the GPU", async () => {
+    const boundary = Buffer.alloc(4 * 1024 * 1024).toString("base64");
+    expect(parseImageGenerationRequest({ prompt: "Edit", reference_image: { b64_json: boundary } }, { maxPromptChars: 1000 })).not.toBeInstanceOf(GatewayError);
+    for (const value of ["", "not base64!", "YWJj=", Buffer.alloc(4 * 1024 * 1024 + 1).toString("base64")]) {
+      expect(parseImageGenerationRequest({ prompt: "Edit", reference_image: { b64_json: value } }, { maxPromptChars: 1000 })).toBeInstanceOf(GatewayError);
+    }
+    const fetcher = vi.fn();
+    vi.stubGlobal("fetch", fetcher);
+    const provider = new QwenImageGenerationProvider({ apiKey: "test", baseUrl: "http://private-qwen" });
+    const large = (await sharp({ create: { width: 2049, height: 2049, channels: 3, background: "#fff" } }).png().toBuffer()).toString("base64");
+    for (const referenceImage of [Buffer.from("not an image").toString("base64"), large,
+      Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>').toString("base64")]) {
+      await expect(provider.generate({ request: { ...request, referenceImage }, upstreamModel: "qwen-image-2.1" })).rejects.toMatchObject({ code: "invalid_request" });
+    }
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("rejects unconfirmed steps and wrong upstream dimensions instead of stretching them", async () => {
+    const png = (await sharp({ create: { width: 1024, height: 1024, channels: 3, background: "#fff" } }).png().toBuffer()).toString("base64");
+    const provider = new QwenImageGenerationProvider({ apiKey: "test", baseUrl: "http://private-qwen" });
+    for (const steps of [undefined, 40, 30]) {
+      vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ evaluation: { steps }, data: [{ b64_json: png, mime_type: "image/png" }] }))));
+      await expect(provider.generate({ request: { ...request, size: "1536x512", outputSize: "1536x512" }, upstreamModel: "qwen-image-2.1" })).rejects.toBeInstanceOf(GatewayError);
+    }
+  });
+
+  it("extends existing landscape entitlement to the smaller banner without granting image access", () => {
+    const policy = { capabilities: ["image_generation"], imageGeneration: defaultImageGenerationFeaturePolicy() };
+    const banner = { ...request, size: "1536x512" as const, outputSize: "1536x512" as const };
+    policy.imageGeneration!.allowedSizes = ["1536x1024"];
+    expect(resolveImageUpstreamModel(banner, policy, { "medcode-image-default": "qwen-image-2.1" })).toBe("qwen-image-2.1");
+    policy.capabilities = [];
+    expect(resolveImageUpstreamModel(banner, policy, { "medcode-image-default": "qwen-image-2.1" })).toBeInstanceOf(GatewayError);
   });
 
   it("selects Qwen and ignores stale LLaDA credentials in the fallback chain", () => {

@@ -1358,11 +1358,75 @@ describe("gateway phase 1 routes", () => {
         enabled: true,
         allowed_models: ["medcode-image-default"],
         default_model: "medcode-image-default",
-        allowed_sizes: ["1024x1024", "1024x1536", "1536x1024", "auto"]
+        allowed_sizes: ["1024x1024", "1024x1536", "1536x1024", "1536x512", "auto"]
       }
     });
 
     await app.close();
+  });
+
+  it.each(["qwen-image", "openai-api"] as const)("advertises image editing only for an entitled Qwen primary (%s)", async (kind) => {
+    const { store, headers } = createImageEntitledStore();
+    const app = buildGateway({ authMode: "credential", provider: new FakeProvider(), sessionStore: store,
+      imageGenerationProvider: new FakeImageGenerationProvider(undefined, kind), logger: false });
+    try {
+      const response = await app.inject({ method: "GET", url: "/gateway/images/capabilities", headers });
+      expect(response.statusCode).toBe(200);
+      expect(response.headers["cache-control"]).toBe("no-store");
+      expect(response.json()).toMatchObject(kind === "qwen-image"
+        ? { reference_images: { max_count: 1, max_bytes: 4194304 }, quality_steps: { low: 30, medium: 40, high: 50 }, banner_size: "1536x512" }
+        : { reference_images: null, quality_steps: null, banner_size: null });
+      expect((await app.inject({ method: "GET", url: "/gateway/images/capabilities" })).statusCode).toBe(401);
+    } finally { await app.close(); }
+  });
+
+  it("never forwards reference pixels or banner requests to a text-only image provider", async () => {
+    const { store, headers } = createImageEntitledStore();
+    const provider = new FakeImageGenerationProvider();
+    const app = buildGateway({ authMode: "credential", provider: new FakeProvider(), sessionStore: store,
+      imageGenerationProvider: provider, logger: false });
+    try {
+      for (const input of [{ reference_image: { b64_json: "QUJD" } }, { size: "1536x512" }]) {
+        const response = await app.inject({ method: "POST", url: "/gateway/images/generations", headers,
+          payload: { prompt: "A banner", ...input } });
+        expect(response.statusCode).toBe(400);
+      }
+      expect(provider.calls).toHaveLength(0);
+    } finally { await app.close(); }
+  });
+
+  it("does not replay a failed image edit through a cloud fallback", async () => {
+    const { store, headers } = createImageEntitledStore();
+    const primary = new FakeImageGenerationProvider(new GatewayError({ code: "upstream_unavailable", httpStatus: 503,
+      upstreamStatus: 503, message: "Qwen unavailable" }), "qwen-image");
+    const fallback = new FakeImageGenerationProvider();
+    const app = buildGateway({ authMode: "credential", provider: new FakeProvider(), sessionStore: store,
+      imageGenerationProvider: primary, imageGenerationBillingFallbacks: [{ provider: fallback }], logger: false });
+    try {
+      const response = await app.inject({ method: "POST", url: "/gateway/images/generations", headers,
+        payload: { prompt: "Preserve this logo", reference_image: { b64_json: "QUJD" } } });
+      expect(response.statusCode).toBe(503);
+      expect(primary.calls).toHaveLength(1);
+      expect(fallback.calls).toHaveLength(0);
+    } finally { await app.close(); }
+  });
+
+  it("accepts reference bodies above the old 1 MiB limit and rejects bodies above 6 MiB", async () => {
+    const { store, headers } = createImageEntitledStore();
+    const provider = new FakeImageGenerationProvider(undefined, "qwen-image");
+    const app = buildGateway({ authMode: "credential", provider: new FakeProvider(), sessionStore: store,
+      imageGenerationProvider: provider, logger: false });
+    try {
+      const reference = Buffer.alloc(1024 * 1024).toString("base64");
+      const response = await app.inject({ method: "POST", url: "/gateway/images/generations", headers,
+        payload: { prompt: "Edit", reference_image: { b64_json: reference } } });
+      expect(response.statusCode).toBe(200);
+      expect(provider.calls[0]?.request.referenceImage).toBe(reference);
+      const oversized = await app.inject({ method: "POST", url: "/gateway/images/generations", headers,
+        payload: { prompt: "Edit", reference_image: { b64_json: "A".repeat(6 * 1024 * 1024) } } });
+      expect(oversized.statusCode).toBe(413);
+      expect(provider.calls).toHaveLength(1);
+    } finally { await app.close(); }
   });
 
   it("generates images for credentials with image_generation capability", async () => {

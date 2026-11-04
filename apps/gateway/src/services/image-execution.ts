@@ -181,6 +181,10 @@ export async function runImageGenerationWithAbort(
     upstreamModel: string;
   }
 ) {
+  if ((input.request.referenceImage || input.request.size === "1536x512") && provider.providerKind !== "qwen-image") {
+    throw new GatewayError({ code: "invalid_request", httpStatus: 400,
+      message: "Reference-image editing and 1536x512 generation require the Qwen image provider; the request was not replayed as text-only generation." });
+  }
   return Promise.race([
     provider.generate({
       ...input,
@@ -201,6 +205,7 @@ export async function generateImageWithBillingFallbacks(
   let lastError: GatewayError | null = null;
   for (let index = 0; index < input.billingFallbacks.length; index += 1) {
     const fallback = input.billingFallbacks[index];
+    if ((input.parsed.referenceImage || input.parsed.size === "1536x512") && fallback.provider.providerKind !== "qwen-image") continue;
     applyImageAttemptAttribution(request, {
       provider: fallback.provider,
       upstreamModel: fallback.upstreamModel,

@@ -7,7 +7,7 @@ import {
 } from "@codex-gateway/core";
 import sharp from "sharp";
 
-const supportedSizes = ["1024x1024", "1024x1536", "1536x1024", "auto"] as const;
+const supportedSizes = ["1024x1024", "1024x1536", "1536x1024", "1536x512", "auto"] as const;
 const supportedFormats = ["png", "jpeg", "webp"] as const;
 const supportedQualities = ["low", "medium", "high", "auto"] as const;
 const defaultInternalModel = "medcode-image-default";
@@ -15,7 +15,10 @@ const defaultUpstreamModel = "gpt-image-2";
 const defaultImageSize = "1024x1024";
 const defaultImageQuality = "low";
 const defaultOutputFormat = "jpeg";
-const supportedTargetSizes = ["1024x1024", "1080x1080", "1024x1536", "1536x1024"] as const;
+const supportedTargetSizes = ["1024x1024", "1080x1080", "1024x1536", "1536x1024", "1536x512"] as const;
+export const imageRequestBodyLimitBytes = 6 * 1024 * 1024;
+export const maxReferenceBytes = 4 * 1024 * 1024;
+export const qwenQualitySteps = { low: 30, medium: 40, high: 50 } as const;
 
 export type ImageGenerationSize = (typeof supportedSizes)[number];
 export type ImageGenerationOutputFormat = (typeof supportedFormats)[number];
@@ -28,6 +31,8 @@ export interface ImageGenerationRequest {
   size: ImageGenerationSize;
   outputSize: ImageGenerationTargetSize;
   quality: ImageGenerationQuality;
+  qualityDefaulted?: boolean;
+  referenceImage?: string;
   outputFormat: ImageGenerationOutputFormat;
   outputCompression?: number;
   metadata: Record<string, string>;
@@ -49,6 +54,13 @@ export interface ImageGenerationResult {
     mime_type?: string;
   }>;
   usage?: ImageGenerationUsage;
+  generation_parameters?: {
+    size: string;
+    quality: "low" | "medium" | "high";
+    inference_steps: number;
+    reference_images: number;
+    mode: "generate" | "edit";
+  };
 }
 
 export type ImageGenerationProviderKind = Extract<
@@ -159,12 +171,29 @@ export function parseImageGenerationRequest(
     return metadata;
   }
 
+  let referenceImage: string | undefined;
+  if (body.reference_image !== undefined) {
+    const image = body.reference_image;
+    if (!isRecord(image) || typeof image.b64_json !== "string" ||
+        image.b64_json.length === 0 || image.b64_json.length > 4 * Math.ceil(maxReferenceBytes / 3) ||
+        image.b64_json.length % 4 !== 0) {
+      return imageInvalidRequest("reference_image must contain canonical base64 image bytes (at most 4 MiB).");
+    }
+    const bytes = Buffer.from(image.b64_json, "base64");
+    if (bytes.length > maxReferenceBytes || bytes.toString("base64") !== image.b64_json) {
+      return imageInvalidRequest("reference_image exceeds 4 MiB or is not canonical base64.");
+    }
+    referenceImage = image.b64_json;
+  }
+
   return {
     prompt: body.prompt,
     model,
     size: parsedSize.upstreamSize,
     outputSize: parsedSize.outputSize,
     quality: quality as ImageGenerationQuality,
+    ...(body.quality === undefined || body.quality === "auto" ? { qualityDefaulted: true } : {}),
+    ...(referenceImage ? { referenceImage } : {}),
     outputFormat: imageOutputFormat,
     ...(outputCompression === undefined ? {} : { outputCompression }),
     metadata
@@ -195,7 +224,9 @@ export function resolveImageUpstreamModel(
       httpStatus: 400
     });
   }
-  if (!imagePolicy.allowedSizes.includes(request.size)) {
+  // The banner uses fewer pixels than the existing landscape entitlement.
+  if (!imagePolicy.allowedSizes.includes(request.size) &&
+      !(request.size === "1536x512" && imagePolicy.allowedSizes.includes("1536x1024"))) {
     return new GatewayError({
       code: "unsupported_size",
       message: `Unsupported image size: ${request.size}.`,
@@ -252,7 +283,8 @@ export function buildImageGenerationResponse(input: {
       b64_json: item.b64_json,
       mime_type: item.mime_type ?? mimeTypeForFormat(input.request.outputFormat)
     })),
-    ...(input.result.usage ? { usage: input.result.usage } : {})
+    ...(input.result.usage ? { usage: input.result.usage } : {}),
+    ...(input.result.generation_parameters ? { generation_parameters: input.result.generation_parameters } : {})
   };
 }
 
@@ -334,11 +366,12 @@ export class OpenAIImageGenerationProvider implements ImageGenerationProvider {
     request: ImageGenerationRequest;
     upstreamModel: string;
     signal?: AbortSignal;
-  }): Promise<ImageGenerationResult> {
+  }, privateBody?: { image_b64?: string; num_inference_steps: number }): Promise<ImageGenerationResult> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(new Error("upstream_timeout")), this.timeoutMs);
     const abortFromParent = () => controller.abort(input.signal?.reason);
     input.signal?.addEventListener("abort", abortFromParent, { once: true });
+    if (input.signal?.aborted) abortFromParent();
 
     try {
       const response = await fetch(`${this.baseUrl}/v1/images/generations`, {
@@ -353,6 +386,7 @@ export class OpenAIImageGenerationProvider implements ImageGenerationProvider {
           size: input.request.size,
           quality: input.request.quality,
           output_format: input.request.outputFormat,
+          ...privateBody,
           ...(input.request.outputCompression === undefined
             ? {}
             : { output_compression: input.request.outputCompression })
@@ -362,6 +396,10 @@ export class OpenAIImageGenerationProvider implements ImageGenerationProvider {
       const payload = await parseJsonResponse(response);
       if (!response.ok) {
         throw normalizeOpenAIImageError(response.status, payload);
+      }
+      if (privateBody && (!isRecord(payload) || !isRecord(payload.evaluation) ||
+          payload.evaluation.steps !== privateBody.num_inference_steps)) {
+        throw upstreamShapeError();
       }
       return parseOpenAIImageResult(payload, input.request.outputFormat);
     } catch (err) {
@@ -411,20 +449,52 @@ export class QwenImageGenerationProvider implements ImageGenerationProvider {
     this.delegate = new OpenAIImageGenerationProvider(options);
   }
 
-  generate(input: {
+  async generate(input: {
     request: ImageGenerationRequest;
     upstreamModel: string;
     signal?: AbortSignal;
   }): Promise<ImageGenerationResult> {
-    return this.delegate.generate({
+    if (input.request.referenceImage) {
+      try {
+        const source = sharp(Buffer.from(input.request.referenceImage, "base64"), { limitInputPixels: 2048 ** 2 });
+        const info = await source.metadata();
+        if (!info.width || !info.height || !["png", "jpeg", "webp"].includes(info.format ?? "") ||
+            (info.pages ?? 1) !== 1 || info.width * info.height > 2048 ** 2) {
+          throw new Error("Unsupported reference image");
+        }
+        // Decode before sending to the GPU; a valid header alone is insufficient.
+        await source.stats();
+      } catch {
+        throw imageInvalidRequest("reference_image must be a valid, single-frame PNG, JPEG or WebP of at most 4 megapixels.");
+      }
+    }
+    const quality = input.request.qualityDefaulted || input.request.quality === "auto" ? "medium" : input.request.quality;
+    const steps = qwenQualitySteps[quality];
+    const size = input.request.size === "auto" ? "1024x1024" : input.request.size;
+    const result = await this.delegate.generate({
       ...input,
       request: {
         ...input.request,
-        size: input.request.size === "auto" ? "1024x1024" : input.request.size,
+        size,
         outputFormat: "png",
         outputCompression: undefined
       }
-    });
+    }, { num_inference_steps: steps, ...(input.request.referenceImage ? { image_b64: input.request.referenceImage } : {}) });
+    // Reject wrong dimensions rather than stretching an upstream image into a banner.
+    const dimensions = sizeDimensions(size);
+    for (const item of result.data) {
+      try {
+        const image = sharp(Buffer.from(item.b64_json, "base64"), { limitInputPixels: 2048 ** 2 });
+        const info = await image.metadata();
+        if (info.width !== dimensions.width || info.height !== dimensions.height || info.format !== "png") {
+          throw upstreamShapeError();
+        }
+      } catch {
+        throw upstreamShapeError();
+      }
+    }
+    return { ...result, generation_parameters: { size: input.request.outputSize, quality, inference_steps: steps,
+      reference_images: input.request.referenceImage ? 1 : 0, mode: input.request.referenceImage ? "edit" : "generate" } };
   }
 }
 

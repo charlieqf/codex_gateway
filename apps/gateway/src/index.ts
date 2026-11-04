@@ -130,6 +130,9 @@ import {
 import {
   buildImageGenerationResponse,
   finalizeImageGenerationResult,
+  imageRequestBodyLimitBytes,
+  maxReferenceBytes,
+  qwenQualitySteps,
   maxPromptCharsFromEnv,
   parseImageGenerationRequest,
   parseImageModelMap,
@@ -2182,9 +2185,29 @@ export function buildGateway(options: GatewayOptions = {}) {
     }
   );
 
+  app.get("/gateway/images/capabilities", { config: { skipRateLimit: true } }, async (request, reply) => {
+    applyPrivateResponseHeaders(reply);
+    const { subject } = getGatewayContext(request);
+    const access = planEntitlementStore?.entitlementAccessForSubject(subject.id);
+    const policy = access?.status === "active" ? access.entitlement.featurePolicySnapshot : undefined;
+    const qwen = !accountPoolImageBindingDeclared && imageGenerationProvider?.providerKind === "qwen-image";
+    const enabled = Boolean(policy?.capabilities.includes("image_generation") && policy.imageGeneration?.enabled &&
+      policy.imageGeneration.allowedModels.includes("medcode-image-default"));
+    return {
+      model: "medcode-image-default",
+      reference_images: enabled && qwen ? { max_count: 1, max_bytes: maxReferenceBytes,
+        max_pixels: 2048 ** 2, formats: ["png", "jpeg", "webp"] } : null,
+      quality_steps: enabled && qwen ? Object.fromEntries(Object.entries(qwenQualitySteps)
+        .filter(([quality]) => policy?.imageGeneration?.allowedQualities.includes(quality))) : null,
+      banner_size: enabled && qwen && (policy?.imageGeneration?.allowedSizes.includes("1536x1024") ||
+        policy?.imageGeneration?.allowedSizes.includes("1536x512")) ? "1536x512" : null
+    };
+  });
+
   app.post<{ Body: unknown }>(
     "/gateway/images/generations",
     {
+      bodyLimit: imageRequestBodyLimitBytes,
       config: { skipRateLimit: true }
     },
     async (request, reply) => {
@@ -2194,6 +2217,9 @@ export function buildGateway(options: GatewayOptions = {}) {
       });
       if (parsed instanceof GatewayError) {
         return sendImageError(request, reply, parsed);
+      }
+      if (!accountPoolImageBindingDeclared && imageGenerationProvider?.providerKind === "qwen-image" && parsed.qualityDefaulted) {
+        parsed.quality = "medium";
       }
       request.gatewayPublicModelId = parsed.model;
 
