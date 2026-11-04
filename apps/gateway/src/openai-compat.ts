@@ -1,6 +1,9 @@
-import { Ajv, type ErrorObject } from "ajv";
-import { Ajv2019 } from "ajv/dist/2019.js";
-import { Ajv2020 } from "ajv/dist/2020.js";
+import type { ErrorObject } from "ajv";
+import {
+  toolSchemaValidators,
+  ToolSchemaCompilationError,
+  type CompiledToolSchema
+} from "./services/tool-schema-validator.js";
 import { validateVisionInputLimits, visionInputLimitError, visionMaximumImageBytes } from "./services/vision-input-policy.js";
 import {
   beginVisionScan,
@@ -23,19 +26,9 @@ import {
   type GatewayErrorResponseContext
 } from "./http/error-response.js";
 
-const draft7ToolSchemaValidator = new Ajv({
-  allErrors: true,
-  strict: false
-});
-const draft2019ToolSchemaValidator = new Ajv2019({
-  allErrors: true,
-  strict: false
-});
-const draft2020ToolSchemaValidator = new Ajv2020({
-  allErrors: true,
-  strict: false
-});
-type ToolSchemaValidator = typeof draft7ToolSchemaValidator;
+// A live request keeps its compiled validators even after the shared LRU evicts
+// its tool set. Weak keys release them when the request's tools are collected.
+const compiledToolSchemas = new WeakMap<OpenAIChatToolDefinition, CompiledToolSchema>();
 
 export interface OpenAIChatToolCall {
   id: string;
@@ -765,10 +758,6 @@ function parseToolDefinitions(value: unknown): OpenAIChatToolDefinition[] | Gate
       if (!isRecord(item.function.parameters)) {
         return invalidRequest(`${itemPath}.function.parameters must be an object when provided.`);
       }
-      const schemaError = compileSchema(item.function.parameters);
-      if (schemaError) {
-        return invalidRequest(`${itemPath}.function.parameters is not valid JSON Schema: ${schemaError}`);
-      }
       parameters = item.function.parameters;
     }
 
@@ -784,6 +773,21 @@ function parseToolDefinitions(value: unknown): OpenAIChatToolDefinition[] | Gate
     });
   }
 
+  const schemas: Record<string, unknown>[] = [];
+  const toolIndexes: number[] = [];
+  for (const [index, tool] of tools.entries()) {
+    if (tool.function.parameters !== undefined) {
+      schemas.push(tool.function.parameters);
+      toolIndexes.push(index);
+    }
+  }
+  try {
+    const compiled = toolSchemaValidators.getMany(schemas);
+    compiled.forEach((schema, index) => compiledToolSchemas.set(tools[toolIndexes[index]!]!, schema));
+  } catch (error) {
+    if (!(error instanceof ToolSchemaCompilationError)) throw error;
+    return invalidRequest(`tools[${toolIndexes[error.schemaIndex]}].function.parameters is not valid JSON Schema: ${error.message}`);
+  }
   return tools;
 }
 
@@ -994,8 +998,7 @@ export function toolArgumentValidation(
     type: "object",
     additionalProperties: true
   };
-  const { validator, schema: normalizedSchema } = selectToolSchemaValidator(schema);
-  const validate = validator.compile(normalizedSchema);
+  const { validator, validate } = compiledToolSchemas.get(tool) ?? toolSchemaValidators.get(schema);
   if (validate(value)) {
     return null;
   }
@@ -1021,66 +1024,6 @@ function strictToolChoiceInstruction(toolChoice: ChatCompletionToolChoice): stri
     return `- tool_choice requires function.name=${forcedToolName}: return type=tool_calls and call only that tool.`;
   }
   return "- tool_choice=auto: call a tool only when it is needed; otherwise return type=message.";
-}
-
-function compileSchema(schema: Record<string, unknown>): string | null {
-  try {
-    const { validator, schema: normalizedSchema } = selectToolSchemaValidator(schema);
-    validator.compile(normalizedSchema);
-    return null;
-  } catch (err) {
-    return err instanceof Error ? err.message : String(err);
-  }
-}
-
-function selectToolSchemaValidator(schema: Record<string, unknown>): {
-  validator: ToolSchemaValidator;
-  schema: Record<string, unknown>;
-} {
-  const uri = typeof schema.$schema === "string" ? trimSchemaHash(schema.$schema) : null;
-  if (
-    uri === "http://json-schema.org/draft-07/schema" ||
-    uri === "https://json-schema.org/draft-07/schema"
-  ) {
-    return {
-      validator: draft7ToolSchemaValidator,
-      schema: normalizeSchemaUri(schema, "http://json-schema.org/draft-07/schema#")
-    };
-  }
-  if (
-    uri === "http://json-schema.org/draft/2019-09/schema" ||
-    uri === "https://json-schema.org/draft/2019-09/schema"
-  ) {
-    return {
-      validator: draft2019ToolSchemaValidator,
-      schema: normalizeSchemaUri(schema, "https://json-schema.org/draft/2019-09/schema")
-    };
-  }
-  if (
-    uri === "http://json-schema.org/draft/2020-12/schema" ||
-    uri === "https://json-schema.org/draft/2020-12/schema"
-  ) {
-    return {
-      validator: draft2020ToolSchemaValidator,
-      schema: normalizeSchemaUri(schema, "https://json-schema.org/draft/2020-12/schema")
-    };
-  }
-
-  return {
-    validator: draft7ToolSchemaValidator,
-    schema
-  };
-}
-
-function trimSchemaHash(uri: string): string {
-  return uri.endsWith("#") ? uri.slice(0, -1) : uri;
-}
-
-function normalizeSchemaUri(
-  schema: Record<string, unknown>,
-  normalizedUri: string
-): Record<string, unknown> {
-  return schema.$schema === normalizedUri ? schema : { ...schema, $schema: normalizedUri };
 }
 
 function isJsonSerializable(value: unknown): boolean {

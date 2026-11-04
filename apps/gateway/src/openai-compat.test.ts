@@ -4,8 +4,10 @@ import {
   chatMessagesToPrompt,
   parseChatCompletionRequest,
   parseStrictToolDecision,
+  toolArgumentValidation,
   type OpenAIChatToolDefinition
 } from "./openai-compat.js";
+import { toolSchemaValidators, maxToolSchemaCacheEntries } from "./services/tool-schema-validator.js";
 
 const readTool: OpenAIChatToolDefinition = {
   type: "function",
@@ -97,6 +99,46 @@ describe("multimodal chat compatibility", () => {
     );
     expect(excessive).toBeInstanceOf(GatewayError);
     expect((excessive as GatewayError).httpStatus).toBe(413);
+  });
+});
+
+describe("request-local tool schema compilation", () => {
+  const makeRequest = (type = "string") => ({
+    messages: [{ role: "user", content: "Synthetic schema validation." }],
+    tools: [
+      { type: "function", function: { name: "source", parameters: {
+        $id: "urn:request:shared", type: "object", properties: { value: { type } }, required: ["value"]
+      } } },
+      { type: "function", function: { name: "consumer", parameters: { $ref: "urn:request:shared" } } },
+    ],
+  });
+
+  it("validates cross-tool references after cache eviction and while another request reuses the ID", () => {
+    const first = parseChatCompletionRequest(makeRequest(), "goldencode");
+    const second = parseChatCompletionRequest(makeRequest("number"), "goldencode");
+    expect(first).not.toBeInstanceOf(GatewayError);
+    expect(second).not.toBeInstanceOf(GatewayError);
+    if (first instanceof GatewayError || second instanceof GatewayError) return;
+    for (let i = 0; i <= maxToolSchemaCacheEntries; i++) {
+      toolSchemaValidators.get({ type: "object", description: `request-eviction-${i}` });
+    }
+    expect(toolArgumentValidation(first.tools![1]!, { value: "ok" })).toBeNull();
+    expect(toolArgumentValidation(first.tools![1]!, { value: 1 })?.errors[0]?.keyword).toBe("type");
+    expect(toolArgumentValidation(second.tools![1]!, { value: 1 })).toBeNull();
+    expect(toolArgumentValidation(second.tools![1]!, { value: "ok" })?.errors[0]?.keyword).toBe("type");
+    expect(parseStrictToolDecision({
+      text: JSON.stringify({ type: "tool_calls", tool_calls: [{ name: "consumer", arguments: { value: "ok" } }] }),
+      tools: first.tools!, toolChoice: "required", createToolCallId: () => "call_shared"
+    })).not.toBeInstanceOf(GatewayError);
+  });
+
+  it("reports the original tool index when earlier tools have no parameters", () => {
+    const parsed = parseChatCompletionRequest({ messages: [{ role: "user", content: "Validate." }], tools: [
+      { type: "function", function: { name: "empty" } },
+      { type: "function", function: { name: "invalid", parameters: { type: "invalid-type" } } },
+    ] }, "goldencode");
+    expect(parsed).toBeInstanceOf(GatewayError);
+    expect((parsed as GatewayError).message).toContain("tools[1].function.parameters is not valid JSON Schema");
   });
 });
 
