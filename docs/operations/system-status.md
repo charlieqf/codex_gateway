@@ -1,5 +1,17 @@
 # System Status
 
+Gateway `749c5086f74919b1abeda9d1357de9145f8e7b0b` is live as of 2026-11-04T21:51:20.715671+00:00, verified at 2026-11-04T21:54:05.540230+00:00.
+Qwen image requests now support strict 1536x512 banners, one reference image,
+and confirmed 30/40/50-step quality profiles. Two real public image requests,
+capability discovery, large invalid-reference rejection and a text control passed.
+The natural five-minute model/long-task idle window reached 311.888 seconds;
+heartbeat and credential queries were allowed. Clean-image tests: 2,274 passed,
+four skipped. Database integrity, synthetic cleanup, 21 protected files and four
+other containers passed verification; Gateway is healthy with zero restarts/OOM.
+Qwen services, weights and production environment are unchanged. Desktop's
+reference-file/edit-latest controls still require a client release.
+See the [release receipt](./qwen-image-editing-release-2026-11-05.zh-CN.md).
+
 Gateway `3cb59adcf8a4a45dd05fb6bf8ac582f80d57b58d` is live as of
 2026-11-04 20:47:08 UTC (Beijing 2026-11-05 04:47); verified at 20:47:58 UTC.
 Tool-schema validation now bounds retained Ajv compiler graphs by whole tool
