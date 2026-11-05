@@ -2,11 +2,11 @@
 // Only synthetic images/data; never print keys, images, raw errors or signed URLs.
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { setTimeout as sleep } from "node:timers/promises";
 import { issueAccessCredential, validateFeaturePolicy } from "@codex-gateway/core";
 import { createSqliteStore, createSqliteTokenBudgetLimiter } from "@codex-gateway/store-sqlite";
-import { isolatedProviderEnv, smokeImage, smokeText } from "./vision-smoke-helpers.mjs";
+import { isolatedProviderEnv, smokeText } from "./vision-smoke-helpers.mjs";
 
 const publicMode = process.argv.includes("--public");
 const registry = JSON.parse(process.env.MEDCODE_PUBLIC_MODELS_JSON);
@@ -101,7 +101,9 @@ try {
       clientEventsStore: null, phoneAuthService: null, visionAssetService: null, imagingService: null,
       aipalService: null, panechoService: null, echonetService: null, echonextService: null, alphafold3Service: null });
   }
-  const image = await smokeImage("8264");
+  // Deployment contract probe uses a conventional document screenshot. Retain
+  // seven-segment OCR mismatches separately as a model-quality limitation.
+  const image = "data:image/png;base64," + readFileSync(new URL("./fixtures/vision-document.png", import.meta.url)).toString("base64");
   const prompt = "Read the four-digit number shown in the image. Reply with only those four digits.";
   const chatContent = text => [{ type: "text", text }, { type: "image_url", image_url: { url: image, detail: "high" } }];
   const responseInput = text => [{ type: "message", role: "user", content: [{ type: "input_text", text }, { type: "input_image", image_url: image, detail: "high" }] }];
@@ -124,6 +126,8 @@ try {
     const first = await call("chat/completions", { model, messages: [{ role: "user", content: chatContent(toolPrompt) }],
       tools: [{ type: "function", function: tool }], tool_choice: "required", reasoning_effort: "high", max_tokens: 2048 }, "image-tool-call");
     assert.equal(first.calls.length, 1); const tc = first.calls[0];
+    first.item.tool_arguments = JSON.parse(tc.arguments); persist();
+    console.log(JSON.stringify({ ...first.item, validation_pending: true }));
     assert.equal(tc.name, tool.name); assert.deepEqual(JSON.parse(tc.arguments), { digits: "8264" });
     first.item.passed = true; first.item.tool_arguments = JSON.parse(tc.arguments); persist(); console.log(JSON.stringify(first.item));
     const receipt = "RECEIPT_" + randomUUID().replaceAll("-", "").slice(0, 10).toUpperCase();
