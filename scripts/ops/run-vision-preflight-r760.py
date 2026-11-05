@@ -44,6 +44,8 @@ def provider_file_mounts(meta):
 
 def main():
     revision = sys.argv[1]
+    tiankuan = sys.argv[2:] == ["--tiankuan"]
+    assert not sys.argv[2:] or tiankuan, "Unknown preflight option"
     assert re.fullmatch(r"[0-9a-f]{40}", revision)
     os.umask(0o077)
     root = pathlib.Path("/opt/codex-gateway-r760")
@@ -66,13 +68,13 @@ def main():
     # Node 24 does not activate env proxying when NODE_USE_ENV_PROXY is loaded
     # only through --env-file. Match the live process's startup setting explicitly.
     proxy_args = ["--use-env-proxy"] if live_env.get("NODE_USE_ENV_PROXY") == "1" else []
-    args += [image["Id"], *proxy_args, "--env-file=/run/vision-candidate.env",
-             "/app/scripts/ops/deepseek-vision-preflight.mjs", "--responses-control"]
+    args += [image["Id"], *proxy_args, "--env-file=/run/vision-candidate.env"]
+    args += ["/app/scripts/ops/tiankuan-vision-smoke.mjs"] if tiankuan else ["/app/scripts/ops/deepseek-vision-preflight.mjs", "--responses-control"]
     result = {"revision": revision, "image_id": image["Id"], "candidate_sha256": candidate_hash,
               "preflight_rc": None}
     try:
         with (stage / "vision-preflight.log").open("w") as log:
-            returncode = subprocess.run(args, stdout=log, stderr=subprocess.STDOUT, timeout=180).returncode
+            returncode = subprocess.run(args, stdout=log, stderr=subprocess.STDOUT, timeout=600 if tiankuan else 180).returncode
         assert hashlib.sha256(candidate.read_bytes()).hexdigest() == candidate_hash, "Candidate changed during preflight"
         result["preflight_rc"] = returncode
     finally:

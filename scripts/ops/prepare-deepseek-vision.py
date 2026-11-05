@@ -19,7 +19,7 @@ import tempfile
 REGISTRY_KEY = "MEDCODE_PUBLIC_MODELS_JSON"
 
 
-def prepare_env(original):
+def prepare_env(original, tiankuan=False):
     lines = original.decode("utf-8").splitlines(keepends=True)
     entries = [i for i, line in enumerate(lines) if line.startswith(REGISTRY_KEY + "=")]
     if len(entries) != 1:
@@ -39,6 +39,30 @@ def prepare_env(original):
         raise ValueError("Both cloud models must already exist")
     if source.get("enabled", True) is not True or target.get("enabled", True) is not True:
         raise ValueError("Both cloud models must be enabled")
+    if tiankuan:
+        members = [m for m in target.get("pool", {}).get("members", [])
+                   if m.get("runtime") == "tiankuan" and m.get("enabled", True)]
+        if len(members) != 1 or members[0].get("upstreamModel") != "deepseek-v4.1-flash":
+            raise ValueError("Expected the verified TianKuan DeepSeek V4.1 Flash member")
+        proposed = copy.deepcopy(registry)
+        for model in ("goldencode", "goldencode-d"):
+            vision = proposed[model].get("vision")
+            if not isinstance(vision, dict) or vision.get("enabled", True) is not True:
+                raise ValueError("Both cloud models must already have enabled vision")
+            if vision.get("runtime") not in ("xai", "tiankuan"):
+                raise ValueError("Unexpected existing vision provider")
+            for key in ("contextWindow", "maxOutputTokens"):
+                if type(vision.get(key)) is not int or vision[key] <= 0:
+                    raise ValueError("Existing vision limits must be positive integers")
+            vision.update(runtime="tiankuan", upstreamModel=members[0]["upstreamModel"])
+        if any(m.get("enabled", True) and m.get("vision", {}).get("enabled", True) and
+               m.get("vision", {}).get("runtime") == "xai" for m in proposed.values()):
+            raise ValueError("Another enabled xAI vision route needs explicit migration")
+        if proposed == registry:
+            return original, False
+        ending = "\r\n" if lines[index].endswith("\r\n") else "\n" if lines[index].endswith("\n") else ""
+        lines[index] = REGISTRY_KEY + "=" + json.dumps(proposed, ensure_ascii=True, separators=(",", ":")) + ending
+        return "".join(lines).encode("utf-8"), True
     vision = copy.deepcopy(source.get("vision"))
     if not isinstance(vision, dict) or vision.get("runtime") != "xai" or vision.get("enabled", True) is not True:
         raise ValueError("The source must have an enabled xAI vision route")
@@ -62,16 +86,17 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--env-file", type=pathlib.Path, required=True)
     parser.add_argument("--output", type=pathlib.Path)
+    parser.add_argument("--tiankuan", action="store_true", help="Switch both cloud vision routes to the verified TianKuan member")
     args = parser.parse_args()
     original = args.env_file.read_bytes()
     try:
-        proposed, changed = prepare_env(original)
+        proposed, changed = prepare_env(original, tiankuan=args.tiankuan)
     except (ValueError, TypeError, KeyError):
         # JSON parse errors may include secret-bearing input; never emit them.
         parser.exit(1, "Registry validation failed; source unchanged.\n")
     if args.output:
         write_candidate(args.output, proposed)
-    print(json.dumps({"changed": changed, "changed_field": "goldencode-d.vision" if changed else None,
+    print(json.dumps({"changed": changed, "changed_field": ("cloud_models.vision" if args.tiankuan else "goldencode-d.vision") if changed else None,
                       "source_sha256": hashlib.sha256(original).hexdigest(),
                       "proposed_sha256": hashlib.sha256(proposed).hexdigest(),
                       "candidate_written": args.output is not None, "activated": False}))

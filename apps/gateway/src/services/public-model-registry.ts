@@ -42,7 +42,7 @@ export interface PublicModelPoolConfig {
 }
 
 export interface PublicModelVisionConfig {
-  runtime: "xai";
+  runtime: "xai" | "tiankuan";
   upstreamModel: string;
   contextWindow: number;
   maxOutputTokens: number;
@@ -432,8 +432,8 @@ function parseVisionConfig(
   if (!isRecord(value)) {
     throw new Error(`Public model '${id}' vision must be a JSON object.`);
   }
-  if (value.runtime !== "xai") {
-    throw new Error(`Public model '${id}' vision.runtime must be xai.`);
+  if (value.runtime !== "xai" && value.runtime !== "tiankuan") {
+    throw new Error(`Public model '${id}' vision.runtime must be xai or tiankuan.`);
   }
   const upstreamModel = parseOptionalString(value.upstreamModel ?? value.upstream_model);
   if (!upstreamModel) {
@@ -445,7 +445,7 @@ function parseVisionConfig(
     `public model '${id}' vision.reasoning`
   );
   return {
-    runtime: "xai",
+    runtime: value.runtime,
     upstreamModel,
     contextWindow: parsePositiveInteger(
       value.contextWindow ?? value.context_window,

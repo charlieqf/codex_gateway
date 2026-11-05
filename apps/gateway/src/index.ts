@@ -257,7 +257,7 @@ import {
   createTencentAdapters,
   createTiankuanAdapters,
   createTokenSwitchAdapters,
-  createXaiVisionAdapters,
+  createVisionAdapters,
   localOpenAIInferenceHealth,
   localOpenAIInferenceRequiredForReadiness
 } from "./runtime/chat-providers.js";
@@ -459,7 +459,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     process.env,
     app.log
   );
-  const xaiVisionAdapters = createXaiVisionAdapters(
+  const visionAdapters = createVisionAdapters(
     publicModelRegistry.models,
     process.env,
     app.log
@@ -486,7 +486,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     tiankuanAdapterForModel: (model) => tiankuanAdapters.get(model.id) ?? null,
     tokenSwitchAdapterForModel: (model) => tokenSwitchAdapters.get(model.id) ?? null,
     localOpenAIAdapterForModel: (model) => localOpenAIAdapters.get(model.id) ?? null,
-    xaiVisionAdapterForModel: (model) => xaiVisionAdapters.get(model.id) ?? null,
+    visionAdapterForModel: (model) => visionAdapters.get(model.id) ?? null,
     poolRouterForModel: (model) => publicModelPoolRouters.get(model.id) ?? null
   });
   const openRouterAvailable = openRouterAdapters.size > 0;
@@ -929,7 +929,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       const allowedVisionModel = publicModelRegistry.models.some(
         (model) =>
           model.vision?.enabled === true &&
-          xaiVisionAdapters.has(model.id) &&
+          visionAdapters.has(model.id) &&
           credentialAllowsPublicModel(
             context.credential.allowedPublicModels,
             model.id,

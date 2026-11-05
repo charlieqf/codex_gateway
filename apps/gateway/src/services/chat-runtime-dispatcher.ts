@@ -82,7 +82,7 @@ export interface ChatRuntimeDispatcherInput {
   tiankuanAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
   tokenSwitchAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
   localOpenAIAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
-  xaiVisionAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
+  visionAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
   poolRouterForModel?: (model: PublicModelConfig) => UpstreamAccountRouter | null;
   openRouterAccount?: UpstreamAccount;
   qianfanAccount?: UpstreamAccount;
@@ -91,7 +91,7 @@ export interface ChatRuntimeDispatcherInput {
   tiankuanAccount?: UpstreamAccount;
   tokenSwitchAccount?: UpstreamAccount;
   localOpenAIAccount?: UpstreamAccount;
-  xaiVisionAccount?: UpstreamAccount;
+  visionAccountForModel?: (model: PublicModelConfig) => UpstreamAccount;
 }
 
 export function createChatRuntimeDispatcher(
@@ -192,7 +192,7 @@ function beginVisionRuntime(
       httpStatus: 400
     });
   }
-  const adapter = dispatcherInput.xaiVisionAdapterForModel?.(input.model) ?? null;
+  const adapter = dispatcherInput.visionAdapterForModel?.(input.model) ?? null;
   if (!adapter) {
     return new GatewayError({
       code: "service_unavailable",
@@ -201,11 +201,11 @@ function beginVisionRuntime(
       retryAfterSeconds: 30
     });
   }
-  const virtualAccount = dispatcherInput.xaiVisionAccount ?? defaultXaiVisionVirtualAccount();
+  const virtualAccount = dispatcherInput.visionAccountForModel?.(input.model) ?? defaultVisionVirtualAccount(vision.runtime);
   const session = input.createSession(input.subject.id, virtualAccount.id);
   return {
     publicModelId: input.model.id,
-    runtime: "xai",
+    runtime: vision.runtime,
     runtimeInstanceId: virtualAccount.id,
     providerKind: virtualAccount.provider,
     upstreamModel: vision.upstreamModel,
@@ -486,12 +486,12 @@ function defaultLocalOpenAIVirtualAccount(): UpstreamAccount {
   };
 }
 
-function defaultXaiVisionVirtualAccount(): UpstreamAccount {
+function defaultVisionVirtualAccount(runtime: "xai" | "tiankuan"): UpstreamAccount {
   return {
-    id: "xai-vision-main",
-    provider: "xai",
-    label: "xAI Vision Main",
-    credentialRef: "VISION:XAI",
+    id: `${runtime}-vision-main`,
+    provider: runtime,
+    label: `${runtime} Vision Main`,
+    credentialRef: `VISION:${runtime.toUpperCase()}`,
     state: "active",
     lastUsedAt: null,
     cooldownUntil: null

@@ -7994,7 +7994,7 @@ describe("gateway phase 1 routes", () => {
     });
   });
 
-  it("routes GoldenCode images to xAI while pure text remains in the GLM-5.2 pool", async () => {
+  it.each(["xai", "tiankuan"] as const)("routes GoldenCode images to %s while pure text remains in the GLM-5.2 pool", async (visionRuntime) => {
     const captured: CapturedOpenAICompatibleRequest[] = [];
     const upstream = await startOpenAICompatibleCaptureServer("vision-or-text-ok", captured);
     const tempDir = mkdtempSync(path.join(tmpdir(), "codex-gateway-xai-vision-"));
@@ -8013,8 +8013,8 @@ describe("gateway phase 1 routes", () => {
       goldencode: {
         ...productionPool,
         vision: {
-          runtime: "xai",
-          upstreamModel: "grok-4.5",
+          runtime: visionRuntime,
+          upstreamModel: visionRuntime === "xai" ? "grok-4.5" : "deepseek-v4.1-flash",
           contextWindow: 200000,
           maxOutputTokens: 128000,
           reasoning: { effort: "medium" },
@@ -8034,6 +8034,8 @@ describe("gateway phase 1 routes", () => {
           MEDCODE_VISION_XAI_API_KEY: undefined,
           MEDCODE_VISION_XAI_API_KEY_FILE: undefined,
           MEDCODE_VISION_XAI_BASE_URL: upstream.baseUrl,
+          MEDCODE_TIANKUAN_API_KEY: "tiankuan-test-key",
+          MEDCODE_TIANKUAN_BASE_URL: upstream.baseUrl,
           MEDCODE_IMAGE_BILLING_FALLBACK_KEYS_FILE: fallbackKeysFile
         },
         async () => {
@@ -8079,8 +8081,8 @@ describe("gateway phase 1 routes", () => {
             expect(text.statusCode).toBe(200);
             expect(captured).toHaveLength(2);
             expect(captured[0].body).toMatchObject({
-              model: "grok-4.5",
-              store: false
+              model: visionRuntime === "xai" ? "grok-4.5" : "deepseek-v4.1-flash",
+              ...(visionRuntime === "xai" ? { store: false } : { thinking: { type: "enabled" }, reasoning_effort: "medium" })
             });
             const visionMessages = captured[0].body.messages as Array<{
               role: string;
@@ -8114,7 +8116,7 @@ describe("gateway phase 1 routes", () => {
     }
   });
 
-  it("registers the authenticated vision asset broker for vision-capable GoldenCode users", async () => {
+  it.each(["xai", "tiankuan"] as const)("registers the authenticated vision asset broker for %s vision users", async (visionRuntime) => {
     const longAssetId = `va1.${"a".repeat(300)}.signature`;
     const productionPool = goldencodePoolConfig();
     productionPool.pool.requireAllMembers = false;
@@ -8122,8 +8124,8 @@ describe("gateway phase 1 routes", () => {
       goldencode: {
         ...productionPool,
         vision: {
-          runtime: "xai",
-          upstreamModel: "grok-4.5",
+          runtime: visionRuntime,
+          upstreamModel: visionRuntime === "xai" ? "grok-4.5" : "deepseek-v4.1-flash",
           contextWindow: 200000,
           maxOutputTokens: 128000,
           enabled: true
@@ -8175,7 +8177,8 @@ describe("gateway phase 1 routes", () => {
         MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(registry),
         MEDCODE_TENCENT_TOKENHUB_API_KEY: "provider-test-key",
         MEDCODE_TOKENSWITCH_API_KEY: undefined,
-        MEDCODE_VISION_XAI_API_KEY: "xai-test-key"
+        MEDCODE_VISION_XAI_API_KEY: "xai-test-key",
+        MEDCODE_TIANKUAN_API_KEY: "tiankuan-test-key"
       },
       async () => {
         const app = buildGateway({

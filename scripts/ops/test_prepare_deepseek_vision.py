@@ -99,6 +99,23 @@ class PrepareVisionTest(unittest.TestCase):
             self.assertFalse(candidate.exists())
             self.assertEqual(list(pathlib.Path(folder).iterdir()), [])
 
+    def test_tiankuan_switch_preserves_text_limits_and_other_env(self):
+        self.registry["goldencode-d"]["pool"]["members"] = [{"runtime": "tiankuan", "upstreamModel": "deepseek-v4.1-flash"}]
+        self.registry["goldencode-d"]["vision"] = copy.deepcopy(self.registry["goldencode"]["vision"])
+        original = self.env()
+        result, changed = prepare.prepare_env(original, tiankuan=True)
+        self.assertTrue(changed)
+        expected = copy.deepcopy(self.registry)
+        for model in ("goldencode", "goldencode-d"):
+            expected[model]["vision"].update(runtime="tiankuan", upstreamModel="deepseek-v4.1-flash")
+        self.assertEqual(json.loads(result.splitlines()[2].split(b"=", 1)[1]), expected)
+        self.assertEqual(result.splitlines()[:2] + result.splitlines()[3:], original.splitlines()[:2] + original.splitlines()[3:])
+        self.assertEqual(prepare.prepare_env(result, tiankuan=True), (result, False))
+
+    def test_tiankuan_switch_rejects_unverified_member(self):
+        with self.assertRaises(ValueError):
+            prepare.prepare_env(self.env(), tiankuan=True)
+
 
 if __name__ == "__main__":
     unittest.main()

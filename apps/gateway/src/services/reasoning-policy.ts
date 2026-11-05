@@ -140,8 +140,8 @@ function supportedReasoningEffortsForModel(
   if (configured) {
     return { values: configured };
   }
-  // Vision is dispatched to xAI regardless of the model's text runtime.
-  if (modality === "vision" && model.vision?.runtime === "xai") {
+  // Vision capabilities are independent of the model's text runtime.
+  if (modality === "vision" && model.vision?.enabled) {
     return { values: standardRequestReasoningEfforts };
   }
   if (isMaxReasoningModel(model)) {

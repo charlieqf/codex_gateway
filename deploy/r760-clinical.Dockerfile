@@ -12,6 +12,8 @@ ARG GATEWAY_REVISION
 USER root
 COPY --from=verify /app/apps/gateway /app/apps/gateway
 COPY --from=verify /app/packages /app/packages
+COPY --from=verify /app/scripts/ops/tiankuan-vision-smoke.mjs /app/scripts/ops/tiankuan-vision-smoke.mjs
+COPY --from=verify /app/scripts/ops/vision-smoke-helpers.mjs /app/scripts/ops/vision-smoke-helpers.mjs
 LABEL org.opencontainers.image.revision="${GATEWAY_REVISION}"
 RUN chmod -R a=rX /app/apps/gateway /app/packages
 USER codexgw

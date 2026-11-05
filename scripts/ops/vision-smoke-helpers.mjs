@@ -15,12 +15,14 @@ export function isolatedProviderEnv(source) {
   return env;
 }
 
-export async function smokeImage() {
+export async function smokeImage(number = "7319") {
   const { default: sharp } = await import("sharp");
   // Seven-segment digits need no fonts in the runtime image.
   const segments = [[12, 0, 66, 12], [78, 12, 12, 66], [78, 90, 12, 66],
     [12, 156, 66, 12], [0, 90, 12, 66], [0, 12, 12, 66], [12, 78, 66, 12]];
-  const digits = ["abc", "abcdg", "bc", "abcdfg"].map((enabled, index) => [...enabled].map(letter => {
+  const patterns = ["abcdef", "bc", "abdeg", "abcdg", "bcfg", "acdfg", "acdefg", "abc", "abcdefg", "abcdfg"];
+  if (!/^\d{4}$/.test(number)) throw new Error("Expected four synthetic digits");
+  const digits = [...number].map(digit => patterns[Number(digit)]).map((enabled, index) => [...enabled].map(letter => {
     const [x, y, width, height] = segments[letter.charCodeAt(0) - 97];
     return `<rect x="${60 + index * 130 + x}" y="${150 + y}" width="${width}" height="${height}" fill="black"/>`;
   }).join("")).join("");

@@ -110,11 +110,11 @@ describe("chat runtime dispatcher pool runtime", () => {
     });
   });
 
-  it("routes image input only to the configured xAI vision runtime", () => {
+  it.each(["xai", "tiankuan"] as const)("routes image input only to the configured %s vision runtime", (runtime) => {
     const model = goldencodeModel();
     model.vision = {
-      runtime: "xai",
-      upstreamModel: "grok-4.5",
+      runtime,
+      upstreamModel: runtime === "xai" ? "grok-4.5" : "deepseek-v4.1-flash",
       contextWindow: 200000,
       maxOutputTokens: 128000,
       reasoning: { effort: "medium" },
@@ -125,7 +125,7 @@ describe("chat runtime dispatcher pool runtime", () => {
       codexRouter: poolRouter(model),
       openRouterAdapterForModel: () => null,
       poolRouterForModel: () => poolRouter(model),
-      xaiVisionAdapterForModel: () => visionProvider
+      visionAdapterForModel: () => visionProvider
     });
 
     const vision = dispatcher.begin({
@@ -142,10 +142,10 @@ describe("chat runtime dispatcher pool runtime", () => {
     expect(vision).not.toBeInstanceOf(GatewayError);
     if (vision instanceof GatewayError) throw vision;
     expect(vision).toMatchObject({
-      runtime: "xai",
-      runtimeInstanceId: "xai-vision-main",
-      providerKind: "xai",
-      upstreamModel: "grok-4.5",
+      runtime,
+      runtimeInstanceId: `${runtime}-vision-main`,
+      providerKind: runtime,
+      upstreamModel: model.vision.upstreamModel,
       reasoningEffort: "medium",
       adapter: visionProvider,
       limits: { contextWindow: 200000, maxOutputTokens: 128000 }
@@ -154,10 +154,10 @@ describe("chat runtime dispatcher pool runtime", () => {
     vision.release();
   });
 
-  it("fails vision when xAI is unavailable instead of falling back to text", () => {
+  it.each(["xai", "tiankuan"] as const)("fails vision when %s is unavailable instead of falling back", (runtime) => {
     const model = goldencodeModel();
     model.vision = {
-      runtime: "xai",
+      runtime,
       upstreamModel: "grok-4.5",
       contextWindow: 200000,
       maxOutputTokens: 128000,
@@ -167,7 +167,7 @@ describe("chat runtime dispatcher pool runtime", () => {
       codexRouter: poolRouter(model),
       openRouterAdapterForModel: () => null,
       poolRouterForModel: () => poolRouter(model),
-      xaiVisionAdapterForModel: () => null
+      visionAdapterForModel: () => null
     });
 
     const result = dispatcher.begin({
