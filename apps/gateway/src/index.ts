@@ -186,6 +186,7 @@ import { emptyResponseCharge } from "./services/empty-response-policy.js";
 import { VisionRequestRecovery, visionRecoveryRequestHeader } from "./services/vision-request-recovery.js";
 import { visionDefaultRequestBodyBytes, visionInputLimitError } from "./services/vision-input-policy.js";
 import { beginVisionObservation, visionObservationSnapshot } from "./services/vision-observation.js";
+import { resolveVisionFingerprinter } from "./services/vision-fingerprints.js";
 import { resolveProviderApiKey } from "./services/provider-secret.js";
 import {
   resolveVisionAssetService,
@@ -698,6 +699,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     "MEDCODE_IMAGE_REQUEST_TIMEOUT_MS"
   );
   const requireEntitlement = process.env.GATEWAY_REQUIRE_ENTITLEMENT === "1";
+  const visionFingerprinter = resolveVisionFingerprinter(process.env);
   const visionAssetService =
     options.visionAssetService === undefined
       ? resolveVisionAssetService(process.env, { now: clock })
@@ -3406,6 +3408,11 @@ export function buildGateway(options: GatewayOptions = {}) {
       visionObservation
     );
     request.gatewayVisionObservation = visionObservationSnapshot(visionObservation);
+    if (visionObservation.entries.length && request.gatewayContext) {
+      request.gatewayVisionObservation.fingerprints = visionFingerprinter.snapshot(visionObservation, {
+        subjectId: request.gatewayContext.subject.id, sessionId: request.gatewayClientSessionId, requestId: request.id
+      });
+    }
     if (parsed instanceof GatewayError) {
       return sendOpenAIError(request, reply, parsed);
     }
@@ -3439,7 +3446,13 @@ export function buildGateway(options: GatewayOptions = {}) {
     // Filled while parsing, so the counts are recorded on the rejection path too.
     const visionObservation = beginVisionObservation();
     const parsed = parseResponsesRequest(request.body, undefined, visionObservation);
+    if (!(parsed instanceof GatewayError)) applyClientTurnHeaders(request, parsed.promptCacheKey);
     request.gatewayVisionObservation = visionObservationSnapshot(visionObservation);
+    if (visionObservation.entries.length && request.gatewayContext) {
+      request.gatewayVisionObservation.fingerprints = visionFingerprinter.snapshot(visionObservation, {
+        subjectId: request.gatewayContext.subject.id, sessionId: request.gatewayClientSessionId, requestId: request.id
+      });
+    }
     if (parsed instanceof GatewayError) {
       return sendOpenAIError(request, reply, parsed);
     }

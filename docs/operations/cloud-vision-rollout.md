@@ -1,7 +1,7 @@
 # R760 cloud vision enablement and subsequent updates
 
 Use this procedure for an authorized Gateway release that enables or preserves
-the shared GLM/DeepSeek xAI route. Follow [container deployment](./container-deploy.md)
+the shared GLM/DeepSeek vision route. Follow [container deployment](./container-deploy.md)
 for source reconciliation, immutable image build, drain, rollback and final verification.
 Run the commands below on R760 as root. Never print or commit candidate env files.
 
@@ -133,3 +133,46 @@ pending reservations. Audit rows remain. If smoke fails, still copy its report a
 verify cleanup before diagnosing; do not blindly repeat it or claim rollout success.
 Finish with exact live revision/current/previous checks, health/restarts/ports,
 SQLite integrity/FKs, sanitized logs, then update system status and a release receipt.
+
+## Full TianKuan switch and repeat-image telemetry (2026-11-05)
+
+For the authorized complete replacement, add `--tiankuan` to both candidate preparation
+and preflight. This changes **both** cloud vision routes to TianKuan
+`deepseek-v4.1-flash`, preserving text routes, reasoning policy and limits. Build with
+`deploy/r760-clinical.Dockerfile`, which installs `tiankuan-vision-smoke.mjs` and its
+document fixture. The TianKuan preflight requires all 16 checks. The legacy deployment
+helper above only implements the older xAI copy; use the reviewed release-specific
+cutover with `prepare_env(original_env, tiankuan=True)` and exact candidate equality.
+Retain the 30-second natural-idle gate and bounded drain/rollback procedure.
+Public verification runs `tiankuan-vision-smoke.mjs --public`; it checks both API forms,
+streaming, history, tool continuation, token accounting and persisted image fingerprints.
+The document fixture is a deployment contract test, not broad model-quality proof;
+the earlier seven-segment 8264 fixture produced occasional OCR/tool-argument errors.
+
+Repeat-image statistics extend existing `vision_observation_json` and attempt JSON;
+no database migration is needed. Fingerprints are HMAC-scoped to subject and client
+session (request scope if missing), never raw image bytes, URLs or object paths.
+The default stable key is purpose-derived from the protected R2 credential; optional
+`GATEWAY_VISION_OBSERVATION_HMAC_SECRET` overrides it (minimum 32 characters).
+Without either, a random process key is explicitly marked; key generations are never
+joined. R2 credential rotation therefore starts a new statistics generation.
+Renewed signatures match only within the configured immutable R2 asset namespace;
+arbitrary URL queries are retained. Inline and URL forms, reuploads, and recompressed
+images are not joined. Rejected/large requests have explicit scan/omission counts.
+
+On the R760 host, query the mounted Gateway database read-only:
+
+```bash
+python3 -B "$RELEASE/scripts/ops/vision-repeat-stats.py" \
+  --db /data/docker/volumes/codex_gateway_r760_gateway_state/_data/gateway.db \
+  --since '2026-11-05T00:00:00Z'
+```
+
+Resolve the actual `/var/lib/codex-gateway` mount source from the live container before
+using the example database path. The report separates internal duplicates, repeated
+identities across requests, same/different client message IDs, failure retries and
+contract recovery attempts. Attempt image counts describe attempted input, not proof
+of upload or billing. Token totals cover entire image-bearing requests. First-seen is
+limited to the query window; old events cannot retrospectively gain fingerprints.
+Same-message repeats can be valid tool continuations; repetition alone is not waste.
+No image payload removal or deduplication is enabled by this telemetry change.

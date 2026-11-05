@@ -1057,7 +1057,9 @@ describe("SqliteGatewayStore", () => {
         imagesOutsideLastUserMessage: 2,
         lastUserMessagePresent: true,
         detailCounts: { high: 2, low: 0, auto: 0, unspecified: 1 },
-        duplicateWireEntryCount: 1
+        duplicateWireEntryCount: 1,
+        fingerprints: { version: 1, keyId: "key", keySource: "configured", scope: "session", scopeId: "scope",
+          omittedEntries: 0, entries: [{ id: "digest", source: "content", container: 0, inLastUserMessage: false, detail: "high" }] }
       }
     });
 
@@ -1067,7 +1069,8 @@ describe("SqliteGatewayStore", () => {
           completeness: "complete",
           wireImageCount: 3,
           imagesOutsideLastUserMessage: 2,
-          duplicateWireEntryCount: 1
+          duplicateWireEntryCount: 1,
+          fingerprints: { scope: "session", entries: [{ id: "digest", source: "content" }] }
         },
         requestId: "req_1",
         credentialId: "cred_1",

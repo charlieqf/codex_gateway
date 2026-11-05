@@ -27,6 +27,7 @@ const store = createSqliteStore({ path: dbPath }), db = store.database;
 const report = { run, public: publicMode, at: new Date().toISOString(), checks: [] };
 const persist = () => { if (publicMode) writeFileSync("/tmp/tiankuan-vision-public-smoke.json", JSON.stringify(report, null, 2), { mode: 0o600 }); };
 let app, issued, entitlement, failure;
+let firstFingerprint;
 const headers = () => ({ authorization: "Bearer " + issued.token, "content-type": "application/json",
   "x-medevidence-client-version": "2.0.0-beta.126", "x-medcode-client-session-id": run,
   "x-medcode-request-timeout-ms": "90000", "x-medcode-vision-recovery-contract": "1" });
@@ -65,6 +66,21 @@ async function call(api, payload, label, vision = true) {
   if (vision) {
     assert.equal(event.upstreamRuntime, "tiankuan"); assert.equal(event.provider, "tiankuan");
     assert.equal(event.upstreamModel, "deepseek-v4.1-flash");
+    const observation = event.visionObservation, fingerprints = observation?.fingerprints;
+    assert.equal(fingerprints?.scope, "session");
+    assert.equal(fingerprints.omittedEntries, 0);
+    assert.equal(fingerprints.entries.length, observation.wireImageCount);
+    assert(event.upstreamAttempts.length > 0);
+    assert(event.upstreamAttempts.every(attempt => attempt.inputImageCount === observation.wireImageCount));
+    for (const entry of fingerprints.entries) {
+      assert.equal(entry.source, "content");
+      firstFingerprint ??= entry.id;
+      assert.equal(entry.id, firstFingerprint);
+    }
+    if (publicMode) assert.equal(fingerprints.keySource, "r2-derived");
+    Object.assign(item, { fingerprint_entries: fingerprints.entries.length,
+      fingerprint_key_source: fingerprints.keySource, repeat_identity_verified: true,
+      within_request_duplicates: observation.duplicateWireEntryCount });
   }
   assert(event.totalTokens > 0);
   const ledger = db.prepare("SELECT final_total_tokens,finalized_at FROM token_reservations WHERE subject_id=? AND request_id=?").get(subject, requestId);
@@ -121,6 +137,7 @@ try {
     }
     const history = [{ role: "user", content: chatContent(prompt) }, { role: "assistant", content: "Image received." },
       { role: "user", content: "Read the earlier image again and return its digits in reverse order. Answer with only four digits." }];
+    if (model === "goldencode") history[0].content.push({ type: "image_url", image_url: { url: image, detail: "high" } });
     passed(await call("chat/completions", { model, messages: history, reasoning_effort: "high", max_tokens: 2048 }, "historical-image-followup"), "4628");
     const toolPrompt = "Read the image and call record_digits with the digits. When its tool result is present, reply with only the exact receipt from that result and do not call again.";
     const first = await call("chat/completions", { model, messages: [{ role: "user", content: chatContent(toolPrompt) }],

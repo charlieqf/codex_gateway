@@ -274,6 +274,8 @@ export interface RequestEventRecord {
 export type RequestTokenUsageSource = "provider" | "estimate" | "reserve" | "none";
 
 export interface UpstreamAttemptSummary {
+  /** Image entries in the attempted provider input; does not prove upstream receipt/billing. */
+  inputImageCount?: number;
   visionRecovery?: {
     imageCount: number; callsUsed: number; maximumCalls: number;
     contentDelivered: boolean; stopReason: string | null;
@@ -582,4 +584,20 @@ export interface VisionObservationSnapshot {
   detailCounts: { high: number; low: number; auto: number; unspecified: number } | null;
   /** Wire entries minus distinct (url, detail) pairs. Entry equality, not proven content identity. */
   duplicateWireEntryCount: number | null;
+  /** Privacy-scoped identities; equality is content for inline images, URL/asset identity otherwise. */
+  fingerprints?: {
+    version: 1;
+    keyId: string;
+    keySource: "configured" | "r2-derived" | "process";
+    scope: "session" | "request";
+    scopeId: string;
+    omittedEntries: number;
+    entries: Array<{
+      id: string;
+      source: "content" | "asset-url" | "exact-url";
+      container: number;
+      inLastUserMessage: boolean;
+      detail: string | null;
+    }>;
+  };
 }

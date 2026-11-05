@@ -145,6 +145,8 @@ export function markProviderStreamSummary(
   request.gatewayUpstreamAttemptCount = summary.attempts.length;
   const vision = request.gatewayVisionRecovery?.snapshot();
   request.gatewayUpstreamAttempts = summary.attempts.map((attempt, index) => ({ ...attempt,
+    // Vision retries and native tool repair retain the same image input.
+    ...(vision ? { inputImageCount: vision.image_count } : {}),
     ...(vision && index === summary.attempts.length - 1 ? { visionRecovery: {
       imageCount: vision.image_count, callsUsed: vision.attempts, maximumCalls: vision.maximum_attempts,
       contentDelivered: vision.content_delivered, stopReason: vision.stop_reason

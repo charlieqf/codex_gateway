@@ -7898,6 +7898,7 @@ describe("gateway phase 1 routes", () => {
         upstreamRecoveryAttemptCount: 0, totalTokens: 12 });
       expect(events[0].upstreamAttempts?.at(-1)).toMatchObject({ purpose: "failure_retry",
         visionRecovery: { imageCount: 4, callsUsed: 2, maximumCalls: 2, contentDelivered: true, stopReason: null } });
+      expect(events[0].upstreamAttempts?.map(attempt => attempt.inputImageCount)).toEqual([4, 4]);
     });
   });
 
