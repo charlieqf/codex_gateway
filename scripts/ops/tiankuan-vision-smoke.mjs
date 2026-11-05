@@ -74,8 +74,10 @@ async function call(api, payload, label, vision = true) {
   return { text: smokeText(api, !!payload.stream, frames), calls, item };
 }
 function passed(result, expected) {
-  assert.equal(result.text.trim(), expected);
-  result.item.passed = true; result.item.synthetic_answer = result.text.trim(); persist();
+  result.item.passed = result.text.trim() === expected;
+  result.item.synthetic_answer = result.text.trim().slice(0, 120);
+  result.item.expected_answer = expected;
+  persist();
   console.log(JSON.stringify(result.item));
 }
 try {
@@ -115,7 +117,7 @@ try {
       assert.equal(result.item.reasoning_effort, effort === "max" ? "high" : effort === "none" ? "low" : effort);
       passed(result, "8264");
     }
-    const history = [{ role: "user", content: chatContent(prompt) }, { role: "assistant", content: "8264" },
+    const history = [{ role: "user", content: chatContent(prompt) }, { role: "assistant", content: "Image received." },
       { role: "user", content: "Read the earlier image again and return its digits in reverse order. Answer with only four digits." }];
     passed(await call("chat/completions", { model, messages: history, reasoning_effort: "high", max_tokens: 2048 }, "historical-image-followup"), "4628");
     const toolPrompt = "Read the image and call record_digits with the digits. When its tool result is present, reply with only the exact receipt from that result and do not call again.";
@@ -136,6 +138,7 @@ try {
   assert(report.checks.every(item => item.passed));
 } catch (error) {
   failure = { name: error.name, code: error.code ?? null,
+    actual: typeof error.actual === "string" ? error.actual.slice(0, 120) : null,
     location: error.stack?.split("\n").find(line => line.includes("tiankuan-vision-smoke.mjs:"))?.trim() };
 } finally {
   if (issued) store.revokeAccessCredentialByPrefix(issued.record.prefix);
