@@ -1,5 +1,20 @@
 # System Status
 
+Gateway `e4b98f36a35d8a9b9057d45f01074c184b0942f6` is live as of
+2026-11-05 10:17:14 UTC; verification completed at 10:18:40 UTC.
+Both cloud models now send image-understanding requests exclusively to TianKuan
+`deepseek-v4.1-flash`. Scoped image fingerprints and per-attempt image counts are
+persisted for repeat-image statistics; payload deduplication is not enabled.
+Clean-image tests: 2,286 passed, four skipped. All 16 isolated and 16 public checks
+passed, including both APIs, streaming, image history, tools, ledger and telemetry.
+Synthetic telemetry correctly counted one internal duplicate and 13 cross-request
+repeats across 14 image requests. Natural idle reached 41.329 seconds against the
+30-second gate; public probes observed a 13.319-second cutover interruption.
+Both databases, synthetic cleanup, 20 protected files and four other containers
+passed verification. Gateway is healthy with zero restarts/OOM. Earlier seven-segment
+OCR mismatches remain a model-quality limitation; historical fingerprints cannot
+be backfilled. See the [release receipt](./tiankuan-vision-telemetry-release-2026-11-05.json).
+
 Gateway `749c5086f74919b1abeda9d1357de9145f8e7b0b` is live as of 2026-11-04T21:51:20.715671+00:00, verified at 2026-11-04T21:54:05.540230+00:00.
 Qwen image requests now support strict 1536x512 banners, one reference image,
 and confirmed 30/40/50-step quality profiles. Two real public image requests,
