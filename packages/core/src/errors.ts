@@ -142,6 +142,14 @@ export interface GatewayImageLimitDetails {
   actual: number | null;
 }
 
+/** Upstream body limits are independent of local image and token budgets. */
+export interface GatewayRequestLimitDetails {
+  kind: "request_bytes";
+  origin: "upstream";
+  maximum: number | null;
+  actual: number | null;
+}
+
 /** Non-content facts for the narrowly supported ordinary write length failure. */
 export interface ToolValidationDetails {
   kind: "content_too_long";
@@ -177,6 +185,7 @@ export class GatewayError extends Error {
   readonly supportedValues?: readonly string[];
   readonly contextWindowDetails?: GatewayContextWindowDetails;
   readonly imageLimitDetails?: GatewayImageLimitDetails;
+  readonly requestLimitDetails?: GatewayRequestLimitDetails;
   readonly toolValidationDetails?: ToolValidationDetails;
   readonly toolCallValidationDiagnostic?: ToolCallValidationDiagnostic;
 
@@ -199,6 +208,7 @@ export class GatewayError extends Error {
     supportedValues?: readonly string[];
     contextWindowDetails?: GatewayContextWindowDetails;
     imageLimitDetails?: GatewayImageLimitDetails;
+    requestLimitDetails?: GatewayRequestLimitDetails;
     toolValidationDetails?: ToolValidationDetails;
     toolCallValidationDiagnostic?: ToolCallValidationDiagnostic;
   }) {
@@ -222,6 +232,7 @@ export class GatewayError extends Error {
     this.supportedValues = input.supportedValues;
     this.contextWindowDetails = input.contextWindowDetails;
     this.imageLimitDetails = input.imageLimitDetails;
+    this.requestLimitDetails = input.requestLimitDetails;
     this.toolValidationDetails = input.toolValidationDetails;
     Object.defineProperty(this, "toolCallValidationDiagnostic", { value: input.toolCallValidationDiagnostic, enumerable: false });
   }

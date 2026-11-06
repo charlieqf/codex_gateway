@@ -444,7 +444,7 @@ export function streamErrorToGatewayError(event: {
   gatewayError?: GatewayError;
   providerFailure?: ProviderFailureClassification;
 }): GatewayError {
-  if (event.gatewayError?.contextWindowDetails) {
+  if (event.gatewayError?.contextWindowDetails || event.gatewayError?.requestLimitDetails) {
     return event.gatewayError;
   }
   const failure = event.providerFailure;

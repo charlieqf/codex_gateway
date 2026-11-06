@@ -7,6 +7,7 @@ import {
 import { researchRouteConfig } from "./context.js";
 import {
   gatewayErrorMetadata,
+  gatewayErrorRetryable,
   researchErrorPayload
 } from "./error-response.js";
 
@@ -29,6 +30,27 @@ const gatewayLimitKinds: LimitKind[] = [
 ];
 
 describe("gatewayErrorMetadata", () => {
+  it.each([false, true])("stops upstream body-limit replay with failover=%s without changing local image limits", providerFailoverEnabled => {
+    const error = new GatewayError({ code: "invalid_request", message: "Reduce the request.", httpStatus: 413,
+      upstreamStatus: 413,
+      requestLimitDetails: { kind: "request_bytes", origin: "upstream", maximum: null, actual: null },
+      recoveryOwner: "client", transformedRetryAllowed: true, recommendedAction: "reduce_image_payload" });
+    expect(gatewayErrorRetryable(error)).toBe(false);
+    expect(gatewayErrorMetadata(error, { providerFailoverEnabled })).toEqual({
+      request_limit_contract_version: 1,
+      request_limit: { kind: "request_bytes", origin: "upstream", maximum: null, actual: null },
+      retry_contract_version: 1, automatic_retry_allowed: false,
+      recovery_owner: "client", transformed_retry_allowed: true, recommended_action: "reduce_image_payload"
+    });
+    const local = new GatewayError({ code: "invalid_request", message: "Reduce images.", httpStatus: 413,
+      imageLimitDetails: { kind: "image_count", maximum: 8, actual: 12 },
+      recoveryOwner: "client", transformedRetryAllowed: true, recommendedAction: "reduce_images_or_batch" });
+    expect(gatewayErrorMetadata(local, { providerFailoverEnabled })).toEqual({
+      image_limit_contract_version: 1, image_limit: { kind: "image_count", maximum: 8, actual: 12 },
+      recovery_owner: "client", transformed_retry_allowed: true, recommended_action: "reduce_images_or_batch"
+    });
+  });
+
   it.each([
     "upstream_timeout", "upstream_unavailable", "upstream_incomplete_stream",
     "upstream_empty_response", "service_unavailable", "client_aborted"

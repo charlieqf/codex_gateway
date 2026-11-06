@@ -18,6 +18,15 @@ import {
 } from "@codex-gateway/core";
 
 describe("streamErrorToGatewayError", () => {
+  it("preserves the upstream 413 status and structured recovery instead of rebuilding a generic 400", () => {
+    const gatewayError = new GatewayError({ code: "invalid_request", message: "Reduce the request.", httpStatus: 413,
+      upstreamStatus: 413,
+      requestLimitDetails: { kind: "request_bytes", origin: "upstream", maximum: null, actual: null },
+      recoveryOwner: "client", transformedRetryAllowed: true, recommendedAction: "reduce_image_payload" });
+    expect(streamErrorToGatewayError({ code: gatewayError.code, message: gatewayError.message, gatewayError })).toBe(gatewayError);
+    expect(streamErrorToGatewayError({ code: "invalid_request", message: "Invalid parameter." }).httpStatus).toBe(400);
+  });
+
   it.each([0, 10])("preserves an explicit provider Retry-After of %s seconds", (seconds) => {
     const gatewayError = new GatewayError({
       code: "rate_limited", message: "limited", httpStatus: 429,

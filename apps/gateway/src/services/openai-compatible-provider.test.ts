@@ -1311,6 +1311,7 @@ describe("OpenAICompatibleProviderAdapter", () => {
 
   it.each([
     [400, "http_request", "invalid_request"],
+    [413, "http_request", "invalid_request"],
     [401, "http_auth", "upstream_unavailable"],
     [403, "http_auth", "upstream_unavailable"],
     [408, "http_timeout", "upstream_timeout"],
@@ -1336,6 +1337,7 @@ describe("OpenAICompatibleProviderAdapter", () => {
   });
 
   it.each([
+    [413, "发送的内容超过上游请求大小限制", "invalid_request", 413],
     [500, "图片分析时发生处理错误", "upstream_unavailable", 503],
     [504, "图片分析响应超时", "upstream_timeout", 504],
     [401, "图片分析服务的接入配置异常", "upstream_unavailable", 502]
@@ -1353,6 +1355,30 @@ describe("OpenAICompatibleProviderAdapter", () => {
     expect(JSON.stringify(events)).not.toContain("private-provider-detail");
     expect(JSON.stringify(events)).not.toContain("temporarily unavailable");
     if (status === 401) expect(events[0]).not.toMatchObject({ message: expect.stringContaining("重试") });
+  });
+
+  it.each(["http", "sse"] as const)("preserves upstream request limits from %s without inferring local limits", async source => {
+    for (const withImages of [false, true]) {
+      const events = await providerEvents(async () => source === "http"
+        ? new Response("<html>413 Request Entity Too Large private-provider-detail</html>", { status: 413 })
+        : new Response('data: {"error":{"code":"413","message":"private-provider-detail"}}\n\n', {
+          headers: { "content-type": "text/event-stream" }
+        }), { images: withImages ? [{ imageUrl: "data:image/png;base64,aGVsbG8=", detail: "auto" }] : undefined });
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({ type: "error", code: "invalid_request",
+        gatewayError: { httpStatus: 413, upstreamStatus: 413,
+          requestLimitDetails: { kind: "request_bytes", origin: "upstream", maximum: null, actual: null },
+          recoveryOwner: "client", transformedRetryAllowed: true,
+          recommendedAction: withImages ? "reduce_image_payload" : "reduce_request_payload" },
+        providerFailure: { origin: "provider", kind: "http_request", upstreamStatus: 413,
+          stage: source === "http" ? "after_headers" : "streaming" }
+      });
+      expect(JSON.stringify(events)).not.toContain("private-provider-detail");
+      expect(JSON.stringify(events)).not.toContain("稍后");
+      const error = events[0].type === "error" ? events[0].gatewayError : undefined;
+      expect(error?.contextWindowDetails).toBeUndefined();
+      expect(error?.imageLimitDetails).toBeUndefined();
+    }
   });
 
   it("classifies a local vLLM context rejection as client compaction required", async () => {

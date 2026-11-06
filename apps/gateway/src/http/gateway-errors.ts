@@ -143,7 +143,9 @@ export function sendOpenAIError(request: FastifyRequest, reply: FastifyReply, er
       "Model request input limit rejected.");
   }
   if (error.upstreamStatus !== undefined) {
-    request.gatewayUpstreamHttpStatus = error.upstreamStatus;
+    // An HTTP 200 SSE response can carry an in-band 413. Keep the observed
+    // transport status; the attempt failure retains the provider error status.
+    request.gatewayUpstreamHttpStatus ??= error.upstreamStatus;
   }
   const errorContext = gatewayErrorResponseContext(request, error);
   applyGatewayErrorHeaders(reply, error, errorContext);

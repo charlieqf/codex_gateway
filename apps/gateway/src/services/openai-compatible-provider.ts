@@ -558,6 +558,23 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
       return err;
     }
     if (err instanceof UpstreamHttpError) {
+      if (err.status === 413) {
+        const hasImages = Boolean(input?.images?.length);
+        return new GatewayError({
+          code: "invalid_request",
+          message: hasImages
+            ? "发送的内容超过上游请求大小限制，请缩小图片、减少本轮图片或分批处理后重试。"
+            : "发送的内容超过上游请求大小限制，请减少本轮内容或分批处理后重试。",
+          httpStatus: 413,
+          upstreamStatus: 413,
+          // The provider's limit and rejected byte count are not known. Never
+          // substitute the Gateway's local limit or infer a token overflow.
+          requestLimitDetails: { kind: "request_bytes", origin: "upstream", maximum: null, actual: null },
+          recoveryOwner: "client",
+          transformedRetryAllowed: true,
+          recommendedAction: hasImages ? "reduce_image_payload" : "reduce_request_payload"
+        });
+      }
       if (err.status === 429) {
         return new GatewayError({
           code: "rate_limited",
@@ -1194,6 +1211,7 @@ function withProviderFailure(
     supportedValues: error.supportedValues,
     contextWindowDetails: error.contextWindowDetails,
     imageLimitDetails: error.imageLimitDetails,
+    requestLimitDetails: error.requestLimitDetails,
     providerFailure
   }) as GatewayError & { readonly providerFailure: ProviderFailureClassification };
 }

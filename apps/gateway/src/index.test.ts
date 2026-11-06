@@ -7920,6 +7920,80 @@ describe("gateway phase 1 routes", () => {
     });
   });
 
+  it.each(
+    ["/v1/chat/completions", "/v1/responses"].flatMap(url =>
+      [false, true].flatMap(stream => [false, true].flatMap(tools =>
+        [false, true].flatMap(optIn => [false, true].map(inBandError => ({ url, stream, tools, optIn, inBandError }))))))
+  )("returns structured upstream 413 without replay: %j", async options => {
+    await runVisionRecoveryFixture({ ...options, status: 413, failures: 1, visionRuntime: "tiankuan" }, ({ response, calls, events }) => {
+      expect(calls).toBe(1);
+      expect(response.statusCode).toBe(options.stream && options.url === "/v1/responses" ? 200 : 413);
+      const errors = modelResponseErrors(response.body);
+      expect(errors).toEqual([expect.objectContaining({
+        code: "invalid_request", retryable: false,
+        message: "发送的内容超过上游请求大小限制，请缩小图片、减少本轮图片或分批处理后重试。",
+        request_id: expectRequestIdHeader(response),
+        request_limit_contract_version: 1,
+        request_limit: { kind: "request_bytes", origin: "upstream", maximum: null, actual: null },
+        retry_contract_version: 1, automatic_retry_allowed: false,
+        recovery_owner: "client", transformed_retry_allowed: true, recommended_action: "reduce_image_payload"
+      })]);
+      expect(errors[0]).not.toHaveProperty("image_limit");
+      expect(errors[0]).not.toHaveProperty("context_limit");
+      if (options.optIn) expect(errors[0]).toMatchObject({ vision_recovery_contract_version: 1,
+        vision_recovery: { image_count: 4, attempts: 1, maximum_attempts: 2,
+          content_delivered: false, stop_reason: "not_retryable" } });
+      else expect(errors[0]).not.toHaveProperty("vision_recovery");
+      expect(response.body).not.toContain("synthetic-private-body");
+      expect(response.body).not.toContain("response.completed");
+      expect(response.body).not.toContain("[DONE]");
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({ status: "error", errorCode: "invalid_request", upstreamAttemptCount: 1,
+        upstreamFailureRetryCount: 0, upstreamFailureOrigin: "provider", upstreamFailureKind: "http_request",
+        upstreamHttpStatus: options.inBandError ? 200 : 413 });
+      expect(events[0].upstreamAttempts?.[0].failure?.upstreamStatus).toBe(413);
+    });
+  });
+
+  it.each([
+    ["/v1/chat/completions", false], ["/v1/chat/completions", true],
+    ["/v1/responses", false], ["/v1/responses", true]
+  ] as const)("keeps text-only upstream 413 distinct from vision and token limits: %s stream=%s", async (url, stream) => {
+    await runVisionRecoveryFixture({ url, stream, images: 0, failures: 1, status: 413 }, ({ response, calls }) => {
+      expect(calls).toBe(1);
+      expect(response.statusCode).toBe(stream && url === "/v1/responses" ? 200 : 413);
+      expect(modelResponseErrors(response.body)).toEqual([expect.objectContaining({ code: "invalid_request",
+        request_limit_contract_version: 1, request_limit: { origin: "upstream", kind: "request_bytes", maximum: null, actual: null },
+        automatic_retry_allowed: false, retryable: false, recommended_action: "reduce_request_payload",
+        message: "发送的内容超过上游请求大小限制，请减少本轮内容或分批处理后重试。"
+      })]);
+      expect(response.body).not.toContain("vision_recovery");
+    });
+  });
+
+  it.each(["/v1/chat/completions", "/v1/responses"])("keeps upstream 413 metadata after partial upstream output through %s", async url => {
+    await runVisionRecoveryFixture({ url, stream: true, partial: true, status: 413, failures: 1 }, ({ response, calls, events }) => {
+      expect(calls).toBe(1);
+      expect(response.statusCode).toBe(200);
+      // Chat forwards text immediately; Responses buffers it until completion.
+      const delivered = url === "/v1/chat/completions";
+      if (delivered) expect(response.body).toContain("partial");
+      else expect(response.body).not.toContain("partial");
+      expect(modelResponseErrors(response.body)).toEqual([expect.objectContaining({ code: "invalid_request",
+        request_id: expectRequestIdHeader(response), retryable: false,
+        request_limit_contract_version: 1,
+        request_limit: { kind: "request_bytes", origin: "upstream", maximum: null, actual: null },
+        automatic_retry_allowed: false, transformed_retry_allowed: true, recovery_owner: "client",
+        vision_recovery: { image_count: 4, maximum_attempts: 2, attempts: 1,
+          content_delivered: delivered, stop_reason: delivered ? "content_delivered" : "not_retryable" }
+      })]);
+      expect(response.body).not.toContain("response.completed");
+      expect(response.body).not.toContain("[DONE]");
+      expect(events[0]).toMatchObject({ status: "error", upstreamAttemptCount: 1, upstreamHttpStatus: 200 });
+      expect(events[0].upstreamAttempts?.[0].failure?.upstreamStatus).toBe(413);
+    });
+  });
+
   it.each([
     { optIn: false, reason: undefined },
     { status: 401, reason: "not_retryable" },
@@ -16385,6 +16459,7 @@ function issueCredentialForHrwAccount(accountId: string, accountIds: string[]) {
 
 async function runVisionRecoveryFixture(options: {
   url?: string; stream?: boolean; tools?: boolean; failures: number; status?: number;
+  inBandError?: boolean; visionRuntime?: "xai" | "tiankuan";
   partial?: boolean; hang?: boolean; timeoutMs?: number; optIn?: boolean; retryAfter?: string; firstInvalidTool?: boolean; images?: number;
 }, check: (value: { response: Awaited<ReturnType<ReturnType<typeof buildGateway>["inject"]>>;
   calls: number; events: ReturnType<ReturnType<typeof createSqliteStore>["listRequestEvents"]>; capabilities: unknown }) => void) {
@@ -16397,11 +16472,14 @@ async function runVisionRecoveryFixture(options: {
       if (options.partial) {
         response.writeHead(200, { "content-type": "text/event-stream" });
         response.write('data: {"choices":[{"delta":{"content":"partial"}}]}\n\n');
-        response.end('data: {"error":{"status":500,"message":"synthetic"}}\n\n');
+        response.end(`data: ${JSON.stringify({ error: { status: options.status ?? 500, message: "synthetic" } })}\n\n`);
+      } else if (options.inBandError) {
+        response.writeHead(200, { "content-type": "text/event-stream" });
+        response.end(`data: ${JSON.stringify({ error: { code: String(options.status ?? 500), message: "synthetic-private-body" } })}\n\n`);
       } else {
         response.writeHead(options.status ?? 500, { "content-type": "application/json",
           ...(options.retryAfter !== undefined ? { "retry-after": options.retryAfter } : {}) });
-        response.end('{"error":"synthetic"}');
+        response.end(options.status === 413 ? "<html>413 Request Entity Too Large synthetic-private-body</html>" : '{"error":"synthetic"}');
       }
       return;
     }
@@ -16417,8 +16495,9 @@ async function runVisionRecoveryFixture(options: {
   try {
     await withTemporaryEnv({
       MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({ goldencode: { ...config,
-        vision: { runtime: "xai", upstreamModel: "grok-4.5", contextWindow: 200000, maxOutputTokens: 128000, enabled: true } } }),
+        vision: { runtime: options.visionRuntime ?? "xai", upstreamModel: options.visionRuntime === "tiankuan" ? "deepseek-v4.1-flash" : "grok-4.5", contextWindow: 200000, maxOutputTokens: 128000, enabled: true } } }),
       MEDCODE_TENCENT_TOKENHUB_API_KEY: "synthetic-key", MEDCODE_TENCENT_TOKENHUB_BASE_URL: upstream.baseUrl,
+      MEDCODE_TIANKUAN_API_KEY: "synthetic-key", MEDCODE_TIANKUAN_BASE_URL: upstream.baseUrl,
       MEDCODE_VISION_XAI_API_KEY: "synthetic-key", MEDCODE_VISION_XAI_BASE_URL: upstream.baseUrl
     }, async () => {
       const { store, headers } = createCredentialBackedStore();

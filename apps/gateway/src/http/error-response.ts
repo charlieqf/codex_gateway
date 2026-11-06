@@ -49,6 +49,14 @@ export function gatewayErrorMetadata(
     error.retryAfterSeconds ?? (isRateLimited && error.httpStatus === 429 ? null : undefined);
 
   return {
+    ...(error.requestLimitDetails ? {
+      request_limit_contract_version: 1,
+      request_limit: { ...error.requestLimitDetails },
+      // A user may retry a transformed request, but automatic recovery must
+      // stop even when the caller did not opt into vision recovery.
+      retry_contract_version: 1,
+      automatic_retry_allowed: false
+    } : {}),
     ...(error.toolValidationDetails ? {
       tool_validation_contract_version: 1,
       tool_validation: { ...error.toolValidationDetails },

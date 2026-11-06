@@ -103,7 +103,7 @@ describe("vision recovery shared budget and deadline", () => {
     expect(state.snapshot()).toMatchObject({ attempts: 1, stop_reason: "cancelled" });
   });
 
-  it.each([400, 401, 403, 404, 501, 505])("does not replay HTTP %i even under upstream_unavailable", async (status) => {
+  it.each([400, 401, 403, 404, 413, 501, 505])("does not replay HTTP %i even under upstream_unavailable", async (status) => {
     const state = new VisionRequestRecovery(4);
     expect(await state.prepareRetry({ error: failure(status), signal: new AbortController().signal,
       deadlineAt: null, now: () => new Date(), outputCommitted: false })).toBe(false);
