@@ -1,5 +1,20 @@
 # System Status
 
+Gateway `ac35987b61bfc0e66c74d3fa6fb256e6302cb148` is live as of
+2026-11-06 10:08:32 UTC; verification completed at 10:12:47 UTC.
+Upstream 413 errors now retain request-body-limit metadata and stop automatic
+replay across JSON and SSE. Unknown upstream byte limits remain null; existing
+local image and token-limit contracts are preserved. Clean-image tests: 2,332
+passed, four skipped. Sixteen real public model checks, four public local-limit
+checks and 20 isolated checks of the deployed image passed. The upstream 413
+faults were injected in isolation, not induced with oversized production calls.
+Natural idle reached 41.771 seconds against the 30-second gate; public probes
+observed a 16.312-second cutover interruption. Both databases, synthetic cleanup,
+20 protected files and four other containers passed verification. Production
+environment is unchanged; Gateway is healthy with zero restarts/OOM.
+See the [release receipt](./upstream-413-release-2026-11-06.json) and
+[client contract](../outbox/gateway-upstream-413-contract-2026-11-06.zh-CN.md).
+
 Gateway `e4b98f36a35d8a9b9057d45f01074c184b0942f6` is live as of
 2026-11-05 10:17:14 UTC; verification completed at 10:18:40 UTC.
 Both cloud models now send image-understanding requests exclusively to TianKuan

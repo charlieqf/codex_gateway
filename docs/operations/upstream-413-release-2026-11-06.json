@@ -1,0 +1,83 @@
+{
+  "status": "verified",
+  "revision": "ac35987b61bfc0e66c74d3fa6fb256e6302cb148",
+  "previous_revision": "e4b98f36a35d8a9b9057d45f01074c184b0942f6",
+  "image_id": "sha256:2ec1649c885e0607569649d15d703ad4ecab759fdf46d861fc200ff290e6eab6",
+  "deployed_at": "2026-11-06T10:08:32.841499+00:00",
+  "verified_at": "2026-11-06T10:12:47.057486+00:00",
+  "scope": {
+    "upstream_413_mapping": "invalid_request with request_limit_contract_version=1",
+    "unknown_upstream_limit_bytes": null,
+    "automatic_retry_allowed": false,
+    "protocols": ["chat_json", "chat_sse", "responses_json", "responses_sse"],
+    "changed_environment_fields": [],
+    "database_migrations": false,
+    "image_download_timeout_policy_changed": false,
+    "client_installation_changed": false
+  },
+  "validation": {
+    "clean_image_test_files_passed": 114,
+    "clean_image_test_files_skipped": 2,
+    "clean_image_tests_passed": 2332,
+    "clean_image_tests_skipped": 4,
+    "isolated_real_provider_preflight_checks": 16,
+    "installed_image_413_checks_before_and_after_cutover": 20,
+    "installed_image_413_checks_used_production_databases": false,
+    "installed_image_413_checks_external_calls": 0,
+    "public_real_model_checks": 16,
+    "public_local_limit_checks": 4,
+    "public_capability_query_passed": true,
+    "oversized_calls_sent_to_production_provider_to_induce_413": false,
+    "migration_code_unchanged": true,
+    "backup_restored_and_opened_with_candidate": true,
+    "schema": 44,
+    "databases": ["gateway.db", "client-events.db"],
+    "quick_check": "ok",
+    "foreign_key_violations": 0,
+    "protected_files_preserved": 20,
+    "other_containers_preserved": 4,
+    "gateway_restarts": 0,
+    "gateway_oom": false,
+    "temporary_test_containers_remaining": 0,
+    "synthetic_subjects_disabled": 2,
+    "synthetic_active_credentials": 0,
+    "synthetic_active_entitlements": 0,
+    "synthetic_pending_reservations": 0,
+    "revoked_credential_public_status": 401,
+    "warning_messages": {
+      "Tool loop guard shadow threshold matched; request is not altered.": 13,
+      "Legacy reasoning effort normalized before provider dispatch.": 4
+    },
+    "error_or_fatal_log_entries_at_verification": 0
+  },
+  "cutover": {
+    "required_natural_idle_seconds": 30,
+    "observed_natural_idle_seconds": 41.771,
+    "idle_started_at": "2026-11-06T10:07:24.141412+00:00",
+    "idle_qualified_at": "2026-11-06T10:08:05.911979+00:00",
+    "admission_open_during_idle_wait": true,
+    "first_nonready": "2026-11-06T10:08:06.537766+00:00",
+    "first_recovered": "2026-11-06T10:08:22.849353+00:00",
+    "observed_public_interruption_seconds": 16.311587,
+    "public_probe_http_counts": {"200": 782, "503": 13, "502": 3},
+    "backup": "/data/backups/codex-gateway-daily/20261106T100754Z",
+    "rollback_required": false
+  },
+  "public_local_limit_request_ids": [
+    "req-b8e1bdac-1b97-4735-adec-9cfb5f01b20d",
+    "req-5a5b6e5d-b89a-4d61-b16e-d89425f3517b",
+    "req-e8f059bc-6d09-4f9a-8819-d16f70442cba",
+    "req-c7480c86-93e2-42ab-afde-2709e1899ca8"
+  ],
+  "harness_corrections": [
+    "The isolated image inherited a default SQLite path. The harness was corrected to explicitly select :memory: before running; no production database was mounted.",
+    "All four public local-limit responses passed, but the initial harness incorrectly treated an assigned upstream account as a provider call. A read-only audit of the same request IDs verified zero attempts, null upstream HTTP status and no attempt records. The initial failure report was retained; the requests were not repeated."
+  ],
+  "remaining_boundaries": [
+    "Desktop installation parsing and transformed recovery require client-team acceptance.",
+    "The provider's exact body-size threshold remains unknown.",
+    "The separate upstream image-URL download timeout is outside this release."
+  ],
+  "evidence_directory": "/opt/codex-gateway-r760/staging/ac35987b61bfc0e66c74d3fa6fb256e6302cb148",
+  "bundle_sha256": "241f6f966a871ed3eb36697463949c015e0fc5e8c69098cf79b39710e7ac40dc"
+}
