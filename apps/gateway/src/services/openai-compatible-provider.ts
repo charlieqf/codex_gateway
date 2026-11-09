@@ -363,6 +363,7 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
       ...(input.maximumOutputTokens === undefined
         ? {}
         : { max_tokens: input.maximumOutputTokens }),
+      ...(input.responseFormat ? { response_format: input.responseFormat } : {}),
       ...this.reasoningPayload(input),
       ...(nativeToolCallsEnabled(input)
         ? {

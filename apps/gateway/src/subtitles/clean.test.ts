@@ -12,9 +12,9 @@ it.each([
   { limits: [8192, 65536], expected: [6000, 32768] },
   { limits: [4096, 8192], expected: [4096, 8192] }
 ])("uses the selected cloud model, bounded budget, fixed rules and credential model access", async ({ limits, expected }) => {
-  const calls: { model: string; messages: { role: string; content: string }[]; max_tokens: number }[] = [];
+  const calls: { model: string; messages: { role: string; content: string }[]; max_tokens: number; reasoning_effort: string; response_format: { type: string } }[] = [];
   const provider = (model: string): ProviderAdapter => new OpenAICompatibleProviderAdapter({
-    providerKind: "tencent", apiKey: "fixture", apiKeyEnv: "UNUSED", baseUrl: "https://fixture.invalid/v1", upstreamModel: model, timeoutMs: 1000,
+    providerKind: "tencent", apiKey: "fixture", apiKeyEnv: "UNUSED", baseUrl: "https://fixture.invalid/v1", upstreamModel: model, timeoutMs: 1000, reasoningParameterStyle: "effort_field",
     fetchImpl: async (_url, request) => {
       calls.push(JSON.parse(String(request?.body)));
       return new Response('data: {"choices":[{"delta":{"content":"{\\"cues\\":[]}"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n');
@@ -30,6 +30,7 @@ it.each([
   expect(calls.map(call => call.model)).toEqual(["goldencode", "goldencode-d"]);
   expect(calls.every(call => call.messages.some(message => message.content.includes(CLEANUP_RULES) && message.content.includes('{"core":[]}')))).toBe(true);
   expect(calls.map(call => call.max_tokens)).toEqual(expected);
+  expect(calls.every(call => call.reasoning_effort === "low" && call.response_format.type === "json_object")).toBe(true);
   context.credential.allowedPublicModels = ["goldencode"];
   await expect(clean("goldencode-d", { core: [] }, context)).rejects.toThrow("subtitle_model_not_allowed");
   expect(calls).toHaveLength(2);

@@ -31,6 +31,7 @@ describe("OpenAICompatibleProviderAdapter", () => {
       session: testSession(), scope: "code", message: "Reply OK", reasoningEffort: effort });
     expect(captured.thinking).toEqual({ type: effort === "none" ? "disabled" : "enabled" });
     expect(captured.reasoning_effort).toBe(effort === "none" ? undefined : effort);
+    expect(captured).not.toHaveProperty("response_format");
   });
   it("reports only semantic increments and keeps progress failures outside model output", async () => {
     const observations: string[] = [];

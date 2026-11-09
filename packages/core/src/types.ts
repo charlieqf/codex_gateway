@@ -551,6 +551,7 @@ export interface MessageInput {
   images?: MessageImageInput[];
   reasoningEffort?: string | null;
   maximumOutputTokens?: number;
+  responseFormat?: { type: "json_object" };
   clientTools?: ClientToolDefinition[];
   clientToolChoice?: ClientToolChoice;
   signal?: AbortSignal;

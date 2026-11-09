@@ -12,7 +12,8 @@ export function createSubtitleCleaner(registry: PublicModelRegistry, dispatcher:
     const model = registry.get(selected);
     if (!model?.enabled || !["goldencode", "goldencode-d"].includes(model.id)) throw new Error("subtitle_model_unavailable");
     if (!credentialAllowsPublicModel(context.credential.allowedPublicModels, model.id, registry.models)) throw new Error("subtitle_model_not_allowed");
-    const runtime = dispatcher.begin({ model, modality: "text", reasoningEffort: null, reasoningEffortSource: "default", subject: context.subject, scope: context.scope, affinityKey: "subtitle:" + context.subject.id, createSession: createStatelessSession });
+    // Bound reasoning for this editing task instead of inheriting a provider's maximum default.
+    const runtime = dispatcher.begin({ model, modality: "text", reasoningEffort: "low", reasoningEffortSource: "request", subject: context.subject, scope: context.scope, affinityKey: "subtitle:" + context.subject.id, createSession: createStatelessSession });
     if (runtime instanceof GatewayError) throw runtime;
     const deadline = new AbortController();
     const timer = setTimeout(() => deadline.abort(), 300_000);
@@ -23,6 +24,7 @@ export function createSubtitleCleaner(registry: PublicModelRegistry, dispatcher:
         upstreamAccount: runtime.adapterInputUpstreamAccount, session: runtime.session, subject: context.subject, scope: context.scope,
         // Cloud adapters use the flattened prompt, as in the existing chat route.
         message: CLEANUP_RULES + "\n\n待编辑材料 JSON：\n" + JSON.stringify(input),
+        responseFormat: { type: "json_object" },
         // DeepSeek counts reasoning in completion tokens; retain the validated normal-model budget.
         reasoningEffort: runtime.reasoningEffort, maximumOutputTokens: Math.min(selected === "goldencode-d" ? 32_768 : 6_000, runtime.limits.maxOutputTokens), signal: deadline.signal,
       })) {
