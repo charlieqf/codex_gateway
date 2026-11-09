@@ -3,16 +3,16 @@ import { mkdir, readdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { createSubtitleProvider } from "./provider.js";
-import { CLEANUP_RULES } from "./rules.js";
+import type { SubtitleCleaner } from "./clean.js";
 
 const prefix = "/gateway/subtitles/v1";
 export const isSubtitleRoute = (url: string) => url.split("?", 1)[0]!.startsWith(prefix + "/");
 type Job = { id: string; owner: string; audio: string; created: number; status: "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED" | "SUBMISSION_UNKNOWN"; task?: number; result?: Record<string, unknown> };
-type CleanInput = { job_id: string; version: string; core: { id: number; text: string; words: { id: number; text: string }[] }[]; before: string[]; after: string[]; glossary: { abbreviation: string; full: string }[]; repair?: { message: string; previous: object } };
+type CleanInput = { job_id: string; version: string; model: "goldencode" | "goldencode-d"; core: { id: number; text: string; words: { id: number; text: string }[] }[]; before: string[]; after: string[]; glossary: { abbreviation: string; full: string }[]; repair?: { message: string; previous: object } };
 const fail = (reply: FastifyReply, status: number, code: string) => reply.code(status).send({ error: { code } });
 const digest = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
 
-export function registerSubtitleRoutes(root: FastifyInstance, env: NodeJS.ProcessEnv, provider = createSubtitleProvider(env)) {
+export function registerSubtitleRoutes(root: FastifyInstance, env: NodeJS.ProcessEnv, provider = createSubtitleProvider(env), clean?: SubtitleCleaner) {
   const directory = env.CODEX_SUBTITLE_STORAGE;
   const pending = new Map<string, Job>();
   const polling = new Set<string>();
@@ -76,7 +76,7 @@ export function registerSubtitleRoutes(root: FastifyInstance, env: NodeJS.Proces
       reply.header("cache-control", "no-store").header("x-content-type-options", "nosniff");
       const subject = request.gatewayContext?.subject.id;
       if (!subject) return fail(reply, 401, "invalid_credential");
-      if (!provider || !directory) return fail(reply, 503, "subtitle_service_unavailable");
+      if (!provider || !directory || !clean) return fail(reply, 503, "subtitle_service_unavailable");
       if (request.headers["content-encoding"]) return fail(reply, 400, "invalid_subtitle_request");
       if (admissions.size >= 8 || (owners.get(subject) ?? 0) >= 2) return fail(reply, 429, "subtitle_busy");
       admissions.add(request.id);
@@ -136,7 +136,7 @@ export function registerSubtitleRoutes(root: FastifyInstance, env: NodeJS.Proces
       const segments = job.result!.ResultDetail as { FinalSentence: string; Words: { Word: string }[] }[];
       const words = segments.flatMap(segment => segment.Words ?? []).map(word => word.Word);
       if (!input.core.every(unit => segments[unit.id]?.FinalSentence === unit.text && unit.words.every(word => words[word.id] === word.text))) return fail(reply, 400, "subtitle_source_mismatch");
-      try { return await provider!.clean(CLEANUP_RULES, { core: input.core, before: input.before, after: input.after, glossary: input.glossary, ...(input.repair ? { repair: input.repair } : {}) }); }
+      try { return await clean!(input.model, { core: input.core, before: input.before, after: input.after, glossary: input.glossary, ...(input.repair ? { repair: input.repair } : {}) }, request.gatewayContext!); }
       catch { return fail(reply, 503, "subtitle_clean_failed"); }
     });
   });
@@ -146,7 +146,7 @@ function validCleanInput(value: unknown): value is CleanInput {
   if (!value || typeof value !== "object") return false;
   const input = value as CleanInput;
   const texts = (items: unknown) => Array.isArray(items) && items.length <= 2 && items.every(text => typeof text === "string" && text.length <= 2000);
-  return input.version === "medical-interview-1" && typeof input.job_id === "string" && /^[a-f0-9]{32}$/.test(input.job_id) &&
+  return input.version === "medical-interview-1" && (input.model === "goldencode" || input.model === "goldencode-d") && typeof input.job_id === "string" && /^[a-f0-9]{32}$/.test(input.job_id) &&
     Array.isArray(input.core) && input.core.length > 0 && input.core.length <= 16 &&
     input.core.every(unit => unit && Number.isSafeInteger(unit.id) && unit.id >= 0 && typeof unit.text === "string" && Array.isArray(unit.words) && unit.words.length > 0 && unit.words.length <= 1000 && unit.words.every(word => word && Number.isSafeInteger(word.id) && word.id >= 0 && typeof word.text === "string" && word.text.length <= 200)) &&
     input.core.reduce((total, unit) => total + unit.text.length, 0) <= 2000 && texts(input.before) && texts(input.after) &&

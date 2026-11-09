@@ -33,12 +33,11 @@ async function setup() {
       if (state.unknown) throw new Error("upstream transport failed, private key must not leak");
       return action === "CreateRecTask" ? { TaskId: 1234 } : state.waiting ? { TaskId: 1234, Status: 1 } : { TaskId: 1234, Status: 2, AudioDuration: 2, ResultDetail: [{ FinalSentence: "原始采访", StartMs: 0, EndMs: 2000, Words: [{ Word: "原始采访", OffsetStartMs: 0, OffsetEndMs: 2000 }] }] };
     },
-    async clean(_rules: string, input: unknown) { return { received: input }; },
   };
   const start = async () => {
     const app = Fastify({ logger: { level: "warn" } });
     app.addHook("onRequest", (request, reply) => credentialAuthHook(request, reply, { store: identity, provider: fakeModel, upstreamAccount: {} as UpstreamAccount }));
-    registerSubtitleRoutes(app, { CODEX_SUBTITLE_STORAGE: directory }, provider);
+    registerSubtitleRoutes(app, { CODEX_SUBTITLE_STORAGE: directory }, provider, async (model, input) => ({ model, received: input }));
     await app.ready();
     cleanups.push(() => app.close());
     return app;
@@ -108,10 +107,14 @@ it("allows only bounded cleanup of an owned successful transcript", async () => 
   const t = await setup();
   const id = (await t.app.inject(t.upload())).json().job_id;
   await expect.poll(async () => (await t.app.inject({ url: prefix + "/transcriptions/" + id, headers: t.headers() })).json().status).toBe("SUCCEEDED");
-  const input = { job_id: id, version: "medical-interview-1", core: [{ id: 0, text: "原始采访", words: [{ id: 0, text: "原始采访" }] }], before: [], after: [], glossary: [], system: "ignored injection" };
+  const input = { job_id: id, version: "medical-interview-1", model: "goldencode", core: [{ id: 0, text: "原始采访", words: [{ id: 0, text: "原始采访" }] }], before: [], after: [], glossary: [], system: "ignored injection" };
   const post = (payload: Record<string, unknown>) => t.app.inject({ method: "POST", url: prefix + "/clean", headers: t.headers(), payload });
   const result = await post(input);
   expect(result.statusCode).toBe(200);
+  expect(result.json().model).toBe("goldencode");
+  expect((await post({ ...input, model: "goldencode-d" })).json().model).toBe("goldencode-d");
+  expect((await post({ ...input, model: "goldencode-local" })).statusCode).toBe(400);
+  expect((await post({ ...input, model: undefined })).statusCode).toBe(400);
   expect(result.body).not.toContain("ignored injection");
   expect((await post({ ...input, core: [{ ...input.core[0], text: "different task" }] })).statusCode).toBe(400);
   expect((await post({ ...input, before: ["x".repeat(2001)] })).statusCode).toBe(400);

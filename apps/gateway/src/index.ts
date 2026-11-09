@@ -198,6 +198,7 @@ import { resolveImagingService } from "./imaging/runtime.js";
 import { isClinicalRoute, registerClinicalRoutes } from "./clinical/routes.js";
 import { isDocumentRoute, registerDocumentRoutes } from "./documents/routes.js";
 import { isSubtitleRoute, registerSubtitleRoutes } from "./subtitles/routes.js";
+import { createSubtitleCleaner } from "./subtitles/clean.js";
 import { resolveClinicalService } from "./clinical/runtime.js";
 import {
   modelNotFoundError,
@@ -918,7 +919,7 @@ export function buildGateway(options: GatewayOptions = {}) {
   registerImagingRoutes(app, options.imagingService === undefined
     ? resolveImagingService(process.env, app.log) : options.imagingService);
   registerDocumentRoutes(app, options.documentEvidence ?? process.env);
-  registerSubtitleRoutes(app, options.subtitleService ?? process.env);
+  registerSubtitleRoutes(app, options.subtitleService ?? process.env, undefined, createSubtitleCleaner(publicModelRegistry, chatRuntimeDispatcher));
   registerClinicalRoutes(app, "aipal", options.aipalService === undefined ? resolveClinicalService("aipal", process.env, app.log) : options.aipalService);
   registerClinicalRoutes(app, "panecho", options.panechoService === undefined ? resolveClinicalService("panecho", process.env, app.log) : options.panechoService);
   registerClinicalRoutes(app, "echonet", options.echonetService === undefined ? resolveClinicalService("echonet", process.env, app.log) : options.echonetService);

@@ -36,12 +36,7 @@ export async function boundedJson(response: Response, maximum = 4_000_000): Prom
 export function createSubtitleProvider(env: NodeJS.ProcessEnv, request = fetch) {
   const id = resolveProviderApiKey(env, "CODEX_SUBTITLE_TENCENT_SECRET_ID").apiKey;
   const key = resolveProviderApiKey(env, "CODEX_SUBTITLE_TENCENT_SECRET_KEY").apiKey;
-  const base = env.CODEX_SUBTITLE_CLEAN_BASE_URL;
-  const model = env.CODEX_SUBTITLE_CLEAN_MODEL;
-  if (!id || !key || !base || !model) return;
-  const url = new URL(base);
-  if (url.username || url.password || url.search || url.hash || !["http:", "https:"].includes(url.protocol)) throw new Error("Invalid subtitle model endpoint");
-  const modelKey = resolveProviderApiKey(env, "CODEX_SUBTITLE_CLEAN_API_KEY").apiKey;
+  if (!id || !key) return;
   return {
     async tencent(action: "CreateRecTask" | "DescribeTaskStatus", payload: Record<string, unknown>) {
       const body = JSON.stringify(payload);
@@ -51,16 +46,6 @@ export function createSubtitleProvider(env: NodeJS.ProcessEnv, request = fetch) 
       })) as { Response?: { Error?: unknown; Data?: Record<string, unknown> } };
       if (!response.Response?.Data || response.Response.Error) throw new Error("subtitle_asr_failed");
       return response.Response.Data;
-    },
-    async clean(rules: string, input: unknown) {
-      const result = await boundedJson(await request(base.replace(/\/$/, "") + "/chat/completions", {
-        method: "POST", redirect: "error", headers: { "content-type": "application/json", ...(modelKey ? { authorization: "Bearer " + modelKey } : {}) },
-        body: JSON.stringify({ model, stream: false, temperature: 0, max_tokens: 6000, response_format: { type: "json_object" }, chat_template_kwargs: { enable_thinking: false }, messages: [{ role: "system", content: rules }, { role: "user", content: JSON.stringify(input) }] }),
-        signal: AbortSignal.timeout(150_000),
-      }), 1_000_000) as { choices?: { message?: { content?: unknown }; finish_reason?: string }[] };
-      const choice = result.choices?.[0];
-      if (typeof choice?.message?.content !== "string" || choice.finish_reason === "length") throw new Error("subtitle_clean_incomplete");
-      return JSON.parse(choice.message.content);
     },
   };
 }
