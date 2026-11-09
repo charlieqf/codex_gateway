@@ -1,5 +1,22 @@
 # System Status
 
+Gateway `f675af21d29f3c5d4c25a85e3a236a0ac9c72b37` is live as of
+2026-11-09 15:05:33.622734 UTC. Medical-interview subtitle cleaning retains the
+selected `goldencode` / `goldencode-d`, explicitly uses low reasoning and native
+JSON output, and preserves Desktop's content validation and one bounded repair.
+Clean-image tests: 2,342 passed, four skipped. Both actual models passed a
+16-unit candidate batch with the real Desktop validator. Public verification
+passed for both models; GoldenCode-D exercised one successful content repair.
+Natural idle was 41.256 seconds; public interruption was 14.352 seconds. Two
+database checks and restore rehearsal passed. Environment values, 23 protected
+files and five other containers are unchanged; health is ready, with zero
+restarts/OOM and anonymous subtitle requests rejected. Windows test package v6
+completed fresh 50-second GoldenCode-D and 237.935-second GoldenCode flows,
+including conversation edits, reopen/review, burn-in and full media verification.
+Both latest comparisons reopened successfully. Temporary candidate
+environment files have been removed; production credentials and rollback
+backups are retained. See the [release receipt](./medical-subtitles-release-2026-11-09.zh-CN.md).
+
 Gateway `ee41ee2579766d9dcb3d780a3485d03445cc83c6` is live as of
 2026-11-09 12:31:35 UTC. Authenticated medical-interview subtitle routes now
 provide ASR and bounded cleaning using the selected `goldencode` or `goldencode-d`.
