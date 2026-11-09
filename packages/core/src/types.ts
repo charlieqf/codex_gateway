@@ -274,6 +274,7 @@ export interface RequestEventRecord {
 export type RequestTokenUsageSource = "provider" | "estimate" | "reserve" | "none";
 
 export interface UpstreamAttemptSummary {
+  providerError?: ProviderErrorEvidence;
   /** Image entries in the attempted provider input; does not prove upstream receipt/billing. */
   inputImageCount?: number;
   visionRecovery?: {
@@ -437,7 +438,19 @@ export interface ProviderStreamProgress {
   reportedUsage?: TokenUsage;
 }
 
+/** Durable error facts: never includes provider messages, URLs or argument bodies. */
+export interface ProviderErrorEvidence {
+  source: "http_response" | "stream_error_frame";
+  statusSource: "http" | "explicit" | "inferred" | "fallback";
+  /** Error classification status; upstreamHttpStatus separately retains the outer response status. */
+  status: number;
+  category: "image_download_timeout" | "image_download_http" | "image_download_error" |
+    "rate_limit" | "invalid_request" | "timeout" | "unknown";
+  downloadStatus?: number;
+}
+
 export interface ProviderResponseSummary {
+  providerError?: ProviderErrorEvidence;
   finishReason?: string | null;
   upstreamRequestId?: string | null;
   upstreamHttpStatus?: number | null;

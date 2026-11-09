@@ -428,7 +428,7 @@ export function parseStrictToolDecision(input: {
 
     const rawArguments = strictToolCallArguments(item);
     const argumentValue =
-      typeof rawArguments === "string" ? parseJsonObject(rawArguments, name) : rawArguments;
+      typeof rawArguments === "string" ? parseJsonObject(rawArguments, name, index) : rawArguments;
     if (argumentValue instanceof GatewayError) {
       return argumentValue;
     }
@@ -446,6 +446,7 @@ export function parseStrictToolDecision(input: {
         "schema_mismatch",
         {
           toolName: name.slice(0, 128),
+          toolCallIndex: index,
           argumentBytes: Buffer.byteLength(typeof rawArguments === "string" ? rawArguments : JSON.stringify(argumentValue), "utf8"),
           issueCount: validationError.errors.length,
           issues: validationError.errors.slice(0, 8).map(issue => ({
@@ -945,7 +946,7 @@ function decodedBase64ByteLength(value: string): number {
   return Math.floor((value.length * 3) / 4) - padding;
 }
 
-function parseJsonObject(value: string, toolName?: string): Record<string, unknown> | GatewayError {
+function parseJsonObject(value: string, toolName?: string, toolCallIndex?: number): Record<string, unknown> | GatewayError {
   const trimmed = stripJsonFence(value.trim());
   try {
     const parsed = JSON.parse(trimmed) as unknown;
@@ -958,6 +959,7 @@ function parseJsonObject(value: string, toolName?: string): Record<string, unkno
     const offset = message.match(/\bposition (\d+)/)?.[1];
     return toolCallValidationFailed("Expected valid JSON object output.", "invalid_json", {
       ...(toolName ? { toolName: toolName.slice(0, 128) } : {}),
+      ...(toolCallIndex !== undefined ? { toolCallIndex } : {}),
       argumentBytes: Buffer.byteLength(value, "utf8"),
       jsonError: { kind: /unexpected end/i.test(message) ? "unexpected_end" : "syntax", offset: offset ? Number(offset) : null }
     });

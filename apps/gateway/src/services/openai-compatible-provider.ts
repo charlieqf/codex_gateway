@@ -6,6 +6,7 @@ import {
   type ProviderChatMessage,
   type ProviderAdapter,
   type ProviderErrorDiagnostic,
+  type ProviderErrorEvidence,
   type ProviderFailureClassification,
   type ProviderHealth,
   type ProviderKind,
@@ -20,6 +21,7 @@ import {
   type UpstreamAccount
 } from "@codex-gateway/core";
 import { buildOpenRouterIdentityGuardPrompt } from "./openrouter-identity-guard.js";
+import { parseProviderError } from "./provider-error-evidence.js";
 import { reportModelProgress } from "./model-call-progress.js";
 import {
   contextCompactionRequiredError,
@@ -155,6 +157,8 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
     const startedAt = performance.now();
     let failureStage: ProviderFailureStage = "before_headers";
     let response: Response | undefined;
+    let errorRequestId: string | null = null;
+    let providerError: ProviderResponseSummary["providerError"];
     let usage: TokenUsage | undefined;
     let finishReason: string | null = null;
     let semanticOutputChars = 0;
@@ -169,7 +173,8 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
     };
     const responseSummary = (terminationKind: ProviderStreamTermination): ProviderResponseSummary => ({
       finishReason,
-      upstreamRequestId: this.safeRequestId(response ? upstreamRequestId(response.headers) : null),
+      upstreamRequestId: this.safeRequestId(response ? upstreamRequestId(response.headers) : null) ?? errorRequestId,
+      ...(providerError ? { providerError } : {}),
       upstreamHttpStatus: response?.status ?? null,
       semanticOutputChars,
       visibleOutputChars,
@@ -253,10 +258,12 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
           sawDone = true;
           break;
         }
-        const upstreamStreamError = openAIStreamError(chunk.value);
-        if (upstreamStreamError) {
+        if (isRecord(chunk.value) && chunk.value.error != null) {
+          const details = parseProviderError(chunk.value);
+          providerError = details.evidence;
+          errorRequestId = this.safeRequestId(...details.requestIds);
           const normalized = this.normalizeAndReport(
-            upstreamStreamError,
+            openAIStreamError(chunk.value, providerError),
             "stream_error_frame",
             input,
             { stage: failureStage }
@@ -472,12 +479,12 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
   ): Promise<{ error: GatewayError; responseSummary: ProviderResponseSummary }> {
     // HTTP status remains authoritative if the optional diagnostic body cannot be read.
     const body = await response.text().catch(() => null);
-    let bodyRequestId: unknown;
+    let parsedBody: unknown = body;
     if (body) {
-      try { bodyRequestId = (JSON.parse(body) as { request_id?: unknown }).request_id; } catch { /* Non-JSON error body. */ }
+      try { parsedBody = JSON.parse(body); } catch { /* Non-JSON error body. */ }
     }
-    const candidate = upstreamRequestId(response.headers) ?? bodyRequestId;
-    const requestId = this.safeRequestId(candidate);
+    const details = parseProviderError(parsedBody, response.status);
+    const requestId = this.safeRequestId(upstreamRequestId(response.headers), ...details.requestIds);
     const normalized = this.normalizeAndReport(
       new UpstreamHttpError(response.status, body || response.statusText),
       "http_response",
@@ -495,6 +502,7 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
       : normalized;
     return { error, responseSummary: {
       finishReason: null, upstreamRequestId: requestId, upstreamHttpStatus: response.status,
+      providerError: details.evidence,
       semanticOutputChars: 0, visibleOutputChars: 0,
       rawResponseHash: body === null ? null : createHash("sha256").update(body).digest("hex"),
       rawResponseChars: body?.length ?? null,
@@ -548,10 +556,14 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
     return normalized;
   }
 
-  private safeRequestId(candidate: unknown): string | null {
-    return typeof candidate === "string" && /^[a-zA-Z0-9._:-]{1,160}$/.test(candidate) &&
-      (!this.options.apiKey || !candidate.includes(this.options.apiKey)) && !/^(sk-|xai-|cgu_)/i.test(candidate)
-      ? candidate : null;
+  private safeRequestId(...candidates: unknown[]): string | null {
+    for (const candidate of candidates) {
+      if (typeof candidate === "string" && /^[a-zA-Z0-9._:-]{1,160}$/.test(candidate) &&
+        (!this.options.apiKey || !candidate.includes(this.options.apiKey)) && !/^(sk-|xai-|cgu_)/i.test(candidate)) {
+        return candidate;
+      }
+    }
+    return null;
   }
 
   private normalize(err: unknown, input?: MessageInput): GatewayError {
@@ -843,23 +855,13 @@ function structuredOutputChars(value: unknown): number {
 }
 
 function openAIStreamError(
-  chunk: unknown
-): GatewayError | UpstreamHttpError | null {
-  if (!isRecord(chunk) || chunk.error === undefined || chunk.error === null) {
-    return null;
-  }
+  chunk: Record<string, unknown>,
+  evidence: ProviderErrorEvidence
+): GatewayError | UpstreamHttpError {
   const error = chunk.error;
   const errorRecord = isRecord(error) ? error : null;
   const rawText = safeJson(error);
-  const status =
-    firstHttpStatus(
-      errorRecord?.status,
-      errorRecord?.status_code,
-      errorRecord?.http_status,
-      errorRecord?.code,
-      chunk.status,
-      chunk.status_code
-    ) ?? inferredErrorStatus(errorRecord, rawText);
+  const status = evidence.status;
   const classifierText = [
     errorRecord?.code,
     errorRecord?.type,
@@ -874,49 +876,10 @@ function openAIStreamError(
       code: "content_policy_violation",
       message: "MedCode upstream filtered the response for content policy reasons.",
       httpStatus: 400,
-      ...(status !== null ? { upstreamStatus: status } : {})
+      ...(evidence.statusSource !== "fallback" ? { upstreamStatus: status } : {})
     });
   }
-  return new UpstreamHttpError(status ?? 502, rawText);
-}
-
-function firstHttpStatus(...values: unknown[]): number | null {
-  for (const value of values) {
-    const numeric =
-      typeof value === "number"
-        ? value
-        : typeof value === "string" && /^\d{3}$/.test(value.trim())
-          ? Number(value)
-          : NaN;
-    if (Number.isInteger(numeric) && numeric >= 400 && numeric <= 599) {
-      return numeric;
-    }
-  }
-  return null;
-}
-
-function inferredErrorStatus(
-  error: Record<string, unknown> | null,
-  rawText: string
-): number | null {
-  const classifierText = [
-    error?.code,
-    error?.type,
-    error?.message,
-    rawText
-  ]
-    .map((value) => (typeof value === "string" ? value : ""))
-    .join(" ");
-  if (/rate[_ -]?limit|too many requests/i.test(classifierText)) {
-    return 429;
-  }
-  if (/invalid[_ -]?request|bad request/i.test(classifierText)) {
-    return 400;
-  }
-  if (/timeout|timed out/i.test(classifierText)) {
-    return 504;
-  }
-  return null;
+  return new UpstreamHttpError(status, rawText);
 }
 
 function safeJson(value: unknown): string {

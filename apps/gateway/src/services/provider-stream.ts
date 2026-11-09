@@ -9,6 +9,7 @@ import {
   type ProviderChatMessage,
   type ProviderAdapter,
   type ProviderErrorDiagnostic,
+  type ProviderErrorEvidence,
   type ProviderFailureClassification,
   type ProviderResponseSummary,
   type ProviderStreamProgress,
@@ -45,6 +46,7 @@ export interface CollectedProviderMessage {
 }
 
 export interface ProviderStreamSummary {
+  providerError?: ProviderErrorEvidence;
   userCharge?: TokenChargeDecision;
   completed: boolean;
   finishReason: string | null;
@@ -137,6 +139,7 @@ export class ProviderStreamSummaryCollector {
   private upstreamRawHash: string | null | undefined;
   private upstreamRawChars: number | null | undefined;
   private streamProgress: ProviderStreamProgress | undefined;
+  private providerError: ProviderErrorEvidence | undefined;
   private terminationKind: ProviderStreamTermination | null = null;
   private errorCode: string | null = null;
   private failure: ProviderFailureClassification | null = null;
@@ -242,6 +245,7 @@ export class ProviderStreamSummaryCollector {
       rawResponseHash: this.upstreamRawHash === undefined ? this.normalizedRawHash() : this.upstreamRawHash,
       rawResponseChars: this.upstreamRawChars === undefined ? this.normalizedChars : this.upstreamRawChars,
       ...(this.streamProgress ? { streamProgress: structuredClone(this.streamProgress) } : {}),
+      ...(this.providerError ? { providerError: { ...this.providerError } } : {}),
       terminationKind: this.terminationKind,
       durationMs: Math.max(0, this.now() - this.startedAtMs),
       usage: this.usage ? { ...this.usage } : null,
@@ -319,6 +323,9 @@ export class ProviderStreamSummaryCollector {
     }
     if (summary.streamProgress) {
       this.streamProgress = structuredClone(summary.streamProgress);
+    }
+    if (summary.providerError) {
+      this.providerError = { ...summary.providerError };
     }
   }
 }
@@ -918,6 +925,7 @@ function providerSummaryToAttempt(
     rawResponseHash: summary.rawResponseHash,
     rawResponseChars: summary.rawResponseChars,
     ...(summary.streamProgress ? { streamProgress: structuredClone(summary.streamProgress) } : {}),
+    ...(summary.providerError ? { providerError: { ...summary.providerError } } : {}),
     emptyStop: summary.emptyStop,
     terminationKind: summary.terminationKind,
     durationMs: summary.durationMs,

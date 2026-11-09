@@ -105,6 +105,8 @@ export type ToolCallValidationFailureKind =
 
 /** Bounded schema/syntax facts only; never argument values or JSON excerpts. */
 export interface ToolCallValidationDiagnostic {
+  /** Zero-based position in the validated tool-call array. */
+  toolCallIndex?: number;
   toolName?: string;
   argumentBytes: number;
   /** Offset is in UTF-16 units in trimmed/fence-stripped JSON, when supplied by the parser. */

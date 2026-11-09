@@ -97,6 +97,35 @@ function streamError(body: string) {
 }
 
 describe("A/S real Gateway HTTP pipeline with a loopback provider", () => {
+  it.each([true, false])("repairs the third of five screenshot calls and retains its index, stream=%s", async stream => {
+    const rejected = '{"label":"private-screenshot-label';
+    const tools = [{ type: "function", function: { name: "screenshot", parameters: {
+      type: "object", properties: { label: { type: "string" } }, required: ["label"], additionalProperties: false
+    } } }];
+    const corrected = Array.from({ length: 5 }, (_, index) => ({ name: "screenshot", args: { label: `shot-${index}` } }));
+    const first: SyntheticCall[] = corrected.map((call, index) => index === 2 ? { ...call, args: rejected } : call);
+    await fixture({ replies: [{ calls: first }, { calls: corrected }] }, async ({ send, captured, store }) => {
+      const response = await send({ stream, tools, choice: "required" });
+      expect(response.statusCode).toBe(200);
+      expect(captured).toHaveLength(2);
+      const prompt = captured[1].messages.map((m: { content: string }) => m.content).join("\n");
+      const data = JSON.parse(prompt.match(/<tool_json_repair_data>\n(.*)\n<\/tool_json_repair_data>/)![1]);
+      expect(data).toMatchObject({ tool_name: "screenshot", tool_call_index: 2, tool_call_count: 5, arguments_json: rejected });
+      expect(prompt).toContain("Reissue the complete batch");
+      expect(captured[1].tool_choice).toBe("required");
+      expect(captured[1].tools).toEqual(captured[0].tools);
+      const frames = stream ? response.body.split(/\r?\n/).filter(line => line.startsWith("data: ") && line !== "data: [DONE]")
+        .map(line => JSON.parse(line.slice(6))) : [response.json()];
+      const calls = frames.flatMap(frame => frame.choices ?? []).flatMap(choice => (choice.delta ?? choice.message)?.tool_calls ?? []);
+      expect(calls.map(call => JSON.parse(call.function.arguments))).toEqual(corrected.map(call => call.args));
+      expect(response.body).not.toContain("private-screenshot-label");
+      const event = store.listRequestEvents({ limit: 1 })[0];
+      expect(event).toMatchObject({ status: "ok", upstreamAttemptCount: 2 });
+      expect(event.upstreamAttempts?.[0].toolValidationDiagnostic).toMatchObject({ toolName: "screenshot", toolCallIndex: 2 });
+      expect(JSON.stringify(event)).not.toContain("private-screenshot-label");
+    });
+  });
+
   it.each([true, false])("repairs malformed shell JSON with bounded original arguments and revalidates the result, stream=%s", async (stream) => {
     const command = 'python "C:\\Users\\测试\\图表.py"';
     const rejected = '{"command":"' + command + '"}';

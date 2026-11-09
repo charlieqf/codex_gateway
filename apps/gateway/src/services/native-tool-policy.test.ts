@@ -50,13 +50,48 @@ describe("native JSON repair guidance", () => {
     expect(plan.prompt).not.toContain("Fix syntax only");
   });
 
-  it("does not guess which of multiple same-name calls failed", () => {
+  it("selects the failed call among five same-name calls", () => {
     const args = '{"command":';
-    const { data } = repair(args, [
+    const { data, error } = repair(args, Array.from({ length: 5 }, (_, index) => ({
+      id: String(index), name: "bash", argumentsJson: index === 2 ? args : '{"command":"other"}'
+    })));
+    expect(error.toolCallValidationDiagnostic?.toolCallIndex).toBe(2);
+    expect(data).toMatchObject({ arguments_json: args, tool_call_index: 2 });
+  });
+
+  it.each([undefined, -1, 1.5, 9, 1])("does not guess with an ambiguous or invalid index %s", (index) => {
+    const args = '{"command":';
+    const error = new GatewayError({ code: "tool_call_validation_failed", httpStatus: 502,
+      message: "invalid", failureKind: "invalid_json", toolCallValidationDiagnostic: {
+        toolName: "bash", argumentBytes: Buffer.byteLength(args), toolCallIndex: index
+      } });
+    const plan = nativeValidationRetryPlan(request, "glm-5.3", "auto", error, "task", [
       { id: "a", name: "bash", argumentsJson: args },
       { id: "b", name: "bash", argumentsJson: '{"command":"other"}' }
-    ]);
-    expect(data).not.toHaveProperty("arguments_json");
+    ])!;
+    expect(plan.prompt).not.toContain('"arguments_json":');
+    expect(plan.prompt).toContain("arguments are unavailable");
+  });
+
+  it("does not guess a single call when the diagnostic has no index", () => {
+    const args = '{"command":';
+    const error = new GatewayError({ code: "tool_call_validation_failed", httpStatus: 502,
+      message: "invalid", failureKind: "invalid_json", toolCallValidationDiagnostic: {
+        toolName: "bash", argumentBytes: Buffer.byteLength(args)
+      } });
+    expect(nativeValidationRetryPlan(request, "glm-5.3", "auto", error, "task", [
+      { id: "a", name: "bash", argumentsJson: args }
+    ])!.prompt).not.toContain('"arguments_json":');
+  });
+
+  it("does not select a different tool at the recorded index", () => {
+    const args = '{"command":';
+    const { error } = repair(args);
+    const plan = nativeValidationRetryPlan(request, "glm-5.3", "auto", error, "task", [
+      { id: "a", name: "other_tool", argumentsJson: args },
+      { id: "b", name: "bash", argumentsJson: args }
+    ])!;
+    expect(plan.prompt).not.toContain('"arguments_json":');
   });
 
   it("does not attach argument bodies for schema failures", () => {

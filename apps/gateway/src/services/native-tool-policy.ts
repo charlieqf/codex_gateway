@@ -132,13 +132,19 @@ function nativeJsonRepairContext(
   if (error.failureKind !== "invalid_json") return "";
   const diagnostic = error.toolCallValidationDiagnostic;
   const name = diagnostic?.toolName;
-  const matches = name && request.tools?.some(tool => tool.function.name === name)
-    ? rejectedToolCalls.filter(call => call.name === name)
-    : [];
-  const args = matches.length === 1 ? matches[0]?.argumentsJson : undefined;
+  const index = diagnostic?.toolCallIndex;
+  // The validator supplies the index from this batch; never guess by tool name.
+  const candidate = index !== undefined && Number.isSafeInteger(index) && index >= 0
+    ? rejectedToolCalls[index] : undefined;
+  const args = candidate?.name === name && request.tools?.some(tool => tool.function.name === name) &&
+    typeof candidate?.argumentsJson === "string" &&
+    Buffer.byteLength(candidate.argumentsJson, "utf8") === diagnostic?.argumentBytes
+    ? candidate.argumentsJson : undefined;
   const encode = (value: unknown) => JSON.stringify(value).replace(/</g, "\\u003c").replace(/>/g, "\\u003e");
   const facts = {
     ...(name ? { tool_name: name } : {}),
+    ...(index !== undefined ? { tool_call_index: index } : {}),
+    tool_call_count: rejectedToolCalls.length,
     ...(diagnostic?.jsonError ? { json_error: diagnostic.jsonError,
       offset_units: "UTF-16 in trimmed, JSON-fence-stripped arguments" } : {})
   };
@@ -153,6 +159,7 @@ function nativeJsonRepairContext(
   }
   return [
     "Tool arguments failed JSON parsing. Submit corrected arguments through tool calls, not as JSON in message text.",
+    "The entire previous tool-call batch was rejected; none of those calls was delivered for execution. Reissue the complete batch required by the original task, not just the failed call shown below.",
     "Use valid JSON: escape quotes, backslashes and control characters inside strings; no trailing commas.",
     includedArguments
       ? "arguments_json contains the rejected argument string. Fix syntax only; preserve the intended tool and argument values, including commands, paths and string whitespace. Do not add actions or guess missing values."
