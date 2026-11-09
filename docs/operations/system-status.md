@@ -1,5 +1,16 @@
 # System Status
 
+Gateway `ee41ee2579766d9dcb3d780a3485d03445cc83c6` is live as of
+2026-11-09 12:31:35 UTC. Authenticated medical-interview subtitle routes now
+provide ASR and bounded cleaning using the selected `goldencode` or `goldencode-d`.
+Clean-image tests: 2,341 passed, four skipped; real ASR and both cleaning models
+passed isolated preflight and Desktop subtitle validation. Two database checks,
+restore rehearsal, 21 protected files and five other containers passed.
+Public cutover interruption was 14.352 seconds; subsequent readiness and anonymous
+subtitle rejection passed with zero Gateway restarts/OOM. Installed client dialogue
+acceptance remains in progress. See the
+[release receipt](./medical-subtitles-release-2026-11-09.zh-CN.md).
+
 Gateway `ac35987b61bfc0e66c74d3fa6fb256e6302cb148` is live as of
 2026-11-06 10:08:32 UTC; verification completed at 10:12:47 UTC.
 Upstream 413 errors now retain request-body-limit metadata and stop automatic

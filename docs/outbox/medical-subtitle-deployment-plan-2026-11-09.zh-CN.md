@@ -1,6 +1,6 @@
 # 医学采访字幕服务：待上线变更
 
-本方案尚未执行生产部署。用户已明确批准上线字幕服务并继续安装版验收；随后要求清理跟随当前对话的 `goldencode` 或 `goldencode-d`。先完成该修正的测试，再按既有授权仅切换 Gateway。
+生产部署已于2026-11-09 12:31:35 UTC完成，revision 为 `ee41ee2`。用户已明确批准上线字幕服务并继续安装版验收；清理已按后续要求跟随当前对话的 `goldencode` 或 `goldencode-d`。测试和切换记录见[上线记录](../operations/medical-subtitles-release-2026-11-09.zh-CN.md)。下文保留计划与验证要求。
 
 ## 已准备的变更
 
