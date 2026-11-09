@@ -112,6 +112,7 @@ export interface GatewayOptions {
   visionAssetService?: VisionAssetService | null;
   imagingService?: ImagingService | null;
   documentEvidence?: NodeJS.ProcessEnv;
+  subtitleService?: NodeJS.ProcessEnv;
   aipalService?: ClinicalService | null;
   panechoService?: ClinicalService | null;
   echonetService?: ClinicalService | null;
