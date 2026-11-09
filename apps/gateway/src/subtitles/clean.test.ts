@@ -18,7 +18,7 @@ it("uses the selected cloud model, fixed rules and credential model access", asy
     },
   });
   const account: UpstreamAccount = { id: "fixture", provider: "tencent", label: "fixture", credentialRef: "fixture", state: "active", lastUsedAt: null, cooldownUntil: null };
-  const registry = resolvePublicModelRegistry({ MEDCODE_PUBLIC_MODEL_ID: "goldencode", MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(Object.fromEntries(["goldencode", "goldencode-d"].map(id => [id, { runtime: "tencent", upstreamModel: id, contextWindow: 32768, maxOutputTokens: id === "goldencode" ? 8192 : 32768 }]))) });
+  const registry = resolvePublicModelRegistry({ MEDCODE_PUBLIC_MODEL_ID: "goldencode", MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(Object.fromEntries(["goldencode", "goldencode-d"].map(id => [id, { runtime: "tencent", upstreamModel: id, contextWindow: 65536, maxOutputTokens: id === "goldencode" ? 8192 : 65536 }]))) });
   const dispatcher = createChatRuntimeDispatcher({ codexRouter: new UpstreamAccountRouter([{ upstreamAccount: account, provider: provider("unused") }]), openRouterAdapterForModel: () => null, tencentAdapterForModel: model => provider(model.id) });
   const clean = createSubtitleCleaner(registry, dispatcher);
   const context: GatewayRequestContext = { subject: { id: "subtitle-owner", label: "fixture", state: "active", createdAt: new Date() }, scope: "code", upstreamAccount: account, provider: provider("unused"), credential: { id: null, prefix: "fixture", label: null, expiresAt: null, rate: null, allowedPublicModels: null, credentialClass: "desktop" } };
@@ -26,7 +26,7 @@ it("uses the selected cloud model, fixed rules and credential model access", asy
   await expect(clean("goldencode-d", { core: [] }, context)).resolves.toEqual({ cues: [] });
   expect(calls.map(call => call.model)).toEqual(["goldencode", "goldencode-d"]);
   expect(calls.every(call => call.messages.some(message => message.content.includes(CLEANUP_RULES) && message.content.includes('{"core":[]}')))).toBe(true);
-  expect(calls.map(call => call.max_tokens)).toEqual([8192, 16384]);
+  expect(calls.map(call => call.max_tokens)).toEqual([8192, 32768]);
   context.credential.allowedPublicModels = ["goldencode"];
   await expect(clean("goldencode-d", { core: [] }, context)).rejects.toThrow("subtitle_model_not_allowed");
   expect(calls).toHaveLength(2);

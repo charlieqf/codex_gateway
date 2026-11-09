@@ -15,7 +15,7 @@ export function createSubtitleCleaner(registry: PublicModelRegistry, dispatcher:
     const runtime = dispatcher.begin({ model, modality: "text", reasoningEffort: null, reasoningEffortSource: "default", subject: context.subject, scope: context.scope, affinityKey: "subtitle:" + context.subject.id, createSession: createStatelessSession });
     if (runtime instanceof GatewayError) throw runtime;
     const deadline = new AbortController();
-    const timer = setTimeout(() => deadline.abort(), 150_000);
+    const timer = setTimeout(() => deadline.abort(), 300_000);
     const parts: string[] = [];
     let size = 0;
     try {
@@ -24,7 +24,7 @@ export function createSubtitleCleaner(registry: PublicModelRegistry, dispatcher:
         // Cloud adapters use the flattened prompt, as in the existing chat route.
         message: CLEANUP_RULES + "\n\n待编辑材料 JSON：\n" + JSON.stringify(input),
         // Completion limits also include reasoning tokens on the current DeepSeek providers.
-        reasoningEffort: runtime.reasoningEffort, maximumOutputTokens: Math.min(16_384, runtime.limits.maxOutputTokens), signal: deadline.signal,
+        reasoningEffort: runtime.reasoningEffort, maximumOutputTokens: Math.min(32_768, runtime.limits.maxOutputTokens), signal: deadline.signal,
       })) {
         if (event.type === "error") {
           if (event.gatewayError) runtime.recordError(event.gatewayError);
