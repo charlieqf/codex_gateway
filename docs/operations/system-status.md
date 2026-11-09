@@ -1,5 +1,20 @@
 # System Status
 
+Gateway `39c2f6d563157627f2ece54ed43b95f794c35f7b` is live as of
+2026-11-09 23:31:54 UTC; final verification completed at 23:34:22 UTC.
+Tool JSON repair now identifies the failed call among same-name calls. Stream
+errors retain safe request IDs and durable classification facts; unambiguous
+image-download timeouts can use the existing bounded recovery policy.
+Clean-image tests: 2,379 passed, four skipped. All 22 isolated installed-code
+checks, 16 public model checks and two public missing-image checks passed.
+The missing-image checks persisted download HTTP 404 and upstream request IDs,
+with one attempt each. Natural idle reached 42.267 seconds; public probes
+observed a 16.405-second cutover interruption. Both databases and backup restore
+rehearsal passed. Production environment, 21 protected files and 15 other
+containers are unchanged. Gateway is ready with zero restarts/OOM; synthetic
+credentials were revoked, subjects disabled and reservations finalized.
+See the [release receipt](./gateway-vision-tool-release-2026-11-10.zh-CN.md).
+
 Gateway `f675af21d29f3c5d4c25a85e3a236a0ac9c72b37` is live as of
 2026-11-09 15:05:33.622734 UTC. Medical-interview subtitle cleaning retains the
 selected `goldencode` / `goldencode-d`, explicitly uses low reasoning and native
