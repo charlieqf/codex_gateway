@@ -16,13 +16,13 @@ export function createSubtitleCleaner(registry: PublicModelRegistry, dispatcher:
     if (runtime instanceof GatewayError) throw runtime;
     const deadline = new AbortController();
     const timer = setTimeout(() => deadline.abort(), 150_000);
-    const text = JSON.stringify(input);
     const parts: string[] = [];
     let size = 0;
     try {
       for await (const event of runtime.adapter.message({
         upstreamAccount: runtime.adapterInputUpstreamAccount, session: runtime.session, subject: context.subject, scope: context.scope,
-        message: text, chatMessages: [{ role: "system", content: CLEANUP_RULES }, { role: "user", content: text }],
+        // Cloud adapters use the flattened prompt, as in the existing chat route.
+        message: CLEANUP_RULES + "\n\n待编辑材料 JSON：\n" + JSON.stringify(input),
         reasoningEffort: runtime.reasoningEffort, maximumOutputTokens: Math.min(6000, runtime.limits.maxOutputTokens), signal: deadline.signal,
       })) {
         if (event.type === "error") {
