@@ -23,7 +23,8 @@ export function createSubtitleCleaner(registry: PublicModelRegistry, dispatcher:
         upstreamAccount: runtime.adapterInputUpstreamAccount, session: runtime.session, subject: context.subject, scope: context.scope,
         // Cloud adapters use the flattened prompt, as in the existing chat route.
         message: CLEANUP_RULES + "\n\n待编辑材料 JSON：\n" + JSON.stringify(input),
-        reasoningEffort: runtime.reasoningEffort, maximumOutputTokens: Math.min(6000, runtime.limits.maxOutputTokens), signal: deadline.signal,
+        // Completion limits also include reasoning tokens on the current DeepSeek providers.
+        reasoningEffort: runtime.reasoningEffort, maximumOutputTokens: Math.min(16_384, runtime.limits.maxOutputTokens), signal: deadline.signal,
       })) {
         if (event.type === "error") {
           if (event.gatewayError) runtime.recordError(event.gatewayError);
