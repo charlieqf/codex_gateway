@@ -1,5 +1,18 @@
 # System Status
 
+Gateway `a0eb9a4622f3c421713510fa11701b1e8a89b054` is live as of
+2026-11-10T04:16:05.573890+00:00 and verified at 2026-11-10T04:18:16.236411+00:00.
+Medical subtitle cleanup accepts both medical-interview-1 and medical-interview-2
+and uses the refined filler, punctuation and clinical-preservation rules.
+Clean-image tests: 2,380 passed, four skipped. All 11 isolated checks and 11 public
+checks passed; each model/version pair completed real cleanup without repair.
+Temporary credentials were revoked and test jobs removed. Both databases passed;
+21 protected files, 16 other containers and the production environment are unchanged.
+Gateway is ready with zero restarts/OOM; observed cutover interruption was
+15.418686 seconds. AI subtitle content still requires review;
+this release does not claim acceptance of all prior screenshot issues.
+See the [release receipt](./medical-subtitles-rules-release-2026-11-10.json).
+
 Gateway `39c2f6d563157627f2ece54ed43b95f794c35f7b` is live as of
 2026-11-09 23:31:54 UTC; final verification completed at 23:34:22 UTC.
 Tool JSON repair now identifies the failed call among same-name calls. Stream

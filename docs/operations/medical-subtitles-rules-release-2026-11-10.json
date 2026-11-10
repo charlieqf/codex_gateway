@@ -1,0 +1,243 @@
+{
+  "schema_version": 1,
+  "component": "Gateway medical-interview subtitle cleanup",
+  "revision": "a0eb9a4622f3c421713510fa11701b1e8a89b054",
+  "previous_revision": "39c2f6d563157627f2ece54ed43b95f794c35f7b",
+  "status": "deployed_and_verified",
+  "deployed_at_utc": "2026-11-10T04:16:05.573890+00:00",
+  "verified_at_utc": "2026-11-10T04:18:16.236411+00:00",
+  "image_id": "sha256:0d2e84357330a8689de394072f058e05934221fbecfa3489ba5d30de2f0484e4",
+  "scope": {
+    "accepted_versions": [
+      "medical-interview-1",
+      "medical-interview-2"
+    ],
+    "models": [
+      "goldencode",
+      "goldencode-d"
+    ],
+    "changes": [
+      "Avoid cue splits at removed filler words; end normal cue text with clause punctuation.",
+      "Expand filler cleanup while preserving partial populations, specific teams, clinical numbers, negation and uncertainty.",
+      "Restrict terms to English abbreviations; do not treat Chinese shorthand as an English abbreviation."
+    ],
+    "unchanged": [
+      "Authentication, source ownership and batch limits",
+      "Provider routing, model budgets and production environment",
+      "Database schema, public ports and other services"
+    ]
+  },
+  "self_review": {
+    "blocking_code_findings_remaining": 0,
+    "finding_fixed": "The normal JSON output example lacked final punctuation and always included an illustrative long_term field. It now ends with punctuation and documents long_term as optional.",
+    "scope_checks": [
+      "Both version identifiers use the existing bounded, authenticated cleanup path.",
+      "Invalid versions and mismatched source text are still rejected.",
+      "Unrelated dirty working-tree files were excluded from the commit and release archive."
+    ],
+    "reviewed_files": [
+      "apps/gateway/src/subtitles/routes.ts",
+      "apps/gateway/src/subtitles/routes.test.ts",
+      "apps/gateway/src/subtitles/rules.ts"
+    ]
+  },
+  "tests": {
+    "focused_files_passed": 3,
+    "focused_tests_passed": 11,
+    "typecheck": "passed",
+    "diff_check": "passed",
+    "clean_image": [
+      "Test Files  118 passed | 2 skipped (120)",
+      "Tests  2380 passed | 4 skipped (2384)"
+    ],
+    "isolated_preflight": {
+      "status": "passed",
+      "checks": 11,
+      "real_model_version_pairs": 4,
+      "runs_as_production_nonroot_user": true,
+      "backup_restore_rehearsal": {
+        "quick_check": "ok",
+        "foreign_key_violations": 0
+      }
+    },
+    "public": {
+      "status": "passed",
+      "checks": 11,
+      "real_cleanup": [
+        {
+          "check": "real-cleanup",
+          "version": "medical-interview-1",
+          "model": "goldencode",
+          "http": 200,
+          "attempts": 1,
+          "cues": 4,
+          "seconds": 4.526,
+          "texts": [
+            "包括醛固酮受体阻滞剂，",
+            "细胞凋亡也可能会增加。",
+            "我们中心的一些患者每天服用10毫克，",
+            "一些患者不需要增加剂量，不能停药。"
+          ]
+        },
+        {
+          "check": "real-cleanup",
+          "version": "medical-interview-2",
+          "model": "goldencode",
+          "http": 200,
+          "attempts": 1,
+          "cues": 4,
+          "seconds": 6.044,
+          "texts": [
+            "包括醛固酮受体阻滞剂，",
+            "细胞凋亡也可能会增加。",
+            "我们中心的一些患者每天服用10毫克，",
+            "一些患者不需要增加剂量，不能停药。"
+          ]
+        },
+        {
+          "check": "real-cleanup",
+          "version": "medical-interview-1",
+          "model": "goldencode-d",
+          "http": 200,
+          "attempts": 1,
+          "cues": 4,
+          "seconds": 13.839,
+          "texts": [
+            "包括醛固酮受体阻滞剂，",
+            "细胞凋亡也可能会增加。",
+            "我们中心的一些患者每天服用10毫克，",
+            "一些患者不需要增加剂量，不能停药。"
+          ]
+        },
+        {
+          "check": "real-cleanup",
+          "version": "medical-interview-2",
+          "model": "goldencode-d",
+          "http": 200,
+          "attempts": 1,
+          "cues": 4,
+          "seconds": 9.997,
+          "texts": [
+            "包括醛固酮受体阻滞剂，",
+            "细胞凋亡也可能会增加。",
+            "我们中心的一些患者每天服用10毫克，",
+            "一些患者不需要增加剂量，不能停药。"
+          ]
+        }
+      ],
+      "security_checks": [
+        {
+          "check": "anonymous",
+          "http": 401
+        },
+        {
+          "check": "owner-isolation",
+          "version": "medical-interview-1",
+          "http": 404
+        },
+        {
+          "check": "source-binding",
+          "version": "medical-interview-1",
+          "http": 400
+        },
+        {
+          "check": "owner-isolation",
+          "version": "medical-interview-2",
+          "http": 404
+        },
+        {
+          "check": "source-binding",
+          "version": "medical-interview-2",
+          "http": 400
+        },
+        {
+          "check": "invalid-version",
+          "version": "medical-interview-3",
+          "http": 400
+        },
+        {
+          "check": "invalid-version",
+          "version": "medical-interview-2 ",
+          "http": 400
+        }
+      ],
+      "synthetic_fixture_only": true,
+      "new_paid_asr_submissions": 0
+    }
+  },
+  "deployment": {
+    "clean_committed_archive": true,
+    "gateway_only": true,
+    "idle_window": {
+      "required_seconds": 30,
+      "observed_seconds": 41.349,
+      "started_at": "2026-11-10T04:14:56.614745+00:00",
+      "qualified_at": "2026-11-10T04:15:37.963933+00:00",
+      "admission_open": true,
+      "active_requests": 0,
+      "active_work": 0,
+      "active_model_requests": 0,
+      "long_requests": 0,
+      "model_or_long_activity_delta": 0,
+      "light_requests_allowed": false,
+      "long_request_threshold_seconds": 5,
+      "incoming_request_log_observer": true
+    },
+    "backup": "/data/backups/codex-gateway-daily/20261110T041527Z",
+    "protected_files_unchanged": 21,
+    "other_containers_unchanged": 16,
+    "observed_interruption_seconds": 15.418686,
+    "production_config_unchanged": true,
+    "health": [
+      {
+        "http": 200,
+        "state": "ready",
+        "draining": false
+      },
+      {
+        "http": 200,
+        "state": "ready",
+        "draining": false
+      }
+    ],
+    "restarts": 0,
+    "oom": false,
+    "integrity": [
+      {
+        "database": "gateway.db",
+        "quick_check": "ok",
+        "foreign_key_violations": 0
+      },
+      {
+        "database": "client-events.db",
+        "quick_check": "ok",
+        "foreign_key_violations": 0
+      }
+    ],
+    "cleanup": {
+      "subjects_disabled": true,
+      "active_credentials": 0,
+      "pending_reservations": 0,
+      "temporary_job_removed": true,
+      "revoked_http": 401
+    },
+    "temporary_test_containers": 0
+  },
+  "content_quality_boundary": {
+    "all_11_screenshot_items_accepted": false,
+    "reason": "The exact 11-item screenshot checklist was not provided. Prior full production and historical transcript runs found model/client content-quality limitations even where structure validation passed.",
+    "known_items": [
+      "Redundant adjacent 也 and some generic 我们 may remain.",
+      "A client batch boundary can split the 心、脑、肾 enumeration.",
+      "Client structural validation does not catch every repeated phrase or incomplete short clause."
+    ],
+    "release_claim": "This release verifies API compatibility and prompt improvements. It does not certify all AI-cleaned subtitles as clinically reviewed.",
+    "latest_public_smoke": "All four model/version pairs preserve 一些患者, 我们中心, numbers, negation and 可能会, and keep 包括醛固酮受体阻滞剂 in one cue."
+  },
+  "evidence_directory": "/opt/codex-gateway-r760/staging/a0eb9a4622f3c421713510fa11701b1e8a89b054",
+  "rollback": {
+    "previous_revision": "39c2f6d563157627f2ece54ed43b95f794c35f7b",
+    "protected_state_directory": "/opt/codex-gateway-r760/backups/release-a0eb9a4622f3",
+    "procedure": "Restore the saved previous.override.yml, recreate only the prior Gateway with its exact Compose overlays, restore current/previous symlinks, and repeat bounded public readiness and integrity checks. Preserve production databases and subtitle jobs."
+  }
+}
