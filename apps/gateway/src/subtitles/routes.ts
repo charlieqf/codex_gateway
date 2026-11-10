@@ -146,7 +146,7 @@ function validCleanInput(value: unknown): value is CleanInput {
   if (!value || typeof value !== "object") return false;
   const input = value as CleanInput;
   const texts = (items: unknown) => Array.isArray(items) && items.length <= 2 && items.every(text => typeof text === "string" && text.length <= 2000);
-  return input.version === "medical-interview-1" && (input.model === "goldencode" || input.model === "goldencode-d") && typeof input.job_id === "string" && /^[a-f0-9]{32}$/.test(input.job_id) &&
+  return (input.version === "medical-interview-1" || input.version === "medical-interview-2") && (input.model === "goldencode" || input.model === "goldencode-d") && typeof input.job_id === "string" && /^[a-f0-9]{32}$/.test(input.job_id) &&
     Array.isArray(input.core) && input.core.length > 0 && input.core.length <= 16 &&
     input.core.every(unit => unit && Number.isSafeInteger(unit.id) && unit.id >= 0 && typeof unit.text === "string" && Array.isArray(unit.words) && unit.words.length > 0 && unit.words.length <= 1000 && unit.words.every(word => word && Number.isSafeInteger(word.id) && word.id >= 0 && typeof word.text === "string" && word.text.length <= 200)) &&
     input.core.reduce((total, unit) => total + unit.text.length, 0) <= 2000 && texts(input.before) && texts(input.after) &&

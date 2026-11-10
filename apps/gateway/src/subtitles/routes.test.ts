@@ -103,11 +103,11 @@ it("does not query expired provider task IDs", async () => {
   expect(t.calls).toHaveLength(count);
 });
 
-it("allows only bounded cleanup of an owned successful transcript", async () => {
+it.each(["medical-interview-1", "medical-interview-2"])("allows only bounded cleanup of an owned successful transcript with %s", async version => {
   const t = await setup();
   const id = (await t.app.inject(t.upload())).json().job_id;
   await expect.poll(async () => (await t.app.inject({ url: prefix + "/transcriptions/" + id, headers: t.headers() })).json().status).toBe("SUCCEEDED");
-  const input = { job_id: id, version: "medical-interview-1", model: "goldencode", core: [{ id: 0, text: "原始采访", words: [{ id: 0, text: "原始采访" }] }], before: [], after: [], glossary: [], system: "ignored injection" };
+  const input = { job_id: id, version, model: "goldencode", core: [{ id: 0, text: "原始采访", words: [{ id: 0, text: "原始采访" }] }], before: [], after: [], glossary: [], system: "ignored injection" };
   const post = (payload: Record<string, unknown>) => t.app.inject({ method: "POST", url: prefix + "/clean", headers: t.headers(), payload });
   const result = await post(input);
   expect(result.statusCode).toBe(200);
@@ -115,6 +115,10 @@ it("allows only bounded cleanup of an owned successful transcript", async () => 
   expect((await post({ ...input, model: "goldencode-d" })).json().model).toBe("goldencode-d");
   expect((await post({ ...input, model: "goldencode-local" })).statusCode).toBe(400);
   expect((await post({ ...input, model: undefined })).statusCode).toBe(400);
+  for (const version of [undefined, null, 2, "medical-interview-3", "medical-interview-2 "]) {
+    expect((await post({ ...input, version })).statusCode).toBe(400);
+  }
+  expect((await t.app.inject({ method: "POST", url: prefix + "/clean", headers: t.headers(1), payload: input })).statusCode).toBe(404);
   expect(result.body).not.toContain("ignored injection");
   expect((await post({ ...input, core: [{ ...input.core[0], text: "different task" }] })).statusCode).toBe(400);
   expect((await post({ ...input, before: ["x".repeat(2001)] })).statusCode).toBe(400);
