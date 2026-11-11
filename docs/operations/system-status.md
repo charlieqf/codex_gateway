@@ -511,8 +511,8 @@ participating service. Only the GPU0 Qwen worker is resident.
 resident workers left too little host memory for CT. GPU0 therefore serves all
 images. PanEcho no longer depends on Qwen readiness: it may use GPU0 or GPU1,
 but not GPU1 while a CT waits. Nothing is preempted, so a CT arriving during a
-running PanEcho waits for it to exit. A real PanEcho inference on GPU1 is still
-pending the client team's check; see the
+running PanEcho waits for it to exit. A real PanEcho inference ran on GPU1 at
+05:58 UTC while an image held GPU0; the granted and actual GPU matched. See the
 [PanEcho GPU1 dispatch](./panecho-gpu1-dispatch-2026-11-11.zh-CN.md).
 CT reserves 12 GiB for preprocessing and 16 GiB for inference. These
 equal RADAR's per-task `MemoryMax` and are sized from measured peaks of 7.2 and

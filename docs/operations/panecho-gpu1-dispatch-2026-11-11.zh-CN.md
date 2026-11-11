@@ -32,7 +32,11 @@ MedEvidence `16b6cec518` 已在 star 上线：PanEcho runner 按分到的 UUID �
 - 主机余量保持 11 GiB 现场覆盖（`host_reserve_mib=11264`），`service.json` 未改。
 - Qwen pool、worker@0、RADAR、PanEcho、IndexTTS 的 PID 均未变化。
 - `qwen-image-worker@1` 仍为 disabled / inactive（MainPID 0），调度器观测为未就绪，生图不会派往 GPU1。
-- **待完成：**GPU1 上的真实 PanEcho 推理。由客户端在上线后发起一次，并核对实际用卡。
+- GPU1 真实推理（北京时间 13:58，客户端发起）：先用一张生图占住 GPU0，再提交 PanEcho。调度器记录与客户端报告一致：
+  - 生图 `sched_2831edca…`：13:58:34 入队即获准 GPU0（`qwen_worker_0`），13:59:21 成功，运行 46 秒。
+  - PanEcho `sched_6a4d612f…`：13:58:35 入队，同一秒获准 GPU1（`panecho_runner`），13:58:36 开始运行，13:58:41 释放并成功，没有排在生图后面。
+  - 客户端核对：结果 `gpu_uuid` 为 GPU1，nvidia-smi 上该任务进程只出现在 GPU1，没有 `gpu_mismatch`。
+- MedEvidence `services/clinical-models/README.md` 已在 `05d316be58` 同步：不再写 PanEcho 只用 GPU0，并补充 CT 不抢占、最长等 900 秒。
 
 ## 回退
 
