@@ -121,10 +121,12 @@ class Runtime:
                     continue
                 # No shell, no environment/config output.
                 data = subprocess.check_output(['systemctl', '--user', 'show', unit,
-                    '-p', 'MainPID', '-p', 'MemoryCurrent'], text=True, timeout=1)
+                    '-p', 'MainPID', '-p', 'ControlGroup'], text=True, timeout=1)
                 props = dict(line.split('=', 1) for line in data.splitlines() if '=' in line)
                 pid = int(props['MainPID'])
-                result['cgroups'][role] = {'current_mib': int(props['MemoryCurrent'])//2**20 if pid else 0,
+                # MemoryCurrent includes reclaimable page cache (~16 GiB of model files for Qwen).
+                stat = dict(line.split() for line in (Path('/sys/fs/cgroup'+props['ControlGroup'])/'memory.stat').read_text().splitlines()) if pid else {}
+                result['cgroups'][role] = {'anon_mib': int(stat.get('anon', 0))//2**20,
                     'identity': identity(pid) if pid else None, 'ready': False}
                 try:
                     ready = json.loads((self.directory/('ready-'+str(pid)+'.json')).read_text())

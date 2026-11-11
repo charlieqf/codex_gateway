@@ -21,7 +21,9 @@ BASE=Path('/data/apps/star-gpu-scheduler')
 QWEN=Path('/data/apps/qwen-image-21-eval')
 RADAR=Path('/data/apps/radar-imaging')
 UNITS=Path.home()/'.config/systemd/user'
-SERVICES=['qwen-image-pool.service','qwen-image-worker@0.service','qwen-image-worker@1.service','radar-imaging.service']
+SERVICES=['qwen-image-pool.service','qwen-image-worker@0.service','radar-imaging.service']
+# GPU1 Qwen stays disabled since 2026-11-11: two resident workers starve CT host-memory admission.
+WORKER_PORTS=(8200,)
 
 
 def run(*args, timeout=60):
@@ -51,7 +53,7 @@ def current():
 def verify_idle():
     pool=health(8191)
     assert pool['active']==0 and pool['queued']==0,'Qwen is not drained'
-    for port in (8200,8201): assert health(port)['busy'] is False,'Qwen worker is busy'
+    for port in WORKER_PORTS: assert health(port)['busy'] is False,'Qwen worker is busy'
     with sqlite3.connect('file:'+str(RADAR/'data/execution.sqlite')+'?mode=ro',uri=True) as db:
         db.execute('PRAGMA query_only=ON')
         count=db.execute("SELECT count(*) FROM resources WHERE state IN ('validating','queued','preprocessing','running','postprocessing','cancel_requested')").fetchone()[0]
@@ -134,9 +136,9 @@ def activate(prepared):
     verify_idle()
     ctl('stop','radar-imaging.service')
     ctl('stop','qwen-image-pool.service',timeout=830)
-    for port in (8200,8201): assert health(port)['busy'] is False
+    for port in WORKER_PORTS: assert health(port)['busy'] is False
     ctl('stop','qwen-image-worker@0.service','qwen-image-worker@1.service')
-    for name in SERVICES: assert 'ActiveState=inactive' in ctl('show',name,'-p','ActiveState')
+    for name in SERVICES+['qwen-image-worker@1.service']: assert 'ActiveState=inactive' in ctl('show',name,'-p','ActiveState')
     qwen=Path(manifest['qwen_release'])
     radar=Path(manifest['radar_release'])
     scheduler=qwen/'services/star-gpu-scheduler'
@@ -158,18 +160,18 @@ def activate(prepared):
         assert time.monotonic()<deadline,'Broker did not become ready; business APIs remain stopped'
         time.sleep(1)
     operator('resume')
-    ctl('start','qwen-image-worker@0.service','qwen-image-worker@1.service')
+    ctl('start','qwen-image-worker@0.service')
     deadline=time.monotonic()+600
     previous=None
     while True:
         states=[]
-        for port in (8200,8201):
+        for port in WORKER_PORTS:
             try: states.append(health(port)['status'])
             except Exception: states.append('starting')
         if states!=previous:
             print(json.dumps({'workers':states,'at':datetime.datetime.now(datetime.timezone.utc).isoformat()}),flush=True)
             previous=states
-        if states==['ready','ready']: break
+        if states==['ready']*len(WORKER_PORTS): break
         assert time.monotonic()<deadline,'Initialization not ready; business APIs remain stopped'
         time.sleep(2)
     status=operator('status')
@@ -181,7 +183,7 @@ def open_services(prepared):
     status=operator('status')
     assert status['ready'] and status['mode']=='enforce' and status['drain']==''
     assert current()=={'qwen':prepared['manifest']['qwen_release'],'radar':prepared['manifest']['radar_release']}
-    for port in (8200,8201): assert health(port)['status']=='ready'
+    for port in WORKER_PORTS: assert health(port)['status']=='ready'
     ctl('start','radar-imaging.service','qwen-image-pool.service')
     for name in SERVICES: assert ctl('is-active',name)=='active'
     print(json.dumps({'opened_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'current':current()}),flush=True)

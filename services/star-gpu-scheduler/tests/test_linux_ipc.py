@@ -23,7 +23,7 @@ class SyntheticRuntime(Runtime):
     def observe(self):
         return {'ok': True, 'mono': time.monotonic(), 'memory_available_mib': 200000,
             'gpus': {g: {'free_mib': 40000, 'temperature': 40, 'processes': []} for g in GPUS},
-            'cgroups': {f'qwen_worker_{i}': {'ready': True, 'current_mib': 40000} for i in (0,1)}}
+            'cgroups': {f'qwen_worker_{i}': {'ready': True, 'anon_mib': 40000} for i in (0,1)}}
 
     def executor_allowed(self, role, value):
         # Test processes intentionally run outside production systemd units.

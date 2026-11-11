@@ -1,0 +1,484 @@
+{
+ "measured_at": "2026-11-11",
+ "method": "50 ms cgroup v2 sampling of radar-task-* transient units (memory.current, memory.stat anon/shmem/file); kernel 5.15 has no memory.peak",
+ "cases": [
+  {
+   "case": "A-demo-512x512x368",
+   "format": "nifti",
+   "bytes": 98330067,
+   "study_id": "study_e91dbfbd7ba04a0bac5f30c3df10b613",
+   "study_state": "ready",
+   "study_seconds": 5.1,
+   "series": [
+    {
+     "series_id": "series_0001",
+     "modality": "CT",
+     "phase": null,
+     "eligible": true,
+     "shape_xyz": [
+      512,
+      512,
+      368
+     ],
+     "spacing_xyz": [
+      0.703125,
+      0.703125,
+      1.25
+     ]
+    }
+   ],
+   "study_error": null,
+   "job_id": "job_0366cb988a594be684173b50d635f6e7",
+   "job_state": "completed",
+   "job_seconds": 19.2,
+   "job_error": null,
+   "deleted": true
+  },
+  {
+   "case": "B-synthetic-max-nifti",
+   "format": "nifti",
+   "bytes": 84013166,
+   "study_id": "study_a521ab60e14849219e647d5249c4d078",
+   "study_state": "ready",
+   "study_seconds": 4.1,
+   "series": [
+    {
+     "series_id": "series_0001",
+     "modality": "CT",
+     "phase": null,
+     "eligible": true,
+     "shape_xyz": [
+      512,
+      512,
+      1024
+     ],
+     "spacing_xyz": [
+      0.800000011920929,
+      0.800000011920929,
+      1.25
+     ]
+    }
+   ],
+   "study_error": null,
+   "job_id": "job_bc29ae8258bf4a3c8c35e321451346f9",
+   "job_state": "failed",
+   "job_seconds": 28.3,
+   "job_error": {
+    "code": "inference_failed",
+    "message": "Processing failed; retry after checking the input or service status",
+    "retryable": true
+   },
+   "deleted": true
+  },
+  {
+   "case": "C-synthetic-max-dicom",
+   "format": "dicom_zip",
+   "bytes": 52688200,
+   "study_id": "study_a1128a83d9ef4f13b087720a1d97cf3b",
+   "study_state": "ready",
+   "study_seconds": 11.1,
+   "series": [
+    {
+     "series_id": "series_0001",
+     "modality": "CT",
+     "phase": null,
+     "eligible": true,
+     "shape_xyz": [
+      512,
+      512,
+      1024
+     ],
+     "spacing_xyz": [
+      0.800000011920929,
+      0.800000011920929,
+      1.25
+     ]
+    }
+   ],
+   "study_error": null,
+   "job_id": "job_e3ad6dd25bc541aca135f2f6765717af",
+   "job_state": "failed",
+   "job_seconds": 27.3,
+   "job_error": {
+    "code": "inference_failed",
+    "message": "Processing failed; retry after checking the input or service status",
+    "retryable": true
+   },
+   "deleted": true
+  },
+  {
+   "case": "D-synthetic-max-fine-nifti",
+   "format": "nifti",
+   "bytes": 84013151,
+   "study_id": "study_91ff6f6c706d4a75ada8af7b3c088502",
+   "study_state": "ready",
+   "study_seconds": 4.1,
+   "series": [
+    {
+     "series_id": "series_0001",
+     "modality": "CT",
+     "phase": null,
+     "eligible": true,
+     "shape_xyz": [
+      512,
+      512,
+      1024
+     ],
+     "spacing_xyz": [
+      0.699999988079071,
+      0.699999988079071,
+      1.0
+     ]
+    }
+   ],
+   "study_error": null,
+   "job_id": "job_7f215de99f6b4ac89a093d96ac18af16",
+   "job_state": "failed",
+   "job_seconds": 22.2,
+   "job_error": {
+    "code": "inference_failed",
+    "message": "Processing failed; retry after checking the input or service status",
+    "retryable": true
+   },
+   "log_tail": [
+    "    ret = super().__torch_function__(func, types, args, kwargs)",
+    "  File \"/data/apps/radar-poc/.venv/lib/python3.10/site-packages/torch/_tensor.py\", line 1512, in __torch_function__",
+    "    ret = func(*args, **kwargs)",
+    "  File \"/data/apps/radar-poc/.venv/lib/python3.10/site-packages/torch/nn/functional.py\", line 2812, in batch_norm",
+    "    return torch.batch_norm(",
+    "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.94 GiB. GPU 0 has a total capacity of 47.38 GiB of which 18.75 GiB is free. Process 2872499 has 8.31 GiB memory in use. Including non-PyTorch memory, this process has 20.31 GiB memory in use. 23.69 GiB allowed; Of the allocated memory 18.33 GiB is allocated by PyTorch, and 1.49 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)"
+   ],
+   "deleted": true
+  },
+  {
+   "case": "B2-synthetic-max-nifti",
+   "format": "nifti",
+   "bytes": 84013166,
+   "study_id": "study_efd1c4a78f7243f6a0eb6b94e7ef4f38",
+   "study_state": "ready",
+   "study_seconds": 4.0,
+   "series": [
+    {
+     "series_id": "series_0001",
+     "modality": "CT",
+     "phase": null,
+     "eligible": true,
+     "shape_xyz": [
+      512,
+      512,
+      1024
+     ],
+     "spacing_xyz": [
+      0.800000011920929,
+      0.800000011920929,
+      1.25
+     ]
+    }
+   ],
+   "study_error": null,
+   "job_id": "job_881d504a13284bedbc541e486e7d6d91",
+   "job_state": "failed",
+   "job_seconds": 28.3,
+   "job_error": {
+    "code": "inference_failed",
+    "message": "Processing failed; retry after checking the input or service status",
+    "retryable": true
+   },
+   "log_tail": [
+    "    ret = super().__torch_function__(func, types, args, kwargs)",
+    "  File \"/data/apps/radar-poc/.venv/lib/python3.10/site-packages/torch/_tensor.py\", line 1512, in __torch_function__",
+    "    ret = func(*args, **kwargs)",
+    "  File \"/data/apps/radar-poc/.venv/lib/python3.10/site-packages/torch/nn/functional.py\", line 2812, in batch_norm",
+    "    return torch.batch_norm(",
+    "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 5.28 GiB. GPU 0 has a total capacity of 47.38 GiB of which 16.59 GiB is free. Process 2872499 has 8.31 GiB memory in use. Including non-PyTorch memory, this process has 22.46 GiB memory in use. 23.69 GiB allowed; Of the allocated memory 20.06 GiB is allocated by PyTorch, and 1.91 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)"
+   ],
+   "deleted": true
+  },
+  {
+   "case": "C2-synthetic-max-dicom-rescaled",
+   "format": "dicom_zip",
+   "bytes": 52959169,
+   "study_id": "study_ad48a56e5c9949e8bbce9dc0ea497576",
+   "study_state": "ready",
+   "study_seconds": 22.2,
+   "series": [
+    {
+     "series_id": "series_0001",
+     "modality": "CT",
+     "phase": null,
+     "eligible": true,
+     "shape_xyz": [
+      512,
+      512,
+      1024
+     ],
+     "spacing_xyz": [
+      0.800000011920929,
+      0.800000011920929,
+      1.25
+     ]
+    }
+   ],
+   "study_error": null,
+   "job_id": "job_369d91c267dc4c13afe90fbe8f2e0f3a",
+   "job_state": "failed",
+   "job_seconds": 23.2,
+   "job_error": {
+    "code": "inference_failed",
+    "message": "Processing failed; retry after checking the input or service status",
+    "retryable": true
+   },
+   "log_tail": [
+    "  File \"/data/apps/radar-poc/.venv/lib/python3.10/site-packages/numpy/core/fromnumeric.py\", line 2953, in min",
+    "    return _wrapreduction(a, np.minimum, 'min', axis, None, out,",
+    "  File \"/data/apps/radar-poc/.venv/lib/python3.10/site-packages/numpy/core/fromnumeric.py\", line 88, in _wrapreduction",
+    "    return ufunc.reduce(obj, axis, dtype, out, **passkwargs)",
+    "ValueError: zero-size array to reduction operation minimum which has no identity",
+    ""
+   ],
+   "deleted": true
+  },
+  {
+   "case": "C3-synthetic-max-dicom-float64",
+   "format": "dicom_zip",
+   "bytes": 53158401,
+   "study_id": "study_e6572d69335b47c4a7ccef0309e867d5",
+   "study_state": "ready",
+   "study_seconds": 23.3,
+   "series": [
+    {
+     "series_id": "series_0001",
+     "modality": "CT",
+     "phase": null,
+     "eligible": true,
+     "shape_xyz": [
+      512,
+      512,
+      1024
+     ],
+     "spacing_xyz": [
+      0.800000011920929,
+      0.800000011920929,
+      1.25
+     ]
+    }
+   ],
+   "study_error": null,
+   "job_id": "job_12c2af253edc4c73ac83f9d0b689c0fb",
+   "job_state": "failed",
+   "job_seconds": 27.3,
+   "job_error": {
+    "code": "inference_failed",
+    "message": "Processing failed; retry after checking the input or service status",
+    "retryable": true
+   },
+   "log_tail": [
+    "  File \"/data/apps/radar-poc/.venv/lib/python3.10/site-packages/numpy/core/fromnumeric.py\", line 2953, in min",
+    "    return _wrapreduction(a, np.minimum, 'min', axis, None, out,",
+    "  File \"/data/apps/radar-poc/.venv/lib/python3.10/site-packages/numpy/core/fromnumeric.py\", line 88, in _wrapreduction",
+    "    return ufunc.reduce(obj, axis, dtype, out, **passkwargs)",
+    "ValueError: zero-size array to reduction operation minimum which has no identity",
+    ""
+   ],
+   "deleted": true
+  },
+  {
+   "case": "E-synthetic-max-float64-nifti",
+   "format": "nifti",
+   "bytes": 156173628,
+   "study_id": "study_01cf0aecc40344e1845a51466de88df2",
+   "study_state": "rejected",
+   "study_seconds": 8.1,
+   "series": [],
+   "study_error": {
+    "code": "invalid_volume",
+    "message": "Processing failed; retry after checking the input or service status",
+    "retryable": false
+   },
+   "deleted": true
+  },
+  {
+   "case": "F-synthetic-max-dicom-float64-hu",
+   "format": "dicom_zip",
+   "bytes": 52887538,
+   "study_id": "study_826b6c92fb8e428785b79ee94a664f36",
+   "study_state": "ready",
+   "study_seconds": 25.3,
+   "series": [
+    {
+     "series_id": "series_0001",
+     "modality": "CT",
+     "phase": null,
+     "eligible": true,
+     "shape_xyz": [
+      512,
+      512,
+      1024
+     ],
+     "spacing_xyz": [
+      0.800000011920929,
+      0.800000011920929,
+      1.25
+     ]
+    }
+   ],
+   "study_error": null,
+   "job_id": "job_513d420f99f44fd8a95b010ddc6e7311",
+   "job_state": "failed",
+   "job_seconds": 33.4,
+   "job_error": {
+    "code": "inference_failed",
+    "message": "Processing failed; retry after checking the input or service status",
+    "retryable": true
+   },
+   "log_tail": [
+    "    ret = super().__torch_function__(func, types, args, kwargs)",
+    "  File \"/data/apps/radar-poc/.venv/lib/python3.10/site-packages/torch/_tensor.py\", line 1512, in __torch_function__",
+    "    ret = func(*args, **kwargs)",
+    "  File \"/data/apps/radar-poc/.venv/lib/python3.10/site-packages/torch/nn/functional.py\", line 2812, in batch_norm",
+    "    return torch.batch_norm(",
+    "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 5.28 GiB. GPU 0 has a total capacity of 47.38 GiB of which 16.59 GiB is free. Process 2872499 has 8.31 GiB memory in use. Including non-PyTorch memory, this process has 22.46 GiB memory in use. 23.69 GiB allowed; Of the allocated memory 20.06 GiB is allocated by PyTorch, and 1.91 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)"
+   ],
+   "deleted": true
+  }
+ ],
+ "unit_peaks_mib": {
+  "radar-task-study_e91dbfbd7ba04a0bac5f30c3df10b613.service": {
+   "current": 289,
+   "anon": 23,
+   "shmem": 0,
+   "nonfile": 39,
+   "file": 251,
+   "seconds": 2.2
+  },
+  "radar-task-job_0366cb988a594be684173b50d635f6e7.service": {
+   "current": 4621,
+   "anon": 4400,
+   "shmem": 67,
+   "nonfile": 4527,
+   "file": 160,
+   "seconds": 16.6
+  },
+  "radar-task-study_a521ab60e14849219e647d5249c4d078.service": {
+   "current": 610,
+   "anon": 23,
+   "shmem": 0,
+   "nonfile": 50,
+   "file": 560,
+   "seconds": 2.5
+  },
+  "radar-task-job_bc29ae8258bf4a3c8c35e321451346f9.service": {
+   "current": 10829,
+   "anon": 10493,
+   "shmem": 182,
+   "nonfile": 10749,
+   "file": 269,
+   "seconds": 25.9
+  },
+  "radar-task-study_a1128a83d9ef4f13b087720a1d97cf3b.service": {
+   "current": 2707,
+   "anon": 2108,
+   "shmem": 0,
+   "nonfile": 2139,
+   "file": 568,
+   "seconds": 9.2
+  },
+  "radar-task-job_e3ad6dd25bc541aca135f2f6765717af.service": {
+   "current": 10579,
+   "anon": 10277,
+   "shmem": 182,
+   "nonfile": 10531,
+   "file": 231,
+   "seconds": 25.7
+  },
+  "radar-task-study_91ff6f6c706d4a75ada8af7b3c088502.service": {
+   "current": 624,
+   "anon": 23,
+   "shmem": 0,
+   "nonfile": 49,
+   "file": 579,
+   "seconds": 2.4
+  },
+  "radar-task-job_7f215de99f6b4ac89a093d96ac18af16.service": {
+   "current": 7868,
+   "anon": 7596,
+   "shmem": 126,
+   "nonfile": 7788,
+   "file": 206,
+   "seconds": 21.5
+  },
+  "radar-task-study_efd1c4a78f7243f6a0eb6b94e7ef4f38.service": {
+   "current": 602,
+   "anon": 23,
+   "shmem": 0,
+   "nonfile": 50,
+   "file": 552,
+   "seconds": 2.5
+  },
+  "radar-task-job_881d504a13284bedbc541e486e7d6d91.service": {
+   "current": 10817,
+   "anon": 10482,
+   "shmem": 182,
+   "nonfile": 10737,
+   "file": 264,
+   "seconds": 26.0
+  },
+  "radar-task-study_ad48a56e5c9949e8bbce9dc0ea497576.service": {
+   "current": 4253,
+   "anon": 3644,
+   "shmem": 0,
+   "nonfile": 3677,
+   "file": 577,
+   "seconds": 20.1
+  },
+  "radar-task-job_369d91c267dc4c13afe90fbe8f2e0f3a.service": {
+   "current": 3910,
+   "anon": 3771,
+   "shmem": 8,
+   "nonfile": 3849,
+   "file": 69,
+   "seconds": 21.6
+  },
+  "radar-task-study_e6572d69335b47c4a7ccef0309e867d5.service": {
+   "current": 7344,
+   "anon": 6716,
+   "shmem": 0,
+   "nonfile": 6756,
+   "file": 588,
+   "seconds": 21.9
+  },
+  "radar-task-job_12c2af253edc4c73ac83f9d0b689c0fb.service": {
+   "current": 5969,
+   "anon": 5815,
+   "shmem": 8,
+   "nonfile": 5897,
+   "file": 80,
+   "seconds": 24.9
+  },
+  "radar-task-study_01cf0aecc40344e1845a51466de88df2.service": {
+   "current": 2119,
+   "anon": 12,
+   "shmem": 0,
+   "nonfile": 73,
+   "file": 2046,
+   "seconds": 6.0
+  },
+  "radar-task-study_826b6c92fb8e428785b79ee94a664f36.service": {
+   "current": 7345,
+   "anon": 6716,
+   "shmem": 0,
+   "nonfile": 6755,
+   "file": 591,
+   "seconds": 23.1
+  },
+  "radar-task-job_513d420f99f44fd8a95b010ddc6e7311.service": {
+   "current": 10603,
+   "anon": 10273,
+   "shmem": 182,
+   "nonfile": 10528,
+   "file": 257,
+   "seconds": 31.7
+  }
+ },
+ "host_min_available_mib_during_tests": 68843
+}

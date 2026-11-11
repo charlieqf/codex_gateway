@@ -7,7 +7,7 @@ import time
 import unittest
 
 from star_gpu_scheduler.core import Scheduler
-from star_gpu_scheduler.protocol import GPU0, GPU1, GPUS, PROFILES, Rejected, digest
+from star_gpu_scheduler.protocol import GPU0, GPU1, GPUS, HOST_MEMORY_MIB, PROFILES, QWEN_MEMORY_MAX_MIB, Rejected, digest
 
 
 def peer(role, pid=100):
@@ -22,7 +22,7 @@ class Hardware:
         self.dead = set()
         self.receipts = set()
         self.snapshot = {'ok': True, 'gpus': {g: {'free_mib': 40000, 'temperature': 40, 'processes': []} for g in GPUS},
-            'memory_available_mib': 200000, 'cgroups': {f'qwen_worker_{i}': {'current_mib': 40000, 'ready': True} for i in (0, 1)}}
+            'memory_available_mib': 200000, 'cgroups': {f'qwen_worker_{i}': {'anon_mib': 40000, 'ready': True} for i in (0, 1)}}
 
     def observe(self):
         return {**copy.deepcopy(self.snapshot), 'mono': time.monotonic()}
@@ -272,9 +272,31 @@ class Scheduling(unittest.TestCase):
         self.assertEqual(self.s.status()['counts']['granted'],2)
 
     def test_preprocessing_has_memory_priority_over_new_images(self):
-        self.hw.snapshot['memory_available_mib']=50000
+        self.hw.snapshot['memory_available_mib']=30000
         self.submit();self.submit('ct_preprocess');self.s.tick()
         self.assertEqual([t['state'] for t in self.s.tasks()],['queued','granted'])
+
+    def test_ct_reservations_follow_measured_profiles(self):
+        for kind, gpu_mib in (('ct_preprocess', HOST_MEMORY_MIB['ct_preprocess']), ('ct_infer', HOST_MEMORY_MIB['ct_infer'])):
+            self.hw.snapshot['memory_available_mib'] = 12288+gpu_mib-1
+            (_, value), _ = self.submit(kind)
+            self.s.tick()
+            self.assertEqual(self.s.get(value['task_id'], 'radar_service')['wait_reason'], 'waiting_memory')
+            self.hw.snapshot['memory_available_mib'] = 12288+gpu_mib
+            self.s.tick()
+            self.assertEqual(self.s.get(value['task_id'], 'radar_service')['state'], 'granted')
+            self.s.command(value['task_id'], 'cancel', 'radar_service', {'producer_instance': 'radar_service-instance', 'reason': 'explicit_cancel'}, peer('radar_service'))
+            self.hw.locked.clear()
+            self.s.tick()
+
+    def test_qwen_growth_counts_only_anonymous_memory(self):
+        self.hw.snapshot['cgroups']['qwen_worker_0']['anon_mib'] = 40000
+        self.hw.snapshot['memory_available_mib'] = 12288+QWEN_MEMORY_MAX_MIB-40000-1
+        self.submit(); self.s.tick()
+        self.assertEqual(self.s.tasks()[0]['wait_reason'], 'waiting_memory')
+        self.hw.snapshot['memory_available_mib'] += 1
+        self.s.tick()
+        self.assertEqual(self.s.tasks()[0]['state'], 'granted')
 
     def test_sqlite_write_failure_closes_admission(self):
         self.s.db.execute('PRAGMA query_only=ON')

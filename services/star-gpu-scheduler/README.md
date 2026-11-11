@@ -10,14 +10,27 @@ and resource admission; model execution stays in Qwen/RADAR. Production uses
 - One RADAR subprocess, including preprocessing; preprocessing reserves host
   memory without locking a GPU. Ready CT/preprocessing has memory priority.
 - Each Qwen process has a 56 GiB cgroup bound. The broker reserves the difference
-  between that limit and observed usage. A CT task reserves a conservative full
-  32 GiB until exit, even after some memory has already been allocated. Host
-  `MemAvailable` must retain the configured host reserve. The code/deployment
+  between that limit and the worker's anonymous memory. Its page cache (~16 GiB
+  of model files) already counts as available and is reclaimed first. A CT task
+  reserves its full RADAR `MemoryMax` until exit, even after some memory has
+  already been allocated. That is 12 GiB for preprocessing and 16 GiB for
+  inference (`HOST_MEMORY_MIB`), replacing 32 GiB for both on 2026-11-11. The
+  values come from cgroup peaks measured on star: 7.2 GiB preprocessing and
+  10.6 GiB inference. See the
+  [memory profile](../../docs/operations/ct-memory-profile-2026-11-11.zh-CN.md).
+  Host `MemAvailable` must retain the configured host reserve. The code/deployment
   default is 12 GiB; production was explicitly adjusted to 11 GiB on 2026-09-22
   to recover a blocked original CT study, keeping the CT reservation at 32 GiB.
   Preserve this live override in future release preparation; see the
   [recovery receipt](../../docs/operations/ct-memory-admission-recovery-2026-09-22.zh-CN.md).
   Dual Qwen execution is conditional on this budget, not a guarantee at all times.
+- Since 2026-11-11 the GPU1 Qwen worker is disabled and removed from the pool's
+  systemd dependencies; only `qwen-image-worker@0` stays resident. Two resident
+  workers (~40 GiB anonymous memory each) left `MemAvailable` below the idle CT
+  threshold and held a CT preprocess for 30 minutes. In the prior 30 days GPU1
+  served 36 of 373 images, and a single-worker replay kept every wait under the
+  600 s queue limit. `deploy.py` now starts only GPU0; keep this live state in
+  future releases unless the host memory budget is re-evaluated.
 - Temperature admission <=80 C; Qwen/RADAR abort at >=88 C. Minimum free VRAM is
   30000 MiB / 32768 MiB respectively. Unknown GPU processes stop admission.
 - IndexTTS remains outside the shared lock. Its actual VRAM and host memory count

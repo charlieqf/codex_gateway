@@ -9,7 +9,7 @@ import threading
 import time
 from uuid import uuid4
 
-from .protocol import GPUS, GPU0, GPU1, TERMINAL, ERRORS, Rejected, canonical, digest, register_body, require, token_hash
+from .protocol import GPUS, GPU0, GPU1, TERMINAL, ERRORS, HOST_MEMORY_MIB, QWEN_MEMORY_MAX_MIB, Rejected, canonical, digest, register_body, require, token_hash
 from .runtime import same_process
 
 
@@ -247,12 +247,12 @@ class Scheduler:
             self.save(task, 'recovering', 'executor_unconfirmed')
 
     def growth(self, task, snapshot):
-        if task['kind'] == 'echo_infer':
-            return 8192
-        if task['kind'].startswith('ct_'):
+        if task['kind'] in HOST_MEMORY_MIB:
             # Keeping the full bound after start is conservative and avoids sampling transient units.
-            return 32768
-        return max(0, 57344-snapshot['cgroups'].get(task['executor'], {}).get('current_mib', 0))
+            return HOST_MEMORY_MIB[task['kind']]
+        # Page cache inside a Qwen cgroup is already counted as available and is reclaimed first,
+        # so only anonymous memory is committed; the rest of MemoryMax can still be claimed.
+        return max(0, QWEN_MEMORY_MAX_MIB-snapshot['cgroups'].get(task['executor'], {}).get('anon_mib', 0))
 
     def reserve(self, task, gpu, snapshot, tasks, protect_ct=None):
         now = self.clock()
@@ -284,7 +284,7 @@ class Scheduler:
                     self.save(task)
                     return False
         active = [t for t in tasks if t['state'] in ('granted', 'running', 'releasing', 'recovering')]
-        protected = 32768 if protect_ct and protect_ct['id'] != task['id'] and not any(t['kind'] == 'ct_infer' for t in active) else 0
+        protected = self.growth(protect_ct, snapshot) if protect_ct and protect_ct['id'] != task['id'] and not any(t['kind'] == 'ct_infer' for t in active) else 0
         remaining = snapshot['memory_available_mib']-sum(self.growth(t, snapshot) for t in active)-self.growth(task, snapshot)-protected
         if remaining < self.reserve_mib:
             task['wait_reason'] = 'waiting_memory'
