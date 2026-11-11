@@ -42,6 +42,25 @@
 
 空闲时 CT 推理的准入门槛由 43 GiB 降为 27 GiB（16 + 11）。
 
+## 部署与验收（2026-11-11，北京时间）
+
+| 时间 | 变更 | 结果 |
+| --- | --- | --- |
+| 09:49 | 停用 `qwen-image-worker@1`，并从 pool 依赖中移除 | 未重启任何服务；pool 与 worker@0 的 PID 不变 |
+| 10:11 | RADAR 切换到 `releases/2f0ba2c2d8dc768c9600a3cddacc2c857078d413`（MedEvidence dev 提交），空闲时重启 | 能力接口正常 |
+| 10:22 | 调度器切换到 `releases/31729a15d2122b070b0a9f6dbdca71fe58869eda`：先 drain，再改 systemd drop-in 的 ExecStart，然后 resume | ready / enforce，主机余量保持 11 GiB |
+
+验收：
+
+- RADAR 切换后、调度器切换前：临时单元的 `memory.max` 分别为 12 GiB 和 16 GiB，swap 为 0。公开 CT 推理成功（19.2 秒）。64 位 DICOM 预处理在 12 GiB 内完成，推理仍因 CUDA 显存不足失败，与切换前一致。日志中没有 cgroup OOM。
+- 调度器切换后：新代码读到 worker@0 的 anon 为 40,790 MiB。一张 512×512 生图在 GPU0 运行期间，公开 CT 的预处理和 GPU1 推理分别在 0.4 秒和 0.2 秒内获准，没有 `waiting_memory`。生图 34.5 秒返回有效 PNG；CT 推理 18.2 秒完成。系统 `oom_kill` 计数没有增加。
+- 未覆盖：Desktop → Gateway → star 的完整客户端流程。这条链路本身没有改动，需要在客户端发起一次 CT 读图来确认。
+
+回退方法：
+
+- 调度器：把 `backups/ct-memory-20261111T022201Z/clinical-models.conf` 恢复为 drop-in，执行 `daemon-reload` 后重启调度器，旧 release `480bcf8…` 保留在原处。必须先回退调度器，再回退 RADAR，保证预约始终不低于上限。
+- RADAR：把 `current` 指回 `releases/1d0ac94dd7c2d51fa518cdc238605bd3e57c1230`，空闲时重启 `radar-imaging.service`。
+
 ## Qwen GPU1 worker
 
 同日起 `qwen-image-worker@1` 保持停用，并已从 pool 单元的依赖中移除。理由如下：
