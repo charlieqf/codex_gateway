@@ -503,13 +503,18 @@ the 413 image-count contract and upstream bodies are unchanged. The
 partial/unavailable and 413-with-snapshot branches are covered only by unit tests
 so far. See the [vision observation release receipt](./r760-vision-observation-release-2026-09-23.zh-CN.md).
 
-Star GPU scheduling and CT memory admission last updated: 2026-11-11 02:22 UTC.
-Star runs scheduler `31729a1` and RADAR `2f0ba2c2d8` (MedEvidence repository)
-with `mode=enforce` and tickets required in every participating service. Only
-the GPU0 Qwen worker is resident. `qwen-image-worker@1` is disabled and out of
-the pool dependencies, because two resident workers left too little host memory
-for CT. GPU0 therefore serves all images and PanEcho; GPU1 serves CT without
-preemption. CT reserves 12 GiB for preprocessing and 16 GiB for inference. These
+Star GPU scheduling and CT memory admission last updated: 2026-11-11 05:48 UTC.
+Star runs scheduler `25d8d26`, RADAR `2f0ba2c2d8` and PanEcho `16b6cec518`
+(MedEvidence repository) with `mode=enforce` and tickets required in every
+participating service. Only the GPU0 Qwen worker is resident.
+`qwen-image-worker@1` is disabled and out of the pool dependencies, because two
+resident workers left too little host memory for CT. GPU0 therefore serves all
+images. PanEcho no longer depends on Qwen readiness: it may use GPU0 or GPU1,
+but not GPU1 while a CT waits. Nothing is preempted, so a CT arriving during a
+running PanEcho waits for it to exit. A real PanEcho inference on GPU1 is still
+pending the client team's check; see the
+[PanEcho GPU1 dispatch](./panecho-gpu1-dispatch-2026-11-11.zh-CN.md).
+CT reserves 12 GiB for preprocessing and 16 GiB for inference. These
 equal RADAR's per-task `MemoryMax` and are sized from measured peaks of 7.2 and
 10.6 GiB. The host reserve stays at the 11 GiB live override. Qwen growth is
 reserved from anonymous memory, not `MemoryCurrent`. After the rollout one CT
