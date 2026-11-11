@@ -17,10 +17,11 @@ PROFILES = {
     'echo_infer': 'panecho_16x224_v1',
 }
 # Host-memory reservations, each equal to the executor's systemd MemoryMax. RADAR values were
-# measured on star on 2026-11-11 (cgroup peaks): preprocessing 4.2 GiB for a 1024-slice rescaled
-# DICOM series; inference 10.6 GiB for a 512x512x1024 input, beyond which RADAR's own GPU budget
-# fails first. Keep services/radar-imaging/server.py MemoryMax in step with these values.
-HOST_MEMORY_MIB = {'ct_preprocess': 8192, 'ct_infer': 16384, 'echo_infer': 8192}
+# measured on star on 2026-11-11 (cgroup peaks): preprocessing 7.2 GiB for a 1024-slice DICOM
+# series with a non-integer rescale slope (read as float64); inference 10.6 GiB for a 512x512x1024
+# input, beyond which RADAR's own GPU budget fails first. Keep services/radar-imaging/server.py
+# MemoryMax in step with these values.
+HOST_MEMORY_MIB = {'ct_preprocess': 12288, 'ct_infer': 16384, 'echo_infer': 8192}
 QWEN_MEMORY_MAX_MIB = 57344
 ERRORS = frozenset(('execution_failed', 'resource_unavailable', 'cancelled', 'deadline',
     'worker_restarted', 'cleanup_failed', 'grant_delivery_failed', 'producer_lost'))
