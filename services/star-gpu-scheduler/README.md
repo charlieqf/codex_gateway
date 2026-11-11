@@ -7,6 +7,9 @@ and resource admission; model execution stays in Qwen/RADAR. Production uses
 ## Scheduling and failure contract
 
 - GPU0: images. GPU1: CT first, then images. No preemption of running work.
+  A GPU takes images or echo work only while its Qwen worker reports ready. With
+  the GPU1 worker disabled (2026-11-11), GPU0 serves all images and PanEcho, and
+  GPU1 serves CT only.
 - One RADAR subprocess, including preprocessing; preprocessing reserves host
   memory without locking a GPU. Ready CT/preprocessing has memory priority.
 - Each Qwen process has a 56 GiB cgroup bound. The broker reserves the difference
@@ -20,7 +23,7 @@ and resource admission; model execution stays in Qwen/RADAR. Production uses
   [memory profile](../../docs/operations/ct-memory-profile-2026-11-11.zh-CN.md).
   Host `MemAvailable` must retain the configured host reserve. The code/deployment
   default is 12 GiB; production was explicitly adjusted to 11 GiB on 2026-09-22
-  to recover a blocked original CT study, keeping the CT reservation at 32 GiB.
+  to recover a blocked original CT study.
   Preserve this live override in future release preparation; see the
   [recovery receipt](../../docs/operations/ct-memory-admission-recovery-2026-09-22.zh-CN.md).
   Dual Qwen execution is conditional on this budget, not a guarantee at all times.
@@ -35,8 +38,10 @@ and resource admission; model execution stays in Qwen/RADAR. Production uses
   30000 MiB / 32768 MiB respectively. Unknown GPU processes stop admission.
 - IndexTTS remains outside the shared lock. Its actual VRAM and host memory count
   toward admission; its concurrent growth is still a limitation of version 1.
-- Images: twelve total outstanding (two execution slots plus ten waiting), at
-  most two executing, queue wait <=600 s and request budget <=780 s. Each actual
+- Images: twelve total outstanding, queue wait <=600 s and request budget
+  <=780 s. The source allows two execution slots plus ten waiting; with only the
+  GPU0 worker live there is one slot, so at ~75 s per image a full burst can
+  expire its tail at the queue limit. Each actual
   execution still has a 180 s cap. Full queue: 429; unavailable/expired admission:
   503. Qwen-primary Gateway defaults to no cross-model fallback. Roll out pool,
   broker and Gateway together; see the
@@ -130,6 +135,6 @@ claims only within `panecho-task-job_*.service` transient units. Echo reserves
 8 GiB host memory and requires 8 GiB free VRAM, with one live echo executor.
 It uses the existing process-owned GPU lock and retains ownership until verified
 process exit. CT retains GPU1 priority; echo and image tasks use queue order on
-available GPUs. Async echo admission/retry follows the durable CT semantics.
+available GPUs, currently GPU0 only. Async echo admission/retry follows the durable CT semantics.
 The rollout in MedEvidence `services/clinical-models/deploy.py` preserves live
 host-reserve configuration and uses an isolated, committed scheduler release.

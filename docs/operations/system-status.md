@@ -503,34 +503,29 @@ the 413 image-count contract and upstream bodies are unchanged. The
 partial/unavailable and 413-with-snapshot branches are covered only by unit tests
 so far. See the [vision observation release receipt](./r760-vision-observation-release-2026-09-23.zh-CN.md).
 
-Shared Qwen / RADAR scheduling enabled: 2026-09-22 05:03:25 UTC;
-service checks completed at 05:04:40 UTC. Star runs scheduler/Qwen `58a4d80`
-and RADAR `20a3710300`, with `mode=enforce` and required tickets in both APIs.
-GPU0 serves images; GPU1 prioritizes CT without preemption. Host memory admission
-may serialize tasks. The final 68 Linux mock tests passed; two real model
-initialization leases completed, but no generation or CT inference test was
-submitted during this rollout. IndexTTS remains outside the shared lock and its
-process is unchanged. See the [scheduler release receipt](./star-qwen-radar-scheduler-release-2026-09-22.zh-CN.md).
+Star GPU scheduling and CT memory admission last updated: 2026-11-11 02:22 UTC.
+Star runs scheduler `31729a1` and RADAR `2f0ba2c2d8` (MedEvidence repository)
+with `mode=enforce` and tickets required in every participating service. Only
+the GPU0 Qwen worker is resident. `qwen-image-worker@1` is disabled and out of
+the pool dependencies, because two resident workers left too little host memory
+for CT. GPU0 therefore serves all images and PanEcho; GPU1 serves CT without
+preemption. CT reserves 12 GiB for preprocessing and 16 GiB for inference. These
+equal RADAR's per-task `MemoryMax` and are sized from measured peaks of 7.2 and
+10.6 GiB. The host reserve stays at the 11 GiB live override. Qwen growth is
+reserved from anonymous memory, not `MemoryCurrent`. After the rollout one CT
+job and one image were admitted concurrently without memory waits. The Desktop
+CT flow has not been re-run since. See the [CT memory profile and rollout](./ct-memory-profile-2026-11-11.zh-CN.md).
+Earlier history: [scheduler release](./star-qwen-radar-scheduler-release-2026-09-22.zh-CN.md),
+[CT memory recovery](./ct-memory-admission-recovery-2026-09-22.zh-CN.md),
+[dual-GPU release](./qwen-image-dual-gpu-release-2026-09-22.zh-CN.md).
 
-CT memory admission recovery verified: 2026-09-22 07:20 UTC. By explicit user
-request, the live scheduler host reserve is now **11 GiB** (11264 MiB), reduced
-from the initial 12 GiB; the CT reservation remains 32 GiB. Both Qwen workers,
-RADAR, pool and IndexTTS kept their processes. The original blocked study
-`study_cdc4595c1e15442fbfdee46f66eb9e02` is now ready with one eligible series,
-confirmed through the public Gateway. CT inference and HTML continuation remain
-with the client workflow. See the [recovery receipt](./ct-memory-admission-recovery-2026-09-22.zh-CN.md).
-
-Image inference last verified: 2026-09-22 02:50 UTC (before shared scheduling). The public model
-`medcode-image-default` uses two local `qwen-image-2.1` workers on star GPUs 0/1
-through a bounded private queue and the existing authenticated SSH tunnel.
-LLaDA is stopped/disabled and removed from the fallback chain; GPT Image 2 is
-the first cloud fallback. Two square images completed concurrently in 64.0 s
-versus a 59.5 s single baseline; four queued images completed in 128.5 s.
-Public square JPEG, landscape PNG, portrait WebP and ordinary text passed.
-Installed MedEvidence client acceptance is pending; the user will
-forward the [client test notice](../outbox/medevidence-qwen-image-21-primary-test-notice-2026-09-22.zh-CN.md).
-See the [dual-GPU release receipt](./qwen-image-dual-gpu-release-2026-09-22.zh-CN.md)
-and [controlled Chinese-label comparison](./qwen-image-label-prompt-comparison-2026-09-22.zh-CN.md).
+Image inference last verified: 2026-11-11 02:22 UTC, with one 512x512 image in
+34.5 s on GPU0. The public model `medcode-image-default` uses one local
+`qwen-image-2.1` worker on star GPU0, through the bounded private queue and the
+existing authenticated SSH tunnel; LLaDA stays stopped. The queue still admits
+12 outstanding requests but has only one execution slot. At about 75 s per image,
+a full burst can expire its tail at the 600 s queue limit. See the
+[controlled Chinese-label comparison](./qwen-image-label-prompt-comparison-2026-09-22.zh-CN.md).
 
 Last verified: 2026-09-22 06:25 UTC: imaging v1 admits only the explicitly approved Subjects `subj_yBZBxNUHIVszGz4BKXaltrw5`, `subj__3nJpw9INwhmK4k8Qq4K4jlI` and `medevidence-76650ea38feb47f4b259e1b065151696` (沈杰); schema 34. All three existing credentials return available:true, with independent limits of 10 jobs per UTC day and one unfinished job per Subject. Other Subjects remain unavailable. See [latest allowlist verification](../../artifacts/imaging-pilot-shen-20260922/activation.json) and [沈杰 activation receipt](./imaging-pilot-shen-2026-09-22.zh-CN.md). Earlier temporary test studies, credentials and entitlements were cleaned up as recorded in the [joint audit](../../artifacts/imaging-gateway-20260921/joint-final-audit.json). Phone readiness was last checked on 2026-09-18: 300/300 active identities ready, with no duplicate-phone groups.
 

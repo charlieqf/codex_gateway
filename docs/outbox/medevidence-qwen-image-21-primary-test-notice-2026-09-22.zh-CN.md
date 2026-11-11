@@ -1,5 +1,7 @@
 # MedEvidence 客户端：Qwen-Image-2.1 默认生图实测通知
 
+> 2026-11-11 状态更新：GPU1 的 `qwen-image-worker@1` 已停用，并已移出 pool 依赖，现在只有 GPU0 一个 Qwen 常驻，也只有一个执行名额。原因是两个 worker 常驻会挤占 CT 所需的主机内存。见 [CT 内存实测与准入调整](../operations/ct-memory-profile-2026-11-11.zh-CN.md)。
+
 交接方式：供用户转发；未向客户端团队直接发送。以下为可转发正文。
 
 ---

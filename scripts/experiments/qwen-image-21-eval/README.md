@@ -48,6 +48,13 @@ The API now requires `QWEN_IMAGE_API_KEY` from protected `api.env`, generates a 
 
 ## Authorized replacement with two Qwen workers
 
+> Current state (2026-11-11): `qwen-image-worker@1` is disabled and removed from
+> the pool's dependencies; only the GPU0 worker is resident. Each worker holds
+> about 40 GiB of anonymous host memory, and two resident workers starved CT
+> admission. The queue/budget figures below are the 2026-09-22 values, superseded
+> by the 2026-09-29 queue change (twelve outstanding, 600/780 s). See
+> [CT memory profile and rollout](../../../docs/operations/ct-memory-profile-2026-11-11.zh-CN.md).
+
 The user subsequently approved replacing LLaDA with two independent Qwen replicas.
 `qwen-image-worker@0` and `@1` bind physical GPUs 0 and 1 and loopback ports
 8200/8201. `qwen-image-pool` preserves the existing authenticated loopback 8191
