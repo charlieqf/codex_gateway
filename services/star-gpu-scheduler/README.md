@@ -7,9 +7,10 @@ and resource admission; model execution stays in Qwen/RADAR. Production uses
 ## Scheduling and failure contract
 
 - GPU0: images. GPU1: CT first, then images. No preemption of running work.
-  A GPU takes images or echo work only while its Qwen worker reports ready. With
-  the GPU1 worker disabled (2026-11-11), GPU0 serves all images and PanEcho, and
-  GPU1 serves CT only.
+  A GPU takes images only while its Qwen worker reports ready. PanEcho runs in
+  its own transient unit and does not depend on Qwen readiness. With the GPU1
+  worker disabled (2026-11-11), GPU0 serves all images, and GPU1 serves CT and,
+  when no CT is waiting, PanEcho.
 - One RADAR subprocess, including preprocessing; preprocessing reserves host
   memory without locking a GPU. Ready CT/preprocessing has memory priority.
 - Each Qwen process has a 56 GiB cgroup bound. The broker reserves the difference
@@ -134,7 +135,10 @@ certificates, API tokens, SSH tunnel and IndexTTS remain in place.
 claims only within `panecho-task-job_*.service` transient units. Echo reserves
 8 GiB host memory and requires 8 GiB free VRAM, with one live echo executor.
 It uses the existing process-owned GPU lock and retains ownership until verified
-process exit. CT retains GPU1 priority; echo and image tasks use queue order on
-available GPUs, currently GPU0 only. Async echo admission/retry follows the durable CT semantics.
+process exit. CT retains GPU1 priority: echo is not admitted to GPU1 while a CT
+is waiting, but a CT that arrives during a running echo waits for that echo to
+exit (no preemption; bounded by the 900 s echo execution cap). On a GPU with a
+ready Qwen worker, echo and images share queue order; on a GPU without one, echo
+alone is admitted. Async echo admission/retry follows the durable CT semantics.
 The rollout in MedEvidence `services/clinical-models/deploy.py` preserves live
 host-reserve configuration and uses an isolated, committed scheduler release.

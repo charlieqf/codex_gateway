@@ -126,6 +126,52 @@ class Scheduling(unittest.TestCase):
         self.assertEqual([t['state'] for t in self.s.tasks()], ['granted', 'queued'])
         self.assertEqual(self.s.tasks()[0]['gpu'], GPU0)
 
+    def test_echo_does_not_need_a_ready_qwen_worker(self):
+        # GPU1 worker disabled: images stay on GPU0, PanEcho takes idle GPU1.
+        self.hw.snapshot['cgroups']['qwen_worker_1']['ready'] = False
+        self.submit(); self.submit()
+        self.submit('echo_infer', role='panecho_service')
+        self.s.tick()
+        self.assertEqual([(t['kind'], t['gpu'], t['state']) for t in self.s.tasks()],
+            [('image', GPU0, 'granted'), ('image', None, 'queued'), ('echo_infer', GPU1, 'granted')])
+        self.assertEqual(self.s.tasks()[2]['executor'], 'panecho_runner')
+        self.assertNotEqual(self.s.tasks()[1]['executor'], 'qwen_worker_1')
+        # No Qwen worker ready at all: images wait, PanEcho still runs.
+        self.hw.snapshot['cgroups']['qwen_worker_0']['ready'] = False
+        for task in self.s.tasks()[::2]:
+            self.s.command(task['id'], 'cancel', task['role'], {'producer_instance': task['producer_instance'],
+                'reason': 'explicit_cancel'}, peer(task['role']))
+        (_, echo), _ = self.submit('echo_infer', role='panecho_service')
+        self.s.tick()
+        self.assertEqual(self.s.tasks()[1]['state'], 'queued')
+        self.assertEqual((self.s.task(echo['task_id'])['gpu'], self.s.task(echo['task_id'])['state']), (GPU0, 'granted'))
+
+    def test_queued_ct_keeps_echo_off_gpu1_and_running_echo_delays_ct(self):
+        self.hw.snapshot['cgroups']['qwen_worker_1']['ready'] = False
+        self.hw.snapshot['gpus'][GPU1]['free_mib'] = 20000
+        self.submit()
+        (_, ct), _ = self.submit('ct_infer')
+        (_, echo), _ = self.submit('echo_infer', role='panecho_service')
+        self.s.tick()
+        # Enough VRAM for PanEcho but not for CT: a waiting CT still owns GPU1.
+        self.assertEqual(self.s.task(ct['task_id'])['wait_reason'], 'waiting_gpu')
+        self.assertEqual(self.s.task(echo['task_id'])['state'], 'queued')
+        self.s.command(ct['task_id'], 'cancel', 'radar_service',
+            {'producer_instance': 'radar_service-instance', 'reason': 'explicit_cancel'}, peer('radar_service'))
+        self.hw.snapshot['gpus'][GPU1]['free_mib'] = 40000
+        self.s.tick()
+        self.assertEqual(self.s.task(echo['task_id'])['gpu'], GPU1)
+        task, fields, executor = self.claim(echo)
+        # No preemption: a CT arriving now waits for PanEcho to exit and release the lock.
+        (_, ct), _ = self.submit('ct_infer')
+        self.s.tick()
+        self.assertEqual(self.s.task(ct['task_id'])['state'], 'queued')
+        self.s.command(task, 'finish', executor['unit'], {**fields, 'outcome': 'succeeded', 'error_code': None}, executor)
+        self.hw.dead.add(executor['pid']); self.hw.locked.discard(GPU1)
+        self.s.tick()
+        self.assertEqual(self.s.task(task)['state'], 'succeeded')
+        self.assertEqual((self.s.task(ct['task_id'])['gpu'], self.s.task(ct['task_id'])['state']), (GPU1, 'granted'))
+
     def test_echo_role_cannot_submit_ct_and_retains_host_reserve(self):
         self.hw.snapshot['memory_available_mib'] = 20000
         (_, echo), body = self.submit('echo_infer', role='panecho_service')

@@ -350,10 +350,14 @@ class Scheduler:
                 init = next((t for t in queued if t['kind'] == 'image_init' and t['role'] == 'qwen_worker_'+str(index)), None)
                 if init:
                     self.reserve(init, gpu, snapshot, tasks, ct)
-                elif snapshot['cgroups'].get('qwen_worker_'+str(index), {}).get('ready', True):
-                    image = next((t for t in queued if t['kind'] in ('image', 'echo_infer') and t['state'] == 'queued'), None)
-                    if image:
-                        self.reserve(image, gpu, snapshot, tasks, ct)
+                    continue
+                # Images run inside this GPU's resident Qwen worker. PanEcho runs in its own transient
+                # unit, so it may use any admitted GPU, including one whose Qwen worker is disabled.
+                qwen_ready = snapshot['cgroups'].get('qwen_worker_'+str(index), {}).get('ready', True)
+                kinds = ('image', 'echo_infer') if qwen_ready else ('echo_infer',)
+                work = next((t for t in queued if t['kind'] in kinds and t['state'] == 'queued'), None)
+                if work:
+                    self.reserve(work, gpu, snapshot, tasks, ct)
 
     def admin(self, action, body):
         require(set(body) == {'scope', 'gpu_uuid', 'reason_code'} and body['scope'] in ('all', 'gpu') and
