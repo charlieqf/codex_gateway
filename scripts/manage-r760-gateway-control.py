@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Run an approved R760-only control-plane write with a verified backup.
+"""Run an approved R760 control operation with operation-specific recovery.
+
+Routine internal renewals use one transaction and a scoped recovery journal.
+Legacy maintenance/global operations retain verified full-database backups.
 
 The dedicated real-user issuance script remains the only supported command for
 creating deliverable cgu_live keys. This wrapper intentionally rejects admin
@@ -14,6 +17,7 @@ import json
 import re
 import secrets
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -42,6 +46,7 @@ FREE_TOTAL_RESET_COMMAND = "reset-free-total"
 REGISTRATION_RELEASE_COMMAND = "release-registration"
 UNIFIED_KEY_EXPIRY_COMMAND = "extend-unified-key-expiry"
 EXTRA_GIFT_COMMAND = "grant-extra-gift"
+ACCOUNT_OPERATION_COMMANDS = {"renew-accounts": "renew", "undo-account-renewal": "undo"}
 USER_CREDENTIAL_CLASSES = {"desktop", "unknown"}
 SIMPLE_WRITE_COMMANDS = {
     "ensure-account-rpd-minimum",
@@ -60,6 +65,78 @@ NESTED_WRITE_COMMANDS = {
 
 class ManagementError(RuntimeError):
     pass
+
+
+class VerifiedControlBatch:
+    """One in-process, bounded batch; no CLI flag can skip a backup.
+
+    The ordered commands and target are fixed before the backup. A closed,
+    failed, expired or differently targeted context cannot authorize a write.
+    Global quota rewrites keep their independent backup path.
+    """
+
+    def __init__(self, args: argparse.Namespace, commands: list[list[str]]):
+        self.endpoint = r760_endpoint(args)
+        self.backup_root = args.backup_root
+        self.commands = tuple(tuple(command) for command in commands)
+        if args.what_if or not self.commands:
+            raise ManagementError("A shared backup requires a nonempty apply batch.")
+        for command in self.commands:
+            head, sub = validate_admin_args(list(command))
+            if not (head in {"disable-user", "enable-user", "revoke", "update-key", "update-user"}
+                    or (head, sub) in {("plan", "create"), ("plan", "deprecate"),
+                        ("unified-key", "revoke"), ("entitlement", "grant"),
+                        ("entitlement", "cancel"), ("entitlement", "pause"),
+                        ("entitlement", "renew"), ("entitlement", "resume")}):
+                raise ManagementError("This operation requires --backup-per-step: " + head)
+        self.helper_path = f"/tmp/gateway-control-batch-{secrets.token_hex(6)}.cjs"
+        self.active = False
+        self.failed = False
+        self.next_index = 0
+        self.started = 0.0
+        self.before: dict[str, Any] = {}
+        self.after: dict[str, Any] | None = None
+        self.backup: dict[str, Any] = {}
+
+    def __enter__(self):
+        if self.started:
+            raise ManagementError("A backup batch cannot be reopened.")
+        self.started = time.monotonic()
+        install_helper(self.endpoint, container_path=self.helper_path)
+        try:
+            self.before = validate_r760_inspection(run_helper_json(
+                self.endpoint, "inspect", helper_container_path=self.helper_path))
+            self.backup = create_target_backup(
+                self.endpoint, backup_root=self.backup_root,
+                backup_label="r760-control-batch", helper_container_path=self.helper_path)
+            self.active = True
+            return self
+        except BaseException:
+            remove_helper_best_effort(self.endpoint, container_path=self.helper_path)
+            raise
+
+    def claim(self, args: argparse.Namespace) -> None:
+        if not self.active or self.failed or time.monotonic() - self.started > 1800:
+            raise ManagementError("Shared backup batch is closed, failed or older than 30 minutes.")
+        if r760_endpoint(args) != self.endpoint or args.backup_root != self.backup_root:
+            raise ManagementError("Shared backup target changed.")
+        if (args.what_if or self.next_index >= len(self.commands)
+                or tuple(args.admin_args) != self.commands[self.next_index]):
+            raise ManagementError("Command differs from the next frozen batch step.")
+        self.next_index += 1
+
+    def __exit__(self, exc_type, exc, traceback):
+        self.active = False
+        try:
+            # Also inspect after partial failure; never restore a live full database
+            # automatically because unrelated requests may have committed since backup.
+            self.after = validate_r760_inspection(run_helper_json(
+                self.endpoint, "inspect", helper_container_path=self.helper_path))
+            if exc_type is None and (self.failed or self.next_index != len(self.commands)):
+                raise ManagementError("Batch did not execute every frozen command successfully.")
+        finally:
+            remove_helper_best_effort(self.endpoint, container_path=self.helper_path)
+        return False
 
 
 def positive_int(value: str) -> int:
@@ -112,6 +189,12 @@ def validate_admin_args(admin_args: list[str]) -> tuple[str, str | None]:
     if not admin_args:
         raise ManagementError("An admin CLI write command is required after '--'.")
     command = admin_args[0]
+    if command in ACCOUNT_OPERATION_COMMANDS:
+        if len(admin_args) not in (2, 3) or not admin_args[1].strip():
+            raise ManagementError(f"{command} requires a JSON manifest and, for apply, its preview revision.")
+        if len(admin_args) == 3 and not re.fullmatch(r"[a-f0-9]{64}", admin_args[2]):
+            raise ManagementError("Expected the SHA-256 revision from --what-if.")
+        return command, None
     if command == INTERNAL_IMAGE_GRANTS_COMMAND:
         if len(admin_args) != 2 or not admin_args[1].strip():
             raise ManagementError("grant-internal-image-batch requires a reviewed JSON plan path.")
@@ -352,9 +435,41 @@ def run_internal_request_floor(endpoint: RemoteGateway, args: argparse.Namespace
     return json.loads(completed.stdout)
 
 
-def execute(args: argparse.Namespace) -> dict[str, Any]:
+def run_account_operation(endpoint: RemoteGateway, args: argparse.Namespace) -> dict[str, Any]:
+    # Load once; stdin avoids both shell quoting and Windows' command-line size limit.
+    manifest_path = Path(args.admin_args[1])
+    if manifest_path.stat().st_size > 262144:
+        raise ManagementError("Account manifest exceeds 256 KiB.")
+    operation = json.loads(manifest_path.read_text(encoding="utf-8-sig"))
+    if not isinstance(operation, dict) or any(key in operation for key in ("apply", "kind", "expectedRevision")):
+        raise ManagementError("Manifest must be an object without execution-control fields.")
+    if not args.what_if and len(args.admin_args) != 3:
+        raise ManagementError("Apply requires the revision returned by --what-if.")
+    operation = {**operation, "kind": ACCOUNT_OPERATION_COMMANDS[args.admin_args[0]], "apply": not args.what_if}
+    if len(args.admin_args) == 3:
+        operation["expectedRevision"] = args.admin_args[2]
+    script = "globalThis.R760_ACCOUNT_OPERATION=" + json.dumps(operation, ensure_ascii=True) + ";\n"
+    script += Path(__file__).with_name("gateway-account-renewal.cjs").read_text(encoding="utf-8")
+    completed = run_ssh(endpoint,
+        f"{docker_command(endpoint)} exec -i -w /app {shell_word(endpoint.container)} node -",
+        stdin=script, timeout_seconds=args.timeout_seconds)
+    result = json.loads(completed.stdout)
+    if not isinstance(result, dict) or result.get("operation_id") != operation.get("operationId") or result.get("kind") != operation["kind"]:
+        raise ManagementError("Unexpected account-operation receipt.")
+    if not args.what_if and result.get("applied") is not True:
+        raise ManagementError("Account operation did not commit.")
+    return {"what_if": args.what_if, "authority": "r760", "authority_mode": "r760_only",
+        "command": args.admin_args[0], "protection": "transaction_and_scoped_journal",
+        ("plan" if args.what_if else "authority_result"): result, **({} if args.what_if else {"status": "ok"})}
+
+
+def execute(args: argparse.Namespace, *, batch: VerifiedControlBatch | None = None) -> dict[str, Any]:
     command, subcommand = validate_admin_args(args.admin_args)
     r760 = r760_endpoint(args)
+    if command in ACCOUNT_OPERATION_COMMANDS:
+        if batch is not None:
+            raise ManagementError("An account manifest is already one atomic batch; run it directly.")
+        return run_account_operation(r760, args)
     bulk_minimum_rpm = (
         int(args.admin_args[1]) if command == BULK_USER_RPM_COMMAND else None
     )
@@ -424,13 +539,16 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
             **({"plan": release_plan} if release_plan is not None else {}),
         }
 
-    helper_path = f"/tmp/gateway-control-state-transfer-{secrets.token_hex(6)}.cjs"
-    install_helper(r760, container_path=helper_path)
+    if batch is not None:
+        batch.claim(args)
+    helper_path = batch.helper_path if batch else f"/tmp/gateway-control-state-transfer-{secrets.token_hex(6)}.cjs"
+    if batch is None:
+        install_helper(r760, container_path=helper_path)
     try:
-        before = validate_r760_inspection(
+        before = batch.before if batch else validate_r760_inspection(
             run_helper_json(r760, "inspect", helper_container_path=helper_path)
         )
-        backup = create_target_backup(
+        backup = batch.backup if batch else create_target_backup(
             r760,
             backup_root=args.backup_root,
             backup_label="user-rpm" if bulk_minimum_rpm is not None else "r760-control",
@@ -467,7 +585,7 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
                 args.admin_args,
                 timeout_seconds=args.timeout_seconds,
             )
-        after = validate_r760_inspection(
+        after = {"status": "pending_batch_final_check"} if batch else validate_r760_inspection(
             run_helper_json(r760, "inspect", helper_container_path=helper_path)
         )
         result: dict[str, Any] = {
@@ -497,8 +615,13 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
         result["updated_credentials"] = authority_result.get("updated_credentials")
         result["post_write"] = final_plan
         return result
+    except BaseException:
+        if batch is not None:
+            batch.failed = True
+        raise
     finally:
-        remove_helper_best_effort(r760, container_path=helper_path)
+        if batch is None:
+            remove_helper_best_effort(r760, container_path=helper_path)
 
 
 def run_extra_gift(endpoint: RemoteGateway, args: argparse.Namespace, plan: dict[str, Any], *, apply: bool) -> dict[str, Any]:

@@ -54,6 +54,62 @@ test('preview runs on a query-only connection without changing keys or auditing'
  assert.equal(dump(db,'unified_client_keys'),before);
  assert.equal(db.prepare('SELECT count(*) n FROM admin_audit_events').get().n,0);db.close();
 });
+
+function legacyFixture(withCurrent) {
+ const value=fixture(), {db,input}=value;
+ for(const item of input.items){
+  const suffix=item.subjectId.slice(1);
+  db.prepare("UPDATE unified_client_keys SET is_current=0,credential_class='unknown',token_ciphertext=NULL WHERE id=?").run(item.keyId);
+  if(withCurrent){
+   db.prepare("INSERT INTO unified_client_keys VALUES (?,?,?,NULL,1,'desktop','cipher',?,?,'currenthash')")
+    .run(`current${suffix}`,item.subjectId,END,`c${suffix}`,`prefix${suffix}`);
+   db.prepare('UPDATE phone_auth_identities SET unified_key_id=? WHERE subject_id=?').run(`current${suffix}`,item.subjectId);
+  }else{
+   db.prepare('DELETE FROM phone_auth_identities WHERE subject_id=?').run(item.subjectId);
+   db.prepare("UPDATE access_credentials SET credential_class='unknown' WHERE subject_id=?").run(item.subjectId);
+  }
+  Object.assign(item,{keyKind:'legacy_non_current',expectedCredentialId:`c${suffix}`,expectedCurrentKeyId:withCurrent?`current${suffix}`:null});
+ }
+ return value;
+}
+
+for(const withCurrent of [false,true]) test(`explicit legacy renewal preserves identity and key material (current sibling: ${withCurrent})`,()=>{
+ const {db,input}=legacyFixture(withCurrent);
+ const protectedTables=['subjects','access_credentials','phone_auth_identities','plans','entitlements','usage_windows'];
+ const before=protectedTables.map(t=>dump(db,t));
+ const keys=db.prepare('SELECT * FROM unified_client_keys ORDER BY id').all();
+ db.exec('PRAGMA query_only=ON');
+ assert.equal(extendUnifiedKeyExpiry(db,{...input,apply:false},NOW).count,2);
+ db.exec('PRAGMA query_only=OFF');
+ assert.equal(extendUnifiedKeyExpiry(db,input,NOW).count,2);
+ assert.deepEqual(protectedTables.map(t=>dump(db,t)),before);
+ assert.deepEqual(db.prepare('SELECT * FROM unified_client_keys ORDER BY id').all().map(k=>({...k})),keys.map(k=>({...k,expires_at:k.is_current? k.expires_at:END})));
+ assert.ok(db.prepare('SELECT params_json FROM admin_audit_events').all().every(r=>JSON.parse(r.params_json).key_kind==='legacy_non_current'));
+ assert.throws(()=>extendUnifiedKeyExpiry(db,input,NOW),/expected state/);
+ db.close();
+});
+
+for(const [name,sql,change] of [
+ ['no explicit legacy selection',null,input=>delete input.items[1].keyKind],
+ ['invalid key kind',null,input=>input.items[1].keyKind='other'],
+ ['missing expected current binding',null,input=>delete input.items[1].expectedCurrentKeyId],
+ ['wrong expected backing',null,input=>input.items[1].expectedCredentialId='c1'],
+ ['wrong current binding',null,input=>input.items[1].expectedCurrentKeyId=null],
+ ['current sibling revoked',"UPDATE unified_client_keys SET revoked_at='2026-09-16T00:00:00.000Z' WHERE id='current2'"],
+ ['current sibling points elsewhere',"UPDATE unified_client_keys SET codex_credential_id='c1' WHERE id='current2'"],
+ ['disabled identity',"UPDATE phone_auth_identities SET state='disabled' WHERE subject_id='s2'"],
+ ['legacy key revoked',"UPDATE unified_client_keys SET revoked_at='2026-09-16T00:00:00.000Z' WHERE id='k2'"],
+ ['legacy backing revoked',"UPDATE access_credentials SET revoked_at='2026-09-16T00:00:00.000Z' WHERE id='c2'"],
+ ['legacy backing too short',"UPDATE access_credentials SET expires_at='2026-12-01T00:00:00.000Z' WHERE id='c2'"],
+ ['legacy coverage gap',"UPDATE entitlements SET period_start='2026-10-02T00:00:00.000Z' WHERE id='new2'"],
+ ['legacy audit rollback',"CREATE TRIGGER reject_legacy_audit BEFORE INSERT ON admin_audit_events WHEN NEW.target_user_id='s2' BEGIN SELECT RAISE(ABORT,'audit unavailable'); END"],
+]) test(`legacy renewal rejects ${name} without partial updates`,()=>{
+ const {db,input}=legacyFixture(true); if(sql)db.exec(sql);if(change)change(input);
+ const before=dump(db,'unified_client_keys');
+ assert.throws(()=>extendUnifiedKeyExpiry(db,input,NOW));
+ assert.equal(dump(db,'unified_client_keys'),before);
+ assert.equal(db.prepare('SELECT count(*) n FROM admin_audit_events').get().n,0);db.close();
+});
 for(const [name,sql,change] of [
  ['stale second key',"UPDATE unified_client_keys SET expires_at='2026-10-02T00:00:00.000Z' WHERE id='k2'"],
  ['disabled subject',"UPDATE subjects SET state='disabled' WHERE id='s2'"],

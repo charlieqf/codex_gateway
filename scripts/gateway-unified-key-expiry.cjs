@@ -1,5 +1,5 @@
 // Invoked by manage-r760-gateway-control.py after its verified backup.
-// Extends existing recoverable phone-login keys without issuing or revealing tokens.
+// Extends explicitly reviewed keys without issuing tokens or changing identity bindings.
 const { DatabaseSync } = require('node:sqlite');
 const { randomUUID } = require('node:crypto');
 
@@ -17,6 +17,12 @@ function extendUnifiedKeyExpiry(db, input, now = new Date()) {
   }
   const keyIds = new Set(), subjectIds = new Set();
   for (const item of input.items) {
+    const legacy = item.keyKind === 'legacy_non_current';
+    if (item.keyKind !== undefined && !legacy && item.keyKind !== 'current') throw new Error('Invalid key kind');
+    if (legacy && (!/^[A-Za-z0-9_-]{1,128}$/.test(item.expectedCredentialId ?? '') ||
+        !(item.expectedCurrentKeyId === null || /^[A-Za-z0-9_-]{1,128}$/.test(item.expectedCurrentKeyId ?? '')))) {
+      throw new Error('Legacy extension requires reviewed backing and current-key bindings');
+    }
     if (!/^[A-Za-z0-9_-]{1,128}$/.test(item.subjectId ?? '') ||
         !/^[A-Za-z0-9_-]{1,128}$/.test(item.keyId ?? '') ||
         keyIds.has(item.keyId) || subjectIds.has(item.subjectId)) throw new Error('Invalid or duplicate target');
@@ -28,24 +34,39 @@ function extendUnifiedKeyExpiry(db, input, now = new Date()) {
   try {
     // Validate every target under the same lock before changing any target.
     const changes = input.items.map(item => {
+      const legacy = item.keyKind === 'legacy_non_current';
       const subject = db.prepare('SELECT state FROM subjects WHERE id=?').get(item.subjectId);
       const key = db.prepare(`SELECT id,subject_id,expires_at,revoked_at,is_current,credential_class,
         token_ciphertext IS NOT NULL AS recoverable,codex_credential_id,codex_credential_prefix
         FROM unified_client_keys WHERE id=?`).get(item.keyId);
       if (subject?.state !== 'active' || !key || key.subject_id !== item.subjectId ||
           key.expires_at !== item.expectedExpiresAt || key.revoked_at !== null ||
-          key.is_current !== 1 || key.credential_class !== 'desktop' || !key.recoverable) {
+          (legacy ? key.is_current !== 0 || key.credential_class !== 'unknown' || key.recoverable ||
+            key.codex_credential_id !== item.expectedCredentialId :
+            key.is_current !== 1 || key.credential_class !== 'desktop' || !key.recoverable)) {
         throw new Error(`Current key differs from expected state: ${item.subjectId}`);
       }
-      if (db.prepare('SELECT COUNT(*) AS n FROM unified_client_keys WHERE subject_id=? AND is_current=1')
-          .get(item.subjectId).n !== 1) throw new Error('Expected one current key');
+      const currentKeys = db.prepare(`SELECT id,revoked_at,credential_class,codex_credential_id,
+        token_ciphertext IS NOT NULL AS recoverable FROM unified_client_keys WHERE subject_id=? AND is_current=1`)
+        .all(item.subjectId);
+      if (!legacy && currentKeys.length !== 1) throw new Error('Expected one current key');
+      if (legacy && (currentKeys.length !== (item.expectedCurrentKeyId === null ? 0 : 1) ||
+          (currentKeys.length && (currentKeys[0].id !== item.expectedCurrentKeyId || currentKeys[0].revoked_at ||
+            currentKeys[0].credential_class !== 'desktop' || !currentKeys[0].recoverable ||
+            currentKeys[0].codex_credential_id !== item.expectedCredentialId)))) {
+        throw new Error('Legacy current-key binding differs from review');
+      }
       const credential = db.prepare('SELECT subject_id,prefix,expires_at,revoked_at,scope,credential_class FROM access_credentials WHERE id=?')
         .get(key.codex_credential_id);
       if (!credential || credential.subject_id !== item.subjectId || credential.prefix !== key.codex_credential_prefix ||
-          credential.revoked_at !== null || credential.scope !== 'code' || credential.credential_class !== 'desktop' ||
+          credential.revoked_at !== null || credential.scope !== 'code' ||
+          credential.credential_class !== (legacy && !currentKeys.length ? 'unknown' : 'desktop') ||
           timestamp(credential.expires_at) < timestamp(item.expiresAt)) throw new Error('Backing credential does not cover extension');
       const identity = db.prepare('SELECT state,unified_key_id FROM phone_auth_identities WHERE subject_id=?').get(item.subjectId);
-      if (identity?.state !== 'active' || identity.unified_key_id !== item.keyId) throw new Error('Phone identity differs from current key');
+      const identityKey = legacy ? item.expectedCurrentKeyId : item.keyId;
+      if (identityKey === null ? !!identity : identity?.state !== 'active' || identity.unified_key_id !== identityKey) {
+        throw new Error('Phone identity differs from current key');
+      }
       const entitlements = db.prepare(`SELECT e.period_start,e.period_end,e.scope_allowlist_json,e.feature_policy_snapshot_json
         FROM entitlements e JOIN plans p ON p.id=e.plan_id WHERE e.subject_id=?
         AND e.state IN ('active','scheduled') AND p.state='active'`).all(item.subjectId);
@@ -60,7 +81,8 @@ function extendUnifiedKeyExpiry(db, input, now = new Date()) {
       }
       if (coveredUntil < timestamp(item.expiresAt)) throw new Error('Chat entitlement coverage has a gap or ends too soon');
       return { subject_id:item.subjectId,unified_key_id:item.keyId,
-        old_expires_at:key.expires_at,new_expires_at:item.expiresAt };
+        old_expires_at:key.expires_at,new_expires_at:item.expiresAt,
+        key_kind:legacy ? 'legacy_non_current' : 'current',expected_is_current:key.is_current };
     });
     if (!input.apply) {
       db.exec('ROLLBACK');
@@ -69,8 +91,8 @@ function extendUnifiedKeyExpiry(db, input, now = new Date()) {
     const auditIds=[];
     for (const change of changes) {
       const updated = db.prepare(`UPDATE unified_client_keys SET expires_at=?
-        WHERE id=? AND subject_id=? AND expires_at=? AND is_current=1 AND revoked_at IS NULL`)
-        .run(change.new_expires_at,change.unified_key_id,change.subject_id,change.old_expires_at);
+        WHERE id=? AND subject_id=? AND expires_at=? AND is_current=? AND revoked_at IS NULL`)
+        .run(change.new_expires_at,change.unified_key_id,change.subject_id,change.old_expires_at,change.expected_is_current);
       if (updated.changes !== 1) throw new Error('Expected exactly one key update');
       const auditId=`audit_${randomUUID().replaceAll('-','')}`;
       db.prepare(`INSERT INTO admin_audit_events (id,action,target_user_id,status,params_json,created_at)
