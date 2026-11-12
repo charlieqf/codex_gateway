@@ -41,7 +41,6 @@ export function recoverTencentScreenshotBatch(input: {
   const corrected = calls.map((call, index) => {
     if (index === calls.length - 1 || call.function.name !== "screenshot") return call;
     const args = call.function.arguments;
-    if (jsonObject(args)) return call;
     const trimmed = args.trim();
     // Ending in a closed nested object excludes truncated paths, strings and
     // numbers. Parsing after exactly one addition proves only the root is open.

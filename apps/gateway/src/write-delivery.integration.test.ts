@@ -13,6 +13,11 @@ import { writeDeliveryLimits, type BoundedWritePolicy } from "./services/write-d
 const fixtureRoot = new URL("../../../artifacts/write-delivery-contract-r3-2026-09-15/", import.meta.url);
 const example = JSON.parse(readFileSync(new URL("success.example.json", fixtureRoot), "utf8"));
 const ordinaryTools = () => structuredClone(example.request_body.tools);
+const screenshotTools = [{ type: "function", function: { name: "screenshot", parameters: {
+  type: "object", properties: { file: { type: "string" }, viewport: { type: "object", properties: {
+    width: { type: "integer", maximum: 4096 }
+  }, required: ["width"], additionalProperties: false } }, required: ["file", "viewport"], additionalProperties: false
+} } }];
 type SyntheticCall = { name: string; args: unknown; id?: string };
 interface UpstreamReply { calls?: SyntheticCall[]; text?: string; delay?: number; finish?: string; status?: number }
 const write = (content: string, extra: Record<string, unknown> = {}): SyntheticCall => ({
@@ -99,17 +104,12 @@ function streamError(body: string) {
 describe("A/S real Gateway HTTP pipeline with a loopback provider", () => {
   it.each([{ stream: true, priorFailure: false }, { stream: false, priorFailure: false }, { stream: false, priorFailure: true }])(
     "recovers Tencent screenshot outer braces without another provider call: %j", async ({ stream, priorFailure }) => {
-    const tools = [{ type: "function", function: { name: "screenshot", parameters: {
-      type: "object", properties: { file: { type: "string" }, viewport: { type: "object", properties: {
-        width: { type: "integer", maximum: 4096 }
-      }, required: ["width"], additionalProperties: false } }, required: ["file", "viewport"], additionalProperties: false
-    } } }];
     const values = Array.from({ length: 4 }, (_, i) => ({ file: `C:\\private-synthetic\\page${i}.html`, viewport: { width: 1200 } }));
     const calls = values.map((args, i) => ({ id: `shot_${i}`, name: "screenshot",
       args: i === 3 ? JSON.stringify(args) : JSON.stringify(args).slice(0, -1) }));
     const replies = [...(priorFailure ? [{ calls: [{ name: "screenshot", args: '{"file":"private-rejected' }] }] : []), { calls }];
     await fixture({ replies }, async ({ send, captured, store }) => {
-      const response = await send({ stream, tools });
+      const response = await send({ stream, tools: screenshotTools });
       expect(response.statusCode).toBe(200);
       const frames = stream ? response.body.split(/\r?\n/).filter(line => line.startsWith("data: ") && line !== "data: [DONE]")
         .map(line => JSON.parse(line.slice(6))) : [response.json()];
@@ -124,6 +124,24 @@ describe("A/S real Gateway HTTP pipeline with a loopback provider", () => {
       if (priorFailure) expect(event.upstreamAttempts?.[0].errorCode).toBe("tool_call_validation_failed");
       expect(JSON.stringify(event)).not.toContain("private-synthetic");
       expect(JSON.stringify(event)).not.toContain("private-rejected");
+    });
+  });
+
+  it.each([true, false])("rejects the whole recovered batch when another call fails schema, stream=%s", async stream => {
+    const calls = [
+      { name: "screenshot", args: '{"file":"private-rejected","viewport":{"width":1200}' },
+      { name: "screenshot", args: { file: "second.html", viewport: { width: "invalid" } } },
+      { name: "screenshot", args: { file: "last.html", viewport: { width: 1200 } } }
+    ];
+    await fixture({ replies: [{ calls }, { calls }] }, async ({ send, captured, store }) => {
+      const response = await send({ stream, tools: screenshotTools });
+      expect(streamError(response.body)).toMatchObject({ code: "tool_call_validation_failed" });
+      expect(response.body).not.toContain('"tool_calls":');
+      expect(response.body).not.toContain("private-rejected");
+      expect(captured).toHaveLength(2);
+      const event = store.listRequestEvents({ limit: 1 })[0];
+      expect(event).toMatchObject({ status: "error", upstreamAttemptCount: 2 });
+      expect(event.upstreamAttempts?.every(attempt => attempt.gatewayRecoveryResult !== "tencent_screenshot_outer_object_closed")).toBe(true);
     });
   });
 
