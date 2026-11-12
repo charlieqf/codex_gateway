@@ -1,0 +1,228 @@
+{
+  "status": "verified",
+  "at": "2026-11-12T10:32:41.892095+00:00",
+  "revision": "0c45726ff69f620b86482d9bb9adaa7dff3e9cd8",
+  "image_id": "sha256:787e4f2b1364945c90aca887089903834afc96043a853ea6fc3727d5a489ed33",
+  "previous": "a0eb9a4622f3c421713510fa11701b1e8a89b054",
+  "deployed_at": "2026-11-12T10:25:28.610902+00:00",
+  "idle_window": {
+    "required_seconds": 30,
+    "observed_seconds": 44.244,
+    "started_at": "2026-11-12T10:24:16.475412+00:00",
+    "qualified_at": "2026-11-12T10:25:00.719482+00:00",
+    "admission_open": true,
+    "active_requests": 0,
+    "active_work": 0,
+    "active_model_requests": 0,
+    "long_requests": 0,
+    "model_or_long_activity_delta": 0,
+    "light_requests_allowed": false,
+    "long_request_threshold_seconds": 5,
+    "incoming_request_log_observer": true
+  },
+  "backup": "/data/backups/codex-gateway-daily/20261112T102446Z",
+  "clean_image_tests": [
+    "Test Files  119 passed | 2 skipped (121)",
+    "Tests  2414 passed | 4 skipped (2418)"
+  ],
+  "installed_checks": 16,
+  "public_checks": [
+    {
+      "api": "chat/completions",
+      "stream": false,
+      "count": 4,
+      "http": 200,
+      "request_id": "req-dd574892-5c30-4506-8090-7f8b1a37dc80",
+      "duration_ms": 7182,
+      "returned_calls": 4,
+      "schemas_valid": true,
+      "upstream_attempts": 1,
+      "recovered_attempts": 1,
+      "runtime": "tencent",
+      "upstream_model": "glm-5.3",
+      "total_tokens": 1035,
+      "ledger_finalized": true,
+      "passed": true
+    },
+    {
+      "api": "chat/completions",
+      "stream": true,
+      "count": 4,
+      "http": 200,
+      "request_id": "req-c7e75224-f7b3-4fae-b8d3-a6113f335d83",
+      "duration_ms": 8647,
+      "returned_calls": 4,
+      "schemas_valid": true,
+      "upstream_attempts": 1,
+      "recovered_attempts": 1,
+      "runtime": "tencent",
+      "upstream_model": "glm-5.3",
+      "total_tokens": 1035,
+      "ledger_finalized": true,
+      "passed": true
+    },
+    {
+      "api": "responses",
+      "stream": false,
+      "count": 4,
+      "http": 200,
+      "request_id": "req-bb1708ac-dddb-41dc-8d13-32fdaff27f66",
+      "duration_ms": 7047,
+      "returned_calls": 4,
+      "schemas_valid": true,
+      "upstream_attempts": 1,
+      "recovered_attempts": 1,
+      "runtime": "tencent",
+      "upstream_model": "glm-5.3",
+      "total_tokens": 1035,
+      "ledger_finalized": true,
+      "passed": true
+    },
+    {
+      "api": "responses",
+      "stream": true,
+      "count": 4,
+      "http": 200,
+      "request_id": "req-e216dee1-42cb-49a8-ae26-24c6121f0f25",
+      "duration_ms": 6650,
+      "returned_calls": 4,
+      "schemas_valid": true,
+      "upstream_attempts": 1,
+      "recovered_attempts": 1,
+      "runtime": "tencent",
+      "upstream_model": "glm-5.3",
+      "total_tokens": 1035,
+      "ledger_finalized": true,
+      "passed": true
+    },
+    {
+      "api": "chat/completions",
+      "stream": false,
+      "count": 1,
+      "http": 200,
+      "request_id": "req-c9df2c1f-707a-4087-a78a-03beb5c805cd",
+      "duration_ms": 3469,
+      "returned_calls": 1,
+      "schemas_valid": true,
+      "upstream_attempts": 1,
+      "recovered_attempts": 0,
+      "runtime": "tencent",
+      "upstream_model": "glm-5.3",
+      "total_tokens": 809,
+      "ledger_finalized": true,
+      "passed": true
+    }
+  ],
+  "cleanup": {
+    "subject_state": "disabled",
+    "active_credentials": 0,
+    "pending_reservations": 0,
+    "plan_deprecated": true,
+    "revoked_public_status": 401
+  },
+  "integrity": [
+    {
+      "database": "gateway.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "client-events.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    }
+  ],
+  "protected_files": 21,
+  "other_containers": 16,
+  "health": [
+    {
+      "http": 200,
+      "state": "ready"
+    },
+    {
+      "http": 200,
+      "state": "ready"
+    }
+  ],
+  "restarts": 0,
+  "oom": false,
+  "warning_levels": {
+    "40": 18
+  },
+  "recovery_log_count": 4,
+  "http_counts": {
+    "200": 352,
+    "503": 14,
+    "502": 3
+  },
+  "observed_interruption_seconds": 17.452245,
+  "cleaned_subjects": [
+    "subj_screenshot_smoke_746a6f65-848b-4c4e-8a24-c05d779e45a6",
+    "subj_screenshot_smoke_2f0b4edb-c3e2-4960-8676-039ec3062589"
+  ],
+  "public_routing": {
+    "strategy": "existing_hrw_sticky",
+    "client_session": "screenshot_smoke_746a6f65-848b-4c4e-8a24-c05d779e45a6_3",
+    "expected_runtime": "tencent",
+    "configuration_changed": false
+  },
+  "scope": {
+    "fix": "Recover exactly one missing outer object brace in non-final Tencent GLM-5.3 screenshot calls, with whole-batch schema validation.",
+    "code_commits": [
+      "1b7bc1ccd2232fe62490697022ef2920bbd6116f",
+      "0c45726ff69f620b86482d9bb9adaa7dff3e9cd8"
+    ],
+    "runtime_files": [
+      "apps/gateway/src/services/tencent-screenshot-recovery.ts",
+      "apps/gateway/src/services/native-client-tools.ts"
+    ],
+    "production_environment_unchanged": true,
+    "client_upgrade_required": false,
+    "additional_provider_calls_for_recovery": 0,
+    "unrelated_worktree_changes_excluded": true
+  },
+  "review": {
+    "focused_tests_passed": 128,
+    "typecheck": "passed",
+    "build": "passed",
+    "captured_sse_replays_passed": 6,
+    "replay_chunk_bytes": [
+      1,
+      7,
+      4096
+    ],
+    "simplification": "Removed a redundant original-JSON parse; retained exact one-brace addition and atomic schema validation.",
+    "boundary_coverage": [
+      "32 calls accepted / 33 declined",
+      "8192 UTF-8 bytes accepted / 8193 declined",
+      "invalid untouched call rejects the entire batch",
+      "unfinished string, missing final brace, truncated output, other provider/model declined"
+    ],
+    "findings_remaining": []
+  },
+  "initial_routing_control": {
+    "request_id": "req-b8b92681-9c67-4201-90b1-03bd64444794",
+    "http": 200,
+    "runtime": "tokenswitch",
+    "returned_calls": 4,
+    "schemas_valid": true,
+    "excluded_from_tencent_checks": true,
+    "reason": "The initial random session selected TokenSwitch. The five targeted checks used an ordinary session ID selected with the existing HRW rule; production routing/configuration was unchanged.",
+    "cleanup": {
+      "subject_state": "disabled",
+      "active_credentials": 0,
+      "pending_reservations": 0,
+      "plan_deprecated": true,
+      "revoked_public_status": 401
+    }
+  },
+  "warning_review": {
+    "message": "Tool loop guard shadow threshold matched; request is not altered.",
+    "only_warning_category": true,
+    "level_50_or_60": 0
+  },
+  "limits": [
+    "Public probes validate actual upstream tool arguments and Gateway delivery, not execution of the Desktop screenshot tool or completion of the original PDF task.",
+    "Historical user requests did not retain raw arguments/SSE; the captured synthetic Tencent responses establish the boundary-loss shape independently."
+  ]
+}

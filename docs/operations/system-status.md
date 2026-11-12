@@ -1,5 +1,23 @@
 # System Status
 
+Gateway `0c45726ff69f620b86482d9bb9adaa7dff3e9cd8` is live as of
+2026-11-12T10:25:28.610902+00:00 and verified at 2026-11-12T10:32:41.892095+00:00.
+Tencent GLM-5.3 screenshot batches can recover one missing outer object brace
+in non-final calls; the entire batch must still pass the client tool schema.
+The fix needs no client upgrade and adds no provider call. Code review removed
+a redundant parse and tightened UTF-8 size, call-count and atomicity coverage.
+Clean-image tests: 2,414 passed, four skipped; 128 focused tests and six captured
+SSE replays passed. All 16 installed-code checks and five Tencent public checks
+passed. Chat Completions and Responses, streaming and non-streaming, each
+delivered four valid calls in one provider attempt with recovery recorded;
+the single-call control succeeded without recovery. Both synthetic subjects
+are disabled, credentials revoked and reservations settled. Both databases
+passed; production environment, 21 protected files and 16 other containers
+are unchanged. Gateway is ready with zero restarts/OOM; observed cutover
+interruption was 17.452245 seconds. Desktop screenshot execution and
+the original user's PDF completion were not part of this parameter smoke test.
+See the [release receipt](./tencent-screenshot-recovery-release-2026-11-12.json).
+
 Gateway `a0eb9a4622f3c421713510fa11701b1e8a89b054` is live as of
 2026-11-10T04:16:05.573890+00:00 and verified at 2026-11-10T04:18:16.236411+00:00.
 Medical subtitle cleanup accepts both medical-interview-1 and medical-interview-2
