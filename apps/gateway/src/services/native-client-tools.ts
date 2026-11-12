@@ -43,6 +43,7 @@ import {
 import { addOpenAIUsage, createToolCallId, providerToolCallToOpenAI } from "./client-tool-output.js";
 import { chatCompletionEstimateExtras, serializeToolChoice } from "./chat-request-shaping.js";
 import { strictDecisionToResult } from "./strict-client-tools.js";
+import { recoverTencentScreenshotBatch, tencentScreenshotRecoveryResult } from "./tencent-screenshot-recovery.js";
 
 export async function runNativeWithFailover(input: NativeClientToolsInput & {
   failover: boolean;
@@ -353,7 +354,7 @@ function nativeCollectionToResult(
   }
   const serializedToolCalls =
     toolCalls.length === 0 ? serializedAssistantToolCalls(collected.content) : null;
-  const parsed = parseStrictToolDecision({
+  let parsed = parseStrictToolDecision({
     text:
       serializedToolCalls ??
       JSON.stringify(
@@ -365,6 +366,27 @@ function nativeCollectionToResult(
     toolChoice,
     createToolCallId
   });
+  if (parsed instanceof GatewayError && parsed.failureKind === "invalid_json") {
+    const recovered = recoverTencentScreenshotBatch({
+      provider: input.provider.kind, upstreamRuntime: input.upstreamRuntime, upstreamModel: input.upstreamModel,
+      request: input.request, toolChoice, calls: toolCalls, summary: collected.providerSummary
+    });
+    if (recovered) {
+      const diagnostic = parsed.toolCallValidationDiagnostic;
+      parsed = recovered.decision;
+      if (providerSummary) providerSummary = {
+        ...providerSummary,
+        errorCode: null, failure: null,
+        attempts: providerSummary.attempts.map((attempt, index, attempts) => index === attempts.length - 1 ? {
+          ...attempt, toolValidationFailureKind: "invalid_json", toolValidationDiagnostic: diagnostic,
+          gatewayRecoveryOwner: "gateway", gatewayRecoveryResult: tencentScreenshotRecoveryResult
+        } : attempt)
+      };
+      input.log?.info({ request_id: input.requestId, recovery: tencentScreenshotRecoveryResult,
+        repaired_tool_call_indexes: recovered.repairedIndexes, tool_call_count: toolCalls.length },
+      "Recovered missing outer object closures in Tencent screenshot arguments.");
+    }
+  }
   if (parsed instanceof GatewayError) {
     if (input.boundedWriteEnabled && providerSummary?.completed && !providerSummary.streamIncomplete &&
         !providerSummary.outputLimitHit && !providerSummary.argumentBudgetExceeded &&

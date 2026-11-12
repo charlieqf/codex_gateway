@@ -97,6 +97,36 @@ function streamError(body: string) {
 }
 
 describe("A/S real Gateway HTTP pipeline with a loopback provider", () => {
+  it.each([{ stream: true, priorFailure: false }, { stream: false, priorFailure: false }, { stream: false, priorFailure: true }])(
+    "recovers Tencent screenshot outer braces without another provider call: %j", async ({ stream, priorFailure }) => {
+    const tools = [{ type: "function", function: { name: "screenshot", parameters: {
+      type: "object", properties: { file: { type: "string" }, viewport: { type: "object", properties: {
+        width: { type: "integer", maximum: 4096 }
+      }, required: ["width"], additionalProperties: false } }, required: ["file", "viewport"], additionalProperties: false
+    } } }];
+    const values = Array.from({ length: 4 }, (_, i) => ({ file: `C:\\private-synthetic\\page${i}.html`, viewport: { width: 1200 } }));
+    const calls = values.map((args, i) => ({ id: `shot_${i}`, name: "screenshot",
+      args: i === 3 ? JSON.stringify(args) : JSON.stringify(args).slice(0, -1) }));
+    const replies = [...(priorFailure ? [{ calls: [{ name: "screenshot", args: '{"file":"private-rejected' }] }] : []), { calls }];
+    await fixture({ replies }, async ({ send, captured, store }) => {
+      const response = await send({ stream, tools });
+      expect(response.statusCode).toBe(200);
+      const frames = stream ? response.body.split(/\r?\n/).filter(line => line.startsWith("data: ") && line !== "data: [DONE]")
+        .map(line => JSON.parse(line.slice(6))) : [response.json()];
+      const delivered = frames.flatMap(frame => frame.choices ?? []).flatMap(choice => (choice.delta ?? choice.message)?.tool_calls ?? []);
+      expect(delivered.map(call => call.id)).toEqual(calls.map(call => call.id));
+      expect(delivered.map(call => JSON.parse(call.function.arguments))).toEqual(values);
+      expect(captured).toHaveLength(priorFailure ? 2 : 1);
+      const event = store.listRequestEvents({ limit: 1 })[0];
+      expect(event).toMatchObject({ status: "ok", errorCode: null, upstreamAttemptCount: priorFailure ? 2 : 1, totalTokens: priorFailure ? 300 : 150 });
+      expect(event.upstreamAttempts?.at(-1)).toMatchObject({ errorCode: null, gatewayRecoveryOwner: "gateway",
+        gatewayRecoveryResult: "tencent_screenshot_outer_object_closed", toolValidationFailureKind: "invalid_json" });
+      if (priorFailure) expect(event.upstreamAttempts?.[0].errorCode).toBe("tool_call_validation_failed");
+      expect(JSON.stringify(event)).not.toContain("private-synthetic");
+      expect(JSON.stringify(event)).not.toContain("private-rejected");
+    });
+  });
+
   it.each([true, false])("repairs the third of five screenshot calls and retains its index, stream=%s", async stream => {
     const rejected = '{"label":"private-screenshot-label';
     const tools = [{ type: "function", function: { name: "screenshot", parameters: {
