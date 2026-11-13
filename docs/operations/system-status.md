@@ -5,7 +5,33 @@ For a recent 12/24-hour service check, use the fixed
 
 ## Latest Gateway Deployment Verification
 
-Gateway `ec921e16f0a11ce48cccdd9dfbe989fceffb4a70` is live as of
+Gateway `eb0a5d5062ed44cd474aa281462fbe23bb0f3c28` is live as of
+2026-11-13T08:47:10.520090+00:00 and verified at 2026-11-13T08:48:33.377558+00:00.
+Upstream `sensitive` and `content_filter` now terminate as
+`content_policy_violation`, with automatic retry, empty-response repair and
+provider switching disabled. Both APIs and streaming forms retain the request
+ID, original finish reason and allowlisted filter-stage facts. Missing or
+incomplete upstream diagnostics remain unknown; filtered text/tool calls are
+suppressed from the marked frame onward. Previously delivered text cannot be recalled.
+Clean-image tests: 2,505 passed, four skipped. All 20 isolated checks of the
+deployed image and 14 public model/tool/stream/receipt checks passed. Filtering
+faults were injected without network or production state; the original filtered
+user prompt was not replayed. Synthetic credentials were revoked, the subject
+disabled and reservations settled. Both databases passed; the environment,
+ports, 22 protected files and 17 other containers are unchanged.
+Natural idle reached 45.305 seconds; observed cutover interruption was 20.526557
+seconds. Gateway is ready with zero restarts/OOM. Two existing tool-loop shadow
+warnings reported no request mutation; no error logs appeared at verification.
+No Desktop release was made. See the [release receipt](./content-filter-release-2026-11-13.json).
+
+## Historical Verification Records
+
+The following records describe the state at their stated dates. A previous
+record saying "live" is not a claim about the current Gateway revision, routing,
+quota or health. Preserve these records as evidence; use current read-only checks
+and the relevant maintained runbook for operational decisions.
+
+Gateway `ec921e16f0a11ce48cccdd9dfbe989fceffb4a70` was live as of
 2026-11-13T00:22:23.514830+00:00 and verified at 2026-11-13T00:23:31.577824+00:00.
 Tencent COS in Shanghai is enabled for image uploads carrying the COS capability
 header; older clients retain R2 uploads and va1 asset access. Both asset formats
@@ -24,13 +50,6 @@ reached 45.907 seconds; observed cutover interruption was 21.543337 seconds.
 Gateway is ready with zero restarts/OOM and no warning/error logs at verification.
 Only main and the primary development worktree exist. No Desktop release was made.
 See the [release receipt](./gateway-cos-release-2026-11-13.json).
-
-## Historical Verification Records
-
-The following records describe the state at their stated dates. A previous
-record saying "live" is not a claim about the current Gateway revision, routing,
-quota or health. Preserve these records as evidence; use current read-only checks
-and the relevant maintained runbook for operational decisions.
 
 Gateway `0c45726ff69f620b86482d9bb9adaa7dff3e9cd8` was live as of
 2026-11-12T10:25:28.610902+00:00 and verified at 2026-11-12T10:32:41.892095+00:00.
