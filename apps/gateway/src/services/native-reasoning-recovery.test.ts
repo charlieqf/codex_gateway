@@ -293,7 +293,7 @@ describe("native recovery with controlled SSE and the original deadline", () => 
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it.each(["length", "content_filter", "stop"])("does not retry a received %s terminal reason when DONE stalls", async finishReason => {
+  it.each(["length", "stop"])("does not retry a received %s terminal reason when DONE stalls", async finishReason => {
     const f = fixture(); await flush();
     f.streams[0]!.send({ choices: [{ delta: {}, finish_reason: finishReason }] });
     await vi.advanceTimersByTimeAsync(NATIVE_NO_OUTPUT_MS);
@@ -304,6 +304,18 @@ describe("native recovery with controlled SSE and the original deadline", () => 
     expect(result).toBeInstanceOf(GatewayError);
     expect((result as GatewayError).message).toContain("first-attempt budget");
     expect(f.second.release).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["content_filter", "sensitive"])("preserves a received %s rejection when the first-output budget expires", async finishReason => {
+    const f = fixture(); await flush();
+    f.streams[0]!.send({ choices: [{ delta: {}, finish_reason: finishReason }] });
+    await vi.advanceTimersByTimeAsync(NATIVE_NO_OUTPUT_MS);
+    const result = await f.promise;
+    expect(result).toMatchObject({ code: "content_policy_violation", httpStatus: 400, message: "模型服务触发内容过滤" });
+    expect(providerStreamSummaryFromError(result as GatewayError)).toMatchObject({ finishReason, errorCode: "content_policy_violation" });
+    expect(f.streams).toHaveLength(1);
+    expect(f.second.release).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it.each([false, true])("separates internal cutoff from whole-request cancellation (fallback=%s)", async recover => {
