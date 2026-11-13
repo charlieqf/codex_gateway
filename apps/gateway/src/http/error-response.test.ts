@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   GatewayError,
   gatewayErrorCodes,
+  type ProviderContentFilter,
   type LimitKind
 } from "@codex-gateway/core";
 import { researchRouteConfig } from "./context.js";
 import {
   gatewayErrorMetadata,
+  gatewayErrorPublicMessage,
   gatewayErrorRetryable,
   researchErrorPayload
 } from "./error-response.js";
@@ -30,6 +32,42 @@ const gatewayLimitKinds: LimitKind[] = [
 ];
 
 describe("gatewayErrorMetadata", () => {
+  it.each([false, true, undefined])("stops policy retries regardless of failover=%s", providerFailoverEnabled => {
+    const error = new GatewayError({ code: "content_policy_violation", message: "raw provider text", httpStatus: 400 });
+    expect(gatewayErrorPublicMessage(error)).toBe("模型服务触发内容过滤");
+    expect(gatewayErrorRetryable(error)).toBe(false);
+    expect(gatewayErrorMetadata(error, { requestId: "req_filter", providerFailoverEnabled, upstreamFinishReason: "sensitive" })).toEqual({
+      content_filter_contract_version: 1, retryable: false,
+      retry_contract_version: 1, automatic_retry_allowed: false,
+      request_id: "req_filter", upstream_finish_reason: "sensitive",
+      content_filter_stage: "unknown", content_filter: []
+    });
+    expect(researchErrorPayload(error, { requestId: "req_filter" })).toMatchObject({
+      request_id: "req_filter",
+      error: { message: "模型服务触发内容过滤", retryable: false, automatic_retry_allowed: false,
+        upstream_finish_reason: null, content_filter_stage: "unknown" }
+    });
+  });
+
+  it("preserves multiple upstream moderation stages without retaining extra fields", () => {
+    const error = new GatewayError({ code: "content_policy_violation", message: "filtered", httpStatus: 400 });
+    const entries = [{ role: "user" as const, level: 0 as const, text: "private sentinel" }, { role: "history" as const }];
+    const metadata = gatewayErrorMetadata(error, { upstreamContentFilter: entries });
+    expect(metadata).toMatchObject({ content_filter_stage: "multiple",
+      content_filter: [{ role: "user", level: 0 }, { role: "history" }] });
+    expect(JSON.stringify(metadata)).not.toContain("private sentinel");
+    expect(gatewayErrorMetadata(error, { upstreamContentFilter: [{ role: "unknown", level: 3 }] }).content_filter_stage).toBe("unknown");
+  });
+
+  it("does not infer a filtering stage from malformed or future provider metadata", () => {
+    const error = new GatewayError({ code: "content_policy_violation", message: "filtered", httpStatus: 400 });
+    const upstreamContentFilter = [
+      { role: "user" }, { role: "future-private-sentinel", level: "private-sentinel" }
+    ] as unknown as ProviderContentFilter[];
+    expect(gatewayErrorMetadata(error, { upstreamContentFilter })).toMatchObject({ content_filter_stage: "unknown",
+      content_filter: [{ role: "user" }, { role: "unknown" }] });
+  });
+
   it.each([false, true])("stops upstream body-limit replay with failover=%s without changing local image limits", providerFailoverEnabled => {
     const error = new GatewayError({ code: "invalid_request", message: "Reduce the request.", httpStatus: 413,
       upstreamStatus: 413,

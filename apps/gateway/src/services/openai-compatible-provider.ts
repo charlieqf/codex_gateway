@@ -22,6 +22,7 @@ import {
 } from "@codex-gateway/core";
 import { buildOpenRouterIdentityGuardPrompt } from "./openrouter-identity-guard.js";
 import { parseProviderError } from "./provider-error-evidence.js";
+import { collectProviderContentFilter, contentPolicyViolationError, isContentFilteredFinishReason } from "./provider-content-filter.js";
 import { reportModelProgress } from "./model-call-progress.js";
 import {
   contextCompactionRequiredError,
@@ -159,8 +160,10 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
     let response: Response | undefined;
     let errorRequestId: string | null = null;
     let providerError: ProviderResponseSummary["providerError"];
+    const contentFilter: NonNullable<ProviderResponseSummary["contentFilter"]> = [];
     let usage: TokenUsage | undefined;
     let finishReason: string | null = null;
+    let terminationKind: ProviderStreamTermination = "error";
     let semanticOutputChars = 0;
     let visibleOutputChars = 0;
     const rawResponseHash = createHash("sha256");
@@ -175,6 +178,7 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
       finishReason,
       upstreamRequestId: this.safeRequestId(response ? upstreamRequestId(response.headers) : null) ?? errorRequestId,
       ...(providerError ? { providerError } : {}),
+      ...(contentFilter.length ? { contentFilter: structuredClone(contentFilter) } : {}),
       upstreamHttpStatus: response?.status ?? null,
       semanticOutputChars,
       visibleOutputChars,
@@ -258,7 +262,13 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
           sawDone = true;
           break;
         }
+        if (isRecord(chunk.value)) collectProviderContentFilter(chunk.value.content_filter, contentFilter);
         if (isRecord(chunk.value) && chunk.value.error != null) {
+          // Once filtering is confirmed, a broken trailing stream must not turn
+          // the request back into a retryable transport/empty-output failure.
+          if (isContentFilteredFinishReason(finishReason)) {
+            throw contentPolicyViolationError(response.status);
+          }
           const details = parseProviderError(chunk.value);
           providerError = details.evidence;
           errorRequestId = this.safeRequestId(...details.requestIds);
@@ -279,24 +289,26 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
           return;
         }
         const event = mapOpenAIStreamChunk(chunk.value, nativeToolCalls);
-        // Visible text is observed once by the stream consumer. Only reasoning
-        // and partial tools need this parser-side metadata callback.
-        if (event.activity && event.events.length === 0) reportModelProgress(input.onModelProgress, event.activity);
-        semanticOutputChars += event.semanticOutputChars;
-        visibleOutputChars += event.visibleOutputChars;
-        progress.reasoningChars += event.reasoningChars ?? 0;
-        for (const mappedEvent of event.events) {
-          yield mappedEvent;
-        }
-        if (event.usage) {
-          usage = event.usage;
-        }
-        if (event.finishReason !== null) {
+        if (event.usage) usage = event.usage;
+        if (event.finishReason !== null && !isContentFilteredFinishReason(finishReason)) {
           finishReason = event.finishReason;
           sawFinishReason = true;
         }
+        semanticOutputChars += event.semanticOutputChars;
+        progress.reasoningChars += event.reasoningChars ?? 0;
+        // Read trailing usage/moderation metadata, but never publish content from
+        // the filtering frame or any subsequent frame.
+        if (isContentFilteredFinishReason(finishReason)) continue;
+        // Visible text is observed once by the stream consumer. Only reasoning
+        // and partial tools need this parser-side metadata callback.
+        if (event.activity && event.events.length === 0) reportModelProgress(input.onModelProgress, event.activity);
+        visibleOutputChars += event.visibleOutputChars;
+        for (const mappedEvent of event.events) {
+          yield mappedEvent;
+        }
       }
-      const terminationKind = providerStreamTermination(sawDone, sawFinishReason);
+      terminationKind = providerStreamTermination(sawDone, sawFinishReason);
+      if (isContentFilteredFinishReason(finishReason)) throw contentPolicyViolationError(response.status);
       const completedSummary = responseSummary(terminationKind);
 
       if (terminationKind === "eof_before_terminal") {
@@ -339,7 +351,12 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
         responseSummary: completedSummary
       };
     } catch (err) {
-      const normalized = this.normalizeAndReport(err, "exception", input, {
+      const filtered = isContentFilteredFinishReason(finishReason);
+      // A confirmed policy failure takes precedence over errors while draining
+      // the tail. Report an error event to every consumer, including raw sessions.
+      const normalized = filtered ? withProviderFailure(contentPolicyViolationError(response?.status), classifyProviderFailure({
+        stage: failureStage, upstreamStatus: response?.status, originHint: "provider", kindHint: "http_request"
+      })) : this.normalizeAndReport(err, "exception", input, {
         stage: failureStage,
         upstreamStatus: response?.status,
         ...(failureStage === "streaming" && err instanceof SyntaxError
@@ -352,7 +369,8 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
         message: normalized.message,
         gatewayError: normalized,
         providerFailure: normalized.providerFailure,
-        responseSummary: responseSummary("error")
+        ...(filtered && usage ? { usage } : {}),
+        responseSummary: responseSummary(filtered ? terminationKind : "error")
       };
     } finally {
       abort.cleanup();
@@ -484,6 +502,7 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
       try { parsedBody = JSON.parse(body); } catch { /* Non-JSON error body. */ }
     }
     const details = parseProviderError(parsedBody, response.status);
+    const contentFilter = collectProviderContentFilter(isRecord(parsedBody) ? parsedBody.content_filter : undefined);
     const requestId = this.safeRequestId(upstreamRequestId(response.headers), ...details.requestIds);
     const normalized = this.normalizeAndReport(
       new UpstreamHttpError(response.status, body || response.statusText),
@@ -503,6 +522,7 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
     return { error, responseSummary: {
       finishReason: null, upstreamRequestId: requestId, upstreamHttpStatus: response.status,
       providerError: details.evidence,
+      ...(contentFilter.length ? { contentFilter } : {}),
       semanticOutputChars: 0, visibleOutputChars: 0,
       rawResponseHash: body === null ? null : createHash("sha256").update(body).digest("hex"),
       rawResponseChars: body?.length ?? null,
@@ -872,12 +892,7 @@ function openAIStreamError(
     .join(" ");
 
   if (/content[_ -]?filter|content[_ -]?policy|moderation|safety/i.test(classifierText)) {
-    return new GatewayError({
-      code: "content_policy_violation",
-      message: "MedCode upstream filtered the response for content policy reasons.",
-      httpStatus: 400,
-      ...(evidence.statusSource !== "fallback" ? { upstreamStatus: status } : {})
-    });
+    return contentPolicyViolationError(evidence.statusSource !== "fallback" ? status : undefined);
   }
   return new UpstreamHttpError(status, rawText);
 }

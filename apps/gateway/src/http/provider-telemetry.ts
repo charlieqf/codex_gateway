@@ -134,6 +134,7 @@ export function markProviderStreamSummary(
     markRateLimitOrigin(request, "upstream");
   }
   request.gatewayUpstreamFinishReason = summary.finishReason;
+  request.gatewayUpstreamContentFilter = summary.contentFilter;
   request.gatewayUpstreamRequestId = summary.upstreamRequestId;
   request.gatewayUpstreamHttpStatus = summary.upstreamHttpStatus;
   request.gatewayUpstreamContentChars = summary.contentChars;

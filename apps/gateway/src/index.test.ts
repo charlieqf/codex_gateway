@@ -14430,14 +14430,14 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
-  it("does not retry or cool down content-filtered streaming responses", async () => {
+  it.each(["content_filter", "sensitive"])("does not retry or cool down %s streaming responses", async (finishReason) => {
     const firstAccount = testUpstreamAccount("codex-pro-1");
     const secondAccount = testUpstreamAccount("codex-pro-2");
     const firstProvider = new FakeProvider([
       {
         type: "completed",
         responseSummary: {
-          finishReason: "content_filter",
+          finishReason,
           terminationKind: "finish_reason_and_done"
         }
       }
@@ -17027,6 +17027,64 @@ describe("GoldenCode native provider failover", () => {
     });
   });
 
+  it.each(["content_filter", "sensitive"].flatMap(finishReason =>
+    ["chat/completions", "responses"].flatMap(api => [false, true].flatMap(stream =>
+      [undefined, "user", "history", "assistant"].map(filterRole => ({ finishReason, api, stream, filterRole }))))))
+    ("does not replay filtered native tools: $finishReason $api stream=$stream role=$filterRole", async ({ finishReason, api, stream, filterRole }) => {
+      await runGoldenCodeFailoverFixture({ empty: true, emptyReason: finishReason, filterRole }, async ({ app, headers, calls, store }) => {
+        const payload = nativeFailoverPayload(api, stream);
+        payload.tool_choice = "auto";
+        const response = await app.inject({ method: "POST", url: `/v1/${api}`, headers, payload });
+        const event = store.listRequestEvents({ limit: 1 })[0]!;
+        expect(publicFailoverError(response.body)).toMatchObject({
+          code: "content_policy_violation", message: "模型服务触发内容过滤",
+          retryable: false, automatic_retry_allowed: false, retry_contract_version: 1,
+          request_id: event.requestId, upstream_finish_reason: finishReason, content_filter_contract_version: 1,
+          content_filter_stage: filterRole === "user" ? "input" : filterRole === "history" ? "history" : filterRole === "assistant" ? "output" : "unknown",
+          content_filter: filterRole ? [{ role: filterRole, level: 0 }] : []
+        });
+        expect(response.body).not.toContain("upstream_empty_response");
+        expect(calls).toHaveLength(1);
+        expect(event).toMatchObject({
+          status: "error", errorCode: "content_policy_violation", upstreamFinishReason: finishReason,
+          upstreamAttemptCount: 1
+        });
+        if (filterRole) expect(event.upstreamAttempts?.[0]?.contentFilter).toEqual([{ role: filterRole, level: 0 }]);
+      });
+    });
+
+  it.each(["chat/completions", "responses"].flatMap(api => [false, true].flatMap(stream =>
+    [false, true].map(plain => ({ api, stream, plain })))))
+    ("preserves policy errors when the filtered tail hits the deadline: $api stream=$stream plain=$plain", async ({ api, stream, plain }) => {
+      await runGoldenCodeFailoverFixture({ empty: true, emptyReason: "sensitive", filterRole: "history", filteredTailTimeout: true },
+        async ({ app, headers, calls, store }) => {
+          const payload = nativeFailoverPayload(api, stream);
+          if (plain) { delete payload.tools; delete payload.tool_choice; }
+          const response = await app.inject({ method: "POST", url: `/v1/${api}`,
+            headers: { ...headers, "x-medcode-request-timeout-ms": "150" }, payload });
+          expect(publicFailoverError(response.body)).toMatchObject({ code: "content_policy_violation", retryable: false,
+            automatic_retry_allowed: false, upstream_finish_reason: "sensitive", content_filter_stage: "history" });
+          expect(calls).toHaveLength(1);
+          expect(store.listRequestEvents({ limit: 1 })[0]).toMatchObject({ errorCode: "content_policy_violation", upstreamAttemptCount: 1 });
+        });
+    });
+
+  it.each(["chat/completions", "responses"].flatMap(api => [false, true].map(stream => ({ api, stream }))))
+    ("stops policy recovery after visible text: $api stream=$stream", async ({ api, stream }) => {
+      await runGoldenCodeFailoverFixture({ empty: true, emptyReason: "sensitive", filterRole: "assistant", filteredPartialText: true },
+        async ({ app, headers, calls, store }) => {
+          const payload = nativeFailoverPayload(api, stream);
+          delete payload.tools; delete payload.tool_choice;
+          const response = await app.inject({ method: "POST", url: `/v1/${api}`, headers, payload });
+          expect(publicFailoverError(response.body)).toMatchObject({
+            code: "content_policy_violation", message: "模型服务触发内容过滤", retryable: false, automatic_retry_allowed: false,
+            upstream_finish_reason: "sensitive", content_filter_stage: "output", content_filter: [{ role: "assistant", level: 0 }]
+          });
+          expect(calls).toHaveLength(1);
+          expect(store.listRequestEvents({ limit: 1 })[0]).toMatchObject({ errorCode: "content_policy_violation", upstreamAttemptCount: 1 });
+        });
+    });
+
   it.each([false, true].flatMap(plain => [false, true].map(stream => ({ plain, stream })) ))(
     "keeps partial fallback failures billable: plain=$plain stream=$stream", async ({ plain, stream }) => {
       await runGoldenCodeFailoverFixture({ empty: true, partialText: plain, partial: !plain }, async ({ app, headers, calls, store }) => {
@@ -17502,7 +17560,10 @@ async function runGoldenCodeFailoverFixture(options: {
   members?: string[]; second?: string;
   repairThenFail?: boolean; cooldown?: string; clock?: () => Date; recover?: boolean;
   disabledMember?: string; subjects?: string; fallbackInvalid?: boolean; repairSuccess?: boolean; partial?: boolean; plain?: boolean;
-  hang?: boolean; partialText?: boolean; empty?: boolean; bothEmpty?: boolean; omitEmptyUsage?: boolean;
+  hang?: boolean; partialText?: boolean; empty?: boolean; bothEmpty?: boolean; omitEmptyUsage?: boolean; emptyReason?: string;
+  filterRole?: string;
+  filteredPartialText?: boolean;
+  filteredTailTimeout?: boolean;
   reasoningBreak?: "reset" | "eof";
   missingUsageCharge?: "none" | "estimate" | "reserve"; unknownRepairUsage?: 1 | 2;
 }, run: (fixture: { app: ReturnType<typeof buildGateway>; headers: Record<string, string>;
@@ -17523,8 +17584,12 @@ async function runGoldenCodeFailoverFixture(options: {
     }
     if (options.empty && (runtime === first || options.bothEmpty)) {
       response.writeHead(200, { "content-type": "text/event-stream" });
-      response.write(`data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: "network_error" }],
+      if (options.filteredPartialText) response.write('data: {"choices":[{"delta":{"content":"partial text"}}]}\n\n');
+      response.write(`data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: options.emptyReason ?? "network_error" }],
         ...(options.omitEmptyUsage ? {} : { usage: { prompt_tokens: 20, completion_tokens: 0, total_tokens: 20 } }) })}\n\n`);
+      // Filtering metadata can arrive after the finish_reason, without choices.
+      if (options.filterRole) response.write(`data: ${JSON.stringify({ content_filter: [{ role: options.filterRole, level: 0 }] })}\n\n`);
+      if (options.filteredTailTimeout) return;
       response.end("data: [DONE]\n\n"); return;
     }
     if (options.hang) return;

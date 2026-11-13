@@ -620,13 +620,13 @@ describe("collectProviderMessage", () => {
     });
   });
 
-  it("maps content-filter completion to a non-retryable policy error", async () => {
+  it.each(["content_filter", "sensitive"])("maps %s completion to a non-retryable policy error", async (finishReason) => {
     const result = await collectProviderMessage({
       provider: fakeProvider([
         {
           type: "completed",
           responseSummary: {
-            finishReason: "content_filter",
+            finishReason,
             terminationKind: "finish_reason_and_done"
           }
         }
@@ -642,6 +642,10 @@ describe("collectProviderMessage", () => {
     expect(result).toMatchObject({
       code: "content_policy_violation",
       httpStatus: 400
+    });
+    expect(providerStreamSummaryFromError(result as GatewayError)).toMatchObject({
+      finishReason,
+      errorCode: "content_policy_violation"
     });
   });
 

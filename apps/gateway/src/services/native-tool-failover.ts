@@ -1,4 +1,5 @@
 import { GatewayError } from "@codex-gateway/core";
+import { isContentPolicyError } from "./provider-content-filter.js";
 import type { ChatRuntimeContext } from "./chat-runtime-dispatcher.js";
 import { emptyResponseCharge, isRecoverableEmptyResponse } from "./empty-response-policy.js";
 import { isNativeOutputBudgetFailure, NATIVE_STREAM_RECOVERY_RESERVE_MS } from "./native-output-budget.js";
@@ -128,6 +129,10 @@ export async function runNativeToolFailover<T extends { providerSummary: Provide
       const result = await input.execute(runtime, budget, prepareRetry);
       const summary = result instanceof GatewayError ? providerStreamSummaryFromError(result) : result.providerSummary;
       if (summary) summaries.push(summary);
+      if (isContentPolicyError(result)) {
+        runtime.recordError(result);
+        return withHistory(result, summaries);
+      }
       const afterCallError = requestEndError();
       if (afterCallError) return withHistory(afterCallError, summaries);
       if (!(result instanceof GatewayError)) {

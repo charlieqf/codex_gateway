@@ -26,6 +26,7 @@ import {
   type UpstreamAttemptSummary
 } from "@codex-gateway/core";
 import { reportModelProgress, reportModelOutput } from "./model-call-progress.js";
+import { contentPolicyViolationError, isContentFilteredFinishReason } from "./provider-content-filter.js";
 
 const CONTEXT_LENGTH_EXCEEDED_MESSAGE =
   "Current conversation or attached files are too large. Start a new conversation, split large PDFs/files, or clear earlier history before retrying.";
@@ -47,6 +48,7 @@ export interface CollectedProviderMessage {
 
 export interface ProviderStreamSummary {
   providerError?: ProviderErrorEvidence;
+  contentFilter?: ProviderResponseSummary["contentFilter"];
   userCharge?: TokenChargeDecision;
   completed: boolean;
   finishReason: string | null;
@@ -140,6 +142,7 @@ export class ProviderStreamSummaryCollector {
   private upstreamRawChars: number | null | undefined;
   private streamProgress: ProviderStreamProgress | undefined;
   private providerError: ProviderErrorEvidence | undefined;
+  private contentFilter: ProviderResponseSummary["contentFilter"];
   private terminationKind: ProviderStreamTermination | null = null;
   private errorCode: string | null = null;
   private failure: ProviderFailureClassification | null = null;
@@ -199,6 +202,8 @@ export class ProviderStreamSummaryCollector {
     }
     if (event.type === "error") {
       this.applyProviderSummary(event.responseSummary);
+      // Keep explicit final usage separate from partial stream diagnostics.
+      if (event.usage) this.usage = { ...event.usage };
       this.errorCode = event.code;
       this.failure = event.providerFailure ?? null;
       this.recordNormalized({
@@ -246,6 +251,7 @@ export class ProviderStreamSummaryCollector {
       rawResponseChars: this.upstreamRawChars === undefined ? this.normalizedChars : this.upstreamRawChars,
       ...(this.streamProgress ? { streamProgress: structuredClone(this.streamProgress) } : {}),
       ...(this.providerError ? { providerError: { ...this.providerError } } : {}),
+      ...(this.contentFilter ? { contentFilter: structuredClone(this.contentFilter) } : {}),
       terminationKind: this.terminationKind,
       durationMs: Math.max(0, this.now() - this.startedAtMs),
       usage: this.usage ? { ...this.usage } : null,
@@ -326,6 +332,9 @@ export class ProviderStreamSummaryCollector {
     }
     if (summary.providerError) {
       this.providerError = { ...summary.providerError };
+    }
+    if (summary.contentFilter) {
+      this.contentFilter = structuredClone(summary.contentFilter);
     }
   }
 }
@@ -592,13 +601,16 @@ export function combineProviderStreamSummaries(
   const maxToolArgumentCodeUnits = maxNullable(
     present.map((summary) => summary.maxToolArgumentCodeUnits)
   );
-  const finishReason = present[present.length - 1]?.finishReason ?? null;
+  const terminal = present[present.length - 1]!;
+  const finishReason = terminal.finishReason;
   const attempts = present.flatMap((summary) =>
     summary.attempts.length > 0 ? summary.attempts : [providerSummaryToAttempt(summary)]
   );
   return {
-    completed: present[present.length - 1]?.completed ?? false,
+    completed: terminal.completed,
     finishReason,
+    // Diagnostics describe the terminal attempt, not an earlier failed provider.
+    ...(terminal.contentFilter ? { contentFilter: structuredClone(terminal.contentFilter) } : {}),
     upstreamRequestId: present.findLast((summary) => summary.upstreamRequestId)?.upstreamRequestId ?? null,
     upstreamHttpStatus:
       present.findLast((summary) => summary.upstreamHttpStatus !== null)?.upstreamHttpStatus ?? null,
@@ -611,7 +623,7 @@ export function combineProviderStreamSummaries(
     toolNames,
     rawResponseHash: hash.digest("hex"),
     rawResponseChars: hasRawChars ? rawChars : null,
-    terminationKind: present[present.length - 1]?.terminationKind ?? null,
+    terminationKind: terminal.terminationKind,
     durationMs: present.reduce((total, summary) => total + summary.durationMs, 0),
     usage,
     maxToolArgumentBytes,
@@ -726,15 +738,10 @@ export function providerCompletionError(
   options: ProviderCompletionErrorOptions = {}
 ): GatewayError | null {
   const assessment = assessProviderCompletion(summary);
-  if (summary.finishReason === "content_filter") {
-    return providerProtocolError(
-      summary,
-      new GatewayError({
-        code: "content_policy_violation",
-        message: "MedCode upstream filtered the response for content policy reasons.",
-        httpStatus: 400
-      })
-    );
+  // GLM uses "sensitive" for filtered completions, including HTTP 200 streams.
+  // Classify it before empty-output recovery so the same filtered request is not replayed.
+  if (isContentFilteredFinishReason(summary.finishReason)) {
+    return providerProtocolError(summary, contentPolicyViolationError(summary.upstreamHttpStatus ?? undefined));
   }
   if (!summary.completed) {
     return providerProtocolError(
@@ -926,6 +933,7 @@ function providerSummaryToAttempt(
     rawResponseChars: summary.rawResponseChars,
     ...(summary.streamProgress ? { streamProgress: structuredClone(summary.streamProgress) } : {}),
     ...(summary.providerError ? { providerError: { ...summary.providerError } } : {}),
+    ...(summary.contentFilter ? { contentFilter: structuredClone(summary.contentFilter) } : {}),
     emptyStop: summary.emptyStop,
     terminationKind: summary.terminationKind,
     durationMs: summary.durationMs,

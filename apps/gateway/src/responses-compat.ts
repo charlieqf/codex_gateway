@@ -12,6 +12,7 @@ import {
 } from "@codex-gateway/core";
 import {
   gatewayErrorMetadata,
+  gatewayErrorPublicMessage,
   gatewayErrorRetryable,
   type GatewayErrorResponseContext
 } from "./http/error-response.js";
@@ -299,7 +300,7 @@ export function createResponsesFailedEvent(
     }),
     error: {
       code: error.code,
-      message: error.message,
+      message: gatewayErrorPublicMessage(error),
       retryable: gatewayErrorRetryable(error),
       ...(context.requestId ? { request_id: context.requestId } : {}),
       ...gatewayErrorMetadata(error, context)

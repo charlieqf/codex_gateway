@@ -1,5 +1,6 @@
 import { setTimeout as delay } from "node:timers/promises";
 import { GatewayError } from "@codex-gateway/core";
+import { isContentPolicyError } from "./provider-content-filter.js";
 import { isRecoverableReasoningStream, NativeCallBudget } from "./native-tool-failover.js";
 import { NATIVE_STREAM_RECOVERY_RESERVE_MS } from "./native-output-budget.js";
 import {
@@ -23,7 +24,11 @@ export class VisionRequestRecovery {
       content_delivered: this.contentDelivered, stop_reason: this.stopReason };
   }
 
-  endError(input: { signal: AbortSignal; deadlineAt: Date | null; now: () => Date }): GatewayError | null {
+  endError(input: { signal: AbortSignal; deadlineAt: Date | null; now: () => Date }, observedError?: GatewayError): GatewayError | null {
+    if (isContentPolicyError(observedError)) {
+      this.stopReason = "not_retryable";
+      return null;
+    }
     if (!input.signal.aborted && (!input.deadlineAt || input.now() < input.deadlineAt)) return null;
     const reason = input.signal.reason;
     const cancelled = input.signal.aborted && !(reason instanceof GatewayError && reason.code === "upstream_timeout");
@@ -40,7 +45,7 @@ export class VisionRequestRecovery {
   }): Promise<boolean> {
     this.contentDelivered ||= input.outputCommitted;
     const stop = (reason: VisionRetryStopReason) => { this.stopReason = reason; return false; };
-    if (this.endError(input)) return false;
+    if (this.endError(input, input.error)) return false;
     if (this.contentDelivered) return stop("content_delivered");
     const failure = input.error.providerFailure;
     // A reset after HTTP 200 is safe to replay only with positive parser evidence
@@ -85,7 +90,7 @@ export async function runVisionRequestRecovery<T extends { providerSummary: Prov
 }): Promise<T | GatewayError> {
   const summaries: ProviderStreamSummary[] = [];
   const finish = (error: GatewayError) => {
-    const finalError = input.signal.aborted && input.signal.reason instanceof GatewayError ? input.signal.reason : error;
+    const finalError = !isContentPolicyError(error) && input.signal.aborted && input.signal.reason instanceof GatewayError ? input.signal.reason : error;
     const summary = combineProviderStreamSummaries(summaries);
     return summary ? attachProviderStreamSummary(finalError, { ...summary, completed: false, failure: finalError.providerFailure ?? null },
       { preserveAttemptOutcomes: true }) : finalError;
@@ -96,12 +101,12 @@ export async function runVisionRequestRecovery<T extends { providerSummary: Prov
     const result = await input.execute(input.recovery.budget, summaries.length > 0);
     const summary = result instanceof GatewayError ? providerStreamSummaryFromError(result) : result.providerSummary;
     if (summary) summaries.push(summary);
-    const afterCallError = input.recovery.endError(input);
+    const afterCallError = input.recovery.endError(input, result instanceof GatewayError ? result : undefined);
     if (afterCallError) return finish(afterCallError);
     if (!(result instanceof GatewayError)) return { ...result, providerSummary: combineSuccessfulProviderStreamSummaries(summaries) };
     if (!await input.recovery.prepareRetry({ error: result, summary, signal: input.signal,
       deadlineAt: input.deadlineAt, now: input.now, outputCommitted: input.outputCommitted() })) {
-      return finish(input.recovery.endError(input) ?? result);
+      return finish(input.recovery.endError(input, result) ?? result);
     }
   }
 }

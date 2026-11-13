@@ -4,6 +4,7 @@ import { getGatewayContext } from "./context.js";
 import {
   applyGatewayErrorHeaders,
   gatewayErrorMetadata,
+  gatewayErrorPublicMessage,
   researchErrorPayload,
   type GatewayErrorResponseContext
 } from "./error-response.js";
@@ -28,7 +29,7 @@ export function sendError(request: FastifyRequest, reply: FastifyReply, error: G
   return {
     error: {
       code: error.code,
-      message: error.message,
+      message: gatewayErrorPublicMessage(error),
       ...gatewayErrorMetadata(error, errorContext)
     }
   };
@@ -96,6 +97,8 @@ export function gatewayErrorResponseContext(
   return {
     visionRecovery: request.gatewayVisionRecovery?.snapshot(),
     requestId: request.id,
+    upstreamFinishReason: request.gatewayUpstreamFinishReason,
+    upstreamContentFilter: request.gatewayUpstreamContentFilter,
     providerFailoverEnabled: request.gatewayProviderFailoverEnabled,
     limitKind: request.gatewayLimitKind,
     limitDetails: request.gatewayLimitDetails,
@@ -129,7 +132,7 @@ export function sendImageError(request: FastifyRequest, reply: FastifyReply, err
   return {
     error: {
       code: error.code,
-      message: error.message,
+      message: gatewayErrorPublicMessage(error),
       request_id: request.id,
       ...gatewayErrorMetadata(error, errorContext)
     }
@@ -205,8 +208,10 @@ export function sendGatewayErrorResponse(
   return reply.code(error.httpStatus).send({
     error: {
       code: error.code,
-      message: error.message,
-      retry_after_seconds: error.retryAfterSeconds
+      message: gatewayErrorPublicMessage(error),
+      retry_after_seconds: error.retryAfterSeconds,
+      ...(error.code === "content_policy_violation"
+        ? gatewayErrorMetadata(error, gatewayErrorResponseContext(request, error)) : {})
     }
   });
 }

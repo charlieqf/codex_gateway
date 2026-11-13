@@ -2988,7 +2988,7 @@ export function buildGateway(options: GatewayOptions = {}) {
                   retrying = true;
                   break;
                 }
-                error = visionRecovery?.endError({ signal: deadline.signal, deadlineAt: deadline.deadlineAt, now: clock }) ?? error;
+                error = visionRecovery?.endError({ signal: deadline.signal, deadlineAt: deadline.deadlineAt, now: clock }, error) ?? error;
                 if (
                   !visionRecovery &&
                   !initialChunkSent &&
@@ -3071,7 +3071,7 @@ export function buildGateway(options: GatewayOptions = {}) {
                   statelessAttempts += 1;
                   continue;
                 }
-                completionError = visionRecovery?.endError({ signal: deadline.signal, deadlineAt: deadline.deadlineAt, now: clock }) ?? completionError;
+                completionError = visionRecovery?.endError({ signal: deadline.signal, deadlineAt: deadline.deadlineAt, now: clock }, completionError) ?? completionError;
                 if (
                   !visionRecovery &&
                   !initialChunkSent &&
@@ -3344,7 +3344,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             if (goldencodeRequestFailover && !visionRecovery && !deadline.signal.aborted) {
               request.gatewayUserCharge = emptyResponseCharge(providerSummaries, statelessAttempts);
             }
-            return fail(visionRecovery?.endError({ signal: deadline.signal, deadlineAt: deadline.deadlineAt, now: clock }) ?? attemptResult);
+            return fail(visionRecovery?.endError({ signal: deadline.signal, deadlineAt: deadline.deadlineAt, now: clock }, attemptResult) ?? attemptResult);
           }
           const afterCallError = visionRecovery?.endError({ signal: deadline.signal, deadlineAt: deadline.deadlineAt, now: clock });
           if (afterCallError) {

@@ -3,6 +3,7 @@ import { GatewayError } from "@codex-gateway/core";
 import { VisionRequestRecovery, runVisionRequestRecovery } from "./vision-request-recovery.js";
 import type { NativeCallBudget } from "./native-tool-failover.js";
 import { attachProviderStreamSummary, ProviderStreamSummaryCollector, providerStreamSummaryFromError } from "./provider-stream.js";
+import { contentPolicyViolationError } from "./provider-content-filter.js";
 
 function reasoningReset() {
   const error = new GatewayError({ code: "upstream_unavailable", message: "synthetic socket reset", httpStatus: 503,
@@ -87,6 +88,31 @@ describe("vision recovery shared budget and deadline", () => {
     expect(execute).not.toHaveBeenCalled();
     expect(result).toMatchObject({ code: reason === "cancelled" ? "client_aborted" : "upstream_timeout" });
     expect(state.snapshot()).toMatchObject({ attempts: 0, stop_reason: reason });
+  });
+
+  it.each([false, true])("preserves a policy failure when the trailing stream reaches the deadline: abort=%s", async abort => {
+    const recovery = new VisionRequestRecovery(1);
+    const controller = new AbortController();
+    let now = new Date(0);
+    let calls = 0;
+    const result = await runVisionRequestRecovery({ recovery, signal: controller.signal,
+      deadlineAt: new Date(100), now: () => now, outputCommitted: () => false,
+      execute: async budget => {
+        calls += 1;
+        budget.consume();
+        now = new Date(100);
+        if (abort) controller.abort(new GatewayError({ code: "upstream_timeout", message: "tail timeout", httpStatus: 504 }));
+        const collector = new ProviderStreamSummaryCollector();
+        collector.record({ type: "error", code: "content_policy_violation", message: "filtered",
+          usage: { promptTokens: 10, completionTokens: 0, totalTokens: 10 },
+          responseSummary: { finishReason: "sensitive", contentFilter: [{ role: "user", level: 0 }] } });
+        return attachProviderStreamSummary(contentPolicyViolationError(200), collector.snapshot());
+      } });
+    expect(calls).toBe(1);
+    expect(result).toMatchObject({ code: "content_policy_violation" });
+    expect(providerStreamSummaryFromError(result as GatewayError)).toMatchObject({ finishReason: "sensitive",
+      contentFilter: [{ role: "user", level: 0 }], usage: { totalTokens: 10 } });
+    expect(recovery.stopReason).toBe("not_retryable");
   });
 
   it("replaces a completed result with cancellation without losing its attempt evidence", async () => {

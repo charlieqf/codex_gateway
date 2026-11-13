@@ -22,6 +22,7 @@ import {
 } from "@codex-gateway/core";
 import {
   gatewayErrorMetadata,
+  gatewayErrorPublicMessage,
   gatewayErrorRetryable,
   type GatewayErrorResponseContext
 } from "./http/error-response.js";
@@ -597,7 +598,7 @@ export function openAIErrorPayload(
 ) {
   return {
     error: {
-      message: error.message,
+      message: gatewayErrorPublicMessage(error),
       type: openAIErrorType(error),
       code: error.code,
       param: null,

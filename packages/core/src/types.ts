@@ -275,6 +275,7 @@ export type RequestTokenUsageSource = "provider" | "estimate" | "reserve" | "non
 
 export interface UpstreamAttemptSummary {
   providerError?: ProviderErrorEvidence;
+  contentFilter?: ProviderContentFilter[];
   /** Image entries in the attempted provider input; does not prove upstream receipt/billing. */
   inputImageCount?: number;
   visionRecovery?: {
@@ -449,8 +450,15 @@ export interface ProviderErrorEvidence {
   downloadStatus?: number;
 }
 
+/** Allowlisted upstream moderation facts; never prompt or response excerpts. */
+export interface ProviderContentFilter {
+  role: "user" | "assistant" | "history" | "unknown";
+  level?: 0 | 1 | 2 | 3;
+}
+
 export interface ProviderResponseSummary {
   providerError?: ProviderErrorEvidence;
+  contentFilter?: ProviderContentFilter[];
   finishReason?: string | null;
   upstreamRequestId?: string | null;
   upstreamHttpStatus?: number | null;
@@ -487,6 +495,8 @@ export type StreamEvent =
       type: "error";
       code: string;
       message: string;
+      /** Final usage, when known even though the provider rejected the output. */
+      usage?: TokenUsage;
       gatewayError?: import("./errors.js").GatewayError;
       responseSummary?: ProviderResponseSummary;
       providerFailure?: import("./provider-failure.js").ProviderFailureClassification;

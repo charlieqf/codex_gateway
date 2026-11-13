@@ -1003,12 +1003,12 @@ describe("OpenAICompatibleProviderAdapter", () => {
     }
   });
 
-  it("maps content-filter completion to a policy error", async () => {
+  it.each(["content_filter", "sensitive"])("maps %s completion to a policy error", async (finishReason) => {
     const server = await startSseServer(async (_request, _body, response) => {
       response.writeHead(200, { "content-type": "text/event-stream" });
       response.write(
         `data: ${JSON.stringify({
-          choices: [{ delta: {}, finish_reason: "content_filter" }]
+          choices: [{ delta: {}, finish_reason: finishReason }]
         })}\n\n`
       );
       response.end("data: [DONE]\n\n");
@@ -1029,10 +1029,89 @@ describe("OpenAICompatibleProviderAdapter", () => {
         code: "content_policy_violation",
         httpStatus: 400
       });
+      expect(providerStreamSummaryFromError(result as GatewayError)).toMatchObject({ finishReason });
     } finally {
       await server.close();
     }
   });
+
+  it.each(["sensitive", "content_filter"])("emits a terminal error and withholds text at and after %s", async finishReason => {
+    const frames = [
+      { choices: [{ delta: { content: "already delivered" } }] },
+      { choices: [{ delta: { content: "filtered same frame" }, finish_reason: finishReason }] },
+      { choices: [{ delta: { content: "filtered trailing frame" }, finish_reason: "stop" }],
+        content_filter: [{ role: "history", level: 0 }],
+        usage: { prompt_tokens: 10, completion_tokens: 2, total_tokens: 12 } }
+    ];
+    const events = await providerEvents(async () => new Response(
+      frames.map(frame => `data: ${JSON.stringify(frame)}\n\n`).join("") + "data: [DONE]\n\n"));
+    expect(events.filter(event => event.type === "message_delta")).toEqual([{ type: "message_delta", text: "already delivered" }]);
+    expect(events.at(-1)).toMatchObject({ type: "error", code: "content_policy_violation",
+      responseSummary: { finishReason, visibleOutputChars: "already delivered".length,
+        contentFilter: [{ role: "history", level: 0 }] } });
+    expect(events.some(event => event.type === "completed")).toBe(false);
+    const collector = new ProviderStreamSummaryCollector();
+    events.forEach(event => collector.record(event));
+    expect(collector.snapshot()).toMatchObject({ completed: false,
+      usage: { promptTokens: 10, completionTokens: 2, totalTokens: 12 } });
+  });
+
+  it.each([
+    { case: "unknown", entries: [{ role: "user" }, { role: "future_role" }] },
+    { case: "uninspected", entries: [...Array.from({ length: 32 }, () => ({ role: "user" })), { role: "history" }] }
+  ])("marks $case filtering roles instead of silently dropping them", async ({ entries: content_filter }) => {
+    const events = await providerEvents(async () => new Response(
+      `data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: "sensitive" }], content_filter })}\n\ndata: [DONE]\n\n`));
+    const terminal = events.at(-1);
+    expect(terminal && "responseSummary" in terminal ? terminal.responseSummary?.contentFilter : []).toContainEqual({ role: "unknown" });
+  });
+
+  it("collects bounded moderation facts across frames and drops provider content", async () => {
+    const server = await startSseServer(async (_request, _body, response) => {
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(`data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: "sensitive" }],
+        content_filter: [{ role: "user", level: 0, content: "private sentinel" }] })}\n\n`);
+      response.write(`data: ${JSON.stringify({ content_filter: [
+        { role: "user", level: 0 }, { role: "history", level: 3 }, { role: "assistant", level: 9 },
+        { role: "private sentinel", level: 1 }, null, { role: "private sentinel", level: "private sentinel" }
+      ] })}\n\n`);
+      response.end("data: [DONE]\n\n");
+    });
+    try {
+      const result = await collectProviderMessage({ provider: openAICompatibleProvider(server.baseUrl),
+        upstreamAccount: openRouterAccount(), subject: testSubject(), scope: "code", session: testSession(), message: "hello" });
+      expect(result).toMatchObject({ code: "content_policy_violation" });
+      const summary = providerStreamSummaryFromError(result as GatewayError)!;
+      const expected = [{ role: "user", level: 0 }, { role: "history", level: 3 }, { role: "assistant" }, { role: "unknown", level: 1 }, { role: "unknown" }];
+      expect(summary.contentFilter).toEqual(expected);
+      expect(summary.attempts[0]?.contentFilter).toEqual(expected);
+      expect(JSON.stringify(summary)).not.toContain("private sentinel");
+    } finally { await server.close(); }
+  });
+
+  it.each(["sensitive", "content_filter"].flatMap(finishReason =>
+    ["done", "eof", "error", "invalid_json"].map(ending => ({ finishReason, ending }))))
+    ("keeps $finishReason terminal after $ending and suppresses filtered tool calls", async ({ finishReason, ending }) => {
+      const server = await startSseServer(async (_request, _body, response) => {
+        response.writeHead(200, { "content-type": "text/event-stream" });
+        response.write(`data: ${JSON.stringify({ choices: [{ delta: { tool_calls: [{ index: 0, id: "filtered_tool",
+          type: "function", function: { name: "lookup", arguments: '{}' } }] }, finish_reason: finishReason }],
+          content_filter: [{ role: "assistant", level: 0 }], usage: { prompt_tokens: 10, completion_tokens: 2, total_tokens: 12 }
+        })}\n\n`);
+        response.end(ending === "done" ? 'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n'
+          : ending === "error" ? 'data: {"error":{"code":"server_error","message":"tail failed"}}\n\n'
+          : ending === "invalid_json" ? "data: {broken\n\n" : "");
+      });
+      try {
+        const result = await collectProviderMessage({ provider: openAICompatibleProvider(server.baseUrl),
+          upstreamAccount: openRouterAccount(), subject: testSubject(), scope: "code", session: testSession(), message: "hello",
+          clientTools: [{ type: "function", function: { name: "lookup", parameters: { type: "object", properties: {} } } }],
+          clientToolChoice: "auto" });
+        expect(result).toMatchObject({ code: "content_policy_violation" });
+        expect(providerStreamSummaryFromError(result as GatewayError)).toMatchObject({ finishReason, toolCallCount: 0,
+          contentFilter: [{ role: "assistant", level: 0 }], usage: { promptTokens: 10, completionTokens: 2, totalTokens: 12 } });
+      } finally { await server.close(); }
+    });
 
   it("requires the done marker even when the provider sends a finish reason", async () => {
     const server = await startSseServer(async (_request, _body, response) => {

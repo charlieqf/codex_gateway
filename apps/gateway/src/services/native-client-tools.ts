@@ -29,6 +29,7 @@ import { type ChatRuntimeContext } from "./chat-runtime-dispatcher.js";
 import { NativeCallBudget, runNativeToolFailover } from "./native-tool-failover.js";
 import { createNativeOutputBudget } from "./native-output-budget.js";
 import { isRecoverableEmptyResponse } from "./empty-response-policy.js";
+import { isContentPolicyError } from "./provider-content-filter.js";
 import { VisionRequestRecovery, runVisionRequestRecovery } from "./vision-request-recovery.js";
 import type {
   NativeClientToolsInput,
@@ -94,7 +95,7 @@ export async function runNativeWithFailover(input: NativeClientToolsInput & {
           onModelProgress: event => { outputBudget.observe(event); reportModelProgress(input.onModelProgress, event); }
         });
         const timeout = outputBudget.error();
-        if (!timeout) return result;
+        if (!timeout || isContentPolicyError(result)) return result;
         const summary = result instanceof GatewayError ? providerStreamSummaryFromError(result) : result.providerSummary;
         const classifiedTimeout = new GatewayError({ ...timeout, message: timeout.message, providerFailure: { ...timeout.providerFailure!,
           stage: summary?.failure?.stage ?? "unknown", upstreamStatus: summary?.upstreamHttpStatus ?? null } });

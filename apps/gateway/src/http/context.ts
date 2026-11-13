@@ -7,6 +7,7 @@ import type {
   ProviderKind,
   ProviderAdapter,
   ProviderFailureClassification,
+  ProviderContentFilter,
   RateLimitOrigin,
   RateLimitPolicy,
   RequestTokenUsageSource,
@@ -127,6 +128,7 @@ declare module "fastify" {
     gatewayClientAppVersion?: string | null;
     gatewayToolChoice?: string | null;
     gatewayUpstreamFinishReason?: string | null;
+    gatewayUpstreamContentFilter?: ProviderContentFilter[];
     gatewayUpstreamRequestId?: string | null;
     gatewayUpstreamHttpStatus?: number | null;
     gatewayUpstreamContentChars?: number | null;

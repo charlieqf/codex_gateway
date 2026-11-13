@@ -3,12 +3,16 @@ import type {
   GatewayError,
   LimitDetails,
   LimitKind,
+  ProviderContentFilter,
   RateLimitOrigin
 } from "@codex-gateway/core";
+import { collectProviderContentFilter, contentFilterStage, CONTENT_FILTER_MESSAGE } from "../services/provider-content-filter.js";
 
 export interface GatewayErrorResponseContext {
   requestId?: string | null;
   providerFailoverEnabled?: boolean;
+  upstreamFinishReason?: string | null;
+  upstreamContentFilter?: ProviderContentFilter[];
   visionRecovery?: {
     image_count: number; attempts: number; maximum_attempts: number;
     content_delivered: boolean; stop_reason: string | null;
@@ -45,10 +49,21 @@ export function gatewayErrorMetadata(
   context: GatewayErrorResponseContext = {}
 ) {
   const isRateLimited = error.code === "rate_limited";
+  const isContentFiltered = error.code === "content_policy_violation";
+  const contentFilter = isContentFiltered ? collectProviderContentFilter(context.upstreamContentFilter) : [];
   const retryAfterSeconds =
     error.retryAfterSeconds ?? (isRateLimited && error.httpStatus === 429 ? null : undefined);
 
   return {
+    ...(isContentFiltered ? {
+      content_filter_contract_version: 1,
+      retryable: false,
+      retry_contract_version: 1,
+      automatic_retry_allowed: false,
+      upstream_finish_reason: context.upstreamFinishReason ?? null,
+      content_filter_stage: contentFilterStage(contentFilter),
+      content_filter: contentFilter
+    } : {}),
     ...(error.requestLimitDetails ? {
       request_limit_contract_version: 1,
       request_limit: { ...error.requestLimitDetails },
@@ -120,7 +135,7 @@ export function gatewayErrorMetadata(
           token_count_source: error.contextWindowDetails.tokenCountSource
         }
       : {}),
-    ...(context.requestId && (isRateLimited || error.contextWindowDetails)
+    ...(context.requestId && (isRateLimited || isContentFiltered || error.contextWindowDetails)
       ? { request_id: context.requestId }
       : {}),
     ...(retryAfterSeconds !== undefined
@@ -162,12 +177,16 @@ export function gatewayErrorRetryable(error: GatewayError): boolean {
   );
 }
 
+export function gatewayErrorPublicMessage(error: GatewayError): string {
+  return error.code === "content_policy_violation" ? CONTENT_FILTER_MESSAGE : error.message;
+}
+
 export function researchErrorPayload(
   error: GatewayError,
   context: ResearchErrorResponseContext
 ) {
-  const { request_id: _requestId, ...rateLimitMetadata } =
-    error.code === "rate_limited" || error.retryAfterSeconds !== undefined
+  const { request_id: _requestId, ...errorMetadata } =
+    error.code === "rate_limited" || error.code === "content_policy_violation" || error.retryAfterSeconds !== undefined
       ? gatewayErrorMetadata(error, context)
       : {};
   return {
@@ -176,8 +195,8 @@ export function researchErrorPayload(
     error: {
       code: error.code,
       ...(context.researchCode ? { research_code: context.researchCode } : {}),
-      message: error.message,
-      ...rateLimitMetadata
+      message: gatewayErrorPublicMessage(error),
+      ...errorMetadata
     }
   };
 }
