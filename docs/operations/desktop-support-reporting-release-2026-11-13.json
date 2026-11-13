@@ -1,0 +1,85 @@
+{
+  "verification": {
+    "status": "verified",
+    "revision": "c4cdff393ad9864296243b1f33891840151934c5",
+    "smoke_script_revision": "1373d63177c383db385c97af569426de4e70b4c3",
+    "image_id": "sha256:048537eeb8adad4b5ac33649b1bd222caf9f9245d63fcc8883d5d4b9f68cb93c",
+    "at": "2026-11-13T13:25:20.599065+00:00",
+    "public_health": 200,
+    "restarts": 0,
+    "oom_killed": false,
+    "databases": [
+      {
+        "database": "gateway.db",
+        "schema": 44,
+        "quick_check": "ok",
+        "foreign_key_violations": 0
+      },
+      {
+        "database": "client-events.db",
+        "schema": 5,
+        "quick_check": "ok",
+        "foreign_key_violations": 0
+      }
+    ],
+    "public_support_checks": 15,
+    "model_requests_from_support_smoke": 0,
+    "cleanup": {
+      "subject_disabled": true,
+      "phone_released": true,
+      "active_credentials": 0,
+      "remaining_reports": 0
+    },
+    "protected_files_unchanged": 19,
+    "other_containers_unchanged": 16,
+    "environment_unchanged": true,
+    "ports_unchanged": true,
+    "recent_log_levels": {},
+    "observed_interruption": {
+      "first_observed_unready": "2026-11-13T13:23:08.744595+00:00",
+      "first_observed_restored": "2026-11-13T13:23:29.262551+00:00",
+      "observed_seconds": 20.517956,
+      "statuses": [
+        502,
+        503
+      ]
+    },
+    "forced_request_termination": false
+  },
+  "deployment": {
+    "status": "deployed",
+    "revision": "c4cdff393ad9864296243b1f33891840151934c5",
+    "previous": "ad6c6be2639197709bef67f65913b27ba80bc463",
+    "image_id": "sha256:048537eeb8adad4b5ac33649b1bd222caf9f9245d63fcc8883d5d4b9f68cb93c",
+    "started_at": "2026-11-13T13:22:49.997081+00:00",
+    "completed_at": "2026-11-13T13:23:41.610824+00:00",
+    "idle_window": {
+      "strategy": "controlled_drain",
+      "drain_timeout_seconds": 60,
+      "observed_seconds": 0.049,
+      "started_at": "2026-11-13T13:23:08.351482+00:00",
+      "qualified_at": "2026-11-13T13:23:08.400721+00:00",
+      "admission_open": false,
+      "active_requests": 0,
+      "active_work": 0,
+      "active_model_requests": 0,
+      "long_requests": 0,
+      "forced_request_termination": false
+    },
+    "backup": "/data/backups/codex-gateway-daily/20261113T132251Z",
+    "changed_env": [],
+    "protected_files": 19,
+    "other_containers": 16,
+    "attempt": "20261113T132247Z"
+  },
+  "source_archive_sha256": "a2a60054b2d5d186768176206d704965c3af53388bd2b77bbe7535f916e89636",
+  "tests": {
+    "local_passed": 2557,
+    "image_passed": 2557,
+    "skipped": 4
+  },
+  "contract": "docs/coordination/desktop-support-reporting-v1-contract.zh-CN.txt",
+  "examples": "docs/coordination/desktop-support-reporting-v1.examples.json",
+  "desktop_release": false,
+  "installed_desktop_e2e": "pending_client_integration"
+}

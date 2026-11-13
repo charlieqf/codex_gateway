@@ -5,7 +5,30 @@ For a recent 12/24-hour service check, use the fixed
 
 ## Latest Gateway Deployment Verification
 
-Gateway `ad6c6be2639197709bef67f65913b27ba80bc463` is live as of
+Gateway `c4cdff393ad9864296243b1f33891840151934c5` is live as of
+2026-11-13T13:23:41.610824+00:00 and verified at 2026-11-13T13:25:20.599065+00:00.
+Desktop support reporting is available at `POST /gateway/client-events/support`,
+with phone access-token or anonymous submission, immutable ownership/ACKs,
+bounded diagnostic files and authenticated management at
+`/gateway/admin/client-support`. The existing client-events DB advanced to schema 5;
+Gateway DB schema remains 44. Summary retention is 30 days and diagnostic retention
+is 7 days. No model call or model quota is used by support submission.
+Local and clean-image verification each passed 2,557 tests (four skipped).
+All 15 public support API checks passed; test reports, phone association and active
+credentials were cleaned up. The committed smoke script is `1373d63`; application,
+package and deployment code are identical to the deployed `c4cdff3` revision.
+Both databases passed integrity/FK checks. Environment, ports, 19 protected files
+and 16 other containers are unchanged; Gateway has zero restarts/OOM and no
+warning/error logs at verification. Controlled drain reached zero active requests;
+the observed public interruption was 20.517956 seconds (502/503), with no forced
+request termination. No Desktop release or installed-client E2E is claimed.
+See the [release receipt](./desktop-support-reporting-release-2026-11-13.json),
+[client contract](../coordination/desktop-support-reporting-v1-contract.zh-CN.txt)
+and [operations notes](./desktop-support-reporting-v1.txt).
+
+## Historical Verification Records
+
+Gateway `ad6c6be2639197709bef67f65913b27ba80bc463` was live as of
 2026-11-13T10:09:13.925613+00:00 and verified at 2026-11-13T10:10:50.932315+00:00.
 Simulated tool transcripts are now rejected instead of succeeding as plain text.
 The existing bounded correction permits one additional provider call; it must
@@ -25,8 +48,6 @@ No in-flight request was forcibly terminated. Gateway is ready with zero
 restarts/OOM. Four existing tool-loop shadow warnings reported no request
 mutation; no error logs appeared at verification. No Desktop release was made.
 See the [release receipt](./native-tool-transcript-release-2026-11-13.json).
-
-## Historical Verification Records
 
 The following records describe the state at their stated dates. A previous
 record saying "live" is not a claim about the current Gateway revision, routing,
