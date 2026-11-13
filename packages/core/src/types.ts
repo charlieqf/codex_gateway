@@ -602,7 +602,7 @@ export interface VisionObservationSnapshot {
   fingerprints?: {
     version: 1;
     keyId: string;
-    keySource: "configured" | "r2-derived" | "process";
+    keySource: "configured" | "r2-derived" | "cos-derived" | "process";
     scope: "session" | "request";
     scopeId: string;
     omittedEntries: number;

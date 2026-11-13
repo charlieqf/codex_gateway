@@ -42,10 +42,13 @@ PLAN_TOKEN_LIMITS_COMMAND = "set-plan-token-limits"
 INTERNAL_DAILY_LIMITS_COMMAND = "raise-internal-daily-limits"
 INTERNAL_REQUEST_FLOOR_COMMAND = "raise-internal-request-floor"
 INTERNAL_IMAGE_GRANTS_COMMAND = "grant-internal-image-batch"
+PAID_DAILY_LIMITS_COMMAND = "remove-paid-daily-limits"
 FREE_TOTAL_RESET_COMMAND = "reset-free-total"
+FREE_ALLOWANCE_UPGRADE_COMMAND = "upgrade-free-allowance"
 REGISTRATION_RELEASE_COMMAND = "release-registration"
 UNIFIED_KEY_EXPIRY_COMMAND = "extend-unified-key-expiry"
 EXTRA_GIFT_COMMAND = "grant-extra-gift"
+REQUEST_DAY_RESET_COMMAND = "reset-request-day"
 ACCOUNT_OPERATION_COMMANDS = {"renew-accounts": "renew", "undo-account-renewal": "undo"}
 USER_CREDENTIAL_CLASSES = {"desktop", "unknown"}
 SIMPLE_WRITE_COMMANDS = {
@@ -195,6 +198,12 @@ def validate_admin_args(admin_args: list[str]) -> tuple[str, str | None]:
         if len(admin_args) == 3 and not re.fullmatch(r"[a-f0-9]{64}", admin_args[2]):
             raise ManagementError("Expected the SHA-256 revision from --what-if.")
         return command, None
+    if command == REQUEST_DAY_RESET_COMMAND:
+        if len(admin_args) != 4 or not all(
+            re.fullmatch(r"[A-Za-z0-9_-]{1,128}", value) for value in admin_args[1:3]
+        ) or not admin_args[3].strip() or len(admin_args[3]) > 500:
+            raise ManagementError("reset-request-day requires subject ID, credential ID and reason.")
+        return command, None
     if command == INTERNAL_IMAGE_GRANTS_COMMAND:
         if len(admin_args) != 2 or not admin_args[1].strip():
             raise ManagementError("grant-internal-image-batch requires a reviewed JSON plan path.")
@@ -205,9 +214,19 @@ def validate_admin_args(admin_args: list[str]) -> tuple[str, str | None]:
         if len(admin_args) == 3 and not re.fullmatch(r"[a-f0-9]{64}", admin_args[2]):
             raise ManagementError("Expected the SHA-256 revision from --what-if.")
         return command, None
+    if command == PAID_DAILY_LIMITS_COMMAND:
+        if len(admin_args) not in (2, 3) or not admin_args[1].strip() or len(admin_args[1]) > 500:
+            raise ManagementError("remove-paid-daily-limits requires a reason and, for apply, the preview revision.")
+        if len(admin_args) == 3 and not re.fullmatch(r"[a-f0-9]{64}", admin_args[2]):
+            raise ManagementError("Expected the SHA-256 revision from --what-if.")
+        return command, None
     if command == EXTRA_GIFT_COMMAND:
         if len(admin_args) != 2 or not admin_args[1].strip():
             raise ManagementError("grant-extra-gift requires a reviewed JSON plan path.")
+        return command, None
+    if command == FREE_ALLOWANCE_UPGRADE_COMMAND:
+        if len(admin_args) != 2 or not admin_args[1].strip():
+            raise ManagementError("upgrade-free-allowance requires a reviewed JSON plan path.")
         return command, None
     if command == UNIFIED_KEY_EXPIRY_COMMAND:
         if len(admin_args) != 2 or not admin_args[1].strip():
@@ -470,6 +489,7 @@ def execute(args: argparse.Namespace, *, batch: VerifiedControlBatch | None = No
         if batch is not None:
             raise ManagementError("An account manifest is already one atomic batch; run it directly.")
         return run_account_operation(r760, args)
+    request_day_reset = run_request_day_reset(r760, args, apply=False) if command == REQUEST_DAY_RESET_COMMAND else None
     bulk_minimum_rpm = (
         int(args.admin_args[1]) if command == BULK_USER_RPM_COMMAND else None
     )
@@ -494,6 +514,11 @@ def execute(args: argparse.Namespace, *, batch: VerifiedControlBatch | None = No
         if not args.what_if and (len(args.admin_args) != 3 or args.admin_args[2] != internal_request_floor["revision"]):
             raise ManagementError("Apply requires the unchanged revision from --what-if.")
     plan_policy = run_plan_token_policy(r760, args, apply=False) if command == PLAN_TOKEN_LIMITS_COMMAND else None
+    paid_daily = None
+    if command == PAID_DAILY_LIMITS_COMMAND:
+        paid_daily = run_paid_daily_limits(r760, args, apply=False)
+        if not args.what_if and (len(args.admin_args) != 3 or args.admin_args[2] != paid_daily["revision"]):
+            raise ManagementError("Apply requires the unchanged revision from --what-if.")
     extra_gift = None
     extra_gift_preview = None
     if command == EXTRA_GIFT_COMMAND:
@@ -502,6 +527,13 @@ def execute(args: argparse.Namespace, *, batch: VerifiedControlBatch | None = No
             raise ManagementError("Extra gift plan must be a JSON object.")
         extra_gift_preview = run_extra_gift(r760, args, extra_gift, apply=False)
     free_reset = run_free_total_reset(r760, args, apply=False) if command == FREE_TOTAL_RESET_COMMAND else None
+    free_upgrade = None
+    free_upgrade_preview = None
+    if command == FREE_ALLOWANCE_UPGRADE_COMMAND:
+        free_upgrade = json.loads(Path(args.admin_args[1]).read_text(encoding="utf-8"))
+        if not isinstance(free_upgrade, dict):
+            raise ManagementError("Free allowance upgrade plan must be an object.")
+        free_upgrade_preview = run_free_allowance_upgrade(r760, args, free_upgrade, apply=False)
     unified_operation = None
     unified_preview = None
     if command == UNIFIED_KEY_EXPIRY_COMMAND:
@@ -533,10 +565,13 @@ def execute(args: argparse.Namespace, *, batch: VerifiedControlBatch | None = No
             **({"plan": internal_daily} if internal_daily is not None else {}),
             **({"plan": internal_request_floor} if internal_request_floor is not None else {}),
             **({"plan": plan_policy} if plan_policy is not None else {}),
+            **({"plan": paid_daily} if paid_daily is not None else {}),
             **({"plan": extra_gift_preview} if extra_gift_preview is not None else {}),
             **({"plan": free_reset} if free_reset is not None else {}),
+            **({"plan": free_upgrade_preview} if free_upgrade_preview is not None else {}),
             **({"plan": unified_preview} if unified_preview is not None else {}),
             **({"plan": release_plan} if release_plan is not None else {}),
+            **({"plan": request_day_reset} if request_day_reset is not None else {}),
         }
 
     if batch is not None:
@@ -554,7 +589,9 @@ def execute(args: argparse.Namespace, *, batch: VerifiedControlBatch | None = No
             backup_label="user-rpm" if bulk_minimum_rpm is not None else "r760-control",
             helper_container_path=helper_path,
         )
-        if internal_grants is not None:
+        if command == REQUEST_DAY_RESET_COMMAND:
+            authority_result = run_request_day_reset(r760, args, apply=True)
+        elif internal_grants is not None:
             authority_result = run_internal_image_grants(r760, args, internal_grants, apply=True)
         elif command == INTERNAL_DAILY_LIMITS_COMMAND:
             authority_result = run_internal_daily_limits(r760, args, apply=True)
@@ -562,10 +599,14 @@ def execute(args: argparse.Namespace, *, batch: VerifiedControlBatch | None = No
             authority_result = run_internal_request_floor(r760, args, apply=True)
         elif command == PLAN_TOKEN_LIMITS_COMMAND:
             authority_result = run_plan_token_policy(r760, args, apply=True)
+        elif command == PAID_DAILY_LIMITS_COMMAND:
+            authority_result = run_paid_daily_limits(r760, args, apply=True)
         elif extra_gift is not None:
             authority_result = run_extra_gift(r760, args, extra_gift, apply=True)
         elif command == FREE_TOTAL_RESET_COMMAND:
             authority_result = run_free_total_reset(r760, args, apply=True)
+        elif free_upgrade is not None:
+            authority_result = run_free_allowance_upgrade(r760, args, free_upgrade, apply=True)
         elif unified_operation is not None:
             authority_result = run_unified_key_expiry(r760, args, unified_operation, apply=True)
         elif release_args is not None:
@@ -622,6 +663,51 @@ def execute(args: argparse.Namespace, *, batch: VerifiedControlBatch | None = No
     finally:
         if batch is None:
             remove_helper_best_effort(r760, container_path=helper_path)
+
+
+def run_request_day_reset(endpoint: RemoteGateway, args: argparse.Namespace, *, apply: bool) -> dict[str, Any]:
+    operation = {
+        "subjectId": args.admin_args[1], "credentialId": args.admin_args[2],
+        "reason": args.admin_args[3], "apply": apply,
+    }
+    payload = base64.b64encode(json.dumps(operation).encode("utf-8")).decode("ascii")
+    completed = run_ssh(
+        endpoint,
+        f"{docker_command(endpoint)} exec -i -w /app -e R760_REQUEST_DAY_RESET_B64={payload} "
+        f"{shell_word(endpoint.container)} node -",
+        stdin=Path(__file__).with_name("gateway-request-day-reset.cjs").read_text(encoding="utf-8"),
+        timeout_seconds=args.timeout_seconds,
+    )
+    return json.loads(completed.stdout)
+
+
+def run_paid_daily_limits(endpoint: RemoteGateway, args: argparse.Namespace, *, apply: bool) -> dict[str, Any]:
+    operation = {"reason": args.admin_args[1], "apply": apply}
+    if len(args.admin_args) == 3:
+        operation["expectedRevision"] = args.admin_args[2]
+    payload = base64.b64encode(json.dumps(operation).encode("utf-8")).decode("ascii")
+    completed = run_ssh(
+        endpoint,
+        f"{docker_command(endpoint)} exec -i -w /app -e R760_PAID_DAILY_LIMITS_B64={payload} "
+        f"{shell_word(endpoint.container)} node -",
+        stdin=Path(__file__).with_name("gateway-paid-daily-limits.cjs").read_text(encoding="utf-8"),
+        timeout_seconds=args.timeout_seconds,
+    )
+    return json.loads(completed.stdout)
+
+
+def run_free_allowance_upgrade(
+    endpoint: RemoteGateway, args: argparse.Namespace, operation: dict[str, Any], *, apply: bool
+) -> dict[str, Any]:
+    payload = base64.b64encode(json.dumps({**operation, "apply": apply}).encode("utf-8")).decode("ascii")
+    completed = run_ssh(
+        endpoint,
+        f"{docker_command(endpoint)} exec -i -w /app -e R760_FREE_UPGRADE_B64={payload} "
+        f"{shell_word(endpoint.container)} node -",
+        stdin=Path(__file__).with_name("gateway-free-allowance-upgrade.cjs").read_text(encoding="utf-8"),
+        timeout_seconds=args.timeout_seconds,
+    )
+    return json.loads(completed.stdout)
 
 
 def run_extra_gift(endpoint: RemoteGateway, args: argparse.Namespace, plan: dict[str, Any], *, apply: bool) -> dict[str, Any]:

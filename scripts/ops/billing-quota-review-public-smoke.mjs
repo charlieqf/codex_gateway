@@ -131,13 +131,13 @@ try {
     period_start: annualStart.toISOString(), period_end: annualEnd.toISOString() });
   const annual = (await call("/gateway/credentials/current", { token: runtimeKey })).json.token_usage;
   assert.equal(annual.accounting_mode, "free_then_paid_v1");
-  assert.equal(annual.day.limit, 6000000); assert.equal(annual.month.limit, 200000000);
+  assert.equal(annual.day.limit, null); assert.equal(annual.month.limit, 200000000);
   assert.equal(annual.month.remaining, 200000000);
   assert.equal(annual.free_allowance.entitlement_id, freeId);
   // A day-window reset never touches the lifetime window: the earlier free share stays spent.
   assert.equal(annual.free_allowance.total.used, ledger.final_free_tokens);
   report.billing = { default_cancel_targets_current_paused: true, scheduled_renewal_preserved: true,
-    future_cancel_requires_id: true, completed_reset: true, yearly_daily_monthly_limits: true, same_free_entitlement: true };
+    future_cancel_requires_id: true, completed_reset: true, yearly_monthly_limit_without_daily_cap: true, same_free_entitlement: true };
 
   const dashboard = await fetch(`${origin}/gateway/admin/quota-dashboard`, { signal: AbortSignal.timeout(20_000) });
   assert.equal(dashboard.status, 200);

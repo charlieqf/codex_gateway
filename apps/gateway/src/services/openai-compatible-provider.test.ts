@@ -600,14 +600,17 @@ describe("OpenAICompatibleProviderAdapter", () => {
     }
   });
 
-  it("redacts R2 presigned URL credentials from upstream diagnostics", async () => {
+  it.each([
+    ["R2", "X-Amz-Credential=access-id%2Fscope&X-Amz-Signature=bearer-signature", ["X-Amz-Credential", "X-Amz-Signature"]],
+    ["COS", "q-ak=access-id&q-signature=bearer-signature&x-cos-security-token=temporary-secret", ["q-ak", "q-signature", "x-cos-security-token"]]
+  ] as const)("redacts %s presigned URL credentials from upstream diagnostics", async (_kind, query, parameters) => {
     const diagnostics: ProviderErrorDiagnostic[] = [];
     const server = await startSseServer(async (_request, _body, response) => {
       response.writeHead(400, { "content-type": "application/json" });
       response.end(
         JSON.stringify({
           error:
-            "invalid image https://account.example.com/object?X-Amz-Credential=access-id%2Fscope&X-Amz-Signature=bearer-signature"
+            `invalid image https://account.example.com/object?${query}`
         })
       );
     });
@@ -636,14 +639,10 @@ describe("OpenAICompatibleProviderAdapter", () => {
       });
 
       expect(diagnostics).toHaveLength(1);
-      expect(diagnostics[0].rawMessage).toContain(
-        "X-Amz-Credential=<redacted>"
-      );
-      expect(diagnostics[0].rawMessage).toContain(
-        "X-Amz-Signature=<redacted>"
-      );
+      for (const name of parameters) expect(diagnostics[0].rawMessage).toContain(`${name}=<redacted>`);
       expect(diagnostics[0].rawMessage).not.toContain("access-id");
       expect(diagnostics[0].rawMessage).not.toContain("bearer-signature");
+      expect(diagnostics[0].rawMessage).not.toContain("temporary-secret");
     } finally {
       await server.close();
     }

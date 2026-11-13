@@ -1,6 +1,6 @@
 {
   "tokensPerMinute": 300000,
-  "tokensPerDay": 6000000,
+  "tokensPerDay": null,
   "tokensPerMonth": 200000000,
   "maxPromptTokensPerRequest": 200000,
   "maxTotalTokensPerRequest": 300000,

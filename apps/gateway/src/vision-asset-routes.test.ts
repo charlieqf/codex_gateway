@@ -74,7 +74,18 @@ describe("vision asset routes", () => {
       contentType: "image/png",
       sizeBytes: 68,
       sha256: "a".repeat(64)
-    });
+    }, { supportsCos: false });
+  });
+
+  it.each([
+    ["cos", true], ["r2", false], ["unknown", false], ["cos, r2", false]
+  ] as const)("accepts only the exact COS capability: %s", async (capability, supportsCos) => {
+    const service = fakeService();
+    const response = await testApp(service).inject({ method: "POST", url: "/gateway/vision/assets",
+      headers: { "x-medcode-vision-storage": capability },
+      payload: { content_type: "image/png", size_bytes: 68, sha256: "a".repeat(64) } });
+    expect(response.statusCode).toBe(201);
+    expect(service.createAsset).toHaveBeenCalledWith("subject-test", expect.any(Object), { supportsCos });
   });
 
   it("completes, refreshes and deletes a stable asset ID", async () => {

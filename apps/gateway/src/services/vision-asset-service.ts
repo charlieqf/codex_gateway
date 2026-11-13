@@ -17,6 +17,7 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import { GatewayError } from "@codex-gateway/core";
 import { visionMaximumImageBytes, visionMaximumImagesPerRequest } from "./vision-input-policy.js";
+import { CosVisionStorage, parseCosVisionConfig, type CosVisionConfig } from "./cos-vision-storage.js";
 
 export const visionAssetMaximumBytes = visionMaximumImageBytes;
 export const visionAssetMaximumImagesPerRequest = visionMaximumImagesPerRequest;
@@ -52,7 +53,7 @@ export interface VisionAssetReadGrant {
 }
 
 export interface VisionAssetService {
-  createAsset(ownerId: string, input: VisionAssetCreateInput): VisionAssetUploadGrant;
+  createAsset(ownerId: string, input: VisionAssetCreateInput, client?: { supportsCos: boolean }): VisionAssetUploadGrant;
   completeAsset(ownerId: string, assetId: string, signal?: AbortSignal): Promise<VisionAssetReadGrant>;
   createReadUrl(ownerId: string, assetId: string, signal?: AbortSignal): Promise<VisionAssetReadGrant>;
   deleteAsset(ownerId: string, assetId: string, signal?: AbortSignal): Promise<void>;
@@ -72,6 +73,9 @@ export interface R2VisionAssetServiceOptions {
   fetchImpl?: VisionAssetFetch;
 }
 
+export type CosVisionAssetServiceOptions = Omit<R2VisionAssetServiceOptions,
+  "endpoint" | "bucket" | "accessKeyId" | "secretAccessKey"> & { config: CosVisionConfig };
+
 type VisionAssetFetch = (
   input: string | URL | Request,
   init?: RequestInit
@@ -87,7 +91,7 @@ interface VisionAssetTokenPayload {
   e: number;
 }
 
-interface R2ObjectMetadata {
+interface VisionObjectMetadata {
   contentType: string;
   sizeBytes: number;
 }
@@ -110,9 +114,7 @@ const defaultReadUrlTtlSeconds = 30 * 60;
 const defaultAssetTtlSeconds = 24 * 60 * 60;
 const defaultRequestTimeoutMs = 30_000;
 const readyMarkerContentType = "application/json";
-const assetTokenPrefix = "va1";
-
-export class R2VisionAssetService implements VisionAssetService {
+class VisionObjectAssetService implements VisionAssetService {
   private readonly endpoint: URL;
   private readonly fetchImpl: VisionAssetFetch;
   private readonly now: () => Date;
@@ -122,8 +124,9 @@ export class R2VisionAssetService implements VisionAssetService {
   private readonly assetTtlSeconds: number;
   private readonly requestTimeoutMs: number;
   private readonly assetSigningKey: Buffer;
+  private readonly assetTokenPrefix: "va1" | "vc1";
 
-  constructor(private readonly options: R2VisionAssetServiceOptions) {
+  constructor(private readonly options: R2VisionAssetServiceOptions, private readonly cos?: CosVisionStorage) {
     this.endpoint = parseR2Endpoint(options.endpoint);
     validateR2Bucket(options.bucket);
     validateCredentialValue(options.accessKeyId, "R2 access key ID");
@@ -152,14 +155,15 @@ export class R2VisionAssetService implements VisionAssetService {
       120_000,
       "R2 vision request timeout"
     );
-    // R2 is deliberately direct even when the Gateway's model traffic uses an
+    // Storage is deliberately direct even when the Gateway's model traffic uses an
     // environment proxy. This also keeps signed storage operations on the same
     // network view as client-side presigned uploads.
     this.fetchImpl = options.fetchImpl ?? directHttpsFetch;
     this.now = options.now ?? (() => new Date());
     this.randomUUID = options.randomUUID ?? nodeRandomUUID;
+    this.assetTokenPrefix = cos ? "vc1" : "va1";
     this.assetSigningKey = createHmac("sha256", options.secretAccessKey)
-      .update("medcode-vision-asset-token-v1", "utf8")
+      .update(cos ? `medcode-vision-asset-token-cos-v1\u0000${cos.endpoint}` : "medcode-vision-asset-token-v1", "utf8")
       .digest();
   }
 
@@ -184,7 +188,7 @@ export class R2VisionAssetService implements VisionAssetService {
       e: Math.floor(assetExpiresAt.getTime() / 1_000)
     };
     const assetId = this.encodeAssetToken(payload);
-    const uploadHeaders = {
+    const uploadHeaders = this.cos?.uploadHeaders(input.contentType, input.sha256) ?? {
       "Content-Type": input.contentType,
       "If-None-Match": "*"
     } as const;
@@ -250,7 +254,7 @@ export class R2VisionAssetService implements VisionAssetService {
   private async withOperation<T>(parent: AbortSignal | undefined, work: (signal: AbortSignal) => Promise<T>): Promise<T> {
     parent?.throwIfAborted();
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(new Error("r2_operation_timeout")), this.requestTimeoutMs);
+    const timer = setTimeout(() => controller.abort(new Error("vision_storage_operation_timeout")), this.requestTimeoutMs);
     const signal = parent ? AbortSignal.any([parent, controller.signal]) : controller.signal;
     try {
       const result = await work(signal);
@@ -382,11 +386,15 @@ export class R2VisionAssetService implements VisionAssetService {
       await cancelResponse(response);
       throw visionAssetStorageUnavailable(response.status);
     }
+    if (this.cos && response.headers.get("x-cos-server-side-encryption") !== "AES256") {
+      await cancelResponse(response);
+      throw visionAssetStorageUnavailable();
+    }
     await cancelResponse(response);
     return true;
   }
 
-  private async headObject(objectKey: string, signal: AbortSignal): Promise<R2ObjectMetadata | null> {
+  private async headObject(objectKey: string, signal: AbortSignal): Promise<VisionObjectMetadata | null> {
     const response = await this.authenticatedRequest({ method: "HEAD", objectKey, signal });
     if (response.status === 404) {
       await cancelResponse(response);
@@ -399,7 +407,9 @@ export class R2VisionAssetService implements VisionAssetService {
     const rawLength = response.headers.get("content-length");
     const sizeBytes = rawLength === null ? NaN : Number(rawLength);
     const contentType = response.headers.get("content-type") ?? "";
+    const encrypted = !this.cos || response.headers.get("x-cos-server-side-encryption") === "AES256";
     await cancelResponse(response);
+    if (!encrypted) throw invalidUploadedAsset("Uploaded image encryption does not match the upload grant.");
     if (!Number.isSafeInteger(sizeBytes) || sizeBytes < 0) {
       throw visionAssetStorageUnavailable();
     }
@@ -427,10 +437,14 @@ export class R2VisionAssetService implements VisionAssetService {
       }
     });
     if (response.ok) {
+      if (this.cos && response.headers.get("x-cos-server-side-encryption") !== "AES256") {
+        await cancelResponse(response);
+        throw visionAssetStorageUnavailable();
+      }
       await cancelResponse(response);
       return;
     }
-    if (response.status === 412) {
+    if (response.status === (this.cos ? 409 : 412)) {
       await cancelResponse(response);
       if (await this.readyMarkerExists(asset, signal)) {
         return;
@@ -459,6 +473,21 @@ export class R2VisionAssetService implements VisionAssetService {
   ): Promise<Response> {
     input.signal.throwIfAborted();
     const now = this.now();
+    if (this.cos) {
+      const payload = input.payload ?? new Uint8Array();
+      try {
+        return await this.fetchImpl(this.cos.objectUrl(input.objectKey), {
+          method: input.method,
+          headers: this.cos.requestHeaders(input.method, input.objectKey, now, payload,
+            { ...input.extraHeaders, ...input.signedHeaders }),
+          ...(input.method === "PUT" ? { body: Buffer.from(payload) as unknown as BodyInit } : {}),
+          signal: input.signal
+        });
+      } catch {
+        input.signal.throwIfAborted();
+        throw visionAssetStorageUnavailable();
+      }
+    }
     const amzDate = awsTimestamp(now);
     const dateStamp = amzDate.slice(0, 8);
     const payload = input.payload ?? new Uint8Array();
@@ -528,6 +557,7 @@ export class R2VisionAssetService implements VisionAssetService {
     now: Date,
     additionalHeaders: Readonly<Record<string, string>> = {}
   ): string {
+    if (this.cos) return this.cos.signedUrl(method, objectKey, expiresSeconds, now, additionalHeaders);
     const objectUrl = this.objectUrl(objectKey);
     const amzDate = awsTimestamp(now);
     const dateStamp = amzDate.slice(0, 8);
@@ -587,9 +617,9 @@ export class R2VisionAssetService implements VisionAssetService {
       "base64url"
     );
     const signature = createHmac("sha256", this.assetSigningKey)
-      .update(`${assetTokenPrefix}.${encoded}`, "utf8")
+      .update(`${this.assetTokenPrefix}.${encoded}`, "utf8")
       .digest("base64url");
-    return `${assetTokenPrefix}.${encoded}.${signature}`;
+    return `${this.assetTokenPrefix}.${encoded}.${signature}`;
   }
 
   private decodeAssetToken(
@@ -606,11 +636,11 @@ export class R2VisionAssetService implements VisionAssetService {
       throw visionAssetNotFound();
     }
     const parts = assetId.split(".");
-    if (parts.length !== 3 || parts[0] !== assetTokenPrefix) {
+    if (parts.length !== 3 || parts[0] !== this.assetTokenPrefix) {
       throw visionAssetNotFound();
     }
     const expectedSignature = createHmac("sha256", this.assetSigningKey)
-      .update(`${assetTokenPrefix}.${parts[1]}`, "utf8")
+      .update(`${this.assetTokenPrefix}.${parts[1]}`, "utf8")
       .digest();
     let receivedSignature: Buffer;
     try {
@@ -646,6 +676,58 @@ export class R2VisionAssetService implements VisionAssetService {
   }
 }
 
+export class R2VisionAssetService extends VisionObjectAssetService {
+  constructor(options: R2VisionAssetServiceOptions) { super(options); }
+}
+
+export class CosVisionAssetService extends VisionObjectAssetService {
+  constructor({ config, ...options }: CosVisionAssetServiceOptions) {
+    const cos = new CosVisionStorage(config);
+    super({ ...options, endpoint: cos.endpoint, bucket: config.bucket,
+      accessKeyId: config.secretId, secretAccessKey: config.secretKey }, cos);
+  }
+}
+
+/** Select by token format, then authenticate within the selected store. Never retry another store. */
+class DualStorageVisionAssetService implements VisionAssetService {
+  constructor(
+    private readonly cos: CosVisionAssetService,
+    private readonly r2: R2VisionAssetService | null,
+    private readonly uploadProvider: "r2" | "cos"
+  ) {}
+
+  createAsset(owner: string, input: VisionAssetCreateInput, client?: { supportsCos: boolean }) {
+    if (this.uploadProvider === "cos" && client?.supportsCos === true) {
+      return this.cos.createAsset(owner, input);
+    }
+    if (this.r2) return this.r2.createAsset(owner, input);
+    if (this.uploadProvider === "r2") throw visionAssetStorageUnavailable();
+    throw new GatewayError({
+      code: "client_upgrade_required",
+      httpStatus: 426,
+      message: "Please update the client to upload images to the configured storage."
+    });
+  }
+
+  async completeAsset(owner: string, id: string, signal?: AbortSignal) {
+    return this.select(id).completeAsset(owner, id, signal);
+  }
+
+  async createReadUrl(owner: string, id: string, signal?: AbortSignal) {
+    return this.select(id).createReadUrl(owner, id, signal);
+  }
+
+  async deleteAsset(owner: string, id: string, signal?: AbortSignal) {
+    return this.select(id).deleteAsset(owner, id, signal);
+  }
+
+  private select(id: string): VisionAssetService {
+    if (id.startsWith("vc1.")) return this.cos;
+    if (id.startsWith("va1.") && this.r2) return this.r2;
+    throw visionAssetNotFound();
+  }
+}
+
 export function resolveVisionAssetService(
   env: NodeJS.ProcessEnv,
   options: {
@@ -653,6 +735,28 @@ export function resolveVisionAssetService(
     fetchImpl?: VisionAssetFetch;
   } = {}
 ): VisionAssetService | null {
+  const provider = env.MEDCODE_VISION_STORAGE_PROVIDER?.trim() || "r2";
+  if (provider !== "r2" && provider !== "cos") throw new Error("MEDCODE_VISION_STORAGE_PROVIDER must be r2 or cos.");
+  const filename = env.MEDCODE_VISION_COS_CREDENTIALS_FILE?.trim();
+  if (provider === "cos" && !filename) throw new Error("MEDCODE_VISION_COS_CREDENTIALS_FILE is required when vision storage is cos.");
+  if (filename) {
+    const integer = (suffix: string, fallback: number) => optionalEnvironmentInteger(
+      env[`MEDCODE_VISION_${suffix}`] ?? env[`MEDCODE_VISION_R2_${suffix}`], fallback, `MEDCODE_VISION_${suffix}`);
+    const cos = new CosVisionAssetService({ config: readCosVisionCredentialsFile(filename),
+      uploadUrlTtlSeconds: integer("UPLOAD_URL_TTL_SECONDS", defaultUploadUrlTtlSeconds),
+      readUrlTtlSeconds: integer("READ_URL_TTL_SECONDS", defaultReadUrlTtlSeconds),
+      assetTtlSeconds: integer("ASSET_TTL_SECONDS", defaultAssetTtlSeconds),
+      requestTimeoutMs: integer("REQUEST_TIMEOUT_MS", defaultRequestTimeoutMs), ...options });
+    const r2 = resolveR2VisionAssetService(env, options);
+    // Keep reading existing COS assets even when new uploads are rolled back to R2.
+    return new DualStorageVisionAssetService(cos, r2, provider);
+  }
+  return resolveR2VisionAssetService(env, options);
+}
+
+function resolveR2VisionAssetService(env: NodeJS.ProcessEnv, options: {
+  now?: () => Date; fetchImpl?: VisionAssetFetch;
+}): R2VisionAssetService | null {
   const enabled = env.MEDCODE_VISION_R2_ENABLED?.trim();
   if (!enabled || enabled === "0") {
     return null;
@@ -699,7 +803,15 @@ export function readR2CredentialsFile(filename: string): {
   accessKeyId: string;
   secretAccessKey: string;
 } {
-  const sourceEnvName = "MEDCODE_VISION_R2_CREDENTIALS_FILE";
+  const values = parseR2CredentialText(readRestrictedVisionSecret(filename, "MEDCODE_VISION_R2_CREDENTIALS_FILE"));
+  return { accessKeyId: values.R2_ACCESS_KEY_ID, secretAccessKey: values.R2_SECRET_ACCESS_KEY };
+}
+
+export function readCosVisionCredentialsFile(filename: string): CosVisionConfig {
+  return parseCosVisionConfig(readRestrictedVisionSecret(filename, "MEDCODE_VISION_COS_CREDENTIALS_FILE"));
+}
+
+function readRestrictedVisionSecret(filename: string, sourceEnvName: string): string {
   const resolved = path.resolve(filename);
   const canonical = realpathSync(resolved);
   if (canonical !== resolved && process.platform !== "win32") {
@@ -723,11 +835,7 @@ export function readR2CredentialsFile(filename: string): {
     ) {
       throw new Error(`${sourceEnvName} secret file handle is not canonical.`);
     }
-    const values = parseR2CredentialText(readFileSync(descriptor, "utf8"));
-    return {
-      accessKeyId: values.R2_ACCESS_KEY_ID,
-      secretAccessKey: values.R2_SECRET_ACCESS_KEY
-    };
+    return readFileSync(descriptor, "utf8");
   } finally {
     closeSync(descriptor);
   }

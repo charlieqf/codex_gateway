@@ -42,6 +42,24 @@ describe("private vision fingerprints", () => {
     expect(result.entries.map(e => e.inLastUserMessage)).toEqual([false, true]);
     expect(result.entries.map(e => e.detail)).toEqual(["high", "low"]);
   });
+  it("normalizes COS signatures alongside R2 without erasing content-selecting parameters", () => {
+    const cosBase = "https://synthetic-1234567890.cos.ap-shanghai.myqcloud.com/";
+    const cosPath = cosBase + "vision-temp/2026/11/12/" + "b".repeat(32) + ".png";
+    const printer = new VisionFingerprinter("secret".repeat(8), "configured", [base, cosBase]);
+    const result = printer.snapshot(observation([
+      cosPath + "?q-sign-algorithm=sha1&q-ak=old&q-sign-time=1;2&q-key-time=1;2&q-header-list=host&q-url-param-list=&q-signature=old",
+      cosPath + "?q-ak=new&q-signature=new&x-cos-security-token=temporary",
+      cosPath + "?q-signature=new&versionId=other",
+      "https://external.example/image?q-signature=one", "https://external.example/image?q-signature=two",
+      path + "?X-Amz-Signature=one", path + "?X-Amz-Signature=two"
+    ]), context).entries;
+    expect(result[0]!.id).toBe(result[1]!.id);
+    expect(result[0]!.source).toBe("asset-url");
+    expect(result[0]!.id).not.toBe(result[2]!.id);
+    expect(result[3]!.id).not.toBe(result[4]!.id);
+    expect(result[5]!.id).toBe(result[6]!.id);
+    expect(JSON.stringify(result)).not.toContain("q-signature");
+  });
   it("falls back to request scope without fabricating cross-request correlation", () => {
     const a = fp().snapshot(observation([inline]), { ...context, sessionId: null });
     const b = fp().snapshot(observation([inline]), { ...context, sessionId: null, requestId: "other" });

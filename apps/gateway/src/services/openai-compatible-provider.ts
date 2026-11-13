@@ -1199,6 +1199,10 @@ function sanitizeProviderErrorText(value: string): string {
       /([?&]X-Amz-(?:Credential|Signature|Security-Token)=)[^&\s"'<>]+/gi,
       "$1<redacted>"
     )
+    .replace(
+      /(\b(?:q-ak|q-signature|x-cos-security-token)=)[^&\s"'<>]+/gi,
+      "$1<redacted>"
+    )
     .replace(/\bsk-[A-Za-z0-9_-]{8,}\b/g, "sk-<redacted>");
   return redacted.length > 2048 ? `${redacted.slice(0, 2048)}...[truncated]` : redacted;
 }

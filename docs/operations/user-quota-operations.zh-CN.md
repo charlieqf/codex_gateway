@@ -1,13 +1,32 @@
 # 单用户 Token 额度操作
 
-适用于 R760，给个别用户查额度、重置额度或赠送额度。所有写操作都通过 `scripts/manage-r760-gateway-control.py` 执行：先做经过校验的在线备份，再执行白名单里的管理命令，最后检查完整性。不要直接写 SQL。
+适用于 R760，给个别用户查额度、重置额度或赠送额度。不要直接写 SQL。
+
+日 Token 额度重置直接执行：
+
+```powershell
+python scripts/reset-user-daily-quota.py <手机号>
+```
+
+这条命令通过现有 Billing API 清零当前日 Token 用量，并核验返回值及审计记录。
+不要求先出现额度报错，不改请求次数、月用量、套餐和有效期，不重启 Gateway，
+不备份整个数据库；仅保存该账号当天用量的恢复记录。可加 `--what-if` 只读预览。
+适用于单一当前权益、单一有效凭据且设有日 Token 限额的账号；有未结算模型请求时，
+待请求结束后重试。一次性 Free 总额度重置仍使用下文专用命令。
+
+其他维护写操作按 `scripts/manage-r760-gateway-control.py` 对应流程执行；全局改动和部署保留独立备份要求。
+
+2026-09-24 起，新注册 Free 为一次性 **500 万 token**。为兼容现有开户和客户端合同，
+Plan ID 仍为 `plan_free_once_1m_v1`；额度应读取策略字段，不能从 ID 中的 `1m` 推断。
+此次已将 66 个纯 Free 账号升级至 500 万并清零终身用量；同时有其他有效权益的
+14 个账号未改动，历史快照可能仍为 100 万。详见[调整回执](./free-plan-5m-2026-09-24.zh-CN.md)。
 
 ## 选择做法
 
 | 需求 | 做法 | 影响范围 |
 | --- | --- | --- |
 | 当天或当月额度用完，想清零 | Billing 接口 `quota-reset`，清零 day 或 month 窗口 | 只影响该用户当前权益的窗口 |
-| 注册送的一次性 100 万 Free 用完了，想再给 100 万 | `reset-free-total`（见[控制面文档](./r760-control-plane-authority.md)） | 只清零该 Free 的终身窗口，上限仍是 100 万 |
+| 注册 Free 用完，想恢复完整额度 | `reset-free-total`（见[控制面文档](./r760-control-plane-authority.md)），传入该用户实际的额度快照 | 只清零该 Free 的终身窗口，上限不变；当前新默认是 500 万 |
 | 给个人**赠送**一定数量的 Token | 赠送套餐 `plan_gift_once_<数量>_v1` 加上 `entitlement grant --replace`（见下文） | 只影响该用户 |
 | 改所有新购用户的套餐额度 | `set-plan-token-limits` | 所有**新**购买和续费；已发放的权益保留原快照 |
 

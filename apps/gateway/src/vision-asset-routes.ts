@@ -66,7 +66,9 @@ export function registerVisionAssetRoutes(
       }
       try {
         const { subject } = getGatewayContext(request);
-        const grant = service.createAsset(subject.id, input);
+        const grant = service.createAsset(subject.id, input, {
+          supportsCos: request.headers["x-medcode-vision-storage"] === "cos"
+        });
         return reply.code(201).send(uploadGrantResponse(grant));
       } catch (error) {
         return handleVisionAssetFailure(request, reply, error);

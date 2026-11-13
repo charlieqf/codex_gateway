@@ -1,7 +1,8 @@
 import { createHash, createHmac, randomBytes } from "node:crypto";
 import type { VisionObservationSnapshot } from "@codex-gateway/core";
 import type { VisionObservation } from "./vision-observation.js";
-import { readR2CredentialsFile } from "./vision-asset-service.js";
+import { readCosVisionCredentialsFile, readR2CredentialsFile } from "./vision-asset-service.js";
+import { CosVisionStorage } from "./cos-vision-storage.js";
 
 type Fingerprints = NonNullable<VisionObservationSnapshot["fingerprints"]>;
 const domain = "codex-gateway/vision-observation/v1";
@@ -12,11 +13,13 @@ const maximumCharacters = 32 * 1024 * 1024;
 export class VisionFingerprinter {
   private readonly key: Buffer;
   private readonly keyId: string;
+  private readonly assetBases: readonly string[];
   constructor(secret: string | Buffer, private readonly keySource: Fingerprints["keySource"],
-    private readonly assetBase?: string) {
+    assetBase?: string | readonly string[]) {
     // Separate this purpose from asset-token signing and provider credentials.
     this.key = createHmac("sha256", secret).update(domain).digest();
     this.keyId = createHash("sha256").update(this.key).digest("hex").slice(0, 16);
+    this.assetBases = typeof assetBase === "string" ? [assetBase] : assetBase ?? [];
   }
 
   snapshot(observation: VisionObservation, context: {
@@ -36,21 +39,25 @@ export class VisionFingerprinter {
       if (prefix) {
         source = "content";
         identity = Buffer.from(entry.url.slice(prefix[0].length), "base64");
-      } else if (this.assetBase && entry.url.startsWith(this.assetBase)) {
-        try {
-          const url = new URL(entry.url);
-          const base = new URL(this.assetBase);
-          const objectPath = url.pathname.slice(base.pathname.length);
-          if (url.origin === base.origin && /^vision-temp\/\d{4}\/\d{2}\/\d{2}\/[a-f0-9]{32}\.(?:png|jpg)$/u.test(objectPath)) {
-            // Only the controlled immutable asset namespace has renewable signatures.
-            // Other query values can select different content and must be retained.
-            for (const name of [...url.searchParams.keys()]) {
-              if (/^X-Amz-(?:Algorithm|Credential|Date|Expires|SignedHeaders|Signature|Security-Token)$/iu.test(name)) url.searchParams.delete(name);
+      } else {
+        const assetBase = this.assetBases.find(base => entry.url.startsWith(base));
+        if (assetBase) {
+          try {
+            const url = new URL(entry.url);
+            const base = new URL(assetBase);
+            const objectPath = url.pathname.slice(base.pathname.length);
+            if (url.origin === base.origin && /^vision-temp\/\d{4}\/\d{2}\/\d{2}\/[a-f0-9]{32}\.(?:png|jpg)$/u.test(objectPath)) {
+              // Only the controlled immutable asset namespace has renewable signatures.
+              // Other query values can select different content and must be retained.
+              for (const name of new Set(url.searchParams.keys())) {
+                if (/^X-Amz-(?:Algorithm|Credential|Date|Expires|SignedHeaders|Signature|Security-Token)$/iu.test(name)) url.searchParams.delete(name);
+                if (/^(?:q-sign-algorithm|q-ak|q-sign-time|q-key-time|q-header-list|q-url-param-list|q-signature|x-cos-security-token)$/iu.test(name)) url.searchParams.delete(name);
+              }
+              source = "asset-url";
+              identity = url.toString();
             }
-            source = "asset-url";
-            identity = url.toString();
-          }
-        } catch { /* Malformed/unsupported URLs retain exact identity. */ }
+          } catch { /* Malformed/unsupported URLs retain exact identity. */ }
+        }
       }
       const id = createHmac("sha256", this.key).update(scopeId).update("\0" + source + "\0").update(identity).digest("hex");
       entries.push({ id, source, container: entry.container,
@@ -64,18 +71,25 @@ export class VisionFingerprinter {
 export function resolveVisionFingerprinter(env: NodeJS.ProcessEnv): VisionFingerprinter {
   let secret: string | Buffer = randomBytes(32);
   let source: Fingerprints["keySource"] = "process";
-  let assetBase: string | undefined;
+  const assetBases: string[] = [];
   if (env.MEDCODE_VISION_R2_ENABLED === "1" && env.MEDCODE_VISION_R2_CREDENTIALS_FILE) {
     secret = readR2CredentialsFile(env.MEDCODE_VISION_R2_CREDENTIALS_FILE).secretAccessKey;
     source = "r2-derived";
     if (env.MEDCODE_VISION_R2_ENDPOINT && env.MEDCODE_VISION_R2_BUCKET) {
-      assetBase = new URL("/" + encodeURIComponent(env.MEDCODE_VISION_R2_BUCKET) + "/", env.MEDCODE_VISION_R2_ENDPOINT).toString();
+      assetBases.push(new URL("/" + encodeURIComponent(env.MEDCODE_VISION_R2_BUCKET) + "/", env.MEDCODE_VISION_R2_ENDPOINT).toString());
     }
+  }
+  const cosCredentialsFile = env.MEDCODE_VISION_COS_CREDENTIALS_FILE?.trim();
+  if (cosCredentialsFile) {
+    const config = readCosVisionCredentialsFile(cosCredentialsFile);
+    assetBases.push(new CosVisionStorage(config).endpoint + "/");
+    // Preserve existing R2-derived observation keys during the migration window.
+    if (source === "process") { secret = config.secretKey; source = "cos-derived"; }
   }
   if (env.GATEWAY_VISION_OBSERVATION_HMAC_SECRET) {
     if (env.GATEWAY_VISION_OBSERVATION_HMAC_SECRET.length < 32) throw new Error("Vision observation secret must contain at least 32 characters.");
     secret = env.GATEWAY_VISION_OBSERVATION_HMAC_SECRET;
     source = "configured";
   }
-  return new VisionFingerprinter(secret, source, assetBase);
+  return new VisionFingerprinter(secret, source, assetBases);
 }
