@@ -99,7 +99,7 @@ try {
   service.setIdentityState(subject, "disabled", "req-support-cleanup-" + run);
   if (unified) store.revokeUnifiedClientKeyByPrefix(unified.record.prefix);
   if (backing) store.revokeAccessCredentialByPrefix(backing.record.prefix);
-  if (entitlement) store.cancelEntitlement(entitlement.id, "Support smoke cleanup");
+  if (entitlement) store.cancelEntitlement({ id: entitlement.id, reason: "Support smoke cleanup", now: new Date() });
   if (store.getPlan(plan)) store.deprecatePlan(plan);
   if (store.getSubject(subject)) store.setSubjectState(subject, "disabled");
   for (const id of reportIds) {
