@@ -1,5 +1,10 @@
 # System Status
 
+For a recent 12/24-hour service check, use the fixed
+[read-only review command](./gateway-service-review.zh-CN.md).
+
+## Latest Gateway Deployment Verification
+
 Gateway `ec921e16f0a11ce48cccdd9dfbe989fceffb4a70` is live as of
 2026-11-13T00:22:23.514830+00:00 and verified at 2026-11-13T00:23:31.577824+00:00.
 Tencent COS in Shanghai is enabled for image uploads carrying the COS capability
@@ -20,7 +25,14 @@ Gateway is ready with zero restarts/OOM and no warning/error logs at verificatio
 Only main and the primary development worktree exist. No Desktop release was made.
 See the [release receipt](./gateway-cos-release-2026-11-13.json).
 
-Gateway `0c45726ff69f620b86482d9bb9adaa7dff3e9cd8` is live as of
+## Historical Verification Records
+
+The following records describe the state at their stated dates. A previous
+record saying "live" is not a claim about the current Gateway revision, routing,
+quota or health. Preserve these records as evidence; use current read-only checks
+and the relevant maintained runbook for operational decisions.
+
+Gateway `0c45726ff69f620b86482d9bb9adaa7dff3e9cd8` was live as of
 2026-11-12T10:25:28.610902+00:00 and verified at 2026-11-12T10:32:41.892095+00:00.
 Tencent GLM-5.3 screenshot batches can recover one missing outer object brace
 in non-final calls; the entire batch must still pass the client tool schema.

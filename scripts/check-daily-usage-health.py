@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Report one local calendar day's live Gateway usage and server health.
+Report a calendar day or rolling window of Gateway usage and server health.
 
 The production SQLite database stays inside the Gateway container. This script
 uses SSH key authentication and read-only admin/SQLite queries; it never reads
@@ -20,7 +20,7 @@ import subprocess
 import sys
 import time
 from collections import defaultdict
-from datetime import date, datetime, time as datetime_time, timezone
+from datetime import date, datetime, time as datetime_time, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -316,12 +316,14 @@ def configure_stdio() -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Query today's live Gateway user usage and server health (read-only)."
+        description="Query Gateway usage and server health (read-only)."
     )
-    parser.add_argument(
+    window = parser.add_mutually_exclusive_group()
+    window.add_argument(
         "--date",
         help="Local calendar date in YYYY-MM-DD. Defaults to today; past dates use the full day.",
     )
+    window.add_argument("--hours", type=positive_int, help="Review the last N elapsed hours instead of a calendar day.")
     parser.add_argument("--timezone", default=DEFAULT_TIMEZONE, help="IANA reporting timezone.")
     parser.add_argument("--format", choices=["text", "json"], default="text")
     parser.add_argument("--include-user-ids", action="store_true")
@@ -374,7 +376,7 @@ def percent(value: str) -> float:
 def collect_report(args: argparse.Namespace) -> dict[str, Any]:
     reporting_tz = load_timezone(args.timezone)
     now_utc = datetime.now(timezone.utc)
-    start_utc, until_utc, local_day = reporting_window(args.date, reporting_tz, now_utc)
+    start_utc, until_utc, local_day = reporting_window(args.date, reporting_tz, now_utc, hours=args.hours)
 
     remote_config = {
         "remote_repo": args.remote_repo,
@@ -408,6 +410,8 @@ def collect_report(args: argparse.Namespace) -> dict[str, Any]:
         "reporting_timezone": args.timezone,
         "local_date": local_day.isoformat(),
         "window": {
+            "basis": "request started_at; includes identified test traffic",
+            "hours": args.hours,
             "since_utc": iso_z(start_utc),
             "until_utc": iso_z(until_utc),
             "since_local": start_utc.astimezone(reporting_tz).isoformat(),
@@ -446,8 +450,14 @@ def reporting_window(
     requested: str | None,
     reporting_tz: ZoneInfo,
     now_utc: datetime,
+    *,
+    hours: int | None = None,
 ) -> tuple[datetime, datetime, date]:
     now_local = now_utc.astimezone(reporting_tz)
+    if hours is not None:
+        if requested or hours < 1:
+            raise ReportError("--hours must be positive and cannot be combined with --date")
+        return now_utc - timedelta(hours=hours), now_utc, now_local.date()
     if requested:
         try:
             local_day = date.fromisoformat(requested)
@@ -748,13 +758,11 @@ def assess_health(
             critical.append(f"host service {service} is {services.get(service) or 'unknown'}")
 
     disk = host.get("disk_root") if isinstance(host.get("disk_root"), dict) else {}
-    total_bytes = int(disk.get("total_bytes") or 0)
-    used_percent = int(disk.get("used_bytes") or 0) * 100 / total_bytes if total_bytes else None
+    used_percent = disk_usage_percent(disk)
     if used_percent is not None and used_percent >= disk_warning_percent:
         warnings.append(f"root disk usage is {used_percent:.1f}%")
     data_disk = host.get("disk_data") if isinstance(host.get("disk_data"), dict) else {}
-    data_total = int(data_disk.get("total_bytes") or 0)
-    data_percent = int(data_disk.get("used_bytes") or 0) * 100 / data_total if data_total else None
+    data_percent = disk_usage_percent(data_disk)
     if data_percent is not None and data_percent >= disk_warning_percent:
         warnings.append(f"data disk usage is {data_percent:.1f}%")
 
@@ -817,7 +825,7 @@ def assess_health(
         if code in INFRASTRUCTURE_ERROR_CODES
     )
     if daily_infra_errors:
-        warnings.append(f"reporting day contains {daily_infra_errors} authenticated service/request failures (including timeouts)")
+        warnings.append(f"reporting window contains {daily_infra_errors} authenticated service/request failures (including timeouts)")
 
     for item in server.get("collector_errors") or []:
         critical.append(f"collector component {item.get('component')}: {item.get('error')}")
@@ -869,9 +877,10 @@ def format_text_report(report: dict[str, Any], *, include_user_ids: bool) -> str
     status_label = {"healthy": "健康", "warning": "需关注", "critical": "异常"}[health["status"]]
 
     lines = [
-        f"Codex Gateway 当日使用与健康报告 — {report['local_date']}",
+        f"Codex Gateway 使用与健康报告 — {report['local_date']}",
         f"状态: {status_label} ({health['status']})",
         f"时间范围: {window['since_local']} 至 {window['until_local']}",
+        "统计口径: 按请求开始时间，包含测试流量；请求事件数不等同于模型调用数。",
         "",
         "用户使用",
         (
@@ -896,7 +905,7 @@ def format_text_report(report: dict[str, Any], *, include_user_ids: bool) -> str
         )
     lines.extend(["", "按用户"])
     if not usage["users"]:
-        lines.append("  今天尚无已认证用户请求。")
+        lines.append("  此时间范围尚无已认证用户请求。")
     for user in usage["users"]:
         identity = str(user["name"])
         if include_user_ids:
@@ -940,8 +949,8 @@ def format_text_report(report: dict[str, Any], *, include_user_ids: bool) -> str
     disk = host.get("disk_root") if isinstance(host.get("disk_root"), dict) else {}
     data_disk = host.get("disk_data") if isinstance(host.get("disk_data"), dict) else {}
     memory = host.get("memory") if isinstance(host.get("memory"), dict) else {}
-    disk_percent = ratio_percent(disk.get("used_bytes"), disk.get("total_bytes"))
-    data_disk_percent = ratio_percent(data_disk.get("used_bytes"), data_disk.get("total_bytes"))
+    disk_percent = disk_usage_percent(disk)
+    data_disk_percent = disk_usage_percent(data_disk)
     memory_percent = ratio_percent(
         int(memory.get("total_bytes") or 0) - int(memory.get("available_bytes") or 0),
         memory.get("total_bytes"),
@@ -1026,6 +1035,14 @@ def format_percent(value: float | None) -> str:
 def ratio_percent(numerator: Any, denominator: Any) -> float | None:
     bottom = float(denominator or 0)
     return float(numerator or 0) * 100 / bottom if bottom else None
+
+
+def disk_usage_percent(disk: dict[str, Any]) -> float | None:
+    # Match df's denominator: reserved filesystem blocks are not available space.
+    if disk.get("used_bytes") is None or disk.get("free_bytes") is None:
+        return None
+    used, available = int(disk["used_bytes"]), int(disk["free_bytes"])
+    return ratio_percent(used, used + available)
 
 
 def format_duration(value: Any) -> str:

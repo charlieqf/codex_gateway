@@ -1,6 +1,6 @@
 # Environment Access
 
-Last updated: 2026-08-31.
+Last updated: 2026-11-13.
 
 This document covers the current R760 access boundary. Historical Azure and
 migration commands have been removed from the active path.
@@ -25,6 +25,15 @@ ssh -p 7723 -i $env:USERPROFILE\.ssh\id_ed25519 `
 ```
 
 ## Fast Read-Only Paths
+
+Recent service review:
+
+```powershell
+python scripts/check-daily-usage-health.py --hours 12 --timezone Asia/Shanghai --format json
+```
+
+Use `--hours 24` for 24 hours. See [Service Review](./gateway-service-review.zh-CN.md)
+for the fixed scope and interpretation of request counts and historical failures.
 
 Desktop user messages:
 

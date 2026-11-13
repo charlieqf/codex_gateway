@@ -69,6 +69,21 @@ class DailyUsageHealthTest(unittest.TestCase):
         self.assertEqual(until.isoformat(), "2026-10-04T13:00:00+00:00")
         self.assertEqual((until - since).total_seconds(), 23 * 3600)
 
+    def test_rolling_window_uses_elapsed_hours_across_dst(self) -> None:
+        now = datetime(2026, 10, 4, 15, 0, tzinfo=timezone.utc)
+        for hours in (12, 24):
+            with self.subTest(hours=hours):
+                since, until, _ = MODULE.reporting_window(None, ZoneInfo("Australia/Sydney"), now, hours=hours)
+                self.assertEqual(until, now)
+                self.assertEqual((until - since).total_seconds(), hours * 3600)
+
+    def test_rolling_window_rejects_conflicting_date_and_invalid_hours(self) -> None:
+        now = datetime(2026, 11, 13, tzinfo=timezone.utc)
+        for requested, hours in (("2026-11-12", 12), (None, 0), (None, -1)):
+            with self.subTest(requested=requested, hours=hours):
+                with self.assertRaises(MODULE.ReportError):
+                    MODULE.reporting_window(requested, ZoneInfo("Asia/Shanghai"), now, hours=hours)
+
     def test_usage_summary_keeps_unattributed_events_out_of_user_count(self) -> None:
         usage = {
             "rows": [
@@ -110,6 +125,17 @@ class DailyUsageHealthTest(unittest.TestCase):
         self.assertEqual(result["users"][0]["name"], "Test User")
         self.assertEqual(result["by_model_authenticated"], {"max": 3})
         self.assertEqual(result["errors"]["unattributed"], {"missing_credential": 7})
+
+    def test_reserved_disk_blocks_do_not_hide_low_space_warning(self) -> None:
+        disk = {"total_bytes": 100, "used_bytes": 82, "free_bytes": 13}
+        report = {"server": {"host": {"disk_root": disk, "disk_data": disk}},
+                  "usage": {"errors": {"authenticated": {}}}}
+        result = MODULE.assess_health(report, disk_warning_percent=85, tls_warning_days=14)
+        self.assertIn("root disk usage is 86.3%", result["warnings"])
+        self.assertIn("data disk usage is 86.3%", result["warnings"])
+        self.assertIsNone(MODULE.disk_usage_percent({}))
+        self.assertIsNone(MODULE.disk_usage_percent({"used_bytes": 1}))
+        self.assertEqual(MODULE.disk_usage_percent({"used_bytes": 100, "free_bytes": 0}), 100)
 
     def test_gateway_port_must_be_exact_loopback_binding(self) -> None:
         good = {"8787/tcp": [{"HostIp": "127.0.0.1", "HostPort": "18787"}]}

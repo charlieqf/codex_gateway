@@ -1,6 +1,6 @@
 # Runbook Index
 
-Last updated: 2026-09-10.
+Last updated: 2026-11-13.
 
 Choose one path for the task. Do not read every operations document.
 
@@ -8,6 +8,8 @@ Choose one path for the task. Do not read every operations document.
 
 | Task | Start here |
 | --- | --- |
+| Recent 12/24-hour Gateway service review | [固定只读巡检](./gateway-service-review.zh-CN.md) |
+| Root disk pressure and archival candidates | [2026-11-13 space assessment](./gateway-root-disk-review-2026-11-13.zh-CN.md); recheck references before any cleanup |
 | Named user's Desktop messages | [Desktop User Message Query](./client-message-query-support.zh-CN.md) |
 | Generic MedCode unavailable/error | [MedCode Service Unavailable](./medcode-service-unavailable-runbook.md) |
 | Model/vision operation-specific error messages | [2026-09-10 Error Copy Release](./r760-model-error-copy-release-2026-09-10.zh-CN.md) |
@@ -28,12 +30,12 @@ documents.
 | Real-user/Desktop key provisioning details | [MedEvidence Codex Key Provisioning](./medevidence-codex-key-provisioning.md) |
 | Billing operator console | [Real User Issue Web Console](./real-user-issue-web-console.md) |
 | Independent Free/paid balances, cancellation target and reset conflicts | [Quota Contract](../outbox/medevidence-free-paid-quota-contract-2026-09-10.zh-CN.md) (free-allowance clauses superseded), [2026-09-11 Fix Release](./r760-quota-review-fixes-release-2026-09-11.zh-CN.md) |
-| One-off 1M Free allowance replacing daily resets; free_quota_exhausted upgrade code | [Contract v2](../outbox/medevidence-free-once-quota-contract-2026-09-11.zh-CN.md) (supersedes all daily Free entries below), [Release](./r760-free-once-release-2026-09-11.zh-CN.md) |
-| Paid plan quota adjustment: monthly 150M/month; yearly 6M/day plus 200M per UTC calendar month, no yearly cap | [2026-09-11 Adjustment](./medevidence-plan-quota-adjustment-2026-09-11.zh-CN.md) |
+| Historical one-off Free allowance rollout and free_quota_exhausted contract | [Contract v2](../outbox/medevidence-free-once-quota-contract-2026-09-11.zh-CN.md), [Release](./r760-free-once-release-2026-09-11.zh-CN.md); use [Quota Operations](./user-quota-operations.zh-CN.md) and live entitlements for current amounts |
+| Historical 2026-09-11 paid quota adjustment | [Adjustment](./medevidence-plan-quota-adjustment-2026-09-11.zh-CN.md); current limits may differ; verify the live Plan and entitlement through [Quota Operations](./user-quota-operations.zh-CN.md) |
 | Internal phone authentication | [Internal Phone Auth v1](./internal-phone-auth-v1.zh-CN.md) |
 | MedEvidence Desktop minimum version, upgrade response and login-access recovery | [beta.76 Version Gate Rollout](./medevidence-minimum-version-beta76-2026-09-16.zh-CN.md) |
 | Historical: temporary new-user daily 10k free quota (superseded by the one-off allowance) | [2026-09-10 Release](./r760-phone-signup-free-10k-release-2026-09-10.zh-CN.md); active grants were migrated by the schema 30 release |
-| SMS login, new-user daily free quota and billing account linking | [Joint Test Contract](../outbox/medevidence-sms-phone-signup-gateway-joint-test-2026-09-09.zh-CN.md), [Compatibility Release](./r760-billing-create-compatibility-release-2026-09-09.zh-CN.md); May create preserved, resolve optional, phone-auth v1 reused |
+| SMS login and billing account linking | [Joint Test Contract](../outbox/medevidence-sms-phone-signup-gateway-joint-test-2026-09-09.zh-CN.md), [Compatibility Release](./r760-billing-create-compatibility-release-2026-09-09.zh-CN.md); May create preserved, resolve optional, phone-auth v1 reused; historical daily Free terms are superseded |
 
 ## Runtime Components
 
@@ -43,7 +45,7 @@ and [2026-10-21 acceptance / AF2 retirement](../outbox/alphafold3-gateway-accept
 | Task | Runbook |
 | --- | --- |
 | GoldenCode Local context admission | [Local Context Admission Release](./goldencode-local-context-admission-release-2026-08-30.zh-CN.md) |
-| Current Tencent-only routing / TianKuan suspension | [TianKuan Suspension Record](./goldencode-tiankuan-suspension-2026-09-07.zh-CN.md) |
+| Current provider routing and historical restoration | [System Status](./system-status.md) and live routing configuration; dated restoration receipts are historical evidence |
 | Gateway failover release and Tencent-only public acceptance | [GoldenCode Failover Release](./goldencode-failover-release-2026-09-07.zh-CN.md) |
 | Final provider error / stop client automatic retry | [GoldenCode Terminal Retry Contract](./goldencode-terminal-retry-contract-2026-09-07.zh-CN.md) |
 | Tencent/TianKuan bidirectional failover code/configuration | [GoldenCode Failover Implementation](./goldencode-failover-implementation-2026-09-07.zh-CN.md) |

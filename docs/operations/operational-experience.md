@@ -1,12 +1,17 @@
 # Operational Experience
 
-Last updated: 2026-08-31.
+Last updated: 2026-11-13.
 
 This file retains only cross-cutting lessons that change operational decisions.
 Component-specific incidents and historical evidence belong in dated reports.
 
 ## Route Before Reading
 
+- For a recent 12/24-hour service review, run the fixed
+  [Service Review](./gateway-service-review.zh-CN.md) command first; change the
+  hours argument rather than copying a dated collector. Return a baseline before
+  targeted anomaly investigation. Routine review does not require a full backup
+  or integrity scan.
 - For a named user's Desktop messages, run
   `scripts/query-client-messages.py` immediately.
 - Do not read deployment, migration, Azure or Research history before a routine
@@ -59,6 +64,15 @@ message.
 - Do not print broad rows that include phone, credential or secret metadata.
 - Opening copied SQLite normally can create WAL/SHM sidecars; use read-only URI
   mode for verification.
+
+## Disk Pressure
+
+- Use available space, excluding reserved filesystem blocks, when calculating
+  disk warning percentages. Check the mount containing each candidate path.
+- Inspect DockerRootDir before assuming image cleanup will free the root disk.
+- Old Gateway releases can still supply other running services' bind mounts,
+  secrets or Compose configuration. Protect all references, not just current and
+  previous, and verify an archive before removing original files.
 
 ## Deployment
 

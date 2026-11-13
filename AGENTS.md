@@ -1,5 +1,14 @@
 # Repository workflow
 
+## Routine service reviews
+
+- For a recent 12/24-hour Gateway review, first run
+  `python scripts/check-daily-usage-health.py --hours 12 --timezone Asia/Shanghai --format json`.
+  Change only `--hours` for a different window; do not rewrite historical collectors.
+- Return the baseline promptly and investigate only the anomalies it reveals.
+  Follow `docs/operations/gateway-service-review.zh-CN.md` for counting and
+  evidence boundaries. Routine read-only checks need no backup or restart.
+
 ## One main branch and one development worktree
 
 - The sole development worktree is `C:\work\code\codex-gateway` and its branch
