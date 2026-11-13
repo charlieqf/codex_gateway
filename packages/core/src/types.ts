@@ -150,6 +150,8 @@ export interface ToolLoopGuardDiagnostic {
 }
 
 export type AdminAuditAction =
+  | "client-support-query"
+  | "client-support-download"
   | "issue"
   | "unified-key-issue"
   | "unified-key-resolve"

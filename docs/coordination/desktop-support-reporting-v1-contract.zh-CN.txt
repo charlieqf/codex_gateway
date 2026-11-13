@@ -1,0 +1,64 @@
+Desktop 故障上报 v1：客户端实施契约
+日期：2026-11-13；状态：实施基线，服务端尚未部署。上线状态以交付回执为准。
+依据：desktop-support-reporting-implementation-plan-2026-11-13.zh-CN.md v0.2。
+示例：同目录 desktop-support-reporting-v1.examples.json。
+
+1. 提交
+POST https://goldencode.instmarket.com.au:1443/gateway/client-events/support
+Content-Type: application/json
+已验证模式：Authorization: Bearer <Gateway phone-auth access_token>。
+匿名模式：不发送 Authorization。这里不接收短信身份服务 token、模型 Key 或管理 Token。
+无效/过期/已撤销凭据返回 401；客户端可去掉凭据，将原报告不改内容地匿名重传。
+
+2. 请求字段（额外字段拒绝，不接收自由文本说明、堆栈、路径、正文或凭据）
+必填：
+- schema_version：整数 1。
+- report_id、failure_id：UUID v4。report_id 就是支持编号；每份报告固定不变。
+- kind：automatic | manual。
+- occurred_at：故障的 UTC ISO 8601 时间（以 Z 结尾）。
+- app_name：medevidence | goldencode；app_version：语义版本字符串，最长 40 字符。
+- platform：win32 | darwin | linux；process：main | renderer | sidecar。
+- operation：login | bootstrap | credential_install | model_call | model_recovery | startup | sidecar | user_report。
+- error_code：已归一化的错误码，小写字母开头，仅小写字母、数字、下划线，最长 64 字符；未知用 unknown。不得填原始错误文本或敏感字符串。
+- final_state：failed | unconfirmed | incomplete | aborted | unknown。
+可选：
+- account_subject_id：故障发生时的 Gateway Subject，格式 subj_...。只是隔离标记，不建立可信身份。新报告使用登录 token 时必须提供且与 token Subject 一致，否则 403。
+- operation_id：本地操作 UUID v4。
+- request_id：req- 或 req_ 开头的请求 ID；model_call_id：13 位时间戳_标准 UUID；session_id：ses_...；message_id：msg_...；turn_code：T: 加 8 位大写字母数字。
+- network_type：wifi | ethernet | other | unknown；truncated：布尔值。
+- transport：见第 3 节。
+- diagnostics：仅 manual 可用，最多 256 条，见第 4 节。automatic 禁止携带此字段。
+automatic 整体 UTF-8 JSON 最大 16 KiB；manual 整体最大 1 MiB。建议客户端为 JSON 编码开销留余量。
+
+3. transport
+所有字段可选，但对象不能为空：phase（before_socket | sending | waiting_headers | response_body | unknown）；duration_ms、body_sent_ms、headers_ms（0—86400000 的整数）；request_body_bytes、body_bytes_sent（0—1073741824 的整数）；http_status（100—599）；error_codes（最多 8 个白名单值）。
+error_codes 白名单：ENOTFOUND、EAI_AGAIN、ETIMEDOUT、ECONNREFUSED、ECONNRESET、EPIPE、ENETUNREACH、EHOSTUNREACH、UND_ERR_CONNECT_TIMEOUT、UND_ERR_HEADERS_TIMEOUT、UND_ERR_BODY_TIMEOUT、UND_ERR_SOCKET、UND_ERR_ABORTED、ABORT_ERR、ERR_TLS_CERT_ALTNAME_INVALID、CERT_HAS_EXPIRED、UNABLE_TO_VERIFY_LEAF_SIGNATURE、DEPTH_ZERO_SELF_SIGNED_CERT、SELF_SIGNED_CERT_IN_CHAIN、AbortError、TimeoutError、unknown。
+这些字段只表达本地观测，已写入套接字/已发送请求体不证明 Gateway 已受理。
+
+4. diagnostics 条目
+必填：occurred_at、process、operation_id、event（start | complete | error）。
+可选：account_subject_id、operation（枚举同上）、method（GET | POST）、path、request_id、model_call_id、session_id、message_id、transport。
+path 仅允许：/v1/chat/completions、/v1/responses、/gateway/model-calls/:id、/gateway/auth/v1/login/start、/gateway/auth/v1/session/bootstrap、/gateway/auth/v1/token/refresh、/gateway/auth/v1/logout、/gateway/account/v1/current、/gateway/unified-keys/resolve、/gateway/credentials/current。
+条目按故障时账号筛选；有账号的报告中，请求类条目的 account_subject_id 必须与报告一致；无账号标记的公共条目仅用于 startup/sidecar，且不能携带请求路径或请求关联 ID。匿名故障且报告无账号上下文时，相关诊断也不得声称其他账号。
+总时间跨度最多 10 分钟，每条距故障时间不超过 10 分钟。未知阶段和错误用 unknown，不以错误 message 补充。
+
+5. 确认、幂等与错误
+首次保存：HTTP 201；重复已保存内容：HTTP 200。
+二者都返回 {"report_id":"...","stored":true,"received_at":"..."}；duplicate 布尔值仅作补充。
+客户端须检查 HTTP 成功、stored===true、report_id 与本地待发记录完全一致，之后才能删除本地文件。
+哈希由服务端对不可变报告内容规范化计算，不含 Authorization、验证结果、接收时间。不得在重试时重建 diagnostics、改时间或换 ID。同 ID 同内容即使改用另一有效凭据或匿名方式也返回原确认，首次 Subject（含匿名）和首次接收时间不变。该响应不包含账号或报告正文。
+同 ID 内容不同：409 idempotency_conflict。用户点击求助补充详情使用新 report_id、同 failure_id。
+400 invalid_request：字段、范围或脱敏校验失败，修正后作为新的报告提交；不原样无限重试。
+401 access_token_invalid / access_token_expired：可按原上下文匿名重传；不要换用 B 账号凭据创建 A 报告。
+403 support_identity_mismatch：新报告隔离标记与凭据不符；不改写历史上下文，可匿名提交原报告。
+413 support_report_too_large：原请求不重试；截断内容后用新 report_id、同 failure_id。
+429 rate_limited：遵循 Retry-After；不消耗模型额度。
+503 service_unavailable：保留原报告，按既定退避重试。
+410 support_report_expired：报告/详情已超过服务器保留期，停止重试并显示已过期。
+错误体沿用 Gateway 格式：{"error":{"code":"...","message":"固定安全说明","request_id":"req-..."}}；不要依赖 message 做分类。
+传输中断、无匹配确认、408 或 5xx：保留原内容、原 ID 后重试，不请求模型、不查询模型回执。
+
+6. 管理与保留
+仅员工鉴权后台可搜索/读取/下载，公开提交接口没有读取能力。手机号只在管理查询中使用，不发送到本接口。
+摘要 30 天，manual 诊断详情 7 天；报告的可信归属由首次保存时的服务端验证确定。
+本契约不新增安装令牌、身份绑定接口、上传会话、分块或公开回执查询。

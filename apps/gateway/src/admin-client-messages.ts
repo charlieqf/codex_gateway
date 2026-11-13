@@ -414,6 +414,7 @@ export function renderAdminClientMessagesPage(input: { authRequired?: boolean } 
   </style>
 </head>
 <body>
+  <a href="/gateway/admin/client-support">客户端故障报告</a>
   <header>
     <div>
       <h1>客户端消息与用量</h1>

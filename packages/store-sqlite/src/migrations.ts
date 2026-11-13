@@ -1373,6 +1373,21 @@ export function migrateClientEventsSchema(db: DatabaseSync): void {
         WHERE json_extract(metadata_json, '$.gateway_request_id') IS NOT NULL;
     `
   );
+
+  applyMigration(db, 5, `
+    CREATE TABLE client_support_reports (
+      report_id TEXT PRIMARY KEY,
+      failure_id TEXT NOT NULL,
+      subject_id TEXT,
+      content_hash TEXT NOT NULL,
+      summary_json TEXT NOT NULL,
+      has_diagnostics INTEGER NOT NULL CHECK(has_diagnostics IN (0, 1)),
+      received_at INTEGER NOT NULL
+    );
+    CREATE INDEX idx_client_support_received ON client_support_reports(received_at);
+    CREATE INDEX idx_client_support_subject ON client_support_reports(subject_id, received_at);
+    CREATE INDEX idx_client_support_failure ON client_support_reports(failure_id, received_at);
+  `);
 }
 
 function migrateLegacyUpstreamAccountSchema(db: DatabaseSync): void {

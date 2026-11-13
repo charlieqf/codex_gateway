@@ -1,4 +1,7 @@
-import { generateKeyPairSync } from "node:crypto";
+import { generateKeyPairSync, randomUUID } from "node:crypto";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   defaultImageGenerationFeaturePolicy,
@@ -13,6 +16,7 @@ import {
 } from "@codex-gateway/core";
 import {
   createResearchSqliteStore,
+  createSqliteClientEventsStore,
   createSqliteStore
 } from "@codex-gateway/store-sqlite";
 import type { ImageGenerationProvider } from "./image-generation.js";
@@ -69,6 +73,31 @@ afterEach(() => {
 });
 
 describe("internal phone auth v1 routes", () => {
+  it("accepts support using phone access before bootstrap and rejects revoked sessions without consuming model quota", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "gateway-support-auth-"));
+    const fixture = createFixture({ clientEventsPath: join(directory, "client-events.db") });
+    try {
+      fixture.service.prepareIdentity({ phone: "13800138000", subjectId: fixture.subjectId, unifiedKey: fixture.unified.token, requestId: "prepare-support-test" });
+      const login = await fixture.app.inject({ method: "POST", url: "/gateway/auth/v1/login/start", headers: versionHeader,
+        payload: { phone: "13800138000", client: "medevidence-desktop", device_id: "support-test-device", contract_version: 1 } });
+      expect(login.statusCode).toBe(200);
+      const token = login.json().access_token;
+      const payload = { schema_version: 1, report_id: randomUUID(), failure_id: randomUUID(), kind: "automatic",
+        occurred_at: start.toISOString(), app_name: "goldencode", app_version: "2.0.0-beta.152", platform: "win32", process: "main",
+        operation: "bootstrap", error_code: "request_timeout", final_state: "failed", account_subject_id: fixture.subjectId };
+      const submit = () => fixture.app.inject({ method: "POST", url: "/gateway/client-events/support", payload, headers: { authorization: `Bearer ${token}` } });
+      const first = await submit(); expect(first.statusCode).toBe(201);
+      const found = await fixture.app.inject({ method: "POST", url: "/gateway/admin/client-support/query",
+        headers: { authorization: `Bearer ${billingAdminToken}` }, payload: { phone: "13800138000" } });
+      expect(found.statusCode).toBe(200);
+      expect(found.json().reports[0].subject_id).toBe(fixture.subjectId);
+      expect((await submit()).statusCode).toBe(200);
+      fixture.service.logout(token, "logout-support-test");
+      expect((await submit()).statusCode).toBe(401);
+      expect((await fixture.app.inject({ method: "POST", url: "/gateway/client-events/support", payload })).statusCode).toBe(200);
+      expect(fixture.store.listRequestEvents().filter(row => row.requestId === first.headers["x-request-id"])).toHaveLength(0);
+    } finally { await fixture.app.close(); rmSync(directory, { recursive: true, force: true }); }
+  });
   it("takes a newly provisioned free account through the existing Desktop login and resolver contract", async () => {
     const fixture = createFixture({ billingIdentityCoordination: true });
     try {
@@ -1314,6 +1343,7 @@ function createFixture(
     medevidenceR760MinimumDesktopVersion?: string | null;
     medevidenceRuntimeKeyValidator?: MedevidenceRuntimeKeyValidator;
     billingIdentityCoordination?: boolean;
+    clientEventsPath?: string;
   } = {}
 ) {
   process.env.GATEWAY_PUBLIC_BASE_URL = phoneAuthGatewayOrigin;
@@ -1420,6 +1450,8 @@ function createFixture(
   });
   const app = buildGateway({
     authMode: "credential",
+    clientEventsStore: options.clientEventsPath ? createSqliteClientEventsStore({ path: options.clientEventsPath }) : undefined,
+    adminMessagesToken: options.clientEventsPath ? billingAdminToken : undefined,
     provider: new FakeProvider(),
     sessionStore: store,
     phoneAuthService: service,

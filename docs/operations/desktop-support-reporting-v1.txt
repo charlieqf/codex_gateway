@@ -1,0 +1,40 @@
+Desktop support reporting v1
+
+Public contract: docs/coordination/desktop-support-reporting-v1-contract.zh-CN.txt
+Examples: docs/coordination/desktop-support-reporting-v1.examples.json
+
+Runtime
+- Uses the existing client-events.db connection and migration 5. No new process, database, domain or credentials.
+- Enabled when the configured client-events store is a persistent SQLite store.
+- Manual diagnostics: client-support/ beside client-events.db, normally /var/lib/codex-gateway/client-support.
+- Directory mode 0700; files 0600. Files are canonical JSON named by report UUID and server content hash.
+- At most 20,000 rows/files and 256 MiB of diagnostic files. A full store returns 503; it never acknowledges dropped data.
+- Global submission limits: 300/minute, 10,000/day, 8 concurrent. Per source: 30/minute, 500/day, 2 concurrent.
+- Authenticated subject limits: 30/minute, 300/day, 2 concurrent. These counters are independent of model quotas and ordinary client diagnostic budgets.
+- Fixed UTC day windows and Retry-After use the existing Gateway limiter. Source identity uses the existing Fastify trusted-proxy configuration.
+- Cleanup runs at startup and hourly: summary/index 30 days, diagnostic files 7 days from first server receipt. Orphans expire after 7 days.
+- Public deduplication lasts while the original row is retained (30 days). Clients retain pending files for at most 7 days; do not resubmit a report after that window.
+
+Management
+- Existing GATEWAY_ADMIN_MESSAGES_AUTH=token and GATEWAY_ADMIN_MESSAGES_TOKEN are reused. Open mode deliberately does not expose this data.
+- UI: /gateway/admin/client-support, linked from the existing client-messages page.
+- POST /gateway/admin/client-support/query, JSON filters phone OR subject_id, report_id, failure_id, since, until, limit (1..100).
+- Phone filters are in POST bodies to avoid URL/access-log disclosure. They resolve a phone-auth identity to its trusted Subject; client-supplied account markers never drive phone search.
+- Default window: 24 hours; report/failure ID searches default to 30 days. Explicit UTC ISO timestamps override the default within retention.
+- A report_id query includes bounded request/diagnostic/model-call metadata for that trusted Subject and code scope only. It never includes prompts, answers, tool arguments or model response bodies.
+- Correlation status unlinked means no matching record was found, not proof of network non-arrival. Anonymous reports are never correlated from claimed IDs.
+- GET /gateway/admin/client-support/:report_id/diagnostics downloads the accepted canonical JSON, with the same admin Bearer token. Expired details return 410; unexpectedly missing details return 503.
+- Successful query/download reads are recorded in the existing admin audit store with a token fingerprint, not the token or raw phone.
+
+Operations and recovery
+- Monitor existing Gateway error logs for "Client support persistence failed" (reason capacity/storage) and "Client support retention cleanup failed"; normal filesystem monitoring remains applicable.
+- The table participates in existing daily SQLite backups. Short-lived diagnostic files stay on the persistent volume and are intentionally excluded from the longer daily/weekly DB backup retention.
+- A DB-only restore can recover summaries without diagnostic files; downloads then return 503, never fabricated success. An unchanged client retry within the original 7-day window restores missing details without changing ownership or receipt time.
+- For a planned volume move or replacement, include client-support/ with the state volume; preserve modes and original first-receipt timestamps. Do not convert this short-lived data into a long-term archive.
+- Migration is additive: the previous Gateway can run against the new client-events database and ignores the new table. Roll back the image, not a live database containing newer user writes.
+- No model calls, external identity calls, network probes or upload receipt polling are performed by support submission.
+
+Validation
+- Focused tests: apps/gateway/src/client-support.test.ts and the support case in phone-auth-routes.test.ts.
+- The published example JSON is consumed directly by contract tests.
+- Client installation E2E (failure -> click -> management view) remains the Desktop integration gate; Gateway API tests do not claim that gate passed.

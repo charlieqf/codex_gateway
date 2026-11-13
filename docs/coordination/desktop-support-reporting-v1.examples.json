@@ -1,0 +1,53 @@
+{
+  "status": "implementation_baseline_not_deployed",
+  "automatic_anonymous": {
+    "schema_version": 1,
+    "report_id": "6c135013-042e-49c2-a7a0-aef30b62fe39",
+    "failure_id": "253082b3-bf64-44f1-b943-a7bd0271c24f",
+    "kind": "automatic",
+    "occurred_at": "2026-11-13T11:41:56.840Z",
+    "app_name": "medevidence",
+    "app_version": "2.0.0-beta.152",
+    "platform": "win32",
+    "process": "main",
+    "operation": "bootstrap",
+    "error_code": "request_timeout",
+    "final_state": "failed",
+    "transport": {
+      "phase": "before_socket",
+      "duration_ms": 10546,
+      "error_codes": ["UND_ERR_CONNECT_TIMEOUT"]
+    }
+  },
+  "manual_authenticated": {
+    "schema_version": 1,
+    "report_id": "bc81e1b6-8709-4da8-a361-3677ea7c0998",
+    "failure_id": "253082b3-bf64-44f1-b943-a7bd0271c24f",
+    "kind": "manual",
+    "occurred_at": "2026-11-13T11:41:56.840Z",
+    "app_name": "medevidence",
+    "app_version": "2.0.0-beta.152",
+    "platform": "win32",
+    "process": "main",
+    "operation": "bootstrap",
+    "error_code": "request_timeout",
+    "final_state": "failed",
+    "account_subject_id": "subj_example",
+    "network_type": "unknown",
+    "truncated": false,
+    "diagnostics": [{
+      "occurred_at": "2026-11-13T11:41:56.840Z",
+      "process": "main",
+      "operation_id": "bbf97ea2-8ac8-4e19-a159-a9535ee6630d",
+      "event": "error",
+      "operation": "bootstrap",
+      "account_subject_id": "subj_example",
+      "method": "POST",
+      "path": "/gateway/auth/v1/session/bootstrap",
+      "transport": {"phase": "before_socket", "duration_ms": 10546, "error_codes": ["UND_ERR_CONNECT_TIMEOUT"]}
+    }]
+  },
+  "created_201": {"report_id": "6c135013-042e-49c2-a7a0-aef30b62fe39", "stored": true, "duplicate": false, "received_at": "2026-11-13T11:42:00.000Z"},
+  "duplicate_200": {"report_id": "6c135013-042e-49c2-a7a0-aef30b62fe39", "stored": true, "duplicate": true, "received_at": "2026-11-13T11:42:00.000Z"},
+  "conflict_409": {"error": {"code": "idempotency_conflict", "message": "Report ID already exists with different content.", "request_id": "req-example"}}
+}

@@ -19,6 +19,8 @@ export class SqliteClientEventsStore implements ClientMessageEventStore {
   readonly path: string;
   private readonly db: DatabaseSync;
 
+  get database(): DatabaseSync { return this.db; }
+
   constructor(options: SqliteStoreOptions) {
     this.path = options.path;
     this.db = openConfiguredSqliteDatabase(options.path);

@@ -1,4 +1,7 @@
 import { randomUUID } from "node:crypto";
+import { dirname, join } from "node:path";
+import { ClientSupportStore } from "./client-support-store.js";
+import { registerClientSupportRoutes } from "./client-support-routes.js";
 import { reportModelProgress, reportModelOutput } from "./services/model-call-progress.js";
 import { installGatewayLifecycle, installGatewayShutdown } from "./http/lifecycle.js";
 import { createVisionUploadLimits } from "./services/vision-upload-policy.js";
@@ -26,6 +29,7 @@ import {
   renderRealtimeTokenUsagePage,
   renderQuotaDashboardPage,
   SqliteGatewayStore,
+  SqliteClientEventsStore,
   SqliteModelCalls
 } from "@codex-gateway/store-sqlite";
 import {
@@ -1718,6 +1722,17 @@ export function buildGateway(options: GatewayOptions = {}) {
       };
     }
   );
+
+  if (clientEventsStore instanceof SqliteClientEventsStore && clientEventsStore.path !== ":memory:") {
+    registerClientSupportRoutes(app, {
+      store: new ClientSupportStore(clientEventsStore.database, join(dirname(clientEventsStore.path), "client-support")),
+      clientEvents: clientEventsStore,
+      gatewayStore: sessions instanceof SqliteGatewayStore ? sessions : undefined,
+      phoneAuth: phoneAuthService ?? undefined,
+      phoneStore: phoneAuthStore,
+      observationStore, adminAuditStore, access: adminMessagesAccess, now: clock
+    });
+  }
 
   app.get(
     "/gateway/admin/client-messages",
