@@ -5,7 +5,35 @@ For a recent 12/24-hour service check, use the fixed
 
 ## Latest Gateway Deployment Verification
 
-Gateway `eb0a5d5062ed44cd474aa281462fbe23bb0f3c28` is live as of
+Gateway `ad6c6be2639197709bef67f65913b27ba80bc463` is live as of
+2026-11-13T10:09:13.925613+00:00 and verified at 2026-11-13T10:10:50.932315+00:00.
+Simulated tool transcripts are now rejected instead of succeeding as plain text.
+The existing bounded correction permits one additional provider call; it must
+return native structured tool calls. Repeated text fails with
+`tool_call_validation_failed` / `text_tool_protocol`. Explicit protocol examples
+and the existing schema-validated standalone JSON compatibility remain supported.
+Clean-image tests: 2,539 passed, four skipped. All 25 isolated checks of the
+deployed image and 16 public model/tool/stream/receipt checks passed. Synthetic
+credentials were revoked, the subject disabled, reservations settled and the
+temporary smoke script removed. Both databases passed; the environment, ports,
+22 protected files and 17 other containers are unchanged.
+Natural-idle attempts were cancelled without replacement. One subsequent drain
+timed out and resumed admission, with 61.34901 seconds of observed public
+interruption. The successful attempt waited for zero active requests before
+draining and replacing Gateway; its observed interruption was 18.442502 seconds.
+No in-flight request was forcibly terminated. Gateway is ready with zero
+restarts/OOM. Four existing tool-loop shadow warnings reported no request
+mutation; no error logs appeared at verification. No Desktop release was made.
+See the [release receipt](./native-tool-transcript-release-2026-11-13.json).
+
+## Historical Verification Records
+
+The following records describe the state at their stated dates. A previous
+record saying "live" is not a claim about the current Gateway revision, routing,
+quota or health. Preserve these records as evidence; use current read-only checks
+and the relevant maintained runbook for operational decisions.
+
+Gateway `eb0a5d5062ed44cd474aa281462fbe23bb0f3c28` was live as of
 2026-11-13T08:47:10.520090+00:00 and verified at 2026-11-13T08:48:33.377558+00:00.
 Upstream `sensitive` and `content_filter` now terminate as
 `content_policy_violation`, with automatic retry, empty-response repair and
@@ -23,13 +51,6 @@ Natural idle reached 45.305 seconds; observed cutover interruption was 20.526557
 seconds. Gateway is ready with zero restarts/OOM. Two existing tool-loop shadow
 warnings reported no request mutation; no error logs appeared at verification.
 No Desktop release was made. See the [release receipt](./content-filter-release-2026-11-13.json).
-
-## Historical Verification Records
-
-The following records describe the state at their stated dates. A previous
-record saying "live" is not a claim about the current Gateway revision, routing,
-quota or health. Preserve these records as evidence; use current read-only checks
-and the relevant maintained runbook for operational decisions.
 
 Gateway `ec921e16f0a11ce48cccdd9dfbe989fceffb4a70` was live as of
 2026-11-13T00:22:23.514830+00:00 and verified at 2026-11-13T00:23:31.577824+00:00.

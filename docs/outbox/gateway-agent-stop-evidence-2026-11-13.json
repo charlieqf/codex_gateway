@@ -1,7 +1,10 @@
 ﻿{
   "base_revision": "57776df9182a965762bf4c9d1ab0af45278e0c15",
-  "status": "local_uncommitted_not_deployed",
-  "deployed_revision_observed": "eb0a5d5062ed44cd474aa281462fbe23bb0f3c28",
+  "status": "deployed_verified",
+  "deployed_revision": "ad6c6be2639197709bef67f65913b27ba80bc463",
+  "deployment_verified_at": "2026-11-13T10:10:50.932315+00:00",
+  "deployment_receipt": "docs/operations/native-tool-transcript-release-2026-11-13.json",
+  "pre_fix_deployed_revision_observed": "eb0a5d5062ed44cd474aa281462fbe23bb0f3c28",
   "historical_revision_from_deployment_window": "ec921e16f0a11ce48cccdd9dfbe989fceffb4a70",
   "original_repro_before": [
     {
