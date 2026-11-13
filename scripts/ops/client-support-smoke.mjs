@@ -102,6 +102,16 @@ try {
   if (entitlement) store.cancelEntitlement({ id: entitlement.id, reason: "Support smoke cleanup", now: new Date() });
   if (store.getPlan(plan)) store.deprecatePlan(plan);
   if (store.getSubject(subject)) store.setSubjectState(subject, "disabled");
+  // Release the synthetic phone instead of reserving it on a disabled test account.
+  const db = store.database;
+  db.exec("BEGIN");
+  try {
+    db.prepare("DELETE FROM phone_auth_refresh_tokens WHERE session_id IN (SELECT id FROM phone_auth_sessions WHERE subject_id=?)").run(subject);
+    db.prepare("DELETE FROM phone_auth_sessions WHERE subject_id=?").run(subject);
+    db.prepare("DELETE FROM phone_auth_identities WHERE subject_id=?").run(subject);
+    db.prepare("UPDATE subjects SET phone_number=NULL WHERE id=?").run(subject);
+    db.exec("COMMIT");
+  } catch (error) { db.exec("ROLLBACK"); throw error; }
   for (const id of reportIds) {
     const row = events.prepare("SELECT content_hash FROM client_support_reports WHERE report_id=?").get(id);
     if (row) {
@@ -111,6 +121,7 @@ try {
     }
   }
   result.cleanup = { subject_disabled: store.getSubject(subject)?.state === "disabled",
+    phone_released: !store.getSubject(subject)?.phoneNumber && !store.getPhoneAuthIdentityBySubjectId(subject),
     active_credentials: store.listAccessCredentials({ subjectId: subject }).filter(item => !item.revokedAt).length,
     remaining_reports: events.prepare("SELECT COUNT(*) n FROM client_support_reports WHERE failure_id=?").get(run).n };
   events.close(); store.close();
