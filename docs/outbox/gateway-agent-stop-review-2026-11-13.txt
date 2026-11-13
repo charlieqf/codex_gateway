@@ -1,0 +1,101 @@
+Gateway 协查及本地修复回函
+2026-11-13；本文件时间均为北京时间 UTC+8。
+
+结论与状态
+Gateway 侧缺陷成立：模型将工具调用及模拟结果写入正文，Gateway 将其当作成功回答。
+本地修复和自审已完成，构建及 477 项相关测试通过。改动位于唯一 main 工作树，基于
+57776df9182a965762bf4c9d1ab0af45278e0c15；尚未提交、推送或部署。
+本次未修改 Desktop、用户业务文件、生产配置或数据库，未重启服务、发送团队消息。
+不能据此宣称线上问题已消失或用户业务部署已完成。
+
+一、线上证据复核
+下列四条请求均为 tiankuan / official/glm-5.3、native_initial、28 个工具、auto，
+且只有一次上游尝试：HTTP 200、stop、finish_reason_and_done、无输出截断、无不完整流。
+
+request_id                                        开始时间       正文字符  真实调用  调用标记
+req-fe9c8401-120c-46eb-a7ec-e081839c169c              11:02:36.476      795       0       1
+req-73ead3f1-962d-4b59-b786-cd3b78923702              11:17:46.915     5730       0       5
+req-48583cb3-b25b-4a5e-853f-780bc788ddf7              16:21:11.888     4536       0       1
+req-b9b23a49-af1f-4a3a-9b3c-1f1de752cc5e              16:37:01.490    42829       0      13
+
+来源：R760 request_events 及 model_calls 保留的 SSE 回执。原文在容器内读取和处理，
+未输出到普通日志或拷出服务器。最后一条按 /\[tool\s/g 计数为 24 次文本出现；这与来函
+的 22 个模拟结果标记口径不同，两者都不能作为工具执行次数。
+
+发布回执显示：ec921e16f0a11ce48cccdd9dfbe989fceffb4a70 于 08:22:23 上线，
+eb0a5d5062ed44cd474aa281462fbe23bb0f3c28 于 16:47:10 上线。
+据发布窗口，四条样本对应前者；事件本身未保存 revision，不能冒称逐请求版本字段证据。
+当前检查到的容器启动于 16:46:57，current 为 eb0a5d5；两版相关文本工具恢复逻辑一致。
+
+二、输入形状与诱因边界
+客户端诊断 request_shape 中，前两条附近的请求分别有 78/102 条 messages：
+  78 条：system=1、user=3、assistant=38、tool=36；图片 0，工具 28。
+  102 条：system=1、user=4、assistant=50、tool=47；图片 0，工具 28。
+这是客户端摘要，不是完整角色顺序或上游 HTTP 原包。后两条未找到同窗口的该摘要。
+根据对应源码，tiankuan 的 native 路径未传 chatMessages，provider 接收的角色形状为
+[system, user]；历史及工具结果被展平在 user 正文中，preserveChatMessages 未启用。
+
+17:06:52—17:07:27，以合成数据对正常回答、多步工具、压缩后继续和 24 轮工具历史
+分别做文本化/结构化对照，共 8 次真实上游调用，全部符合预期，均未出现文本协议。
+两组保持身份提示、工具 schema、tool_choice、reasoning_effort 一致，均无图片。
+这只能证明这些小样本可工作，不能证明结构化历史降低了真实故障率或文本化是唯一诱因。
+本次未更改生产历史格式。
+
+另外，离线载荷检查证明：只给现有 preserveChatMessages 分支补原始 messages，
+会漏掉默认身份提示、独立 images 和没有追加进 messages 的重试指令。对照方案显式
+保留三者后检查通过。后续历史格式改造必须处理这些语义，不能只翻一个开关。
+
+三、修复行为
+沿用现有校验重试及共享预算，最多再请求一次，不新增恢复循环或配置开关。
+  - 带说明前缀、模拟结果、多轮角色文本或截断 JSON：识别为 text_tool_protocol。
+  - 纠正请求保留原始任务和真实工具结果，要求下一未完成步骤使用结构化 tool_calls。
+    被拒绝的模拟结果不会加入重试上下文。
+  - 第二次只有正文、空输出或文本序列化调用：仍返回错误，不再静默成功。
+  - 已有真实调用：不重新生成这一批；丢弃伴随的伪协议正文。
+  - 原有“整段仅为标记加完整 JSON 调用数组”的窄兼容路径保留，并继续校验声明及 schema。
+  - 普通标记说明、明确请求的协议示例保留为正文，不自动执行示例。
+  - 取消、超时、预算耗尽或输出已交付时不启动额外纠正；取消/超时后也不交付返回的调用。
+
+失败契约：code=tool_call_validation_failed，failure_kind=text_tool_protocol，
+recovery_owner=gateway，automatic_retry_allowed=false，transformed_retry_allowed=false，
+recommended_action=report_protocol_error，并携带 request_id。
+响应头尚未发出时 HTTP 502；已发出 SSE 头时按既有机制发终态错误帧。
+接口测试验证早期 streaming/non-streaming 失败均为 502，事件状态为 error，正文不泄漏。
+
+四、复现与验证
+修复前：marker_only 为 1 次尝试/1 个调用；prefixed 和 fabricated_result 均为
+1 次尝试/0 调用/正文原样成功返回。
+修复后：marker_only 保持兼容；另外两例若重复同样输出，2 次尝试后明确失败、零交付；
+若第二次返回有效结构化调用，则 2 次尝试后只交付 1 个调用。
+
+四条真实保留回执已在 R760 内用补丁模块只读重放：全部识别，重复异常后全部明确失败，
+无正文或调用交付。这是保留输出重放，不是用真实用户业务输入重新发起模型请求。
+17:07:32/17:07:37 的两个真实纠正探针分别使用前缀文本和模拟结果作为合成首轮，
+真实上游第二轮均返回正确 inspect_file(b.txt)，没有返回已完成的 write_file。
+这些探针直接调用 provider，无新 Gateway request_id；上游未返回 request-ID 头，
+证据 JSON 保留时间、场景、角色形状和逐次结果。所有探针均不执行真实业务工具。
+
+本地验证：npm run build；6 个相关单元测试文件 208 项；native 路由相关 269 项；
+git diff --check。临时目录测试实际执行“多文件修改—检查遗漏—修复—验证”，
+确认文件内容、工具顺序、写入次数，以及无需额外用户消息即可完成合成流程。
+
+五、自审结果与代码质量
+新增失败测试确认并修正了三类边界：
+  1. JSON 在字段前截断、独立内容非法或空数组，可能绕过协议校验。
+  2. 纠正成功后，整体摘要仍残留首次失败；现只在逐次明细保留该失败。
+  3. 纠正过程中取消或到期，已返回调用仍可能被交付；现于收集前后统一检查。
+逐段正则扫描已简化为直接格式判断；时钟和输出状态回调为已有必需输入，删除了
+不必要的可选调用及系统时钟兜底。没有新增通用策略框架、持久化状态或额外重试层。
+自审后的上述检查全部通过。
+
+六、交接与剩余验收
+发布仍需批准已测试提交并按 Gateway 发布流程执行；当前修复尚未进入生产。
+Desktop 应将上述协议错误显示为未完成，遵守禁自动重试契约，并保留真实工具结果。
+部署后需在隔离工程由 Desktop 复验，回传新 Gateway request_id、terminal status、
+真实 tool_call_id、文件 diff 和检查结果；正文“修改成功/部署完成”不可作为验收依据。
+ExportGuard/image_file_bypass 是另一项 Desktop 问题，本补丁不处理该分类误伤。
+
+附属材料
+  docs/outbox/gateway-agent-stop-after-repro-2026-11-13.mjs
+  docs/outbox/gateway-agent-stop-evidence-2026-11-13.json
+运行修复后复现：先 npm run build，再 node docs/outbox/gateway-agent-stop-after-repro-2026-11-13.mjs .

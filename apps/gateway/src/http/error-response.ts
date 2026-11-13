@@ -50,11 +50,13 @@ export function gatewayErrorMetadata(
 ) {
   const isRateLimited = error.code === "rate_limited";
   const isContentFiltered = error.code === "content_policy_violation";
+  const isTextToolProtocol = error.failureKind === "text_tool_protocol";
   const contentFilter = isContentFiltered ? collectProviderContentFilter(context.upstreamContentFilter) : [];
   const retryAfterSeconds =
     error.retryAfterSeconds ?? (isRateLimited && error.httpStatus === 429 ? null : undefined);
 
   return {
+    ...(isTextToolProtocol ? { retry_contract_version: 1, automatic_retry_allowed: false } : {}),
     ...(isContentFiltered ? {
       content_filter_contract_version: 1,
       retryable: false,
@@ -135,7 +137,7 @@ export function gatewayErrorMetadata(
           token_count_source: error.contextWindowDetails.tokenCountSource
         }
       : {}),
-    ...(context.requestId && (isRateLimited || isContentFiltered || error.contextWindowDetails)
+    ...(context.requestId && (isRateLimited || isContentFiltered || isTextToolProtocol || error.contextWindowDetails)
       ? { request_id: context.requestId }
       : {}),
     ...(retryAfterSeconds !== undefined

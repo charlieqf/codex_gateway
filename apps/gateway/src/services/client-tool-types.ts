@@ -45,6 +45,8 @@ export interface StrictClientToolsInput {
 }
 
 export interface NativeClientToolsInput extends StrictClientToolsInput {
+  now: () => Date;
+  outputCommitted: () => boolean;
   callBudget?: NativeCallBudget;
   emptyResponseRecovery?: boolean;
   onNativeCall?: (shape: QuotaRequestShape) => void;

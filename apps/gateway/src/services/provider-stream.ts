@@ -986,12 +986,13 @@ function isProviderStreamSummary(value: unknown): value is ProviderStreamSummary
 
 function isToolCallValidationFailureKind(
   value: GatewayError["failureKind"]
-): value is "invalid_json" | "schema_mismatch" | "undeclared_tool" | "tool_choice_mismatch" {
+): value is ToolCallValidationFailureKind {
   return (
     value === "invalid_json" ||
     value === "schema_mismatch" ||
     value === "undeclared_tool" ||
-    value === "tool_choice_mismatch"
+    value === "tool_choice_mismatch" ||
+    value === "text_tool_protocol"
   );
 }
 

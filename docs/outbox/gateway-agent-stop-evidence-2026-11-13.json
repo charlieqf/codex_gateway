@@ -1,0 +1,712 @@
+﻿{
+  "base_revision": "57776df9182a965762bf4c9d1ab0af45278e0c15",
+  "status": "local_uncommitted_not_deployed",
+  "deployed_revision_observed": "eb0a5d5062ed44cd474aa281462fbe23bb0f3c28",
+  "historical_revision_from_deployment_window": "ec921e16f0a11ce48cccdd9dfbe989fceffb4a70",
+  "original_repro_before": [
+    {
+      "case": "marker_only",
+      "attempts": 1,
+      "tool_calls": 1,
+      "content_chars": 0,
+      "error": null
+    },
+    {
+      "case": "prefixed",
+      "attempts": 1,
+      "tool_calls": 0,
+      "content_chars": 168,
+      "error": null
+    },
+    {
+      "case": "fabricated_result",
+      "attempts": 1,
+      "tool_calls": 0,
+      "content_chars": 220,
+      "error": null
+    }
+  ],
+  "original_repro_after": [
+    {
+      "case": "marker_only",
+      "correction": "repeated_same_output",
+      "attempts": 1,
+      "error": null,
+      "failure_kind": null,
+      "delivered_tool_calls": 1,
+      "delivered_content_chars": 0
+    },
+    {
+      "case": "prefixed",
+      "correction": "repeated_same_output",
+      "attempts": 2,
+      "error": "tool_call_validation_failed",
+      "failure_kind": "text_tool_protocol",
+      "delivered_tool_calls": 0,
+      "delivered_content_chars": 0
+    },
+    {
+      "case": "prefixed",
+      "correction": "native_tool_call",
+      "attempts": 2,
+      "error": null,
+      "failure_kind": null,
+      "delivered_tool_calls": 1,
+      "delivered_content_chars": 0
+    },
+    {
+      "case": "fabricated_result",
+      "correction": "repeated_same_output",
+      "attempts": 2,
+      "error": "tool_call_validation_failed",
+      "failure_kind": "text_tool_protocol",
+      "delivered_tool_calls": 0,
+      "delivered_content_chars": 0
+    },
+    {
+      "case": "fabricated_result",
+      "correction": "native_tool_call",
+      "attempts": 2,
+      "error": null,
+      "failure_kind": null,
+      "delivered_tool_calls": 1,
+      "delivered_content_chars": 0
+    }
+  ],
+  "retained_output_replay": {
+    "mode": "read_only_retained_output_replay",
+    "live_model_calls": 0,
+    "production_writes": 0,
+    "observations": [
+      {
+        "event": {
+          "request_id": "req-fe9c8401-120c-46eb-a7ec-e081839c169c",
+          "started_at": "2026-11-13T03:02:36.476Z",
+          "status": "ok",
+          "upstream_runtime": "tiankuan",
+          "upstream_model": "official/glm-5.3",
+          "client_tool_mode": "native",
+          "active_tool_count": 28,
+          "tool_choice": "auto"
+        },
+        "historical_attempts": [
+          {
+            "kind": "native_initial",
+            "toolChoice": "auto",
+            "finishReason": "stop",
+            "upstreamHttpStatus": 200,
+            "terminationKind": "finish_reason_and_done",
+            "outputLimitHit": false,
+            "streamIncomplete": false,
+            "toolCallCount": 0,
+            "contentChars": 795
+          }
+        ],
+        "receipt": {
+          "content_chars": 795,
+          "real_tool_calls": 0,
+          "call_markers": 1,
+          "result_markers": 0
+        },
+        "retained_output_replay": {
+          "attempts": 2,
+          "error": "tool_call_validation_failed",
+          "failure_kind": "text_tool_protocol",
+          "delivered_tool_calls": 0,
+          "delivered_content_chars": 0,
+          "attempt_details": [
+            {
+              "kind": "native_initial",
+              "errorCode": "tool_call_validation_failed",
+              "toolValidationFailureKind": "text_tool_protocol",
+              "toolCallCount": 0
+            },
+            {
+              "kind": "validation_failed_to_same",
+              "errorCode": "tool_call_validation_failed",
+              "toolValidationFailureKind": "text_tool_protocol",
+              "toolCallCount": 0
+            }
+          ]
+        }
+      },
+      {
+        "event": {
+          "request_id": "req-73ead3f1-962d-4b59-b786-cd3b78923702",
+          "started_at": "2026-11-13T03:17:46.915Z",
+          "status": "ok",
+          "upstream_runtime": "tiankuan",
+          "upstream_model": "official/glm-5.3",
+          "client_tool_mode": "native",
+          "active_tool_count": 28,
+          "tool_choice": "auto"
+        },
+        "historical_attempts": [
+          {
+            "kind": "native_initial",
+            "toolChoice": "auto",
+            "finishReason": "stop",
+            "upstreamHttpStatus": 200,
+            "terminationKind": "finish_reason_and_done",
+            "outputLimitHit": false,
+            "streamIncomplete": false,
+            "toolCallCount": 0,
+            "contentChars": 5730
+          }
+        ],
+        "receipt": {
+          "content_chars": 5730,
+          "real_tool_calls": 0,
+          "call_markers": 5,
+          "result_markers": 6
+        },
+        "retained_output_replay": {
+          "attempts": 2,
+          "error": "tool_call_validation_failed",
+          "failure_kind": "text_tool_protocol",
+          "delivered_tool_calls": 0,
+          "delivered_content_chars": 0,
+          "attempt_details": [
+            {
+              "kind": "native_initial",
+              "errorCode": "tool_call_validation_failed",
+              "toolValidationFailureKind": "text_tool_protocol",
+              "toolCallCount": 0
+            },
+            {
+              "kind": "validation_failed_to_same",
+              "errorCode": "tool_call_validation_failed",
+              "toolValidationFailureKind": "text_tool_protocol",
+              "toolCallCount": 0
+            }
+          ]
+        }
+      },
+      {
+        "event": {
+          "request_id": "req-48583cb3-b25b-4a5e-853f-780bc788ddf7",
+          "started_at": "2026-11-13T08:21:11.888Z",
+          "status": "ok",
+          "upstream_runtime": "tiankuan",
+          "upstream_model": "official/glm-5.3",
+          "client_tool_mode": "native",
+          "active_tool_count": 28,
+          "tool_choice": "auto"
+        },
+        "historical_attempts": [
+          {
+            "kind": "native_initial",
+            "toolChoice": "auto",
+            "finishReason": "stop",
+            "upstreamHttpStatus": 200,
+            "terminationKind": "finish_reason_and_done",
+            "outputLimitHit": false,
+            "streamIncomplete": false,
+            "toolCallCount": 0,
+            "contentChars": 4536
+          }
+        ],
+        "receipt": {
+          "content_chars": 4536,
+          "real_tool_calls": 0,
+          "call_markers": 1,
+          "result_markers": 0
+        },
+        "retained_output_replay": {
+          "attempts": 2,
+          "error": "tool_call_validation_failed",
+          "failure_kind": "text_tool_protocol",
+          "delivered_tool_calls": 0,
+          "delivered_content_chars": 0,
+          "attempt_details": [
+            {
+              "kind": "native_initial",
+              "errorCode": "tool_call_validation_failed",
+              "toolValidationFailureKind": "text_tool_protocol",
+              "toolCallCount": 0
+            },
+            {
+              "kind": "validation_failed_to_same",
+              "errorCode": "tool_call_validation_failed",
+              "toolValidationFailureKind": "text_tool_protocol",
+              "toolCallCount": 0
+            }
+          ]
+        }
+      },
+      {
+        "event": {
+          "request_id": "req-b9b23a49-af1f-4a3a-9b3c-1f1de752cc5e",
+          "started_at": "2026-11-13T08:37:01.490Z",
+          "status": "ok",
+          "upstream_runtime": "tiankuan",
+          "upstream_model": "official/glm-5.3",
+          "client_tool_mode": "native",
+          "active_tool_count": 28,
+          "tool_choice": "auto"
+        },
+        "historical_attempts": [
+          {
+            "kind": "native_initial",
+            "toolChoice": "auto",
+            "finishReason": "stop",
+            "upstreamHttpStatus": 200,
+            "terminationKind": "finish_reason_and_done",
+            "outputLimitHit": false,
+            "streamIncomplete": false,
+            "toolCallCount": 0,
+            "contentChars": 42829
+          }
+        ],
+        "receipt": {
+          "content_chars": 42829,
+          "real_tool_calls": 0,
+          "call_markers": 13,
+          "result_markers": 24
+        },
+        "retained_output_replay": {
+          "attempts": 2,
+          "error": "tool_call_validation_failed",
+          "failure_kind": "text_tool_protocol",
+          "delivered_tool_calls": 0,
+          "delivered_content_chars": 0,
+          "attempt_details": [
+            {
+              "kind": "native_initial",
+              "errorCode": "tool_call_validation_failed",
+              "toolValidationFailureKind": "text_tool_protocol",
+              "toolCallCount": 0
+            },
+            {
+              "kind": "validation_failed_to_same",
+              "errorCode": "tool_call_validation_failed",
+              "toolValidationFailureKind": "text_tool_protocol",
+              "toolCallCount": 0
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "client_request_shapes": [
+    {
+      "request_id": "req-fe9c8401-120c-46eb-a7ec-e081839c169c",
+      "observed_at": "2026-11-13T03:02:35.337Z",
+      "message_count": 78,
+      "role_counts": {
+        "system": 1,
+        "user": 3,
+        "assistant": 38,
+        "tool": 36
+      },
+      "image_count": 0,
+      "tool_count": 28
+    },
+    {
+      "request_id": "req-73ead3f1-962d-4b59-b786-cd3b78923702",
+      "observed_at": "2026-11-13T03:17:45.620Z",
+      "message_count": 102,
+      "role_counts": {
+        "system": 1,
+        "user": 4,
+        "assistant": 50,
+        "tool": 47
+      },
+      "image_count": 0,
+      "tool_count": 28
+    }
+  ],
+  "history_shape_control": {
+    "mode": "offline_payload_comparison",
+    "network_calls": 0,
+    "observations": [
+      {
+        "arm": "flattened",
+        "roles": [
+          "system",
+          "user"
+        ],
+        "identity_retained": true,
+        "image_retained": true,
+        "retry_retained": true,
+        "schema_retained": true,
+        "tool_choice": "auto"
+      },
+      {
+        "arm": "naive_preserve",
+        "roles": [
+          "user",
+          "assistant",
+          "tool"
+        ],
+        "identity_retained": false,
+        "image_retained": false,
+        "retry_retained": false,
+        "schema_retained": true,
+        "tool_choice": "auto"
+      },
+      {
+        "arm": "controlled_preserve",
+        "roles": [
+          "system",
+          "user",
+          "assistant",
+          "tool",
+          "user"
+        ],
+        "identity_retained": true,
+        "image_retained": true,
+        "retry_retained": true,
+        "schema_retained": true,
+        "tool_choice": "auto"
+      }
+    ]
+  },
+  "live_synthetic_probes": [
+    {
+      "probe": "history_comparison",
+      "case": "normal_answer",
+      "arm": "flattened",
+      "at": "2026-11-13T09:06:52.893Z",
+      "shape": {
+        "roles": [
+          "system",
+          "user"
+        ],
+        "tool_count": 2,
+        "tool_choice": "auto",
+        "identity_retained": true,
+        "tool_schema_sha256": "7f35669317e9e0a9369eb091c5badfa765ca8deb0422a09088a6dc5b7253736b"
+      },
+      "upstream_request_id": null,
+      "error": null,
+      "finish_reason": "stop",
+      "tool_calls": 0,
+      "tool_names": [],
+      "content_chars": 1,
+      "transcript_markers": 0,
+      "total_tokens": 402,
+      "correct": true
+    },
+    {
+      "probe": "history_comparison",
+      "case": "normal_answer",
+      "arm": "structured",
+      "at": "2026-11-13T09:06:56.868Z",
+      "shape": {
+        "roles": [
+          "system",
+          "user"
+        ],
+        "tool_count": 2,
+        "tool_choice": "auto",
+        "identity_retained": true,
+        "tool_schema_sha256": "7f35669317e9e0a9369eb091c5badfa765ca8deb0422a09088a6dc5b7253736b"
+      },
+      "upstream_request_id": null,
+      "error": null,
+      "finish_reason": "stop",
+      "tool_calls": 0,
+      "tool_names": [],
+      "content_chars": 1,
+      "transcript_markers": 0,
+      "total_tokens": 318,
+      "correct": true
+    },
+    {
+      "probe": "history_comparison",
+      "case": "multi_step",
+      "arm": "flattened",
+      "at": "2026-11-13T09:07:00.219Z",
+      "shape": {
+        "roles": [
+          "system",
+          "user"
+        ],
+        "tool_count": 2,
+        "tool_choice": "auto",
+        "identity_retained": true,
+        "tool_schema_sha256": "7f35669317e9e0a9369eb091c5badfa765ca8deb0422a09088a6dc5b7253736b"
+      },
+      "upstream_request_id": null,
+      "error": null,
+      "finish_reason": "tool_calls",
+      "tool_calls": 1,
+      "tool_names": [
+        "inspect_file"
+      ],
+      "content_chars": 0,
+      "transcript_markers": 0,
+      "total_tokens": 476,
+      "correct": true
+    },
+    {
+      "probe": "history_comparison",
+      "case": "multi_step",
+      "arm": "structured",
+      "at": "2026-11-13T09:07:09.809Z",
+      "shape": {
+        "roles": [
+          "system",
+          "user",
+          "assistant",
+          "tool",
+          "user"
+        ],
+        "tool_count": 2,
+        "tool_choice": "auto",
+        "identity_retained": true,
+        "tool_schema_sha256": "7f35669317e9e0a9369eb091c5badfa765ca8deb0422a09088a6dc5b7253736b"
+      },
+      "upstream_request_id": null,
+      "error": null,
+      "finish_reason": "tool_calls",
+      "tool_calls": 1,
+      "tool_names": [
+        "inspect_file"
+      ],
+      "content_chars": 0,
+      "transcript_markers": 0,
+      "total_tokens": 482,
+      "correct": true
+    },
+    {
+      "probe": "history_comparison",
+      "case": "after_compaction",
+      "arm": "flattened",
+      "at": "2026-11-13T09:07:13.366Z",
+      "shape": {
+        "roles": [
+          "system",
+          "user"
+        ],
+        "tool_count": 2,
+        "tool_choice": "auto",
+        "identity_retained": true,
+        "tool_schema_sha256": "7f35669317e9e0a9369eb091c5badfa765ca8deb0422a09088a6dc5b7253736b"
+      },
+      "upstream_request_id": null,
+      "error": null,
+      "finish_reason": "tool_calls",
+      "tool_calls": 1,
+      "tool_names": [
+        "inspect_file"
+      ],
+      "content_chars": 0,
+      "transcript_markers": 0,
+      "total_tokens": 443,
+      "correct": true
+    },
+    {
+      "probe": "history_comparison",
+      "case": "after_compaction",
+      "arm": "structured",
+      "at": "2026-11-13T09:07:17.607Z",
+      "shape": {
+        "roles": [
+          "system",
+          "system",
+          "user"
+        ],
+        "tool_count": 2,
+        "tool_choice": "auto",
+        "identity_retained": true,
+        "tool_schema_sha256": "7f35669317e9e0a9369eb091c5badfa765ca8deb0422a09088a6dc5b7253736b"
+      },
+      "upstream_request_id": null,
+      "error": null,
+      "finish_reason": "tool_calls",
+      "tool_calls": 1,
+      "tool_names": [
+        "inspect_file"
+      ],
+      "content_chars": 0,
+      "transcript_markers": 0,
+      "total_tokens": 343,
+      "correct": true
+    },
+    {
+      "probe": "history_comparison",
+      "case": "long_history",
+      "arm": "flattened",
+      "at": "2026-11-13T09:07:20.724Z",
+      "shape": {
+        "roles": [
+          "system",
+          "user"
+        ],
+        "tool_count": 2,
+        "tool_choice": "auto",
+        "identity_retained": true,
+        "tool_schema_sha256": "7f35669317e9e0a9369eb091c5badfa765ca8deb0422a09088a6dc5b7253736b"
+      },
+      "upstream_request_id": null,
+      "error": null,
+      "finish_reason": "tool_calls",
+      "tool_calls": 1,
+      "tool_names": [
+        "inspect_file"
+      ],
+      "content_chars": 0,
+      "transcript_markers": 0,
+      "total_tokens": 1788,
+      "correct": true
+    },
+    {
+      "probe": "history_comparison",
+      "case": "long_history",
+      "arm": "structured",
+      "at": "2026-11-13T09:07:27.476Z",
+      "shape": {
+        "roles": [
+          "system",
+          "user",
+          "assistant",
+          "tool",
+          "assistant",
+          "tool",
+          "assistant",
+          "tool",
+          "assistant",
+          "tool",
+          "assistant",
+          "tool",
+          "assistant",
+          "tool",
+          "assistant",
+          "tool",
+          "assistant",
+          "tool",
+          "assistant",
+          "tool",
+          "assistant",
+          "tool",
+          "assistant",
+          "tool",
+          "assistant",
+          "tool",
+          "assistant",
+          "tool",
+          "assistant",
+          "tool",
+          "assistant",
+          "tool",
+          "assistant",
+          "tool",
+          "assistant",
+          "tool",
+          "assistant",
+          "tool",
+          "assistant",
+          "tool",
+          "assistant",
+          "tool",
+          "assistant",
+          "tool",
+          "assistant",
+          "tool",
+          "assistant",
+          "tool",
+          "assistant",
+          "tool",
+          "user"
+        ],
+        "tool_count": 2,
+        "tool_choice": "auto",
+        "identity_retained": true,
+        "tool_schema_sha256": "7f35669317e9e0a9369eb091c5badfa765ca8deb0422a09088a6dc5b7253736b"
+      },
+      "upstream_request_id": null,
+      "error": null,
+      "finish_reason": "tool_calls",
+      "tool_calls": 1,
+      "tool_names": [
+        "inspect_file"
+      ],
+      "content_chars": 0,
+      "transcript_markers": 0,
+      "total_tokens": 959,
+      "correct": true
+    },
+    {
+      "probe": "live_protocol_correction",
+      "case": "prefixed",
+      "at": "2026-11-13T09:07:32.970Z",
+      "attempts": 2,
+      "live_provider_calls": 1,
+      "error": null,
+      "tool_calls": 1,
+      "tool_names": [
+        "inspect_file"
+      ],
+      "correct": true,
+      "attempt_details": [
+        {
+          "kind": "native_initial",
+          "toolCallCount": 0,
+          "upstream_request_id": null,
+          "error": "tool_call_validation_failed",
+          "failure_kind": "text_tool_protocol"
+        },
+        {
+          "kind": "validation_failed_to_same",
+          "toolCallCount": 1,
+          "upstream_request_id": null,
+          "error": null,
+          "failure_kind": null
+        }
+      ],
+      "total_tokens": 569
+    },
+    {
+      "probe": "live_protocol_correction",
+      "case": "fabricated_result",
+      "at": "2026-11-13T09:07:37.892Z",
+      "attempts": 2,
+      "live_provider_calls": 1,
+      "error": null,
+      "tool_calls": 1,
+      "tool_names": [
+        "inspect_file"
+      ],
+      "correct": true,
+      "attempt_details": [
+        {
+          "kind": "native_initial",
+          "toolCallCount": 0,
+          "upstream_request_id": null,
+          "error": "tool_call_validation_failed",
+          "failure_kind": "text_tool_protocol"
+        },
+        {
+          "kind": "validation_failed_to_same",
+          "toolCallCount": 1,
+          "upstream_request_id": null,
+          "error": null,
+          "failure_kind": null
+        }
+      ],
+      "total_tokens": 588
+    }
+  ],
+  "live_summary": {
+    "provider_calls": 10,
+    "correct": 10,
+    "total_tokens": 6368,
+    "actual_tool_executions": 0,
+    "note": "Direct synthetic provider probes; no new Gateway request IDs or business inputs. Provider request-ID headers were absent."
+  },
+  "checks": {
+    "build": "pass",
+    "focused_tests": 208,
+    "native_route_tests": 269,
+    "diff_check": "pass"
+  },
+  "self_review_fixes": [
+    "reject incomplete or empty serialized envelopes",
+    "clear terminal error after successful correction while retaining failed attempt evidence",
+    "do not deliver calls after cancellation/deadline",
+    "replace transcript scanning with direct shape detection",
+    "require existing clock/delivery callbacks instead of optional fallbacks"
+  ]
+}

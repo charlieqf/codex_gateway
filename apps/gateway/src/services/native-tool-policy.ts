@@ -99,6 +99,17 @@ export function nativeValidationRetryPlan(
   if (error.code !== "tool_call_validation_failed") {
     return null;
   }
+  if (error.failureKind === "text_tool_protocol") {
+    return {
+      kind: "validation_failed_to_same", toolChoice: attemptedToolChoice,
+      validationToolChoice: attemptedToolChoice,
+      prompt: [prompt, "",
+        "The previous response was rejected because it simulated tool calls or tool results in message text. None of that response was delivered for execution.",
+        "Use the native structured tool_calls channel with client-declared tools and schema-valid arguments for the next unfinished step. Do not print [assistant tool_calls], simulated role turns, or invented tool results.",
+        "Retain actual tool results from the original conversation. Do not repeat completed write operations. Do not treat the rejected response as evidence of execution."
+      ].join("\n")
+    };
+  }
   if (error.transformedRetryAllowed === false) return null;
   if (error.failureKind === "argument_budget_exceeded") {
     return null;

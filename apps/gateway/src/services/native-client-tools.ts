@@ -16,6 +16,7 @@ import {
   assessProviderCompletion,
   attachProviderStreamSummary,
   combineProviderStreamSummaries,
+  combineSuccessfulProviderStreamSummaries,
   collectProviderMessage,
   providerCompletionError,
   providerStreamSummaryFromError,
@@ -45,6 +46,7 @@ import { addOpenAIUsage, createToolCallId, providerToolCallToOpenAI } from "./cl
 import { chatCompletionEstimateExtras, serializeToolChoice } from "./chat-request-shaping.js";
 import { strictDecisionToResult } from "./strict-client-tools.js";
 import { recoverTencentScreenshotBatch, tencentScreenshotRecoveryResult } from "./tencent-screenshot-recovery.js";
+import { inspectNativeToolText, textToolProtocolError } from "./native-tool-transcript.js";
 
 export async function runNativeWithFailover(input: NativeClientToolsInput & {
   failover: boolean;
@@ -52,8 +54,6 @@ export async function runNativeWithFailover(input: NativeClientToolsInput & {
   runtime: ChatRuntimeContext;
   deadlineAt: Date | null;
   requestTimeoutMs?: number;
-  now: () => Date;
-  outputCommitted: () => boolean;
   selected: (runtime: ChatRuntimeContext) => void;
 }): Promise<StrictClientToolsResult | GatewayError> {
   const execute = (runtime: ChatRuntimeContext, callBudget?: NativeCallBudget, retry = false,
@@ -156,7 +156,7 @@ async function runNativeClientTools(
       input.prompt,
       first.toolCalls
     );
-    if (!retryPlan || input.callBudget?.remaining === 0) {
+    if (!retryPlan || input.callBudget?.remaining === 0 || input.outputCommitted()) {
       return firstResult;
     }
 
@@ -181,12 +181,19 @@ async function runNativeClientTools(
       return attachPreviousProviderStreamSummaries(second, [firstResultSummary]);
     }
 
+    // After a simulated transcript, only actual native calls can recover this
+    // turn. A second textual "done" or serialized call must not become success.
+    if (firstResult.failureKind === "text_tool_protocol" && second.toolCalls.length === 0) {
+      return attachProviderStreamSummary(textToolProtocolError(),
+        combineProviderStreamSummaries([firstResultSummary, second.providerSummary]) ?? second.providerSummary);
+    }
+
     const secondResult = nativeCollectionToResult(
       input,
       second,
       addOpenAIUsage(firstUsage, openAIUsageFromTokenUsage(second.usage)),
       retryPlan.validationToolChoice,
-      combineProviderStreamSummaries([firstResultSummary, second.providerSummary]) ??
+      combineSuccessfulProviderStreamSummaries([firstResultSummary, second.providerSummary]) ??
         second.providerSummary
     );
     if (secondResult instanceof GatewayError) {
@@ -202,7 +209,7 @@ async function runNativeClientTools(
     input.prompt,
     input.nativeToolForceRequiredMode
   );
-  if (!retryPlan || input.callBudget?.remaining === 0) {
+  if (!retryPlan || input.callBudget?.remaining === 0 || input.outputCommitted()) {
     return validateNativeCompletion(firstResult);
   }
 
@@ -269,18 +276,15 @@ async function collectNativeClientTools(
   prompt = input.prompt,
   attemptKind = "native"
 ): Promise<CollectedProviderMessage | GatewayError> {
-  if (input.signal?.aborted) {
-    return input.signal.reason instanceof GatewayError ? input.signal.reason : new GatewayError({
-      code: "client_aborted", message: "Request ended before native provider execution.", httpStatus: 499
-    });
-  }
+  const beforeCallError = nativeRequestEndError(input);
+  if (beforeCallError) return beforeCallError;
   input.callBudget?.consume();
   input.onNativeCall?.({
     promptTokens: estimatePromptTokens(prompt, chatCompletionEstimateExtras(input.request, false, input.upstreamRuntime)),
     maximumOutputTokens: input.request.maximumOutputTokens!
   });
   const chatMessages = localOpenAIChatMessagesForAttempt(input, prompt);
-  return collectProviderMessage({
+  const collected = await collectProviderMessage({
     provider: input.provider,
     upstreamAccount: input.upstreamAccount,
     subject: input.subject,
@@ -308,6 +312,21 @@ async function collectNativeClientTools(
     softToolArgumentBytes: input.nativeFileToolRecoveryPolicy.softArgumentBytes,
     hardToolArgumentBytes: input.nativeFileToolRecoveryPolicy.hardArgumentBytes
   });
+  if (collected instanceof GatewayError) return collected;
+  const afterCallError = nativeRequestEndError(input);
+  return afterCallError ? attachProviderStreamSummary(afterCallError,
+    { ...collected.providerSummary, completed: false }, { preserveAttemptOutcomes: true }) : collected;
+}
+
+function nativeRequestEndError(input: NativeClientToolsInput): GatewayError | null {
+  if (input.signal?.aborted) {
+    return input.signal.reason instanceof GatewayError ? input.signal.reason : new GatewayError({
+      code: "client_aborted", message: "Request ended before native completion could be delivered.", httpStatus: 499
+    });
+  }
+  return input.deadlineAt && input.now() >= input.deadlineAt
+    ? new GatewayError({ code: "upstream_timeout", httpStatus: 504,
+      message: "Request deadline ended before native completion could be delivered." }) : null;
 }
 
 function localOpenAIChatMessagesForAttempt(
@@ -353,8 +372,12 @@ function nativeCollectionToResult(
       recommendedAction: "report_protocol_error" });
     return providerSummary ? attachProviderStreamSummary(error, providerSummary) : error;
   }
-  const serializedToolCalls =
-    toolCalls.length === 0 ? serializedAssistantToolCalls(collected.content) : null;
+  const toolText = inspectNativeToolText(input.request, collected.content);
+  if (toolCalls.length === 0 && toolText.kind === "transcript") {
+    const error = textToolProtocolError();
+    return providerSummary ? attachProviderStreamSummary(error, providerSummary) : error;
+  }
+  const serializedToolCalls = toolCalls.length === 0 && toolText.kind === "standalone" ? toolText.serialized : null;
   let parsed = parseStrictToolDecision({
     text:
       serializedToolCalls ??
@@ -395,7 +418,7 @@ function nativeCollectionToResult(
         parsed.failureKind === "schema_mismatch") {
       const write = classifyOversizedWrite(input.request, toolCalls);
       if (write) {
-        const remainingMs = input.deadlineAt ? Math.max(0, input.deadlineAt.getTime() - (input.now?.() ?? new Date()).getTime()) : null;
+        const remainingMs = input.deadlineAt ? Math.max(0, input.deadlineAt.getTime() - input.now().getTime()) : null;
         let stopReason = "write_delivery_not_negotiated";
         const retried = providerSummary.attempts.length > 1 || input.failoverAttempt === true || (input.callBudget?.used ?? 0) > 1;
         if (input.writeDelivery) {
@@ -478,24 +501,8 @@ function nativeCollectionToResult(
       },
       "Recovered a schema-valid native tool call from the upstream assistant transcript."
     );
-  } else if (result.toolCalls.length > 0 && collected.content.length > 0) {
+  } else if (result.toolCalls.length > 0 && collected.content.length > 0 && toolText.kind === "ordinary") {
     result.content = collected.content;
   }
   return result;
-}
-
-function serializedAssistantToolCalls(content: string): string | null {
-  const match = content.trim().match(/^\[assistant tool_calls\]\s+([\s\S]+)$/);
-  if (!match) {
-    return null;
-  }
-
-  try {
-    return JSON.stringify({
-      type: "tool_calls",
-      tool_calls: JSON.parse(match[1])
-    });
-  } catch {
-    return match[1];
-  }
 }

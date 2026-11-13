@@ -101,7 +101,8 @@ export type ToolCallValidationFailureKind =
   | "invalid_json"
   | "schema_mismatch"
   | "undeclared_tool"
-  | "tool_choice_mismatch";
+  | "tool_choice_mismatch"
+  | "text_tool_protocol";
 
 /** Bounded schema/syntax facts only; never argument values or JSON excerpts. */
 export interface ToolCallValidationDiagnostic {

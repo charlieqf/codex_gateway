@@ -9939,6 +9939,46 @@ describe("gateway phase 1 routes", () => {
     }
   });
 
+  it.each([false, true])("returns a terminal error for a mixed native tool transcript; stream=%s", async stream => {
+    let attempts = 0;
+    const server = await startOpenAICompatibleSseServer(async (_request, _body, response) => {
+      attempts++;
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(`data: ${JSON.stringify({ choices: [{ delta: {
+        content: 'Continuing.\n[assistant tool_calls]\n[{"name":"inspect_file","arguments":{"path":"example.py"}}]\n[tool tool_call_id=fake]\nPRIVATE_FAKE_SUCCESS'
+      }, finish_reason: "stop" }] })}\n\n`);
+      response.end("data: [DONE]\n\n");
+    });
+    try {
+      await withTemporaryEnv({
+        MEDCODE_QIANFAN_API_KEY: "bce-v3/test-redacted", MEDCODE_QIANFAN_BASE_URL: server.baseUrl,
+        MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+      }, async () => {
+        const { store, headers } = createModelEntitledStore(["specialist"]);
+        const app = buildGateway({ authMode: "credential", provider: new FakeProvider(),
+          sessionStore: store, observationStore: store, logger: false });
+        try {
+          const response = await app.inject({ method: "POST", url: "/v1/chat/completions", headers,
+            payload: { model: "specialist", stream, messages: [{ role: "user", content: "Inspect example.py" }],
+              tools: [{ type: "function", function: { name: "inspect_file", parameters: {
+                type: "object", properties: { path: { type: "string" } }, required: ["path"], additionalProperties: false
+              } } }], tool_choice: "auto" } });
+          expect(response.statusCode).toBe(502);
+          const event = store.listRequestEvents({ limit: 1 })[0]!;
+          const errorFrame = response.json();
+          expect(errorFrame).toMatchObject({ error: { code: "tool_call_validation_failed", failure_kind: "text_tool_protocol",
+            request_id: event.requestId, automatic_retry_allowed: false, transformed_retry_allowed: false, recovery_owner: "gateway" } });
+          expect(response.payload).not.toContain("PRIVATE_FAKE_SUCCESS");
+          expect(response.payload).not.toContain('"finish_reason":"stop"');
+          expect(attempts).toBe(2);
+          expect(event).toMatchObject({ status: "error", errorCode: "tool_call_validation_failed", upstreamAttemptCount: 2,
+            upstreamAttempts: [expect.objectContaining({ toolValidationFailureKind: "text_tool_protocol" }),
+              expect.objectContaining({ toolValidationFailureKind: "text_tool_protocol" })] });
+        } finally { await app.close(); }
+      });
+    } finally { await server.close(); }
+  });
+
   it("recovers a Qianfan native tool call serialized as an assistant transcript without another attempt", async () => {
     const captured: Array<Record<string, unknown>> = [];
     const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
