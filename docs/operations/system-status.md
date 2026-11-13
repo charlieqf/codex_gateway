@@ -1,5 +1,25 @@
 # System Status
 
+Gateway `ec921e16f0a11ce48cccdd9dfbe989fceffb4a70` is live as of
+2026-11-13T00:22:23.514830+00:00 and verified at 2026-11-13T00:23:31.577824+00:00.
+Tencent COS in Shanghai is enabled for image uploads carrying the COS capability
+header; older clients retain R2 uploads and va1 asset access. Both asset formats
+support authenticated completion, renewal and deletion. This release also commits
+the daily Token reset command and existing quota-maintenance helpers.
+Clean-image tests: 2,437 passed, four skipped. Local focused tests: 166 passed;
+50 Node ops tests and 19 Python control tests passed. All 28 isolated COS checks,
+28 public checks and 16 installed screenshot-recovery checks passed. Five public
+TianKuan image calls, covering both cloud models and API/stream forms, returned
+the expected synthetic digits in one attempt each with settled usage.
+COS/R2 objects were deleted and both synthetic accounts/credentials disabled
+or revoked. Both databases passed. Only two COS env keys and the read-only COS
+secret mount were added; existing model routes and ports are unchanged.
+21 protected files and 16 other containers passed verification. Natural idle
+reached 45.907 seconds; observed cutover interruption was 21.543337 seconds.
+Gateway is ready with zero restarts/OOM and no warning/error logs at verification.
+Only main and the primary development worktree exist. No Desktop release was made.
+See the [release receipt](./gateway-cos-release-2026-11-13.json).
+
 Gateway `0c45726ff69f620b86482d9bb9adaa7dff3e9cd8` is live as of
 2026-11-12T10:25:28.610902+00:00 and verified at 2026-11-12T10:32:41.892095+00:00.
 Tencent GLM-5.3 screenshot batches can recover one missing outer object brace

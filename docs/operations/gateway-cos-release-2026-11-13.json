@@ -1,0 +1,321 @@
+{
+  "status": "verified",
+  "at": "2026-11-13T00:23:31.577824+00:00",
+  "revision": "ec921e16f0a11ce48cccdd9dfbe989fceffb4a70",
+  "image_id": "sha256:612b238c1c9648aa562e672c975d1b252433c410d3e0394865df836cbcab739a",
+  "previous": "0c45726ff69f620b86482d9bb9adaa7dff3e9cd8",
+  "deployed_at": "2026-11-13T00:22:23.514830+00:00",
+  "idle_window": {
+    "required_seconds": 30,
+    "observed_seconds": 45.907,
+    "started_at": "2026-11-13T00:21:04.462964+00:00",
+    "qualified_at": "2026-11-13T00:21:50.370172+00:00",
+    "admission_open": true,
+    "active_requests": 0,
+    "active_work": 0,
+    "active_model_requests": 0,
+    "long_requests": 0,
+    "model_or_long_activity_delta": 0,
+    "light_requests_allowed": false,
+    "long_request_threshold_seconds": 5,
+    "incoming_request_log_observer": true
+  },
+  "backup": "/data/backups/codex-gateway-daily/20261113T002134Z",
+  "clean_image_tests": [
+    "Test Files  121 passed | 2 skipped (123)",
+    "Tests  2437 passed | 4 skipped (2441)"
+  ],
+  "installed_checks": 16,
+  "cos_public_checks": 28,
+  "public_cases": [
+    {
+      "name": "cos_client_routing",
+      "passed": true
+    },
+    {
+      "name": "cos_pending_read_denied",
+      "passed": true
+    },
+    {
+      "name": "cos_upload",
+      "passed": true
+    },
+    {
+      "name": "cos_overwrite_denied",
+      "passed": true
+    },
+    {
+      "name": "cos_complete",
+      "passed": true
+    },
+    {
+      "name": "cos_complete_idempotent",
+      "passed": true
+    },
+    {
+      "name": "cos_download_hash",
+      "passed": true
+    },
+    {
+      "name": "cos_renew_preserves_expiry",
+      "passed": true
+    },
+    {
+      "name": "cos_owner_isolation",
+      "passed": true
+    },
+    {
+      "name": "cos_anonymous_denied",
+      "passed": true,
+      "http": 403
+    },
+    {
+      "name": "cos_invalid_signature_denied",
+      "passed": true
+    },
+    {
+      "name": "r2_client_routing",
+      "passed": true
+    },
+    {
+      "name": "r2_pending_read_denied",
+      "passed": true
+    },
+    {
+      "name": "r2_upload",
+      "passed": true
+    },
+    {
+      "name": "r2_overwrite_denied",
+      "passed": true
+    },
+    {
+      "name": "r2_complete",
+      "passed": true
+    },
+    {
+      "name": "r2_complete_idempotent",
+      "passed": true
+    },
+    {
+      "name": "r2_download_hash",
+      "passed": true
+    },
+    {
+      "name": "r2_renew_preserves_expiry",
+      "passed": true
+    },
+    {
+      "name": "r2_owner_isolation",
+      "passed": true
+    },
+    {
+      "name": "r2_anonymous_denied",
+      "passed": true,
+      "http": 400
+    },
+    {
+      "name": "model_read",
+      "passed": true,
+      "model": "goldencode",
+      "api": "chat/completions",
+      "stream": false,
+      "storage": "cos",
+      "request_id": "req-832bdee4-e73e-4346-8cf0-b77aedabb9f4",
+      "duration_ms": 1614,
+      "upstream_attempts": 1,
+      "total_tokens": 595,
+      "ledger_finalized": true,
+      "runtime": "tiankuan"
+    },
+    {
+      "name": "model_read",
+      "passed": true,
+      "model": "goldencode",
+      "api": "responses",
+      "stream": true,
+      "storage": "cos",
+      "request_id": "req-987769b9-d60d-4605-90de-7a0e2735ce48",
+      "duration_ms": 1423,
+      "upstream_attempts": 1,
+      "total_tokens": 513,
+      "ledger_finalized": true,
+      "runtime": "tiankuan"
+    },
+    {
+      "name": "model_read",
+      "passed": true,
+      "model": "goldencode-d",
+      "api": "chat/completions",
+      "stream": true,
+      "storage": "cos",
+      "request_id": "req-f63f062a-a981-4e5e-9801-c68ff9872abe",
+      "duration_ms": 1638,
+      "upstream_attempts": 1,
+      "total_tokens": 537,
+      "ledger_finalized": true,
+      "runtime": "tiankuan"
+    },
+    {
+      "name": "model_read",
+      "passed": true,
+      "model": "goldencode-d",
+      "api": "responses",
+      "stream": false,
+      "storage": "cos",
+      "request_id": "req-f521d399-4ca0-4447-a695-7484ee43da50",
+      "duration_ms": 2316,
+      "upstream_attempts": 1,
+      "total_tokens": 658,
+      "ledger_finalized": true,
+      "runtime": "tiankuan"
+    },
+    {
+      "name": "model_read",
+      "passed": true,
+      "model": "goldencode-d",
+      "api": "chat/completions",
+      "stream": false,
+      "legacy": true,
+      "storage": "r2",
+      "request_id": "req-df67cb5b-9241-4858-89fb-6b1bc025baae",
+      "duration_ms": 2499,
+      "upstream_attempts": 1,
+      "total_tokens": 611,
+      "ledger_finalized": true,
+      "runtime": "tiankuan"
+    },
+    {
+      "name": "cos_delete",
+      "passed": true
+    },
+    {
+      "name": "cos_delete_preserves_r2",
+      "passed": true
+    }
+  ],
+  "cleanup": {
+    "assets": [
+      {
+        "storage": "cos",
+        "deleted": true
+      },
+      {
+        "storage": "r2",
+        "deleted": true
+      }
+    ],
+    "subjects": [
+      {
+        "subject_id": "subj_cos_release_7c3fe2ca-ac92-46da-8e6f-0d298bbf66c3_0",
+        "state": "disabled",
+        "pending_reservations": 0,
+        "revoked_status": 401
+      },
+      {
+        "subject_id": "subj_cos_release_7c3fe2ca-ac92-46da-8e6f-0d298bbf66c3_1",
+        "state": "disabled",
+        "pending_reservations": 0,
+        "revoked_status": 401
+      }
+    ],
+    "plan_deprecated": true
+  },
+  "integrity": [
+    {
+      "database": "gateway.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    {
+      "database": "client-events.db",
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    }
+  ],
+  "protected_files": 21,
+  "other_containers": 16,
+  "changed_env": {
+    "MEDCODE_VISION_STORAGE_PROVIDER": "cos",
+    "MEDCODE_VISION_COS_CREDENTIALS_FILE": "/run/secrets/gateway-vision-cos.json"
+  },
+  "cos_secret_readonly_mount": true,
+  "health": [
+    {
+      "http": 200,
+      "state": "ready"
+    },
+    {
+      "http": 200,
+      "state": "ready"
+    }
+  ],
+  "restarts": 0,
+  "oom": false,
+  "warnings": [],
+  "http_counts": {
+    "200": 58,
+    "503": 18,
+    "502": 3
+  },
+  "observed_interruption_seconds": 21.543337,
+  "scope_files": [
+    "apps/gateway/src/services/cos-vision-storage.test.ts",
+    "apps/gateway/src/services/cos-vision-storage.ts",
+    "apps/gateway/src/services/openai-compatible-provider.test.ts",
+    "apps/gateway/src/services/openai-compatible-provider.ts",
+    "apps/gateway/src/services/vision-asset-service.ts",
+    "apps/gateway/src/services/vision-fingerprints.test.ts",
+    "apps/gateway/src/services/vision-fingerprints.ts",
+    "apps/gateway/src/vision-asset-routes.test.ts",
+    "apps/gateway/src/vision-asset-routes.ts",
+    "config/gateway.container.example.env",
+    "config/gateway.example.env",
+    "config/medevidence.paid-yearly.token-policy.json",
+    "docs/operations/gateway-vision-cos-2026-11-12.zh-CN.md",
+    "docs/operations/user-quota-operations.zh-CN.md",
+    "packages/core/src/token-budget.test.ts",
+    "packages/core/src/types.ts",
+    "scripts/gateway-free-allowance-upgrade.cjs",
+    "scripts/gateway-free-allowance-upgrade.test.cjs",
+    "scripts/gateway-paid-daily-limits.cjs",
+    "scripts/gateway-paid-daily-limits.test.cjs",
+    "scripts/gateway-request-day-reset.cjs",
+    "scripts/gateway-user-daily-quota-reset.cjs",
+    "scripts/manage-r760-gateway-control.py",
+    "scripts/ops/billing-quota-review-public-smoke.mjs",
+    "scripts/reset-user-daily-quota.py"
+  ],
+  "local_validation": {
+    "focused_tests_passed": 166,
+    "ops_node_tests_passed": 50,
+    "python_control_tests_passed": 19,
+    "typecheck": "passed"
+  },
+  "isolated_cos_checks": 28,
+  "client_contract": {
+    "cos_capability_header": "x-medcode-vision-storage: cos",
+    "legacy_clients": "R2",
+    "cos_asset_prefix": "vc1",
+    "r2_asset_prefix": "va1",
+    "desktop_release_performed": false
+  },
+  "git_layout": {
+    "branch": "main",
+    "upstream": "origin/main",
+    "development_worktrees": [
+      "C:/work/code/codex-gateway"
+    ],
+    "extra_branches": 0
+  },
+  "preflight_corrections": [
+    "The smoke harness sent Content-Type application/json on bodyless DELETE requests. Removed that header; cross-owner read/delete then passed.",
+    "Unsigned R2 requests return HTTP 400 InvalidArgument/Authorization, while COS returns 403. Verified the actual R2 response and corrected the probe expectation; no runtime change.",
+    "An initial candidate Compose file failed YAML validation because its volume indentation differed from the existing file. Corrected before draining or changing production."
+  ],
+  "limitations": [
+    "COS public checks simulate a capable client through the public Gateway; no Desktop installer was built or published.",
+    "Small synthetic OCR probes do not establish a fixed speed gain or universal model accuracy.",
+    "Bucket lifecycle/versioning settings remain an administrator verification item; object upload/read/delete was verified."
+  ]
+}
