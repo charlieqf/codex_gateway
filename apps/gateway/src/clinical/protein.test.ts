@@ -138,7 +138,8 @@ it(mode + " validates consent/sequence before reserving and discards FASTA title
   expect(() => parseInput(mode, { ...input(mode), data_policy: "public_or_deidentified" })).toThrow();
 });
 it(mode + " authenticates all accounts, isolates forged owners and rejects upload/source routes", async () => {
-  const t = setup(new Star(mode)); expect((await t.request("GET", "/capabilities", undefined, 1)).json().available).toBe(true);
+  const t = setup(new Star(mode)), capabilities = (await t.request("GET", "/capabilities", undefined, 1)).json();
+  expect(capabilities.available).toBe(true); expect(capabilities).not.toHaveProperty("entitled");
   expect((await t.app.inject({ url: `/gateway/${mode}/v1/capabilities` })).statusCode).toBe(401);
   await t.create();
   for (const [method, suffix, body] of [["GET", "", undefined], ["POST", "/cancel", {}], ["DELETE", "", undefined], ["GET", "/artifacts/structure.html", undefined]] as const)

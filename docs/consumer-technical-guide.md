@@ -28,6 +28,15 @@ Authorization: Bearer <API_KEY>
 公共图片模型名是 `medcode-image-default`，通过
 `POST /gateway/images/generations` 调用。
 
+## 在线分析技能权限
+
+AIPAL、PanEcho 分别通过 `GET /gateway/aipal/v1/capabilities`、
+`GET /gateway/panecho/v1/capabilities` 返回可选 `entitled` 字段，`available` 保持原义。
+客户端仅在 `entitled === false` 时显示“未开通”；已开通但 `available === false` 表示服务暂不可用，
+字段缺失或请求失败不能判定账号未开通。该权限与任务提交的账号准入一致，不等同于付费套餐。
+其他分析服务逐项确认；离线报告技能不受此限制。
+完整状态表及准入规则见 [AIPAL / PanEcho 客户端契约](./operations/clinical-models-v1.md#账号权限与服务可用性)。
+
 ## OpenAI 兼容接口
 
 - `GET /v1/models`

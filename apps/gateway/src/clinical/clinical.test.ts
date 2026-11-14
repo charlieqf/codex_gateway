@@ -102,17 +102,62 @@ function setup(mode: Mode, path = ":memory:", star = new Star(mode), logs?: stri
   return { app, store, service, star, identity, request, create, credentials };
 }
 describe("clinical public tasks", () => {
-  it.each(["echonet", "echonext"] as const)("%s admits future authenticated accounts while denying missing/revoked credentials", async mode => {
+  it.each(["aipal", "panecho"] as const)("%s separates account entitlement from upstream availability and matches job admission", async mode => {
+    const t = setup(mode);
+    const healthy = await t.request("GET", "/capabilities");
+    expect(healthy.statusCode).toBe(200);
+    expect(healthy.json()).toMatchObject({ schema_version: 1, entitled: true, available: true });
+    expect((await t.create()).statusCode).toBe(mode === "aipal" ? 202 : 201);
+    expect((await t.create("another-active-key")).statusCode).toBe(429);
+    expect((await t.request("GET", "/capabilities")).json()).toMatchObject({ entitled: true, available: true });
+
+    const calls = t.star.calls.length;
+    const denied = await t.request("GET", "/capabilities", undefined, 2);
+    expect(denied.statusCode).toBe(200);
+    expect(denied.json()).toMatchObject({ entitled: false, available: false });
+    expect((await t.create("not-entitled-key", undefined, 2)).statusCode).toBe(503);
+    expect(t.star.calls).toHaveLength(calls);
+
+    t.star.offline = true;
+    const unavailable = await t.request("GET", "/capabilities");
+    expect(unavailable.statusCode).toBe(200);
+    expect(unavailable.json()).toMatchObject({ entitled: true, available: false });
+    t.star.offline = false;
+    const json = t.star.json.bind(t.star);
+    for (const [override, available] of [[{ available: false }, false], [{ schema_version: 2 }, false], [{ entitled: false }, true]] as const) {
+      t.star.json = async (...args) => { const result = await json(...args); return { ...result, data: { ...result.data, ...override } }; };
+      const response = await t.request("GET", "/capabilities");
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({ entitled: true, available });
+    }
+  });
+  it.each(["aipal", "panecho"] as const)("%s omits entitlement when the service is not initialized", async mode => {
+    const t = setup("echonet");
+    for (const account of [0, 2]) {
+      const response = await t.app.inject({ url: prefix(mode) + "/capabilities", headers: t.credentials[account] });
+      expect(response.statusCode).toBe(200);
+      expect(response.json().available).toBe(false);
+      expect(response.json()).not.toHaveProperty("entitled");
+    }
+  });
+  it.each(["aipal", "panecho", "echonet", "echonext"] as const)("%s admits future authenticated accounts while denying missing/revoked credentials", async mode => {
     const t = setup(mode, ":memory:", undefined, undefined, 10, true);
-    expect((await t.request("GET", "/capabilities", undefined, 2)).json().available).toBe(true);
-    const id = (await t.create("new-account-upload", undefined, 2)).json().job_id;
+    const capabilities = (await t.request("GET", "/capabilities", undefined, 2)).json();
+    expect(capabilities.available).toBe(true);
+    if (mode === "aipal" || mode === "panecho") expect(capabilities.entitled).toBe(true);
+    else expect(capabilities).not.toHaveProperty("entitled");
+    const created = await t.create("new-account-upload", undefined, 2);
+    expect(created.statusCode).toBe(mode === "aipal" ? 202 : 201);
+    const id = created.json().job_id;
     expect((await t.request("GET", `/jobs/${id}`, undefined, 0)).statusCode).toBe(404);
     const newSubject = "subj_registered_after_gateway_start";
     t.identity.upsertSubject({ id: newSubject, label: "new registration", state: "active", createdAt: new Date() });
     const key = issueAccessCredential({ subjectId: newSubject, scope: "code", label: "new account", expiresAt: new Date(Date.now() + 60000) });
     t.identity.insertAccessCredential(key.record);
     const probe = () => t.app.inject({ url: prefix(mode) + "/capabilities", headers: { authorization: `Bearer ${key.token}` } });
-    expect((await probe()).json().available).toBe(true);
+    const future = (await probe()).json();
+    expect(future.available).toBe(true);
+    if (mode === "aipal" || mode === "panecho") expect(future.entitled).toBe(true);
     t.identity.setSubjectState(newSubject, "disabled");
     expect((await probe()).statusCode).toBe(401);
     expect((await t.app.inject({ url: prefix(mode) + "/capabilities" })).statusCode).toBe(401);
@@ -164,7 +209,10 @@ describe("clinical public tasks", () => {
       expect(t.star.calls[0]?.owner).toBe(owner(mode, subjects[0]!)); expect(t.star.calls[0]?.body).not.toHaveProperty("owner");
       expect(JSON.stringify(t.star.calls)).not.toContain("private-patient-session");
       expect((await t.request("GET", `/jobs/${id}`, undefined, 1, { "x-clinical-owner": owner(mode, subjects[0]!) })).statusCode).toBe(404);
-      expect((await t.request("GET", "/capabilities", undefined, 2)).json().available).toBe(false);
+      const denied = (await t.request("GET", "/capabilities", undefined, 2)).json();
+      expect(denied.available).toBe(false);
+      if (mode === "aipal" || mode === "panecho") expect(denied.entitled).toBe(false);
+      else expect(denied).not.toHaveProperty("entitled");
       expect((await t.create("not-pilot-create", undefined, 2)).statusCode).toBe(503);
       expect((await t.app.inject({ url: prefix(mode) + "/capabilities" })).statusCode).toBe(401);
       expect((await t.create("another-active-key")).statusCode).toBe(429);

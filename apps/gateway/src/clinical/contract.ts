@@ -144,8 +144,9 @@ export function parseJob(mode: Mode, raw: unknown): Job {
   return { job_id: b.job_id as string, analysis_profile: profiles[mode], state: String(b.state), created_at: Number(b.created_at), updated_at: Number(b.updated_at), expires_at: Number(b.expires_at), result_revision: b.state === "completed" ? 1 : null, progress,
     ...(usesUpload(mode) ? { chunk_bytes: chunkBytes } : {}), ...(error ? { error } : {}), ...(b.state === "completed" ? { artifacts: parseArtifacts(mode, b.artifacts) } : {}) };
 }
-export function capabilities(mode: Mode, available: boolean) {
+export function capabilities(mode: Mode, available: boolean, entitled?: boolean) {
   return { schema_version: 1, analysis_profile: profiles[mode], available, research_only: true, retention_seconds: retention, ...(isProtein(mode) ? {} : { source_path: `${prefix(mode)}/source` }),
+    ...((mode === "aipal" || mode === "panecho") && entitled !== undefined ? { entitled } : {}),
     ...(mode === "echonet" || mode === "echonext" || isProtein(mode) ? { artifact_names: artifactNames(mode), max_artifact_bytes: artifactLimit(mode) } : {}),
     fields: mode === "aipal" ? Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, { unit: v[0] }]))
       : isProtein(mode) ? { formats: ["sequence", "fasta"], min_residues: 16, max_residues: 130, chains: 1, external_msa: "https://api.colabfold.com", external_msa_consent_required: true, data_policy: "public_or_authorized_sequence", templates: false, relaxation: false,

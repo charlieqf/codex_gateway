@@ -27,12 +27,13 @@ export class ClinicalService {
     return () => { if (released) return; released = true; entry.active--; this.active--; if (transfer) { entry.transfers--; this.transfers--; } };
   }
   async capabilities(subject: string) {
-    if (!this.allowed(subject)) return capabilities(this.mode, false);
+    const entitled = this.allowed(subject);
+    if (!entitled) return capabilities(this.mode, false, entitled);
     try {
       const b = object((await this.star.json(owner(this.mode, subject), "GET", "/capabilities")).data);
       requireClinical(b.schema_version === 1 && b.analysis_profile === profiles[this.mode] && b.retention_seconds === 86400 && b.research_only === true && b.available !== false, 503, "upstream_protocol_error");
-      return capabilities(this.mode, true);
-    } catch { return capabilities(this.mode, false); }
+      return capabilities(this.mode, true, entitled);
+    } catch { return capabilities(this.mode, false, entitled); }
   }
   async create(subject: string, raw: unknown, rawKey: unknown) {
     const parsed = parseInput(this.mode, raw), input: Input = { ...parsed, session_id: sha256(`${owner(this.mode, subject)}:session:${parsed.session_id}`) };

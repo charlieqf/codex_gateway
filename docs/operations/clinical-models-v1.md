@@ -1,6 +1,6 @@
 # AIPAL / PanEcho Gateway v1 客户端契约
 
-契约版本：1，2026-10-01。本文固定客户端开发接口；实际部署、验收及版本另记发布报告。
+契约版本：1；2026-11-15 增补可选 `entitled` 字段，`schema_version` 不变。本文固定客户端开发接口；实际部署、验收及版本另记发布报告。
 
 公网 origin：`https://goldencode.instmarket.com.au:1443`。
 前缀：`/gateway/aipal/v1`、`/gateway/panecho/v1`。
@@ -12,7 +12,7 @@ Gateway 根据真实 Subject 生成 owner；客户端不传 owner、后台 token
 
 | 方法 / 相对路径 | 成功响应 |
 | --- | --- |
-| GET /capabilities | 200，schema_version、analysis_profile、available、research_only、retention_seconds、source_path、fields |
+| GET /capabilities | 200，schema_version、analysis_profile、available、可选 entitled、research_only、retention_seconds、source_path、fields |
 | POST /jobs | AIPAL 202、PanEcho 201；相同提交重放 200，返回 job |
 | GET /jobs/:id | 200，返回 job |
 | POST /jobs/:id/cancel | 202，空 JSON 对象，持久化取消意图 |
@@ -20,6 +20,32 @@ Gateway 根据真实 Subject 生成 owner；客户端不传 owner、后台 token
 | GET /jobs/:id/result | 200，完成后的结构化结果 JSON |
 | GET /jobs/:id/artifacts/:name | 200，原始产物字节，Content-Length / X-Content-SHA256 |
 | GET /source | 200，对应后台版本源码 ZIP |
+
+### 账号权限与服务可用性
+
+`entitled?: boolean` 表示当前已认证账号是否通过该服务的账号准入判断；
+与实际 `POST /jobs` 路由准入共用 `ClinicalService.allowed(subject)`。
+`pilot` 模式按 `SUBJECT_IDS` 白名单判断，`authenticated` 模式向所有通过鉴权的账号开放（包括后续新注册账号）。
+这不是付费套餐标识，不依据是否付费、套餐等级或聊天 token 余额推断。
+
+`available` 保留原义：账号通过准入且上游 capabilities 检查成功时为 `true`，否则为 `false`。
+
+| 情况 | entitled | available |
+| --- | --- | --- |
+| 已开通，上游检查成功 | true | true |
+| 已开通，上游不可用、超时或响应不符合契约 | true | false |
+| 明确不在账号准入范围内 | false | false |
+| 服务关闭或初始化失败，无法判断账号权限 | 省略 | false |
+
+客户端仅在 `entitled === false` 时显示“未开通”并锁定对应在线分析技能。
+`entitled: true, available: false` 显示“服务暂不可用”；省略字段（包括旧版本响应）、网络失败或非 200 响应均不能推断为未开通。
+缺失、无效或已撤销的凭据仍返回 401，应按鉴权失败处理。
+`entitled: true` 不保证当前任务一定受理；原有输入校验、每日额度、并发限制及任务状态检查继续生效。
+
+本期仅 AIPAL、PanEcho 声明该字段。CT、EchoNet、EchoNext、AlphaFold3 等其他分析服务需逐项确认，
+不得套用上述服务的权限结果；离线报告技能不受此在线服务权限限制。
+
+### 任务提交与状态
 
 创建必须携带 8–128 字符 `Idempotency-Key`，允许 ASCII 字母、数字及 `_.:-`。
 同一服务、Subject、key 的规范化输入相同则返回原任务；输入变化返回 409。
@@ -108,7 +134,7 @@ complete 可重复调用，不能据网络超时重复创建新任务。
 ## 错误、下载和保留
 
 统一错误：`{error:{code,message,retryable},request_id}`。
-401 为 Key 缺失/无效；非试点 capabilities 返回 available:false，其余操作 503。
+401 为 Key 缺失/无效；明确未开通的账号 capabilities 返回 `entitled:false, available:false`，其余操作仍为 503。
 未知、跨 Subject、删除或过期任务均 404；输入/状态/幂等冲突 400/409/413/422；额度或并发限制 429；网络和后台不可用 503。
 具体 code 包括 invalid_request、missing_measurements、invalid_unit、invalid_value、inconsistent_differential、
 idempotency_conflict、state_conflict、hash_mismatch、chunk_conflict、incomplete_upload、result_not_ready、quota_exceeded、queue_full、worker_restarted。
@@ -123,7 +149,7 @@ idempotency_conflict、state_conflict、hash_mismatch、chunk_conflict、incompl
 
 ## 运维配置
 
-分别使用 GATEWAY_AIPAL_* / GATEWAY_PANECHO_*：MODE（off/pilot）、SUBJECT_IDS、SQLITE_PATH、
+分别使用 GATEWAY_AIPAL_* / GATEWAY_PANECHO_*：MODE（off/pilot/authenticated）、SUBJECT_IDS、SQLITE_PATH、
 STAR_URL、STAR_CA_FILE、STAR_TOKEN_FILE、DAILY_JOBS、ACTIVE_JOBS、CONTROL_TIMEOUT_MS、TRANSFER_TIMEOUT_MS。
 默认 off；配置错误只关闭对应服务。独立数据库不得指向 identity/client-events/CT 或另一临床服务数据库。
 固定 HTTPS 目的地址、证书验证、独立后台凭据；Nginx 和应用日志脱敏覆盖两组完整路径及查询。
