@@ -3,7 +3,7 @@
 日期：2026-09-10。年付 Plan 已于北京时间 19:07 创建并生效，公网套餐查询已验证。
 本批沿用现有 Billing v1 接口，没有新增支付页面或修改客户端。
 
-2026-09-14 开发修订（尚未部署）：新增公开套餐周期校验，以及购买／续费时当前有效 Desktop Key 的付费期覆盖；详见 Gateway 修复回执（`medevidence-account-usage-gateway-fix-receipt-2026-09-14.zh-CN.md`，含具体用户信息，仅本地保存，未入库）。2026-09-23 修订：先过期、90 天内付款的当前 Desktop Key 也会随付费期恢复。下文历史 Key 生命周期限制在新代码部署前仍适用；存量订单不会被自动回溯修正。
+2026-09-14 开发修订（尚未部署）：新增公开套餐周期校验，以及购买／续费时当前有效 Desktop Key 的付费期覆盖；详见 Gateway 修复回执（`../archive/outbox/medevidence-account-usage-gateway-fix-receipt-2026-09-14.zh-CN.md`，含具体用户信息，仅本地保存，未入库）。2026-09-23 修订：先过期、90 天内付款的当前 Desktop Key 也会随付费期恢复。下文历史 Key 生命周期限制在新代码部署前仍适用；存量订单不会被自动回溯修正。
 
 **后续确认的月付要求：保留 Free 每日免费额度，月付额度另行记账。**
 该需求已于北京时间 20:10 部署并验收；具体规则和新增用量字段见
@@ -18,7 +18,7 @@
 | 年付 | plan_paid_yearly_v1 | 每日 6,000,000、每 UTC 自然月 200,000,000 token，年度总量不设上限 | one_off，明确一年起止时间 |
 
 > 2026-09-11 更新：上表为当前生效值，见[免费额度一次性化合同 v2](./medevidence-free-once-quota-contract-2026-09-11.zh-CN.md)
-> 与[付费额度调整记录](../operations/medevidence-plan-quota-adjustment-2026-09-11.zh-CN.md)。下文中关于每日 Free 的描述为历史说明。
+> 与[付费额度调整记录](../archive/operations/medevidence-plan-quota-adjustment-2026-09-11.zh-CN.md)。下文中关于每日 Free 的描述为历史说明。
 
 月付和年付都允许首次购买；续费是同一产品的后续权益事件，不是另一个对外等级。
 年付显示名为 MedCode Pro Yearly，状态 active；功能范围沿用月付的 chat、tools、image_generation。

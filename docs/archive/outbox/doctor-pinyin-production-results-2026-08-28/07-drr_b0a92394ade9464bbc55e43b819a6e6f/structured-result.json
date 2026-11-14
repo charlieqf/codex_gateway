@@ -1,0 +1,479 @@
+{
+  "doctor": {
+    "name": "葛均波",
+    "hospital": "复旦大学附属中山医院",
+    "department": "心内科"
+  },
+  "identity_resolution": {
+    "status": "verified",
+    "confidence": "medium",
+    "canonical_identity_id": "dci_84406728451d5b3cd85b1d27befd0292",
+    "matched_by": [
+      "institution",
+      "department"
+    ]
+  },
+  "sources": [
+    {
+      "source_id": "src_web_082a3fc2406509a25885f20b",
+      "source_type": "official_web",
+      "title": "葛均波",
+      "url": "https://ibs.fudan.edu.cn/ab/33/c21163a240435/page.htm",
+      "accessed_at": "2026-08-27T14:37:30.715Z",
+      "content_sha256": "f51aee6d78741332f12cd24fb0ac2c56f9fa7e18b4dce49eebb47ff7f89f1ad7"
+    },
+    {
+      "source_id": "src_web_a839e02ae3ad7920d10da9db",
+      "source_type": "official_web",
+      "title": "十佳“三好“研究生导学团队 | 葛均波院士团队：攀登学术高峰，追求开拓创新！",
+      "url": "https://www.stuaff.fudan.edu.cn/af/4c/c53575a765772/page.htm",
+      "accessed_at": "2026-08-27T14:37:30.813Z",
+      "content_sha256": "0a0727ea304030a9bd27cccbc5dd6e890d15ca9c849bfc5ea62a3f351f72b88d"
+    },
+    {
+      "source_id": "src_web_3a5561ec82ab3c0e985ad68b",
+      "source_type": "official_web",
+      "title": "国内首个肿瘤心脏病研究机构——复旦大学肿瘤心脏病研究所(筹)揭牌",
+      "url": "https://www.zhongliujie.com/index.php/news/show/id/1602.shtml",
+      "accessed_at": "2026-08-27T14:37:32.545Z",
+      "content_sha256": "db963e15b5ff21526e676e58a3780b0c97809bb69d33830a71554ac45979fed6"
+    },
+    {
+      "source_id": "src_crossref_60c3efe7967a4a6236982bfe",
+      "source_type": "crossref",
+      "title": "Intra-aortic balloon pump use and in-hospital mortality in acute myocardial infarction with Killip class III or IV: a nationwide cohort study",
+      "url": "https://api.crossref.org/v1/works/10.1186%2Fs40364-026-00993-1",
+      "accessed_at": "2026-08-27T14:37:36.608Z",
+      "content_sha256": "d971b3ea823b8de6b67eb65dd0186dac3c9a22d400d2ed57ce39b55435c036a1"
+    },
+    {
+      "source_id": "src_pubmed_42649510",
+      "source_type": "pubmed",
+      "title": "Intra-aortic balloon pump use and in-hospital mortality in acute myocardial infarction with Killip class III or IV: a nationwide cohort study.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42649510/",
+      "accessed_at": "2026-08-27T14:37:35.566Z",
+      "content_sha256": "2385596e08fe72614b6c6eeae718bf8c8f6e23e607ce76c24f8b0c304f619fe9"
+    },
+    {
+      "source_id": "src_crossref_a0d43f616879acb87e75e392",
+      "source_type": "crossref",
+      "title": "Hepatic ChREBP Drives Cardiac Remodeling via ApoM Nontranscriptional Repression",
+      "url": "https://api.crossref.org/v1/works/10.1161%2Fcircresaha.125.327537",
+      "accessed_at": "2026-08-27T14:37:37.590Z",
+      "content_sha256": "05a799865ade63436a14bdab22d0c6955192c605f80ce24e009cbd41a8c16b4c"
+    },
+    {
+      "source_id": "src_pubmed_42644248",
+      "source_type": "pubmed",
+      "title": "Hepatic ChREBP Drives Cardiac Remodeling via ApoM Nontranscriptional Repression.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42644248/",
+      "accessed_at": "2026-08-27T14:37:37.326Z",
+      "content_sha256": "d0309185691f048c76dd060e848e63c7b7f08616da95009d99c75f2e9a12fa26"
+    },
+    {
+      "source_id": "src_crossref_4ef2a9acc11a87d1bb46ee90",
+      "source_type": "crossref",
+      "title": "Loss of eIF3m aggravates myocardial ischemia/reperfusion injury via enhancing nitrative damage and inhibiting glycolytic reprogramming",
+      "url": "https://api.crossref.org/v1/works/10.1016%2Fj.scib.2026.08.023",
+      "accessed_at": "2026-08-27T14:37:38.725Z",
+      "content_sha256": "eba74252f947d66dde417b11b6a6cab6f3f8f61e133c4d2c0283f904b37c0444"
+    },
+    {
+      "source_id": "src_pubmed_42632795",
+      "source_type": "pubmed",
+      "title": "Loss of eIF3m aggravates myocardial ischemia/reperfusion injury via enhancing nitrative damage and inhibiting glycolytic reprogramming.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42632795/",
+      "accessed_at": "2026-08-27T14:37:38.458Z",
+      "content_sha256": "e8e10d60cbaa307cdf2720def2be22efd787dd30438e5443908046bd496c5585"
+    },
+    {
+      "source_id": "src_crossref_c7c30a5a787ba361a3f2b7b2",
+      "source_type": "crossref",
+      "title": "Systematic screening identifies USP20 as an accelerator of metabolic dysfunction-associated steatotic liver disease via driving de novo lipogenesis",
+      "url": "https://api.crossref.org/v1/works/10.1016%2Fj.phrs.2026.108406",
+      "accessed_at": "2026-08-27T14:37:39.783Z",
+      "content_sha256": "b5713e8924caf069bb16457386dc389177b6f5e717128311881f70ae5384d615"
+    },
+    {
+      "source_id": "src_pubmed_42617901",
+      "source_type": "pubmed",
+      "title": "Systematic screening identifies USP20 as an accelerator of metabolic dysfunction-associated steatotic liver disease via driving de novo lipogenesis.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42617901/",
+      "accessed_at": "2026-08-27T14:37:39.489Z",
+      "content_sha256": "590df7ec7c3292357b825d1a1055fa9ca6376fd12beb3ec762955f06fb3fe5ec"
+    },
+    {
+      "source_id": "src_crossref_6b753494741b8c381fb7650d",
+      "source_type": "crossref",
+      "title": "Coronary lipid detection by fusing OCT-derived near-infrared spectra and image morphology",
+      "url": "https://api.crossref.org/v1/works/10.1016%2Fj.media.2026.104266",
+      "accessed_at": "2026-08-27T14:37:40.911Z",
+      "content_sha256": "2c87867309323a944e3af76feeafe012574ce469260c96ae256a6cb95fe62c52"
+    },
+    {
+      "source_id": "src_pubmed_42612516",
+      "source_type": "pubmed",
+      "title": "Coronary lipid detection by fusing OCT-derived near-infrared spectra and image morphology.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42612516/",
+      "accessed_at": "2026-08-27T14:37:40.643Z",
+      "content_sha256": "548079d45430f18852c4cc6ecd02095391d4629a056f66ba8d36dc4292067ab4"
+    }
+  ],
+  "profile": {
+    "positions": [
+      "现任同济大学副校长 复旦大学附属中山医院心内科主任 上海市心血管病研究所所长 复旦大学干细胞和组织工程中心主任",
+      "中国科学院院士 复旦大学附属中山医院心内科主任 国家放射与治疗临床医学研究中心主任 博士生导师葛均波教授",
+      "中国科学院院士 复旦大学附属中山医院心内科主任 葛均波"
+    ],
+    "expertise": [],
+    "education_and_career": [
+      "1993年毕业于德国美因兹大学 获医学博士学位"
+    ],
+    "research_directions": [
+      "研究方向为冠心病的发病机制 早期诊断和治疗方案优化"
+    ],
+    "representative_outputs": [
+      "代表性论文：Intra-aortic balloon pump use and in-hospital mortality in acute myocardial infarction with Killip class III or IV: a nationwide cohort study.（Biomarker research，2026）",
+      "代表性论文：Hepatic ChREBP Drives Cardiac Remodeling via ApoM Nontranscriptional Repression.（Circulation research，2026）",
+      "代表性论文：Loss of eIF3m aggravates myocardial ischemia/reperfusion injury via enhancing nitrative damage and inhibiting glycolytic reprogramming.（Science bulletin，2026）",
+      "代表性论文：Systematic screening identifies USP20 as an accelerator of metabolic dysfunction-associated steatotic liver disease via driving de novo lipogenesis.（Pharmacological research，2026）",
+      "代表性论文：Coronary lipid detection by fusing OCT-derived near-infrared spectra and image morphology.（Medical image analysis，2026）"
+    ],
+    "claims": [
+      {
+        "claim_id": "clm_identity_verified",
+        "claim_type": "identity",
+        "text": "The supplied identity for 葛均波 matched the retrieved official public evidence.",
+        "source_ids": [
+          "src_web_082a3fc2406509a25885f20b",
+          "src_web_a839e02ae3ad7920d10da9db",
+          "src_web_3a5561ec82ab3c0e985ad68b"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_zhongshan_chief",
+        "claim_type": "position",
+        "text": "现任同济大学副校长 复旦大学附属中山医院心内科主任 上海市心血管病研究所所长 复旦大学干细胞和组织工程中心主任",
+        "source_ids": [
+          "src_web_082a3fc2406509a25885f20b"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_education",
+        "claim_type": "education_and_career",
+        "text": "1993年毕业于德国美因兹大学 获医学博士学位",
+        "source_ids": [
+          "src_web_082a3fc2406509a25885f20b"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_research_direction",
+        "claim_type": "research_direction",
+        "text": "研究方向为冠心病的发病机制 早期诊断和治疗方案优化",
+        "source_ids": [
+          "src_web_082a3fc2406509a25885f20b"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_crc_center",
+        "claim_type": "position",
+        "text": "中国科学院院士 复旦大学附属中山医院心内科主任 国家放射与治疗临床医学研究中心主任 博士生导师葛均波教授",
+        "source_ids": [
+          "src_web_a839e02ae3ad7920d10da9db"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_onco_cardiology",
+        "claim_type": "position",
+        "text": "中国科学院院士 复旦大学附属中山医院心内科主任 葛均波",
+        "source_ids": [
+          "src_web_3a5561ec82ab3c0e985ad68b"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_1",
+        "claim_type": "representative_output",
+        "text": "代表性论文：Intra-aortic balloon pump use and in-hospital mortality in acute myocardial infarction with Killip class III or IV: a nationwide cohort study.（Biomarker research，2026）",
+        "source_ids": [
+          "src_pubmed_42649510"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_2",
+        "claim_type": "representative_output",
+        "text": "代表性论文：Hepatic ChREBP Drives Cardiac Remodeling via ApoM Nontranscriptional Repression.（Circulation research，2026）",
+        "source_ids": [
+          "src_pubmed_42644248"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_3",
+        "claim_type": "representative_output",
+        "text": "代表性论文：Loss of eIF3m aggravates myocardial ischemia/reperfusion injury via enhancing nitrative damage and inhibiting glycolytic reprogramming.（Science bulletin，2026）",
+        "source_ids": [
+          "src_pubmed_42632795"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_4",
+        "claim_type": "representative_output",
+        "text": "代表性论文：Systematic screening identifies USP20 as an accelerator of metabolic dysfunction-associated steatotic liver disease via driving de novo lipogenesis.（Pharmacological research，2026）",
+        "source_ids": [
+          "src_pubmed_42617901"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_5",
+        "claim_type": "representative_output",
+        "text": "代表性论文：Coronary lipid detection by fusing OCT-derived near-infrared spectra and image morphology.（Medical image analysis，2026）",
+        "source_ids": [
+          "src_pubmed_42612516"
+        ],
+        "verification_status": "verified"
+      }
+    ],
+    "primary_public_source_ids": [
+      "src_web_082a3fc2406509a25885f20b",
+      "src_web_a839e02ae3ad7920d10da9db",
+      "src_web_3a5561ec82ab3c0e985ad68b",
+      "src_pubmed_42649510",
+      "src_pubmed_42644248",
+      "src_pubmed_42632795",
+      "src_pubmed_42617901",
+      "src_pubmed_42612516"
+    ]
+  },
+  "review": {
+    "title": "葛均波医生公开情况速览：中国科学院院士、复旦大学附属中山医院心内科主任",
+    "abstract": "葛均波，中国科学院院士、教授、博士生导师，现任复旦大学附属中山医院心内科主任、上海市心血管病研究所所长、国家放射与治疗临床医学研究中心主任、同济大学副校长。1993年获德国美因兹大学医学博士学位，1987年起从事心血管疾病临床与科研，主要研究方向为冠心病的发病机制、早期诊断和治疗方案优化，以及血管内超声、新型冠脉支架研发与缺血性心脏病转化医学研究。近年在急性心肌梗死机械循环辅助、心肌重构、心肌缺血再灌注损伤及冠脉斑块影像学等领域持续发表论文。",
+    "keywords": [
+      "葛均波",
+      "中山医院",
+      "心内科",
+      "中国科学院院士",
+      "冠心病",
+      "冠脉介入"
+    ],
+    "markdown": "# 葛均波医生公开情况速览\n\n## 身份与现任职务\n- 中国科学院院士、教授、博士生导师，复旦大学生物医学研究院双聘PI\n- 复旦大学附属中山医院心内科主任\n- 上海市心血管病研究所所长、复旦大学干细胞和组织工程中心主任\n- 国家放射与治疗临床医学研究中心主任、同济大学副校长\n- 中华医学会心血管病分会候任主任委员、美国心血管造影和介入学会理事会理事、美国心脏病学会国际顾问\n\n## 教育与从业经历\n- 1962年11月8日出生于山东省五莲县\n- 1993年毕业于德国美因兹大学，获医学博士学位\n- 1987年起从事心血管疾病的临床和科研工作\n\n## 专业方向\n- 冠心病的发病机制、早期诊断和治疗方案优化\n- 血管内超声、新型冠脉支架研发、支架内再狭窄防治\n- 以缺血性心脏病为重点，辐射心血管疾病事件链的防控研究，聚焦基础研究、应用基础研究与转化医学\n\n## 近期代表性研究方向（经作者与单位核实的论文）\n- 主动脉内球囊反搏在Killip III/IV级急性心肌梗死患者中的应用与院内死亡风险（全国性队列研究）\n- 肝脏ChREBP-ApoM轴与心肌重构机制\n- eIF3m与心肌缺血再灌注损伤\n- USP20与代谢相关脂肪性肝病\n- 基于OCT的冠脉脂质检测人工智能方法\n\n以上内容来自复旦大学及相关官方公开资料，仅供了解医生公开情况使用，不构成医疗建议。",
+    "core_evidence": [
+      {
+        "reference_id": "ref_pmid_42649510",
+        "study_type": "全国性队列研究",
+        "sample_and_source": "中国胸痛中心数据库（4089家医院，2019-2023年），纳入37477例接受PCI的Killip III/IV级急性心肌梗死成人患者",
+        "methods": "以住院期间使用IABP为暴露因素，院内全因死亡为主要终点，采用基于贝叶斯可加回归树的稳定逆概率处理加权（sIPTW-BART）及加权Cox模型",
+        "key_results": "6051例接受IABP；加权队列中IABP使用与较高的院内全因死亡率（28.1% vs 19.1%，HR 1.48, 95% CI 1.37-1.61）和心血管死亡率（HR 1.48）相关，敏感性分析结果一致",
+        "limitations": "作者自述不能排除适应证残余混杂，结果应视为关联性而非因果效应"
+      },
+      {
+        "reference_id": "ref_pmid_42644248",
+        "study_type": "基础机制研究（动物模型）",
+        "sample_and_source": "肝细胞特异性ChREBP敲除及过表达小鼠、ApoM敲除与干预小鼠等多种模型，采用异丙肾上腺素和主动脉缩窄诱导的心肌重构模型",
+        "methods": "RNA测序、LC-MS/MS蛋白分析及多种基因工程小鼠干预实验",
+        "key_results": "肝脏ChREBP-SURF4-ApoM轴被鉴定为心肌重构的关键通路，肝ApoM过表达或ApoM-containing HDL注射可经S1PR1通路改善心肌重构",
+        "limitations": "主要限于动物与细胞模型层面，人体转化证据未在摘要中报告"
+      }
+    ],
+    "references": [
+      {
+        "reference_id": "ref_pmid_42649510",
+        "title": "Intra-aortic balloon pump use and in-hospital mortality in acute myocardial infarction with Killip class III or IV: a nationwide cohort study.",
+        "journal": "Biomarker research",
+        "publication_year": 2026,
+        "pmid": "42649510",
+        "doi": "10.1186/s40364-026-00993-1",
+        "verification_status": "verified"
+      },
+      {
+        "reference_id": "ref_pmid_42644248",
+        "title": "Hepatic ChREBP Drives Cardiac Remodeling via ApoM Nontranscriptional Repression.",
+        "journal": "Circulation research",
+        "publication_year": 2026,
+        "pmid": "42644248",
+        "doi": "10.1161/circresaha.125.327537",
+        "verification_status": "verified"
+      },
+      {
+        "reference_id": "ref_pmid_42632795",
+        "title": "Loss of eIF3m aggravates myocardial ischemia/reperfusion injury via enhancing nitrative damage and inhibiting glycolytic reprogramming.",
+        "journal": "Science bulletin",
+        "publication_year": 2026,
+        "pmid": "42632795",
+        "doi": "10.1016/j.scib.2026.08.023",
+        "verification_status": "verified"
+      },
+      {
+        "reference_id": "ref_pmid_42617901",
+        "title": "Systematic screening identifies USP20 as an accelerator of metabolic dysfunction-associated steatotic liver disease via driving de novo lipogenesis.",
+        "journal": "Pharmacological research",
+        "publication_year": 2026,
+        "pmid": "42617901",
+        "doi": "10.1016/j.phrs.2026.108406",
+        "verification_status": "verified"
+      },
+      {
+        "reference_id": "ref_pmid_42612516",
+        "title": "Coronary lipid detection by fusing OCT-derived near-infrared spectra and image morphology.",
+        "journal": "Medical image analysis",
+        "publication_year": 2026,
+        "pmid": "42612516",
+        "doi": "10.1016/j.media.2026.104266",
+        "verification_status": "verified"
+      }
+    ],
+    "search_report": {
+      "databases": [
+        "pubmed",
+        "crossref"
+      ],
+      "searched_at": "2026-08-27T14:37:23.862Z",
+      "queries": [
+        "((\"Ge JB\"[Author] OR \"Junbo Ge\"[Author] OR \"Jun-Bo Ge\"[Author] OR \"Ge Junbo\"[Author]) AND (\"fudan\"[Affiliation] OR \"fu dan\"[Affiliation] OR \"zhongshan\"[Affiliation] OR \"zhong shan\"[Affiliation]) AND (\"cardiology\"[Affiliation] OR \"cardiovascular\"[Affiliation])) AND (2022:2026[Date - Publication])"
+      ],
+      "included_count": 5
+    }
+  },
+  "source_coverage": {
+    "literature_sources": [
+      "pubmed",
+      "crossref"
+    ],
+    "profile_sources": [
+      "official_web",
+      "pubmed"
+    ],
+    "cutoff_date": "2026-08-27",
+    "warnings": [
+      "abstract_only_evidence",
+      "licensed_chinese_literature_not_covered",
+      "verified_reference_target_not_reached"
+    ]
+  },
+  "predicted_questions": [
+    "葛均波医生目前在哪个医院、担任什么职务？",
+    "他的专业方向和主要研究领域是什么？",
+    "他的教育和职业背景是怎样的？",
+    "他有哪些主要学术兼职和荣誉？",
+    "他近期有哪些研究方向或代表性工作？"
+  ],
+  "answers": [
+    {
+      "question_index": 1,
+      "answer": "他在复旦大学附属中山医院心内科担任主任，同时是上海市心血管病研究所所长、国家放射与治疗临床医学研究中心主任、同济大学副校长。",
+      "source_ids": [
+        "src_web_082a3fc2406509a25885f20b",
+        "src_web_a839e02ae3ad7920d10da9db"
+      ]
+    },
+    {
+      "question_index": 2,
+      "answer": "他是心血管内科医生，研究方向为冠心病的发病机制、早期诊断和治疗方案优化，并在血管内超声、新型冠脉支架研发、支架内再狭窄防治及缺血性心脏病转化医学方面开展工作。",
+      "source_ids": [
+        "src_web_082a3fc2406509a25885f20b",
+        "src_web_a839e02ae3ad7920d10da9db"
+      ]
+    },
+    {
+      "question_index": 3,
+      "answer": "他1962年11月8日出生于山东省五莲县，1993年毕业于德国美因兹大学获医学博士学位，1987年起从事心血管疾病的临床和科研工作。",
+      "source_ids": [
+        "src_web_082a3fc2406509a25885f20b"
+      ]
+    },
+    {
+      "question_index": 4,
+      "answer": "他是中国科学院院士、教授、博士生导师，长江学者；学术兼职包括中华医学会心血管病分会候任主任委员、美国心血管造影和介入学会理事会理事、美国心脏病学会国际顾问。",
+      "source_ids": [
+        "src_web_082a3fc2406509a25885f20b"
+      ]
+    },
+    {
+      "question_index": 5,
+      "answer": "近年在国际期刊发表的方向包括急性心肌梗死IABP应用的全国队列研究、肝脏ChREBP-ApoM轴与心肌重构、eIF3m与心肌缺血再灌注损伤、USP20与脂肪性肝病、以及基于OCT的冠脉脂质检测AI方法；更早的公开成就包括研发国际首个可降解涂层冠脉支架和我国首个完全可降解冠脉支架Xinsorb。",
+      "source_ids": [
+        "src_web_a839e02ae3ad7920d10da9db",
+        "src_pubmed_42649510",
+        "src_pubmed_42644248",
+        "src_pubmed_42632795"
+      ]
+    }
+  ],
+  "quality": {
+    "status": "passed_with_warnings",
+    "checks": [
+      "doctor_identity_resolution",
+      "official_profile_source_closure",
+      "verified_publication_attribution",
+      "reference_metadata_closed_set",
+      "prompt_injection_isolation",
+      "doctor_lookup_brief_contract"
+    ],
+    "warnings": [
+      "doctor_lookup_sources_require_user_verification",
+      "abstract_only_evidence",
+      "brief_relaxed_review_content_minimum",
+      "brief_relaxed_citation_reference_closure",
+      "brief_relaxed_paragraph_citation_coverage",
+      "brief_relaxed_core_evidence_reference_coverage",
+      "brief_relaxed_answer_length_contract",
+      "brief_relaxed_numeric_evidence_closure",
+      "doctor_lookup_brief_completed",
+      "peer_review_skipped_after_deterministic_validation",
+      "verified_reference_target_not_reached"
+    ]
+  },
+  "schema_version": "doctor_research_result.v1",
+  "request_id": "req_research_worker_b0a92394ade9464bbc55e43b819a6e6f",
+  "run_id": "drr_b0a92394ade9464bbc55e43b819a6e6f",
+  "artifacts": [
+    {
+      "artifact_id": "dra_9909d451f58d48538e6e6118c7dcd59b",
+      "kind": "profile",
+      "filename": "葛均波_基础信息与研究方向.md",
+      "content_type": "text/markdown; charset=utf-8",
+      "size_bytes": 3305,
+      "sha256": "be00a67f1f344a623a5eef2885f6e2e4a37df77a00364c84306a3e83c2b36cd6",
+      "expires_at": "2026-09-26T14:38:05.393Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_9909d451f58d48538e6e6118c7dcd59b/download"
+    },
+    {
+      "artifact_id": "dra_e67913695dd04c3987fbec2848a45128",
+      "kind": "review",
+      "filename": "葛均波_相关领域前沿综述.md",
+      "content_type": "text/markdown; charset=utf-8",
+      "size_bytes": 5278,
+      "sha256": "a3a95ea7a4aedeb52eb7a559504a89c43215db5d52c6319664f09599c150864a",
+      "expires_at": "2026-09-26T14:38:05.393Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_e67913695dd04c3987fbec2848a45128/download"
+    },
+    {
+      "artifact_id": "dra_1e0d463b4c81478c8fc6e49eaf4d7cab",
+      "kind": "questions",
+      "filename": "葛均波_医生可能问机器人问题.txt",
+      "content_type": "text/plain; charset=utf-8",
+      "size_bytes": 271,
+      "sha256": "ed8d9042902c38dbdec6ed719c0001b96e78d14068fef5f899ab31a13dcde1f5",
+      "expires_at": "2026-09-26T14:38:05.393Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_1e0d463b4c81478c8fc6e49eaf4d7cab/download"
+    },
+    {
+      "artifact_id": "dra_e4ca05fa60b4439081d0ff66cfd43bdc",
+      "kind": "answers",
+      "filename": "葛均波_问题与答案.md",
+      "content_type": "text/markdown; charset=utf-8",
+      "size_bytes": 3368,
+      "sha256": "20da9a197b817410e84a205d9f4e9762f09c50aeaf87bd58ab229964f0f61891",
+      "expires_at": "2026-09-26T14:38:05.393Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_e4ca05fa60b4439081d0ff66cfd43bdc/download"
+    }
+  ]
+}

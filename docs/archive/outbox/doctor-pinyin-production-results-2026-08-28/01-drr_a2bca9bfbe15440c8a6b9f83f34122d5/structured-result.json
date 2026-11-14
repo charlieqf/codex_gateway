@@ -1,0 +1,476 @@
+{
+  "doctor": {
+    "name": "郎景和",
+    "hospital": "北京协和医院",
+    "department": "妇产科"
+  },
+  "identity_resolution": {
+    "status": "verified",
+    "confidence": "medium",
+    "canonical_identity_id": "dci_76f579b7c5620dea73c92ff63605db93",
+    "matched_by": [
+      "institution",
+      "department"
+    ]
+  },
+  "sources": [
+    {
+      "source_id": "src_web_d8bcfd7d491aa03f2e6fa2f7",
+      "source_type": "official_web",
+      "title": "学科风采 | 第二十一届林巧稚妇产科学术会议举行 - 北京协和医院 - 协和医院,北京协和医院,協和醫院,北京协和医院首页,北京协和医院电话,协和,協和,医院,醫院,北京協和醫院,北京协和医院妇科,北京协和医院地址,挂号",
+      "url": "https://www.pumch.cn/detail/42353.html",
+      "accessed_at": "2026-08-27T14:29:15.161Z",
+      "content_sha256": "22ecf8a6a7979a90a105d255e072d3ac5d435ce72227a21eae7c6cbec98708e1"
+    },
+    {
+      "source_id": "src_web_bf779a825862af4d9a1cd381",
+      "source_type": "official_web",
+      "title": "郎景和院士谈“做医生真好”",
+      "url": "https://www.zgsyz.com/zgsyfck/CN/10.19538/j.fk2026010101",
+      "accessed_at": "2026-08-27T14:29:15.677Z",
+      "content_sha256": "deeed1749ce8b39dce82170314b49868abb8aee39b1b506dd70bb306dfb98a50"
+    },
+    {
+      "source_id": "src_web_c70f4a9b85a29008671e74ed",
+      "source_type": "official_web",
+      "title": "大腕云集！“三名工程”A级项目北京协和医院郎景和院士团队来罗湖医院疑难病例会诊-罗湖区人民医院",
+      "url": "https://www.szlhyy.com.cn/info/1003/2469.htm",
+      "accessed_at": "2026-08-27T14:29:14.369Z",
+      "content_sha256": "b3dc6a1bf7cfa5e9f794a731deefef4d1193cb39668ecbded9e56172c700aa09"
+    },
+    {
+      "source_id": "src_web_811aceb96010051e0bde1418",
+      "source_type": "official_web",
+      "title": "【医院新闻】医院承办山东省医师协会妇科腹腔镜分会2019年会暨第五届国际妇科内镜技术“泰山论坛” - 综合新闻 - 山东大学第二医院（第二临床学院）",
+      "url": "https://www.sdey.net/html/2019/zhxw_0806/926.html",
+      "accessed_at": "2026-08-27T14:29:15.973Z",
+      "content_sha256": "9f8d48a256fcf0def5da0d9e2fecb7feb6dc1da58cef017be1f17a4caae4b5dd"
+    },
+    {
+      "source_id": "src_crossref_8ff9c62e34f2136811b027fd",
+      "source_type": "crossref",
+      "title": "Development and validation of hypermethylated gene markers in cervical cytological samples for detecting endometrial cancer (EndoMethy-I trial)",
+      "url": "https://api.crossref.org/v1/works/10.3389%2Ffonc.2026.1849730",
+      "accessed_at": "2026-08-27T14:29:19.125Z",
+      "content_sha256": "27cb08fbd77ebb23eb32770d816e1b02152852424da5b0545574dac85da18369"
+    },
+    {
+      "source_id": "src_pubmed_42404224",
+      "source_type": "pubmed",
+      "title": "Development and validation of hypermethylated gene markers in cervical cytological samples for detecting endometrial cancer (EndoMethy-I trial).",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42404224/",
+      "accessed_at": "2026-08-27T14:29:18.139Z",
+      "content_sha256": "b8605698e78a55572dc4a6dbe5b166544aa44ea389ebd9072d00e3136ebc2a67"
+    },
+    {
+      "source_id": "src_crossref_c4ea0465deda56191d05557f",
+      "source_type": "crossref",
+      "title": "Clinical Utility of Cytological Methylation Assay in Cervical Cancer Screening Across Various Cervical Transformation Zones",
+      "url": "https://api.crossref.org/v1/works/10.1002%2Fijc.70591",
+      "accessed_at": "2026-08-27T14:29:20.271Z",
+      "content_sha256": "0d2c610e10961967b820aa71f89cd69485ae9a7fa06309f584a31f9857530eeb"
+    },
+    {
+      "source_id": "src_pubmed_42277588",
+      "source_type": "pubmed",
+      "title": "Clinical Utility of Cytological Methylation Assay in Cervical Cancer Screening Across Various Cervical Transformation Zones.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42277588/",
+      "accessed_at": "2026-08-27T14:29:20.008Z",
+      "content_sha256": "faab43ea3c7a2c40c9e26fcc56918dcb2fb0c6e71b52f427bc470f52cf5da077"
+    },
+    {
+      "source_id": "src_pubmed_41867046",
+      "source_type": "pubmed",
+      "title": "Application of high-intensity focused ultrasound in gynaecological diseases.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/41867046/",
+      "accessed_at": "2026-08-27T14:29:21.321Z",
+      "content_sha256": "058ad72872dce46177610f3b0bdea0e6f8e5f3ff6ff75b4700ac9bc85aeb0bd7"
+    },
+    {
+      "source_id": "src_crossref_4f3b6941d640746200b833e6",
+      "source_type": "crossref",
+      "title": "A real-world multicenter study on opportunistic cervical cancer screening in hospital in China: comparison of TruScreen device, cytology, and HPV testing for detecting high-grade cervical lesions",
+      "url": "https://api.crossref.org/v1/works/10.1186%2Fs12885-026-15590-6",
+      "accessed_at": "2026-08-27T14:29:22.755Z",
+      "content_sha256": "72c4ba3e42dac57d045714bf50f90bafca83e10a0c1f3a56f46af53895664152"
+    },
+    {
+      "source_id": "src_pubmed_41634646",
+      "source_type": "pubmed",
+      "title": "A real-world multicenter study on opportunistic cervical cancer screening in hospital in China: comparison of TruScreen device, cytology, and HPV testing for detecting high-grade cervical lesions.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/41634646/",
+      "accessed_at": "2026-08-27T14:29:22.487Z",
+      "content_sha256": "1f1fb2b40cd99feb60741cb02ae61536ca72d053f38a8397b065097259675427"
+    },
+    {
+      "source_id": "src_pubmed_41392568",
+      "source_type": "pubmed",
+      "title": "Volume reduction rate and its influencing factors in solitary uterine fibroids classified as Funaki types I and II after ultrasonography-guided high intensity focused ultrasound ablation: a prospective cohort study.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/41392568/",
+      "accessed_at": "2026-08-27T14:29:23.661Z",
+      "content_sha256": "2316bac2d5f6025b4d5bee637cb0dc2bb6eae5c817fe3afe8a92387be1b2a10c"
+    }
+  ],
+  "profile": {
+    "positions": [
+      "大会主席郎景和院士以泰戈尔的 用生命影响生命 诗文致开幕辞"
+    ],
+    "expertise": [],
+    "education_and_career": [
+      "1964年毕业于白求恩医科大学医疗系 到北京协和医院从事临床 科研和教学工作"
+    ],
+    "research_directions": [
+      "对子宫内膜异位症发病机制 妇科内镜手术 子宫颈病变以及女性盆底障碍性疾病的诊治及基础研究均有突出贡献"
+    ],
+    "representative_outputs": [
+      "代表性论文：Development and validation of hypermethylated gene markers in cervical cytological samples for detecting endometrial cancer (EndoMethy-I trial).（Frontiers in oncology，2026）",
+      "代表性论文：Clinical Utility of Cytological Methylation Assay in Cervical Cancer Screening Across Various Cervical Transformation Zones.（International journal of cancer，2026）",
+      "代表性论文：Application of high-intensity focused ultrasound in gynaecological diseases.（International journal of hyperthermia : the official journal of European Society for Hyperthermic Oncology, North American Hyperthermia Group，2026）",
+      "代表性论文：A real-world multicenter study on opportunistic cervical cancer screening in hospital in China: comparison of TruScreen device, cytology, and HPV testing for detecting high-grade cervical lesions.（BMC cancer，2026）",
+      "代表性论文：Volume reduction rate and its influencing factors in solitary uterine fibroids classified as Funaki types I and II after ultrasonography-guided high intensity focused ultrasound ablation: a prospective cohort study.（International journal of hyperthermia : the official journal of European Society for Hyperthermic Oncology, North American Hyperthermia Group，2025）"
+    ],
+    "claims": [
+      {
+        "claim_id": "clm_identity_verified",
+        "claim_type": "identity",
+        "text": "The supplied identity for 郎景和 matched the retrieved official public evidence.",
+        "source_ids": [
+          "src_web_d8bcfd7d491aa03f2e6fa2f7",
+          "src_web_bf779a825862af4d9a1cd381",
+          "src_web_c70f4a9b85a29008671e74ed",
+          "src_web_811aceb96010051e0bde1418"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_lang_education_1964",
+        "claim_type": "education_and_career",
+        "text": "1964年毕业于白求恩医科大学医疗系 到北京协和医院从事临床 科研和教学工作",
+        "source_ids": [
+          "src_web_c70f4a9b85a29008671e74ed"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_lang_research_topics",
+        "claim_type": "research_direction",
+        "text": "对子宫内膜异位症发病机制 妇科内镜手术 子宫颈病变以及女性盆底障碍性疾病的诊治及基础研究均有突出贡献",
+        "source_ids": [
+          "src_web_c70f4a9b85a29008671e74ed"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_lang_lin_qiaozhi_conf",
+        "claim_type": "position",
+        "text": "大会主席郎景和院士以泰戈尔的 用生命影响生命 诗文致开幕辞",
+        "source_ids": [
+          "src_web_d8bcfd7d491aa03f2e6fa2f7"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_1",
+        "claim_type": "representative_output",
+        "text": "代表性论文：Development and validation of hypermethylated gene markers in cervical cytological samples for detecting endometrial cancer (EndoMethy-I trial).（Frontiers in oncology，2026）",
+        "source_ids": [
+          "src_pubmed_42404224"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_2",
+        "claim_type": "representative_output",
+        "text": "代表性论文：Clinical Utility of Cytological Methylation Assay in Cervical Cancer Screening Across Various Cervical Transformation Zones.（International journal of cancer，2026）",
+        "source_ids": [
+          "src_pubmed_42277588"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_3",
+        "claim_type": "representative_output",
+        "text": "代表性论文：Application of high-intensity focused ultrasound in gynaecological diseases.（International journal of hyperthermia : the official journal of European Society for Hyperthermic Oncology, North American Hyperthermia Group，2026）",
+        "source_ids": [
+          "src_pubmed_41867046"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_4",
+        "claim_type": "representative_output",
+        "text": "代表性论文：A real-world multicenter study on opportunistic cervical cancer screening in hospital in China: comparison of TruScreen device, cytology, and HPV testing for detecting high-grade cervical lesions.（BMC cancer，2026）",
+        "source_ids": [
+          "src_pubmed_41634646"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_5",
+        "claim_type": "representative_output",
+        "text": "代表性论文：Volume reduction rate and its influencing factors in solitary uterine fibroids classified as Funaki types I and II after ultrasonography-guided high intensity focused ultrasound ablation: a prospective cohort study.（International journal of hyperthermia : the official journal of European Society for Hyperthermic Oncology, North American Hyperthermia Group，2025）",
+        "source_ids": [
+          "src_pubmed_41392568"
+        ],
+        "verification_status": "verified"
+      }
+    ],
+    "primary_public_source_ids": [
+      "src_web_d8bcfd7d491aa03f2e6fa2f7",
+      "src_web_bf779a825862af4d9a1cd381",
+      "src_web_c70f4a9b85a29008671e74ed",
+      "src_web_811aceb96010051e0bde1418",
+      "src_pubmed_42404224",
+      "src_pubmed_42277588",
+      "src_pubmed_41867046",
+      "src_pubmed_41634646",
+      "src_pubmed_41392568"
+    ]
+  },
+  "review": {
+    "title": "郎景和院士医生公开情况速览：北京协和医院妇产科名誉主任",
+    "abstract": "郎景和为中国工程院院士、中国医学科学院北京协和医学院北京协和医院妇产科名誉主任（教授、博士生导师）。1964年毕业于白求恩医科大学医疗系后进入北京协和医院，从事妇产科医疗、教学、科研五十余年，研究方向涵盖妇科癌瘤诊治、子宫内膜异位症、妇科内镜手术、子宫颈病变及女性盆底障碍性疾病等。近年仍担任林巧稚妇产科学术会议大会主席，并持续发表子宫内膜癌甲基化标志物检测、宫颈癌筛查及高强度聚焦超声（HIFU）等方向的验证性研究。本报告仅汇总公开资料中的身份、职务与研究事实，不评价其研究的科学质量或临床有效性。",
+    "keywords": [
+      "郎景和",
+      "北京协和医院",
+      "妇产科",
+      "妇科肿瘤",
+      "子宫内膜异位症",
+      "妇科内镜"
+    ],
+    "markdown": "# 郎景和院士公开情况速览\n\n## 身份与现任职务\n- 中国工程院院士，北京协和医院妇产科专家（北京协和医院官网，src_web_d8bcfd7d491aa03f2e6fa2f7）。\n- 中国医学科学院北京协和医学院北京协和医院妇产科名誉主任、教授、博士生导师（src_web_bf779a825862af4d9a1cd381、src_web_c70f4a9b85a29008671e74ed）。\n- 2025年7月担任第二十一届林巧稚妇产科学术会议大会主席（src_web_d8bcfd7d491aa03f2e6fa2f7）。\n\n## 教育与职业经历\n- 1964年毕业于白求恩医科大学医疗系，到北京协和医院从事临床、科研和教学工作（src_web_c70f4a9b85a29008671e74ed）。\n- 1985年到挪威、1986年到加拿大研修妇科肿瘤，主要研究课题为妇科癌瘤诊治及显微外科（src_web_c70f4a9b85a29008671e74ed）。\n- 从事妇产科医疗、教学、科研工作五十余年（src_web_c70f4a9b85a29008671e74ed）。\n\n## 专业方向与研究领域\n- 妇科肿瘤、子宫内膜异位症发病机制、妇科内镜手术、子宫颈病变、女性盆底障碍性疾病的诊治及基础研究（src_web_c70f4a9b85a29008671e74ed）。\n- 2019年在泰山论坛作《重视妇产科罕见病的诊断与治疗》学术讲座（src_web_811aceb96010051e0bde1418）。\n\n## 近期已验证的代表性论文（作者署名 Lang J，经 PubMed 检索验证）\n1. 子宫内膜癌宫颈细胞样本高甲基化基因标志物开发与验证（EndoMethy-I 试验，2026）。\n2. 宫颈癌筛查中细胞学甲基化检测（CISCER）在不同转化区的临床效用（2026）。\n3. 高强度聚焦超声在妇科疾病中的应用综述（2026）。\n4. 中国医院机会性宫颈癌筛查的多中心真实世界研究（TruScreen、细胞学与HPV检测比较，2026）。\n5. 超声引导HIFU消融后单发子宫肌瘤体积缩小率前瞻性队列研究（2025）。\n\n注：本报告仅陈述公开可查的身份、职务与研究事实，不构成医疗建议，也不评价研究的科学质量或临床有效性。",
+    "core_evidence": [
+      {
+        "reference_id": "ref_pmid_42404224",
+        "study_type": "诊断性试验（开发与验证，EndoMethy-I 试验）",
+        "sample_and_source": "探索队列40对子宫内膜组织与宫颈刮片样本；训练集347人、验证集149人（Frontiers in Oncology, 2026）",
+        "methods": "甲基化芯片筛选高通量甲基化靶向基因，结合出血症状与经阴道超声内膜厚度构建决策树并验证",
+        "key_results": "验证集中 CDO1、CELF4、NEFM 甲基化组合检测子宫内膜癌敏感性94.6%（95%CI 85.1–98.9），特异性92.8%（89.3–95.5）",
+        "limitations": "作者摘要自述为探索性研究；具体长期数据本摘要未提供"
+      },
+      {
+        "reference_id": "ref_pmid_42277588",
+        "study_type": "横断面诊断性能评估",
+        "sample_and_source": "2020年11月至2022年10月转诊阴道镜女性1782人，纳入分析1398人，其中1190人有转化区分型（International Journal of Cancer, 2026）",
+        "methods": "液基细胞学、高危HPV分型与 PAX1/JAM3 甲基化（CISCER）检测，以组织病理学为参照比较各转化区亚组的 CIN3+ 检出表现",
+        "key_results": "CISCER 检测 CIN3+ 在全体、TZ-1、TZ-2、TZ-3 中敏感性分别为67.4%、72.0%、48.3%、81.5%，特异性为91.0%、94.2%、91.3%、89.8%",
+        "limitations": "摘要未报告长期随访结局数据"
+      },
+      {
+        "reference_id": "ref_pmid_41867046",
+        "study_type": "叙述性文献综述",
+        "sample_and_source": "检索 PubMed、Embase、Web of Science 至2025年12月的文献（International Journal of Hyperthermia, 2026）",
+        "methods": "对 HIFU 在子宫肌瘤（135项）、子宫腺肌病（42项）等妇科疾病中的应用文献进行筛选、数据提取与质量评估",
+        "key_results": "综述认为 HIFU 对子宫肌瘤、子宫腺肌病等良性妇科疾病有效且严重不良事件率降低，可能是寻求保留生育功能患者可耐受的选择",
+        "limitations": "作者指出缺乏高质量长期随访数据"
+      },
+      {
+        "reference_id": "ref_pmid_41634646",
+        "study_type": "多中心横断面真实世界研究",
+        "sample_and_source": "2018年9月至2021年6月中国64家医院，14982名≥20岁女性（BMC Cancer, 2026）",
+        "methods": "TruScreen 光电设备、高危HPV、液基细胞学与阴道镜活检对照，以组织病理学为金标准计算诊断性能",
+        "key_results": "检测 CIN2+ 时 TruScreen 敏感性87.0%（95%CI 84.8–88.9%），特异性57.2%；与hrHPV联合的策略漏诊癌症最少（14例）",
+        "limitations": "作者指出需在大规模研究中验证长期有效性，尤其在中低收入国家"
+      },
+      {
+        "reference_id": "ref_pmid_41392568",
+        "study_type": "前瞻性队列研究",
+        "sample_and_source": "191例接受超声引导HIFU消融的孤立性子宫肌瘤（Funaki I/II型）患者（International Journal of Hyperthermia, 2025）",
+        "methods": "超声测量治疗后3、6、12个月肌瘤体积，计算体积缩小率（VRR）并进行单因素与多因素 logistic 分析",
+        "key_results": "12个月平均VRR为44.0%；年龄≥35岁（OR 3.436）与淋巴细胞计数<1.8×10⁹/L（OR 2.113）与高VRR显著相关",
+        "limitations": "摘要未报告样本流失与长期安全性数据"
+      }
+    ],
+    "references": [
+      {
+        "reference_id": "ref_pmid_42404224",
+        "title": "Development and validation of hypermethylated gene markers in cervical cytological samples for detecting endometrial cancer (EndoMethy-I trial).",
+        "journal": "Frontiers in oncology",
+        "publication_year": 2026,
+        "pmid": "42404224",
+        "doi": "10.3389/fonc.2026.1849730",
+        "verification_status": "verified"
+      },
+      {
+        "reference_id": "ref_pmid_42277588",
+        "title": "Clinical Utility of Cytological Methylation Assay in Cervical Cancer Screening Across Various Cervical Transformation Zones.",
+        "journal": "International journal of cancer",
+        "publication_year": 2026,
+        "pmid": "42277588",
+        "doi": "10.1002/ijc.70591",
+        "verification_status": "verified"
+      },
+      {
+        "reference_id": "ref_pmid_41867046",
+        "title": "Application of high-intensity focused ultrasound in gynaecological diseases.",
+        "journal": "International journal of hyperthermia : the official journal of European Society for Hyperthermic Oncology, North American Hyperthermia Group",
+        "publication_year": 2026,
+        "pmid": "41867046",
+        "doi": null,
+        "verification_status": "verified"
+      },
+      {
+        "reference_id": "ref_pmid_41634646",
+        "title": "A real-world multicenter study on opportunistic cervical cancer screening in hospital in China: comparison of TruScreen device, cytology, and HPV testing for detecting high-grade cervical lesions.",
+        "journal": "BMC cancer",
+        "publication_year": 2026,
+        "pmid": "41634646",
+        "doi": "10.1186/s12885-026-15590-6",
+        "verification_status": "verified"
+      },
+      {
+        "reference_id": "ref_pmid_41392568",
+        "title": "Volume reduction rate and its influencing factors in solitary uterine fibroids classified as Funaki types I and II after ultrasonography-guided high intensity focused ultrasound ablation: a prospective cohort study.",
+        "journal": "International journal of hyperthermia : the official journal of European Society for Hyperthermic Oncology, North American Hyperthermia Group",
+        "publication_year": 2025,
+        "pmid": "41392568",
+        "doi": null,
+        "verification_status": "verified"
+      }
+    ],
+    "search_report": {
+      "databases": [
+        "pubmed",
+        "crossref"
+      ],
+      "searched_at": "2026-08-27T14:28:54.419Z",
+      "queries": [
+        "((\"Lang JH\"[Author] OR \"Jinghe Lang\"[Author] OR \"Jing-He Lang\"[Author] OR \"Lang Jinghe\"[Author]) AND (\"beijing\"[Affiliation] OR \"bei jing\"[Affiliation] OR \"peking\"[Affiliation] OR \"union\"[Affiliation] OR \"xiehe\"[Affiliation]) AND (\"obstetrics\"[Affiliation] OR \"obstetric\"[Affiliation] OR \"gynecology\"[Affiliation] OR \"gynaecology\"[Affiliation])) AND (2022:2026[Date - Publication])"
+      ],
+      "included_count": 5
+    }
+  },
+  "source_coverage": {
+    "literature_sources": [
+      "pubmed",
+      "crossref"
+    ],
+    "profile_sources": [
+      "official_web",
+      "pubmed"
+    ],
+    "cutoff_date": "2026-08-27",
+    "warnings": [
+      "abstract_only_evidence",
+      "licensed_chinese_literature_not_covered",
+      "verified_reference_target_not_reached"
+    ]
+  },
+  "predicted_questions": [
+    "郎景和现在的职务是什么？",
+    "郎景和是什么专科的医生，擅长哪些方向？",
+    "郎景和的学历和职业经历是怎样的？",
+    "郎景和目前还在参与学术活动吗？",
+    "郎景和近年有哪些已验证的论文？"
+  ],
+  "answers": [
+    {
+      "question_index": 1,
+      "answer": "公开资料显示其为中国工程院院士、北京协和医院妇产科专家，并任中国医学科学院北京协和医学院北京协和医院妇产科名誉主任、教授、博士生导师。",
+      "source_ids": [
+        "src_web_d8bcfd7d491aa03f2e6fa2f7",
+        "src_web_c70f4a9b85a29008671e74ed"
+      ]
+    },
+    {
+      "question_index": 2,
+      "answer": "妇产科；公开简介提及他在妇科癌瘤诊治及显微外科、子宫内膜异位症发病机制、妇科内镜手术、子宫颈病变以及女性盆底障碍性疾病的诊治及基础研究方面有突出贡献。",
+      "source_ids": [
+        "src_web_c70f4a9b85a29008671e74ed"
+      ]
+    },
+    {
+      "question_index": 3,
+      "answer": "1964年毕业于白求恩医科大学医疗系后到北京协和医院工作；1985年到挪威、1986年到加拿大研修妇科肿瘤；从事妇产科医疗、教学、科研工作五十余年。",
+      "source_ids": [
+        "src_web_c70f4a9b85a29008671e74ed"
+      ]
+    },
+    {
+      "question_index": 4,
+      "answer": "是。2025年7月他以大会主席身份出席并致开幕辞于第二十一届林巧稚妇产科学术会议，并作《实验室检查的临床意义和研究价值》专题讲座。",
+      "source_ids": [
+        "src_web_d8bcfd7d491aa03f2e6fa2f7"
+      ]
+    },
+    {
+      "question_index": 5,
+      "answer": "经PubMed验证的近期论文涉及子宫内膜癌甲基化标志物检测、宫颈癌筛查细胞学甲基化检测、HIFU在妇科疾病中的应用、机会性宫颈癌筛查多中心研究及HIFU消融后子宫肌瘤体积缩小率研究（2025–2026年）。",
+      "source_ids": [
+        "src_pubmed_42404224",
+        "src_pubmed_42277588",
+        "src_pubmed_41867046",
+        "src_pubmed_41634646",
+        "src_pubmed_41392568"
+      ]
+    }
+  ],
+  "quality": {
+    "status": "passed_with_warnings",
+    "checks": [
+      "doctor_identity_resolution",
+      "official_profile_source_closure",
+      "verified_publication_attribution",
+      "reference_metadata_closed_set",
+      "prompt_injection_isolation",
+      "doctor_lookup_brief_contract"
+    ],
+    "warnings": [
+      "doctor_lookup_sources_require_user_verification",
+      "abstract_only_evidence",
+      "brief_relaxed_review_content_minimum",
+      "brief_relaxed_citation_reference_closure",
+      "brief_relaxed_paragraph_citation_coverage",
+      "brief_relaxed_answer_length_contract",
+      "brief_relaxed_numeric_evidence_closure",
+      "doctor_lookup_brief_completed",
+      "peer_review_skipped_after_deterministic_validation",
+      "verified_reference_target_not_reached"
+    ]
+  },
+  "schema_version": "doctor_research_result.v1",
+  "request_id": "req_research_worker_a2bca9bfbe15440c8a6b9f83f34122d5",
+  "run_id": "drr_a2bca9bfbe15440c8a6b9f83f34122d5",
+  "artifacts": [
+    {
+      "artifact_id": "dra_65a6f34f6f5147ab902e284f3331165a",
+      "kind": "profile",
+      "filename": "郎景和_基础信息与研究方向.md",
+      "content_type": "text/markdown; charset=utf-8",
+      "size_bytes": 4204,
+      "sha256": "5a4f5cbc537a51314818dc8c2317c564ad34139380c7c625847a152de00058fb",
+      "expires_at": "2026-09-26T14:29:59.428Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_65a6f34f6f5147ab902e284f3331165a/download"
+    },
+    {
+      "artifact_id": "dra_f5e04931837b4852bfad349b458f8543",
+      "kind": "review",
+      "filename": "郎景和_相关领域前沿综述.md",
+      "content_type": "text/markdown; charset=utf-8",
+      "size_bytes": 7702,
+      "sha256": "6aea482c8646d63e6ede4b4318c3d500826cc0d289f9a31efecdbdaabbf25327",
+      "expires_at": "2026-09-26T14:29:59.428Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_f5e04931837b4852bfad349b458f8543/download"
+    },
+    {
+      "artifact_id": "dra_b169fcaac9a1439ab221a65d8dc232d3",
+      "kind": "questions",
+      "filename": "郎景和_医生可能问机器人问题.txt",
+      "content_type": "text/plain; charset=utf-8",
+      "size_bytes": 256,
+      "sha256": "7ab48fbc27ac1adbe45ab528dec9755aeed61b20da2475895be2628d9ad4f1af",
+      "expires_at": "2026-09-26T14:29:59.428Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_b169fcaac9a1439ab221a65d8dc232d3/download"
+    },
+    {
+      "artifact_id": "dra_ca1267cb93b842769bd3dd68cfe05aae",
+      "kind": "answers",
+      "filename": "郎景和_问题与答案.md",
+      "content_type": "text/markdown; charset=utf-8",
+      "size_bytes": 4144,
+      "sha256": "6e02148c1d2ef8a53b4ea352e23a7bc3055336c428435205019aa12ae0b7e548",
+      "expires_at": "2026-09-26T14:29:59.428Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_ca1267cb93b842769bd3dd68cfe05aae/download"
+    }
+  ]
+}

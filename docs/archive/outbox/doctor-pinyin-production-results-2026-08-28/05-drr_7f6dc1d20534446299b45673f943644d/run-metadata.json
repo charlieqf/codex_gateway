@@ -1,0 +1,55 @@
+{
+  "run_id": "drr_7f6dc1d20534446299b45673f943644d",
+  "doctor": {
+    "name": "张文宏",
+    "hospital": "复旦大学附属华山医院",
+    "department": "感染科",
+    "city": "上海"
+  },
+  "status": "failed",
+  "stage": "screen_and_extract_evidence",
+  "warning_codes": [],
+  "terminal_reason": "model_contract_error",
+  "terminal_detail_public": "The research model did not return a valid structured result.",
+  "active_elapsed_ms": 126281,
+  "skill_version": "1.6.118",
+  "prompt_version": "doctor-research-prompt.v32",
+  "output_schema_version": "doctor_research_result.v1",
+  "created_at": "2026-08-27T14:33:37.339Z",
+  "completed_at": "2026-08-27T14:35:44.222Z",
+  "budget": {
+    "external_requests": 116,
+    "external_response_bytes": 232000000,
+    "llm_calls": 2,
+    "input_tokens": 28958,
+    "output_tokens": 16000
+  },
+  "model_stages": [
+    {
+      "stage": "synthesize_review",
+      "attempt": 1,
+      "duration_ms": 27297,
+      "prompt_tokens": 9587,
+      "completion_tokens": 2565,
+      "error_code": null,
+      "error_detail_sanitized": null,
+      "maximum_output_tokens": 8000,
+      "terminal_source": "provider_response",
+      "cancel_requested": 0,
+      "cancel_observed": 0
+    },
+    {
+      "stage": "validate_outputs",
+      "attempt": 2,
+      "duration_ms": 44623,
+      "prompt_tokens": 12251,
+      "completion_tokens": 2615,
+      "error_code": null,
+      "error_detail_sanitized": null,
+      "maximum_output_tokens": 8000,
+      "terminal_source": "provider_response",
+      "cancel_requested": 0,
+      "cancel_observed": 0
+    }
+  ]
+}

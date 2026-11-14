@@ -30,7 +30,7 @@ leaf nodes in priority order and probes `https://api.x.ai/v1/models` with HEAD,
 expected status 401, every 60 seconds, timeout 5000 ms, `lazy: false`.
 The leaves have different measured exit IPs; provider/ASN independence is not
 established. Other domains retain their existing routing. See the
-[rollout and rollback evidence](./xai-egress-rollout-2026-09-14.zh-CN.md).
+[rollout and rollback evidence](../archive/operations/xai-egress-rollout-2026-09-14.zh-CN.md).
 
 The Mihomo container publishes no host port. Do not add `ports`, bind host
 `7890/7891/9090`, or expose a controller. The public Gateway is the only
@@ -189,7 +189,7 @@ GeoIP changes are normal runtime state and are not part of the static manifest.
 ## Rollback
 
 For the 2026-09-14 xAI route change, use the config-only rollback in the
-[dated rollout record](./xai-egress-rollout-2026-09-14.zh-CN.md). Its verified
+[dated rollout record](../archive/operations/xai-egress-rollout-2026-09-14.zh-CN.md). Its verified
 protected backup is `/data/codex-gateway-r760/backups/xai-egress-20260914`.
 It restores the old proxy config and static manifest and sends SIGHUP to the
 existing Mihomo process; it does not roll back Gateway code or credentials.

@@ -1,0 +1,67 @@
+{
+  "run_id": "drr_393d16a694e047b5939fdf794946b65e",
+  "doctor": {
+    "name": "陈赛娟",
+    "hospital": "上海交通大学医学院附属瑞金医院",
+    "department": "血液科",
+    "city": "上海"
+  },
+  "status": "succeeded",
+  "stage": "complete",
+  "warning_codes": [
+    "abstract_only_evidence",
+    "licensed_chinese_literature_not_covered",
+    "verified_reference_target_not_reached",
+    "doctor_lookup_sources_require_user_verification",
+    "brief_relaxed_review_content_minimum",
+    "brief_relaxed_citation_reference_closure",
+    "brief_relaxed_paragraph_citation_coverage",
+    "brief_relaxed_answer_length_contract",
+    "brief_relaxed_numeric_evidence_closure",
+    "doctor_lookup_brief_completed",
+    "bounded_doctor_lookup_contract_retry_completed"
+  ],
+  "terminal_reason": null,
+  "terminal_detail_public": null,
+  "active_elapsed_ms": 65008,
+  "skill_version": "1.6.118",
+  "prompt_version": "doctor-research-prompt.v32",
+  "output_schema_version": "doctor_research_result.v1",
+  "created_at": "2026-08-27T14:38:09.485Z",
+  "completed_at": "2026-08-27T14:39:14.617Z",
+  "budget": {
+    "external_requests": 108,
+    "external_response_bytes": 216000000,
+    "llm_calls": 2,
+    "input_tokens": 39305,
+    "output_tokens": 16000
+  },
+  "model_stages": [
+    {
+      "stage": "synthesize_review",
+      "attempt": 1,
+      "duration_ms": 29919,
+      "prompt_tokens": 12706,
+      "completion_tokens": 2543,
+      "error_code": null,
+      "error_detail_sanitized": null,
+      "maximum_output_tokens": 8000,
+      "terminal_source": "provider_response",
+      "cancel_requested": 0,
+      "cancel_observed": 0
+    },
+    {
+      "stage": "validate_outputs",
+      "attempt": 2,
+      "duration_ms": 21914,
+      "prompt_tokens": 15268,
+      "completion_tokens": 2485,
+      "error_code": null,
+      "error_detail_sanitized": null,
+      "maximum_output_tokens": 8000,
+      "terminal_source": "provider_response",
+      "cancel_requested": 0,
+      "cancel_observed": 0
+    }
+  ]
+}

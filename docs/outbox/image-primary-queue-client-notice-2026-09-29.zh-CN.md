@@ -1,8 +1,8 @@
 # 生图固定首选模型与延长排队：客户端配合通知
 
-> 2026-11-11 状态更新：GPU1 的 Qwen worker 已停用，生图现在只有一个执行名额。在途总容量仍为 12，突发时排在后面的请求可能在 600 秒排队上限处超时。见 [CT 内存实测与准入调整](../operations/ct-memory-profile-2026-11-11.zh-CN.md)。
+> 2026-11-11 状态更新：GPU1 的 Qwen worker 已停用，生图现在只有一个执行名额。在途总容量仍为 12，突发时排在后面的请求可能在 600 秒排队上限处超时。见 [CT 内存实测与准入调整](../archive/operations/ct-memory-profile-2026-11-11.zh-CN.md)。
 
-日期：2026-09-29。**状态：已于北京时间 13:20:41 上线，运行版本 `752221d`，实际生图及公网自测通过。** 详见 [发布回执](../operations/image-primary-queue-release-2026-09-29.zh-CN.md)。线上容量已扩大，客户端仍需完成下列配合改动。
+日期：2026-09-29。**状态：已于北京时间 13:20:41 上线，运行版本 `752221d`，实际生图及公网自测通过。** 详见 [发布回执](../archive/operations/image-primary-queue-release-2026-09-29.zh-CN.md)。线上容量已扩大，客户端仍需完成下列配合改动。
 
 我们将生图策略调整为优先保证模型一致性：使用本地 Qwen-Image-2.1，关闭自动跨模型回退。繁忙时在现有队列等待，容量或期限耗尽则明确失败，不再自动调用 GPT Image、Grok、Gemini 等其他生图模型。公网模型名称和同步接口保持不变：`medcode-image-default`、`POST /gateway/images/generations`。
 

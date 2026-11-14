@@ -2,7 +2,7 @@
 
 日期：2026-09-10。本文冻结本批 Gateway 实施字段，取代审核回复中“字段待定”的部分。
 Gateway 已于北京时间 17:59 部署 R760，运行提交 `8dab89d`。
-验证证据见[运维发布记录](../operations/r760-vision-limits-recovery-release-2026-09-10.zh-CN.md)；
+验证证据见[运维发布记录](../archive/operations/r760-vision-limits-recovery-release-2026-09-10.zh-CN.md)；
 客户端源码和安装包由客户端团队维护。
 
 ## 接入入口与发布边界

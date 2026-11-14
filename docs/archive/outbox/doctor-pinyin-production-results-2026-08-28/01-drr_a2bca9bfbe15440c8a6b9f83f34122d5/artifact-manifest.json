@@ -1,0 +1,30 @@
+[
+  {
+    "kind": "answers",
+    "filename": "郎景和_问题与答案.md",
+    "content_type": "text/markdown; charset=utf-8",
+    "size_bytes": 4144,
+    "sha256": "6e02148c1d2ef8a53b4ea352e23a7bc3055336c428435205019aa12ae0b7e548"
+  },
+  {
+    "kind": "profile",
+    "filename": "郎景和_基础信息与研究方向.md",
+    "content_type": "text/markdown; charset=utf-8",
+    "size_bytes": 4204,
+    "sha256": "5a4f5cbc537a51314818dc8c2317c564ad34139380c7c625847a152de00058fb"
+  },
+  {
+    "kind": "questions",
+    "filename": "郎景和_医生可能问机器人问题.txt",
+    "content_type": "text/plain; charset=utf-8",
+    "size_bytes": 256,
+    "sha256": "7ab48fbc27ac1adbe45ab528dec9755aeed61b20da2475895be2628d9ad4f1af"
+  },
+  {
+    "kind": "review",
+    "filename": "郎景和_相关领域前沿综述.md",
+    "content_type": "text/markdown; charset=utf-8",
+    "size_bytes": 7702,
+    "sha256": "6aea482c8646d63e6ede4b4318c3d500826cc0d289f9a31efecdbdaabbf25327"
+  }
+]

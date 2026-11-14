@@ -227,4 +227,4 @@
 
 代码审查定位：`apps/gateway/src/research-routes.ts`、`packages/core/src/research.ts`、`packages/research-agent/src/identity-investigator.ts`、`workflow.ts`、`practical-profile-agent.ts`、`practical-profile-output.ts`、`artifacts.ts`，以及 `packages/store-sqlite/src/research-store.ts`。上述示例是字段说明，实际验收须另选可核查来源的真实人物样本。
 
-截图中六个人物的实际请求及验收限制另见[请求数据](person-research-six-cases-2026-10-12.json)和[验证记录](person-research-six-cases-validation-2026-10-12.zh-CN.md)。求学或校友经历不能直接当作当前任职机构；格式通过也不代表身份资料正确。
+截图中六个人物的实际请求及验收限制另见[请求数据](../archive/outbox/person-research-six-cases-2026-10-12.json)和[验证记录](../archive/outbox/person-research-six-cases-validation-2026-10-12.zh-CN.md)。求学或校友经历不能直接当作当前任职机构；格式通过也不代表身份资料正确。

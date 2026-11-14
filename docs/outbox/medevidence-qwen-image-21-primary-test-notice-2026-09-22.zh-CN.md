@@ -1,6 +1,6 @@
 # MedEvidence 客户端：Qwen-Image-2.1 默认生图实测通知
 
-> 2026-11-11 状态更新：GPU1 的 `qwen-image-worker@1` 已停用，并已移出 pool 依赖，现在只有 GPU0 一个 Qwen 常驻，也只有一个执行名额。原因是两个 worker 常驻会挤占 CT 所需的主机内存。见 [CT 内存实测与准入调整](../operations/ct-memory-profile-2026-11-11.zh-CN.md)。
+> 2026-11-11 状态更新：GPU1 的 `qwen-image-worker@1` 已停用，并已移出 pool 依赖，现在只有 GPU0 一个 Qwen 常驻，也只有一个执行名额。原因是两个 worker 常驻会挤占 CT 所需的主机内存。见 [CT 内存实测与准入调整](../archive/operations/ct-memory-profile-2026-11-11.zh-CN.md)。
 
 交接方式：供用户转发；未向客户端团队直接发送。以下为可转发正文。
 
@@ -44,4 +44,4 @@ Qwen 上游超时为 180 秒，Gateway 全链路总预算仍为 240 秒。当前
 
 请回传客户端版本、测试时间、提示词、尺寸/格式、总耗时、request ID，以及图片或错误截图。不要发送 API key。实际是否命中 Qwen 或后备模型由 Gateway 根据 request ID 核对。
 
-本次验证范围为现有文生图能力；安装版客户端结果待回传。详见 [双卡切换回执](../operations/qwen-image-dual-gpu-release-2026-09-22.zh-CN.md) 和 [文字对照报告](../operations/qwen-image-label-prompt-comparison-2026-09-22.zh-CN.md)。
+本次验证范围为现有文生图能力；安装版客户端结果待回传。详见 [双卡切换回执](../archive/operations/qwen-image-dual-gpu-release-2026-09-22.zh-CN.md) 和 [文字对照报告](../archive/operations/qwen-image-label-prompt-comparison-2026-09-22.zh-CN.md)。

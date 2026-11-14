@@ -1,6 +1,6 @@
 # Gateway 超时诊断优化与 Desktop 配合建议
 
-日期：2026-10-12。状态：Gateway `41e769c` 已上线并完成线上自测；Desktop 建议仍待客户端实现。详见[发布记录](../operations/gateway-timeout-release-2026-10-12.zh-CN.md)。
+日期：2026-10-12。状态：Gateway `41e769c` 已上线并完成线上自测；Desktop 建议仍待客户端实现。详见[发布记录](../archive/operations/gateway-timeout-release-2026-10-12.zh-CN.md)。
 
 ## Gateway 本次实现
 

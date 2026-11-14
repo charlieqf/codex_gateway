@@ -1,0 +1,55 @@
+{
+  "run_id": "drr_b0a92394ade9464bbc55e43b819a6e6f",
+  "doctor": {
+    "name": "葛均波",
+    "hospital": "复旦大学附属中山医院",
+    "department": "心内科",
+    "city": "上海"
+  },
+  "status": "succeeded",
+  "stage": "complete",
+  "warning_codes": [
+    "abstract_only_evidence",
+    "licensed_chinese_literature_not_covered",
+    "verified_reference_target_not_reached",
+    "doctor_lookup_sources_require_user_verification",
+    "brief_relaxed_review_content_minimum",
+    "brief_relaxed_citation_reference_closure",
+    "brief_relaxed_paragraph_citation_coverage",
+    "brief_relaxed_core_evidence_reference_coverage",
+    "brief_relaxed_answer_length_contract",
+    "brief_relaxed_numeric_evidence_closure",
+    "doctor_lookup_brief_completed",
+    "peer_review_skipped_after_deterministic_validation"
+  ],
+  "terminal_reason": null,
+  "terminal_detail_public": null,
+  "active_elapsed_ms": 40888,
+  "skill_version": "1.6.118",
+  "prompt_version": "doctor-research-prompt.v32",
+  "output_schema_version": "doctor_research_result.v1",
+  "created_at": "2026-08-27T14:37:23.862Z",
+  "completed_at": "2026-08-27T14:38:05.393Z",
+  "budget": {
+    "external_requests": 116,
+    "external_response_bytes": 232000000,
+    "llm_calls": 1,
+    "input_tokens": 11245,
+    "output_tokens": 8000
+  },
+  "model_stages": [
+    {
+      "stage": "synthesize_review",
+      "attempt": 1,
+      "duration_ms": 24457,
+      "prompt_tokens": 8124,
+      "completion_tokens": 2104,
+      "error_code": null,
+      "error_detail_sanitized": null,
+      "maximum_output_tokens": 8000,
+      "terminal_source": "provider_response",
+      "cancel_requested": 0,
+      "cancel_observed": 0
+    }
+  ]
+}

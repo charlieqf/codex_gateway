@@ -16,7 +16,7 @@ replace or modify the frozen
 [`medevidence-internal-phone-auth-v1`](../medevidence-internal-phone-auth-v1/README.md)
 wire shapes. It replaces that contract's one-time cutover and global Desktop
 version-gate assumptions as specified by the authoritative
-[`MedEvidence R760 dual-track implementation specification`](../../implementation/medevidence-r760-dual-track-phone-auth-gateway-implementation-spec-2026-08-21.zh-CN.md).
+[`MedEvidence R760 dual-track implementation specification`](../../archive/implementation/medevidence-r760-dual-track-phone-auth-gateway-implementation-spec-2026-08-21.zh-CN.md).
 
 The contract becomes frozen only when Gateway and Desktop sign the same full
 commit. Until then, `contract_candidate` must not be described as deployed or

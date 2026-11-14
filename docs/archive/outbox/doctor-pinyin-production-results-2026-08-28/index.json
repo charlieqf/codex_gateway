@@ -1,0 +1,92 @@
+[
+  {
+    "order": 1,
+    "name": "郎景和",
+    "run_id": "drr_a2bca9bfbe15440c8a6b9f83f34122d5",
+    "status": "succeeded",
+    "elapsed_seconds": 64.822,
+    "artifact_count": 4,
+    "terminal_reason": null
+  },
+  {
+    "order": 2,
+    "name": "赵玉沛",
+    "run_id": "drr_8d4e0b28fd804ee99c1f265a29f9e8be",
+    "status": "succeeded",
+    "elapsed_seconds": 52.391,
+    "artifact_count": 4,
+    "terminal_reason": null
+  },
+  {
+    "order": 3,
+    "name": "杨璐",
+    "run_id": "drr_80a78ef0b6174d61a84964667517c657",
+    "status": "succeeded",
+    "elapsed_seconds": 83.128,
+    "artifact_count": 4,
+    "terminal_reason": null
+  },
+  {
+    "order": 4,
+    "name": "文煜冰",
+    "run_id": "drr_dd42f7473d8d4420987c1168defc454f",
+    "status": "succeeded",
+    "elapsed_seconds": 72.146,
+    "artifact_count": 4,
+    "terminal_reason": null
+  },
+  {
+    "order": 5,
+    "name": "张文宏",
+    "run_id": "drr_7f6dc1d20534446299b45673f943644d",
+    "status": "failed",
+    "elapsed_seconds": 126.281,
+    "artifact_count": 0,
+    "terminal_reason": "model_contract_error"
+  },
+  {
+    "order": 6,
+    "name": "乔杰",
+    "run_id": "drr_899fac475f624370b113ff7828376c0c",
+    "status": "succeeded",
+    "elapsed_seconds": 89.888,
+    "artifact_count": 4,
+    "terminal_reason": null
+  },
+  {
+    "order": 7,
+    "name": "葛均波",
+    "run_id": "drr_b0a92394ade9464bbc55e43b819a6e6f",
+    "status": "succeeded",
+    "elapsed_seconds": 40.888,
+    "artifact_count": 4,
+    "terminal_reason": null
+  },
+  {
+    "order": 8,
+    "name": "陈赛娟",
+    "run_id": "drr_393d16a694e047b5939fdf794946b65e",
+    "status": "succeeded",
+    "elapsed_seconds": 65.008,
+    "artifact_count": 4,
+    "terminal_reason": null
+  },
+  {
+    "order": 9,
+    "name": "李为民",
+    "run_id": "drr_7b0e0ef992cb44ea947deebad69df344",
+    "status": "succeeded",
+    "elapsed_seconds": 48.695,
+    "artifact_count": 4,
+    "terminal_reason": null
+  },
+  {
+    "order": 10,
+    "name": "王伟林",
+    "run_id": "drr_986c53d96592442e8a79354bbf254af1",
+    "status": "succeeded",
+    "elapsed_seconds": 80.609,
+    "artifact_count": 4,
+    "terminal_reason": null
+  }
+]

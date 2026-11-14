@@ -77,7 +77,7 @@ Desktop 原始用户消息位于 Gateway，不在 MedEvidence v2 的
 不能单凭客户端会话标识建立身份授权；候选请求不加入本账号 `request_summary` 或用量。
 `gateway_requests` 明确返回请求的 `subject_id`、`credential_id`（均为记录 ID，不是 Key）。
 消息／版本缺失时不推断不一致，同一会话的合法切号不被锁定或拦截。
-详见本次修复回执（`docs/outbox/medevidence-account-usage-gateway-fix-receipt-2026-09-14.zh-CN.md`，含具体用户信息，仅本地保存，未入库）。
+详见本次修复回执（`docs/archive/outbox/medevidence-account-usage-gateway-fix-receipt-2026-09-14.zh-CN.md`，含具体用户信息，仅本地保存，未入库）。
 
 ## CLI 参数
 

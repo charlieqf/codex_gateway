@@ -1,6 +1,6 @@
 # Gateway 身份请求审计：只读排查与覆盖边界
 
-适用于包含本次身份请求出口的程序及 schema 34。`71689e3` 已于 2026-09-18 08:36 UTC 上线，详见[发布验收记录](./r760-identity-request-audit-release-2026-09-18.zh-CN.md)；后续实际运行版本仍需现场核对。
+适用于包含本次身份请求出口的程序及 schema 34。`71689e3` 已于 2026-09-18 08:36 UTC 上线，详见[发布验收记录](../archive/operations/r760-identity-request-audit-release-2026-09-18.zh-CN.md)；后续实际运行版本仍需现场核对。
 
 ## 请求事实与安全事件
 

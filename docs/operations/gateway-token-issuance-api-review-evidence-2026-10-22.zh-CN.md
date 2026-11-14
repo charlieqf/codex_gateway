@@ -6,7 +6,7 @@
 
 ## 2026-10-23 追加 Token 功能实现
 
-Gateway `ea1ca39` 已上线独立的 gift／topup 发放、按幂等键查询、账户发放流水和追加余额查询；接口合同见[追加 Token 接入文档](../outbox/gateway-token-credits-api-2026-10-23.zh-CN.md)。2026-10-22 21:49 UTC 完成线上验收，见[发布记录](gateway-token-credits-release-2026-10-23.zh-CN.md)。仅对隔离测试账户发放和扣费，未调整真实用户余额。下文 2026-10-22 早期核验保留当时状态。
+Gateway `ea1ca39` 已上线独立的 gift／topup 发放、按幂等键查询、账户发放流水和追加余额查询；接口合同见[追加 Token 接入文档](../outbox/gateway-token-credits-api-2026-10-23.zh-CN.md)。2026-10-22 21:49 UTC 完成线上验收，见[发布记录](../archive/operations/gateway-token-credits-release-2026-10-23.zh-CN.md)。仅对隔离测试账户发放和扣费，未调整真实用户余额。下文 2026-10-22 早期核验保留当时状态。
 
 - 用户已确认永久有效，且套餐日／月 Token 额度不足后允许使用追加余额。
 - SQLite migration 43 新建 token_credit_accounts、token_credit_events、token_credit_debits，并为预留增加追加额度拆分字段和在途查询索引。只增加结构；旧 Plan、权益、Key、用量和请求快照保持。新发放不生成或替换 Plan。
@@ -69,6 +69,6 @@ Gateway `ea1ca39` 已上线独立的 gift／topup 发放、按幂等键查询、
 - [管理端权益发放与用量结转](../../packages/store-sqlite/src/entitlements.ts)
 - [客户端凭据与额度查询](../../apps/gateway/src/index.ts)
 - [手机号账户服务](../../apps/gateway/src/services/phone-auth-service.ts)
-- [免费额度升级至 500 万](free-plan-5m-2026-09-24.zh-CN.md)
+- [免费额度升级至 500 万](../archive/operations/free-plan-5m-2026-09-24.zh-CN.md)
 
 旧[收费充值外发指南](../medevidence-billing-integration-guide.external.zh-CN.md)仍可追溯字段合同，但免费 100 万、早期三档套餐和“全部写接口幂等”等表述不能整体作为当前线上行为。已将相关差异用业务规则写入外发清单，内部源码路径和发布／测试记录保留在此。

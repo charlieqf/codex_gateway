@@ -19,6 +19,7 @@ isolated loopback/dark edge but is not a public authority or fallback.
 
 ## Start With The Task
 
+- Documentation directory: [Docs Index](./docs/README.md)
 - Current state: [System Status](./docs/operations/system-status.md)
 - Operations routing: [Runbook Index](./docs/operations/runbook-index.md)
 - Environment and deployment: [Environment Access](./docs/operations/environment-access.md)
@@ -30,8 +31,9 @@ isolated loopback/dark edge but is not a public authority or fallback.
 - Client API contract: [Consumer Technical Guide](./docs/consumer-technical-guide.md)
 - Doctor Research: [Doctor Research](./docs/research/doctor-research/README.md)
 
-Dated reports and files under `docs/implementation` are design/history unless
-a current runbook links them for a specific task. Do not read all documents
+Completed implementation plans and dated evidence are in
+[Historical Archive](./docs/archive/README.md). Active contracts and unresolved
+plans remain in the main documentation directories. Do not read the full archive
 before starting a routine query.
 
 ## Repository Shape
@@ -42,8 +44,10 @@ apps/admin-cli/        operator CLI
 apps/research-worker/  Doctor Research worker/maintenance
 packages/              shared contracts, providers and SQLite stores
 scripts/               guarded operations, smokes and support wrappers
-docs/operations/       current runbooks and dated release evidence
-docs/research/          Doctor Research contract and implementation records
+docs/operations/       current runbooks and open operational work
+docs/implementation/   active contracts and plans awaiting completion
+docs/research/          current Research contracts, runbooks and reference assets
+docs/archive/           completed implementation and historical evidence
 tests/                  contract and end-to-end coverage
 ```
 

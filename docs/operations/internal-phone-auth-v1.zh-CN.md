@@ -13,7 +13,7 @@
 > 2026-08-22 的历史记录；覆盖范围已在 2026-08-24 完成系统恢复，不限于 manual_trial。
 
 本实现只用于 R760 权威 Gateway。权威实施规格为
-[`MedEvidence R760 双轨兼容手机号免验证码登录 Gateway 实施规格 v1`](../implementation/medevidence-r760-dual-track-phone-auth-gateway-implementation-spec-2026-08-21.zh-CN.md)，
+[`MedEvidence R760 双轨兼容手机号免验证码登录 Gateway 实施规格 v1`](../archive/implementation/medevidence-r760-dual-track-phone-auth-gateway-implementation-spec-2026-08-21.zh-CN.md)，
 Desktop/Gateway 联调使用新的
 [`medevidence-r760-dual-track-phone-auth-v1`](../contracts/medevidence-r760-dual-track-phone-auth-v1/README.md)
 contract；旧 frozen contract 只提供未变化的 wire shape。
@@ -140,7 +140,7 @@ nip.io 的 TLS/SNI reset；发生该网络故障的设备仍必须升级到支�
 
 ## 存量准备、后续发放与停用
 
-当前存量准备依据是有效的 code credential bundle、active chat entitlement 和唯一、受支持手机号，不能只按 `provider=manual_trial` 筛选。2026-08-24 已补齐历史 direct key 和其他发行路径的符合条件账户；详细证据见[系统恢复结果](../implementation/medevidence-r760-phone-auth-systemic-recovery-result-2026-08-24.zh-CN.md)。手机号、Subject、Key 恢复材料由 Gateway 自查；Billing 测试开户的 Key 保存行为不能代表全部真实用户。
+当前存量准备依据是有效的 code credential bundle、active chat entitlement 和唯一、受支持手机号，不能只按 `provider=manual_trial` 筛选。2026-08-24 已补齐历史 direct key 和其他发行路径的符合条件账户；详细证据见[系统恢复结果](../archive/implementation/medevidence-r760-phone-auth-systemic-recovery-result-2026-08-24.zh-CN.md)。手机号、Subject、Key 恢复材料由 Gateway 自查；Billing 测试开户的 Key 保存行为不能代表全部真实用户。
 
 以下人数仅还原首次上线批次：
 
@@ -149,7 +149,7 @@ nip.io 的 TLS/SNI reset；发生该网络故障的设备仍必须升级到支�
 identity。批量准备为每个目标复用同一 Subject、Plan、entitlement 和 backing credential；无法恢复
 旧明文统一 Key 时增发一个可恢复的兼容 current Key，但不撤销或缩短任何旧 Key。迁移结果、备份和
 不变量见
-[`生产双轨 Phone Auth 上线结果`](../implementation/medevidence-r760-global-dual-track-phone-auth-rollout-result-2026-08-22.zh-CN.md)。
+[`生产双轨 Phone Auth 上线结果`](../archive/implementation/medevidence-r760-global-dual-track-phone-auth-rollout-result-2026-08-22.zh-CN.md)。
 
 以后通过正式 real-user issuance 流程发放、且提供有效唯一手机号的新用户，会在正式发放作业成功前执行
 `prepare_phone_login`，准备 Phone identity 和可恢复的 current Key。未知手机号仍返回 `403 phone_not_registered`，不得在登录请求中自动创建

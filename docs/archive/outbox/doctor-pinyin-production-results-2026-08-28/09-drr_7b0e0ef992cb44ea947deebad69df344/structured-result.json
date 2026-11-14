@@ -1,0 +1,431 @@
+{
+  "doctor": {
+    "name": "李为民",
+    "hospital": "四川大学华西医院",
+    "department": "呼吸与危重症医学科"
+  },
+  "identity_resolution": {
+    "status": "verified",
+    "confidence": "medium",
+    "canonical_identity_id": "dci_e24f9555d1831dec490c32260238487b",
+    "matched_by": [
+      "institution",
+      "department"
+    ]
+  },
+  "sources": [
+    {
+      "source_id": "src_web_167326bd70870b2439c8b1ce",
+      "source_type": "official_web",
+      "title": "李为民院长率团参加中华医学会呼吸病学2020年度年会 - 四川大学华西医院 - 四川大学华西医院",
+      "url": "https://www.wchscu.cn/public/department/nephrology/dynamics/53766.html",
+      "accessed_at": "2026-08-27T14:39:29.966Z",
+      "content_sha256": "6b73acee50fd4b09d542e7a9893df0cb86849b511acef630ea697dae53089de2"
+    },
+    {
+      "source_id": "src_web_eec41bfeedffe5fdff40bb99",
+      "source_type": "official_web",
+      "title": "我院呼吸与危重症医学科召开2024年学科发展大会 - 四川大学华西医院 - 四川大学华西医院",
+      "url": "https://www.wchscu.cn/public/department/nephrology/dynamics/82367.html",
+      "accessed_at": "2026-08-27T14:39:29.959Z",
+      "content_sha256": "9d8d0ddd9b59936f6605ba30dfe1a281bab19bc18ea58dfe10e159f34c3cdc73"
+    },
+    {
+      "source_id": "src_web_8b3f84042f0a54a47fa09400",
+      "source_type": "official_web",
+      "title": "【筑高原、建高峰】我院呼吸与危重症医学科召开2023年学科发展大会 - 四川大学华西医院 - 四川大学华西医院",
+      "url": "https://www.wchscu.cn/clique/front/rules/72681.html",
+      "accessed_at": "2026-08-27T14:39:30.327Z",
+      "content_sha256": "91a099d05f344cd6c35f7fb49413180cc55b66b8061c08f637338aa3b9e8a2d1"
+    },
+    {
+      "source_id": "src_pubmed_42633981",
+      "source_type": "pubmed",
+      "title": "Sitting Time and Physical Activity Correlate With Asthma Exacerbations in Adults: A Cross-Sectional Study From the Australasian Severe Asthma Network.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42633981/",
+      "accessed_at": "2026-08-27T14:39:33.204Z",
+      "content_sha256": "c056af1e071a6e3f644d38507cabd5ec6bbc66f674b82f7d3ca17641fb7a5742"
+    },
+    {
+      "source_id": "src_crossref_881b99e86f47bd97f7dbb804",
+      "source_type": "crossref",
+      "title": "H-X model: A novel tool for predicting pulmonary embolism in lung cancer",
+      "url": "https://api.crossref.org/v1/works/10.1097%2Fcm9.0000000000004268",
+      "accessed_at": "2026-08-27T14:39:36.436Z",
+      "content_sha256": "641b641837a2a0120847c600179e557d911122a1112bc1aff4d600aec1544b1b"
+    },
+    {
+      "source_id": "src_pubmed_42624780",
+      "source_type": "pubmed",
+      "title": "H-X model: A novel tool for predicting pulmonary embolism in lung cancer.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42624780/",
+      "accessed_at": "2026-08-27T14:39:36.166Z",
+      "content_sha256": "8589d9eef0328101393dab76ea87e3c7e8bc1f42207003adffd0621b2f83c722"
+    },
+    {
+      "source_id": "src_crossref_74dfe127b0576059f3b5af85",
+      "source_type": "crossref",
+      "title": "Asthmatics with increased triglyceride-glucose index are at elevated risk of exacerbations independent of type 2 inflammation: A prospective cohort study",
+      "url": "https://api.crossref.org/v1/works/10.1016%2Fj.jaip.2026.08.012",
+      "accessed_at": "2026-08-27T14:39:37.598Z",
+      "content_sha256": "f884c5191a6987ca9371e68f7d0daf162e5426811d8c83834a6b060b73ef3caa"
+    },
+    {
+      "source_id": "src_pubmed_42600980",
+      "source_type": "pubmed",
+      "title": "Asthmatics with increased triglyceride-glucose index are at elevated risk of exacerbations independent of type 2 inflammation: A prospective cohort study.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42600980/",
+      "accessed_at": "2026-08-27T14:39:37.331Z",
+      "content_sha256": "d1b2ba6088c88f931c3436bd91224df32152fc35bb4b3a602d1ee3e44639bfa2"
+    },
+    {
+      "source_id": "src_crossref_0e4816686cbbae067aad2d89",
+      "source_type": "crossref",
+      "title": "Deciphering lung cancer at high resolution: a narrative review of applications of single-cell and spatial transcriptomics sequencing",
+      "url": "https://api.crossref.org/v1/works/10.21037%2Ftlcr-2026-0317",
+      "accessed_at": "2026-08-27T14:39:38.967Z",
+      "content_sha256": "86fa13aa762b0aeab73277a7ca852a5069c42b0a951ac5435082a1eeb047bec7"
+    },
+    {
+      "source_id": "src_pubmed_42582974",
+      "source_type": "pubmed",
+      "title": "Deciphering lung cancer at high resolution: a narrative review of applications of single-cell and spatial transcriptomics sequencing.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42582974/",
+      "accessed_at": "2026-08-27T14:39:38.695Z",
+      "content_sha256": "fba085b99500f2d0604a4fb3f51778f24a4bc1f69016690e5b50965f2e50b3c8"
+    },
+    {
+      "source_id": "src_crossref_ccfe993edbb06a2fad4bdfd0",
+      "source_type": "crossref",
+      "title": "Correction: Granzyme B-based CAR-T cells targeting membrane-bound HSP70 suppress solid tumor growth and metastasis",
+      "url": "https://api.crossref.org/v1/works/10.1038%2Fs41388-026-03929-z",
+      "accessed_at": "2026-08-27T14:39:39.953Z",
+      "content_sha256": "389e535a42ea2e7afc035c36f095864665940db5d160316fa191b47d478903b2"
+    },
+    {
+      "source_id": "src_pubmed_42521836",
+      "source_type": "pubmed",
+      "title": "Correction: Granzyme B-based CAR-T cells targeting membrane-bound HSP70 suppress solid tumor growth and metastasis.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42521836/",
+      "accessed_at": "2026-08-27T14:39:39.684Z",
+      "content_sha256": "a81aecff2cc3b34c7facc3b54fdcd2fdcf50ad3b714e6b7604e25eead41aee26"
+    }
+  ],
+  "profile": {
+    "positions": [],
+    "expertise": [],
+    "education_and_career": [],
+    "research_directions": [],
+    "representative_outputs": [
+      "代表性论文：Sitting Time and Physical Activity Correlate With Asthma Exacerbations in Adults: A Cross-Sectional Study From the Australasian Severe Asthma Network.（Clinical and experimental allergy : journal of the British Society for Allergy and Clinical Immunology，2026）",
+      "代表性论文：H-X model: A novel tool for predicting pulmonary embolism in lung cancer.（Chinese medical journal，2026）",
+      "代表性论文：Asthmatics with increased triglyceride-glucose index are at elevated risk of exacerbations independent of type 2 inflammation: A prospective cohort study.（The journal of allergy and clinical immunology. In practice，2026）",
+      "代表性论文：Deciphering lung cancer at high resolution: a narrative review of applications of single-cell and spatial transcriptomics sequencing.（Translational lung cancer research，2026）",
+      "代表性论文：Correction: Granzyme B-based CAR-T cells targeting membrane-bound HSP70 suppress solid tumor growth and metastasis.（Oncogene，2026）"
+    ],
+    "claims": [
+      {
+        "claim_id": "clm_identity_verified",
+        "claim_type": "identity",
+        "text": "The supplied identity for 李为民 matched the retrieved official public evidence.",
+        "source_ids": [
+          "src_web_167326bd70870b2439c8b1ce",
+          "src_web_eec41bfeedffe5fdff40bb99",
+          "src_web_8b3f84042f0a54a47fa09400"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_1",
+        "claim_type": "representative_output",
+        "text": "代表性论文：Sitting Time and Physical Activity Correlate With Asthma Exacerbations in Adults: A Cross-Sectional Study From the Australasian Severe Asthma Network.（Clinical and experimental allergy : journal of the British Society for Allergy and Clinical Immunology，2026）",
+        "source_ids": [
+          "src_pubmed_42633981"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_2",
+        "claim_type": "representative_output",
+        "text": "代表性论文：H-X model: A novel tool for predicting pulmonary embolism in lung cancer.（Chinese medical journal，2026）",
+        "source_ids": [
+          "src_pubmed_42624780"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_3",
+        "claim_type": "representative_output",
+        "text": "代表性论文：Asthmatics with increased triglyceride-glucose index are at elevated risk of exacerbations independent of type 2 inflammation: A prospective cohort study.（The journal of allergy and clinical immunology. In practice，2026）",
+        "source_ids": [
+          "src_pubmed_42600980"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_4",
+        "claim_type": "representative_output",
+        "text": "代表性论文：Deciphering lung cancer at high resolution: a narrative review of applications of single-cell and spatial transcriptomics sequencing.（Translational lung cancer research，2026）",
+        "source_ids": [
+          "src_pubmed_42582974"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_5",
+        "claim_type": "representative_output",
+        "text": "代表性论文：Correction: Granzyme B-based CAR-T cells targeting membrane-bound HSP70 suppress solid tumor growth and metastasis.（Oncogene，2026）",
+        "source_ids": [
+          "src_pubmed_42521836"
+        ],
+        "verification_status": "verified"
+      }
+    ],
+    "primary_public_source_ids": [
+      "src_web_167326bd70870b2439c8b1ce",
+      "src_web_eec41bfeedffe5fdff40bb99",
+      "src_web_8b3f84042f0a54a47fa09400",
+      "src_pubmed_42633981",
+      "src_pubmed_42624780",
+      "src_pubmed_42600980",
+      "src_pubmed_42582974",
+      "src_pubmed_42521836"
+    ]
+  },
+  "review": {
+    "title": "李为民医生公开情况速览：四川大学华西医院院长、呼吸与危重症医学领域专家",
+    "abstract": "根据四川大学华西医院官网公开信息，李为民担任四川大学华西医院院长，并同时担任呼吸和共病研究院院长、呼吸健康研究所所长。他是呼吸与危重症医学科领域专家，曾在2020年中华医学会呼吸病学年会上作关于恶性胸腔积液规范诊治及未来方向的大会主旨报告，并多次主持呼吸学科发展规划讨论。检索到的已验证发表文献涉及哮喘急性发作相关因素、肺癌相关预测模型与单细胞/空间转录组学综述等呼吸领域方向。",
+    "keywords": [
+      "李为民",
+      "四川大学华西医院",
+      "呼吸与危重症医学科",
+      "院长",
+      "恶性胸腔积液",
+      "哮喘",
+      "肺癌"
+    ],
+    "markdown": "# 李为民医生公开情况速览\n\n## 身份与现任职务\n根据四川大学华西医院官网公开报道，李为民为四川大学华西医院院长，同时担任呼吸和共病研究院院长、呼吸健康研究所所长。\n\n## 专业领域\n李为民属于呼吸与危重症医学科。医院官网报道其“作了关于恶性胸腔积液规范诊治及未来方向的大会主旨报告”，显示其在恶性胸腔积液诊治方向的学术活动。\n\n## 学科建设角色\n官网报道显示，李为民院长多次在呼吸与危重症医科学科发展大会上作开场致辞，就学科建设提出指导意见，涉及肺结节与肺癌、间质性肺疾病、慢性阻塞性肺疾病、支气管哮喘、呼吸系统感染等11个亚专业方向的规划。\n\n## 已验证发表文献（由 Worker 基于作者与机构证据核实添加）\n检索到数篇经核实的发表论文，主题包括哮喘急性发作相关因素（久坐时间与体力活动、甘油三酯-葡萄糖指数）、肺癌合并肺栓塞预测模型、肺癌单细胞与空间转录组学综述等。\n\n## 说明\n教育背景（学历、毕业院校等）在本次检索的公开来源中未提供。",
+    "core_evidence": [
+      {
+        "reference_id": "ref_pmid_42600980",
+        "study_type": "前瞻性队列研究（12个月随访）",
+        "sample_and_source": "基于Australasian Severe Asthma Network（ASAN）的626名稳定期哮喘患者，来源于PubMed已验证文献记录。",
+        "methods": "按TyG指数第75百分位分为TyG高/低组，并进行T2炎症状态亚组分析；采用单变量与多变量负二项回归分析哮喘急性发作与TyG指数的关系。",
+        "key_results": "TyG高组患者BMI更高、代谢功能与气道阻塞更差、合并症更多，急性发作风险升高且独立于T2炎症；TyG高/T2低组的中重度急性发作校正IRR为2.54（95%CI 1.56–4.15）。该文仅描述文献报告的研究结果，不代表对其临床有效性的认定。",
+        "limitations": "摘要中未报告完整局限信息；本研究为观察性队列，因果推断能力有限。"
+      },
+      {
+        "reference_id": "ref_pmid_42624780",
+        "study_type": "预测模型研究（H-X模型）",
+        "sample_and_source": "来源于PubMed已验证文献记录，发表于Chinese Medical Journal。",
+        "methods": "构建用于预测肺癌患者肺栓塞的H-X模型。",
+        "key_results": "文献提出了一种预测肺癌肺栓塞的新型H-X模型。检索到的记录未提供摘要，细节无法核实。",
+        "limitations": "检索记录未提供摘要，样本量、方法细节与结果数据不可得。"
+      },
+      {
+        "reference_id": "ref_pmid_42582974",
+        "study_type": "叙述性综述",
+        "sample_and_source": "来源于PubMed已验证文献记录，发表于Translational Lung Cancer Research，检索2020–2025年英文文献。",
+        "methods": "综述单细胞RNA测序与空间转录组学在肺癌研究中的应用。",
+        "key_results": "综述指出这些技术已将肺癌研究从整体肿瘤分析推进到细胞与空间生态系统分析，但许多生物标志物与治疗靶点仍处于探索阶段。该文仅描述文献报告的内容。",
+        "limitations": "综述性质，作者自述许多发现仍需空间验证、功能实验与临床队列验证后方可转化。"
+      }
+    ],
+    "references": [
+      {
+        "reference_id": "ref_pmid_42633981",
+        "title": "Sitting Time and Physical Activity Correlate With Asthma Exacerbations in Adults: A Cross-Sectional Study From the Australasian Severe Asthma Network.",
+        "journal": "Clinical and experimental allergy : journal of the British Society for Allergy and Clinical Immunology",
+        "publication_year": 2026,
+        "pmid": "42633981",
+        "doi": null,
+        "verification_status": "verified"
+      },
+      {
+        "reference_id": "ref_pmid_42624780",
+        "title": "H-X model: A novel tool for predicting pulmonary embolism in lung cancer.",
+        "journal": "Chinese medical journal",
+        "publication_year": 2026,
+        "pmid": "42624780",
+        "doi": "10.1097/cm9.0000000000004268",
+        "verification_status": "verified"
+      },
+      {
+        "reference_id": "ref_pmid_42600980",
+        "title": "Asthmatics with increased triglyceride-glucose index are at elevated risk of exacerbations independent of type 2 inflammation: A prospective cohort study.",
+        "journal": "The journal of allergy and clinical immunology. In practice",
+        "publication_year": 2026,
+        "pmid": "42600980",
+        "doi": "10.1016/j.jaip.2026.08.012",
+        "verification_status": "verified"
+      },
+      {
+        "reference_id": "ref_pmid_42582974",
+        "title": "Deciphering lung cancer at high resolution: a narrative review of applications of single-cell and spatial transcriptomics sequencing.",
+        "journal": "Translational lung cancer research",
+        "publication_year": 2026,
+        "pmid": "42582974",
+        "doi": "10.21037/tlcr-2026-0317",
+        "verification_status": "verified"
+      },
+      {
+        "reference_id": "ref_pmid_42521836",
+        "title": "Correction: Granzyme B-based CAR-T cells targeting membrane-bound HSP70 suppress solid tumor growth and metastasis.",
+        "journal": "Oncogene",
+        "publication_year": 2026,
+        "pmid": "42521836",
+        "doi": "10.1038/s41388-026-03929-z",
+        "verification_status": "verified"
+      }
+    ],
+    "search_report": {
+      "databases": [
+        "pubmed",
+        "crossref"
+      ],
+      "searched_at": "2026-08-27T14:39:20.140Z",
+      "queries": [
+        "((\"Li WM\"[Author] OR \"Weimin Li\"[Author] OR \"Wei-Min Li\"[Author] OR \"Li Weimin\"[Author]) AND (\"west china\"[Affiliation] OR \"huaxi\"[Affiliation] OR \"sichuan\"[Affiliation] OR \"si chuan\"[Affiliation]) AND (\"respiratory\"[Affiliation] OR \"pulmonary\"[Affiliation] OR \"critical care\"[Affiliation])) AND (2022:2026[Date - Publication])"
+      ],
+      "included_count": 5
+    }
+  },
+  "source_coverage": {
+    "literature_sources": [
+      "pubmed",
+      "crossref"
+    ],
+    "profile_sources": [
+      "official_web",
+      "pubmed"
+    ],
+    "cutoff_date": "2026-08-27",
+    "warnings": [
+      "abstract_only_evidence",
+      "licensed_chinese_literature_not_covered",
+      "doctor_research_direction_evidence_not_found",
+      "verified_reference_target_not_reached"
+    ]
+  },
+  "predicted_questions": [
+    "李为民医生现在担任什么职务？",
+    "李为民医生是哪个科室、什么专业方向？",
+    "李为民医生有哪些公开报道的学术活动？",
+    "李为民医生近期有哪些已验证的发表论文？",
+    "李为民医生的教育背景（学历、毕业院校）是什么？"
+  ],
+  "answers": [
+    {
+      "question_index": 1,
+      "answer": "根据四川大学华西医院官网，李为民担任四川大学华西医院院长，并担任呼吸和共病研究院院长、呼吸健康研究所所长。",
+      "source_ids": [
+        "src_web_eec41bfeedffe5fdff40bb99",
+        "src_web_8b3f84042f0a54a47fa09400"
+      ]
+    },
+    {
+      "question_index": 2,
+      "answer": "他属于四川大学华西医院呼吸与危重症医学科，官网报道显示其在恶性胸腔积液规范诊治方向作过大会主旨报告。",
+      "source_ids": [
+        "src_web_167326bd70870b2439c8b1ce",
+        "src_web_eec41bfeedffe5fdff40bb99"
+      ]
+    },
+    {
+      "question_index": 3,
+      "answer": "2020年10月，他率团参加中华医学会呼吸病学年会并作关于恶性胸腔积液规范诊治及未来方向的大会主旨报告；此外还多次在呼吸与危重症医科学科发展大会上致辞并就学科建设提出指导意见。",
+      "source_ids": [
+        "src_web_167326bd70870b2439c8b1ce",
+        "src_web_8b3f84042f0a54a47fa09400",
+        "src_web_eec41bfeedffe5fdff40bb99"
+      ]
+    },
+    {
+      "question_index": 4,
+      "answer": "经核实的发表文献涉及哮喘急性发作相关因素（久坐与体力活动、TyG指数）、肺癌肺栓塞预测模型（H-X模型）及肺癌单细胞与空间转录组学综述等方向；具体篇目由系统核实添加。",
+      "source_ids": [
+        "src_pubmed_42600980",
+        "src_pubmed_42624780",
+        "src_pubmed_42582974"
+      ]
+    },
+    {
+      "question_index": 5,
+      "answer": "本次检索的公开来源（华西医院官网科室动态报道及已验证文献记录）中未提供李为民医生的教育背景信息。",
+      "source_ids": [
+        "src_web_167326bd70870b2439c8b1ce",
+        "src_web_eec41bfeedffe5fdff40bb99",
+        "src_web_8b3f84042f0a54a47fa09400"
+      ]
+    }
+  ],
+  "quality": {
+    "status": "passed_with_warnings",
+    "checks": [
+      "doctor_identity_resolution",
+      "official_profile_source_closure",
+      "verified_publication_attribution",
+      "reference_metadata_closed_set",
+      "prompt_injection_isolation",
+      "doctor_lookup_brief_contract"
+    ],
+    "warnings": [
+      "doctor_lookup_sources_require_user_verification",
+      "abstract_only_evidence",
+      "doctor_research_direction_evidence_not_found",
+      "brief_relaxed_review_content_minimum",
+      "brief_relaxed_citation_reference_closure",
+      "brief_relaxed_paragraph_citation_coverage",
+      "brief_relaxed_answer_length_contract",
+      "brief_relaxed_numeric_evidence_closure",
+      "doctor_lookup_brief_completed",
+      "peer_review_skipped_after_deterministic_validation",
+      "verified_reference_target_not_reached"
+    ]
+  },
+  "schema_version": "doctor_research_result.v1",
+  "request_id": "req_research_worker_7b0e0ef992cb44ea947deebad69df344",
+  "run_id": "drr_7b0e0ef992cb44ea947deebad69df344",
+  "artifacts": [
+    {
+      "artifact_id": "dra_de7efd51fe684e26af2cc7eb3dfc5fe6",
+      "kind": "profile",
+      "filename": "李为民_基础信息与研究方向.md",
+      "content_type": "text/markdown; charset=utf-8",
+      "size_bytes": 3329,
+      "sha256": "7e064d3a9865274de3e20a00d906d1628d1b6e056d18c8479d4c846332a0a895",
+      "expires_at": "2026-09-26T14:40:09.536Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_de7efd51fe684e26af2cc7eb3dfc5fe6/download"
+    },
+    {
+      "artifact_id": "dra_136a09b3122546a983aa202a51a403e7",
+      "kind": "review",
+      "filename": "李为民_相关领域前沿综述.md",
+      "content_type": "text/markdown; charset=utf-8",
+      "size_bytes": 5574,
+      "sha256": "1cf82308ad16fb7f85e2720d9c86c1cbf6b52ffc0a4de4cc21e4236ee93685a4",
+      "expires_at": "2026-09-26T14:40:09.536Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_136a09b3122546a983aa202a51a403e7/download"
+    },
+    {
+      "artifact_id": "dra_4716ffc0b1c44146b0bea08ad148939a",
+      "kind": "questions",
+      "filename": "李为民_医生可能问机器人问题.txt",
+      "content_type": "text/plain; charset=utf-8",
+      "size_bytes": 301,
+      "sha256": "b80cc8118b5d95522974431555d53ee97cdecca1b878bbbaaea9493d2235adb7",
+      "expires_at": "2026-09-26T14:40:09.536Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_4716ffc0b1c44146b0bea08ad148939a/download"
+    },
+    {
+      "artifact_id": "dra_2e3ae206fcf94ab68975729b0ea3e242",
+      "kind": "answers",
+      "filename": "李为民_问题与答案.md",
+      "content_type": "text/markdown; charset=utf-8",
+      "size_bytes": 4474,
+      "sha256": "b12ff238b11fa363cbcb5636adb621582ed4daf1ea3cad6653b344d16352a017",
+      "expires_at": "2026-09-26T14:40:09.536Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_2e3ae206fcf94ab68975729b0ea3e242/download"
+    }
+  ]
+}

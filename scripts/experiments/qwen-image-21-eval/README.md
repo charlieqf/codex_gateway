@@ -36,7 +36,7 @@ Canonical source is this directory on Gateway main. Deploy a `git archive` of a 
 
 ## Results and report
 
-The deployment receipt and measured results are in `docs/operations/qwen-image-21-evaluation-2026-09-22.zh-CN.md`. Local artifacts are under `C:/work/code/.task-artifacts/qwen-image-21-20260922`; server originals are under `/data/apps/qwen-image-21-eval/results`.
+The deployment receipt and measured results are in `docs/archive/operations/qwen-image-21-evaluation-2026-09-22.zh-CN.md`. Local artifacts are under `C:/work/code/.task-artifacts/qwen-image-21-20260922`; server originals are under `/data/apps/qwen-image-21-eval/results`.
 
 Run `sync_results.py <llada|qwen> <artifact-directory>` on the workstation to retrieve result JSONL and missing original PNGs with SHA256 verification. `build_report.py <artifact-directory>` combines both datasets with `visual-review.json`. `validate_report.py <artifact-directory>` checks all 16 shared pairs, two Qwen capability checks, PNG dimensions/hashes and HTML local references. It does not claim browser-render verification.
 
@@ -53,7 +53,7 @@ The API now requires `QWEN_IMAGE_API_KEY` from protected `api.env`, generates a 
 > about 40 GiB of anonymous host memory, and two resident workers starved CT
 > admission. The queue/budget figures below are the 2026-09-22 values, superseded
 > by the 2026-09-29 queue change (twelve outstanding, 600/780 s). See
-> [CT memory profile and rollout](../../../docs/operations/ct-memory-profile-2026-11-11.zh-CN.md).
+> [CT memory profile and rollout](../../../docs/archive/operations/ct-memory-profile-2026-11-11.zh-CN.md).
 
 The user subsequently approved replacing LLaDA with two independent Qwen replicas.
 `qwen-image-worker@0` and `@1` bind physical GPUs 0 and 1 and loopback ports

@@ -1,0 +1,459 @@
+{
+  "doctor": {
+    "name": "赵玉沛",
+    "hospital": "北京协和医院",
+    "department": "基本外科"
+  },
+  "identity_resolution": {
+    "status": "verified",
+    "confidence": "medium",
+    "canonical_identity_id": "dci_036976a87da52b3df4448b2507e5b421",
+    "matched_by": [
+      "institution",
+      "department"
+    ]
+  },
+  "sources": [
+    {
+      "source_id": "src_web_bc89c0b21d02443c3985c206",
+      "source_type": "official_web",
+      "title": "特色专业 - 北京协和医院 - 协和医院,北京协和医院,協和醫院,北京协和医院首页,北京协和医院电话,协和,協和,医院,醫院,北京協和醫院,北京协和医院妇科,北京协和医院地址,挂号",
+      "url": "https://www.pumch.cn/department_jibwk/major.html",
+      "accessed_at": "2026-08-27T14:30:14.523Z",
+      "content_sha256": "1b0eb051712b566b6cc6406af533701844cc551ac35138ce1e7032e69154c447"
+    },
+    {
+      "source_id": "src_web_04da4050293f866d8e465f74",
+      "source_type": "official_web",
+      "title": "用勤奋和执著追寻医学神圣梦想_星光_北京市科学技术委员会、中关村科技园区管理委员会",
+      "url": "https://kw.beijing.gov.cn/ztzl/gdzt/2016ndgjkxjsjldh/2023ndgjkxjsjldhxg/201612/t20161227_3804600.html",
+      "accessed_at": "2026-08-27T14:30:09.408Z",
+      "content_sha256": "20ec0d72ebe957c0e2b4ad563e56a4be21a7978ce537f6d3cce2d0b1b43cd131"
+    },
+    {
+      "source_id": "src_web_6d59928c7a9b3bd8f7aa5dd6",
+      "source_type": "official_web",
+      "title": "【赵玉沛】北京协和医院 - 基本外科 - 医生门诊时间 - 好大夫在线",
+      "url": "https://www.haodf.com/doctor/2833.html",
+      "accessed_at": "2026-08-27T14:30:14.834Z",
+      "content_sha256": "0322915dac55338664a69b4fdb5a9cd4b8572ec736fa2d24e4a11f17f5622c42"
+    },
+    {
+      "source_id": "src_pubmed_42649769",
+      "source_type": "pubmed",
+      "title": "Isolation and Characterization of Extracellular Vesicles from Human and Mouse Pancreatic Tissue.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42649769/",
+      "accessed_at": "2026-08-27T14:30:16.857Z",
+      "content_sha256": "178f364c96e52a06323e98928f2ea877b4eb5b3940418baab52cea691c8c76c4"
+    },
+    {
+      "source_id": "src_crossref_5ee7b5b2d69de2ae79fabd38",
+      "source_type": "crossref",
+      "title": "Short-term outcomes of robotic-assisted distal pancreatectomy using domestic KangDuo Surgical Robot-2000 System versus Da Vinci Xi system: a two-center prospective observational cohort study",
+      "url": "https://api.crossref.org/v1/works/10.1007%2Fs00464-026-13157-x",
+      "accessed_at": "2026-08-27T14:30:19.151Z",
+      "content_sha256": "30c24b1a4b9fd4d8883becc84d60ac33d2b010e1f229af4ad47569066d90e6d0"
+    },
+    {
+      "source_id": "src_pubmed_42637946",
+      "source_type": "pubmed",
+      "title": "Short-term outcomes of robotic-assisted distal pancreatectomy using domestic KangDuo Surgical Robot-2000 System versus Da Vinci Xi system: a two-center prospective observational cohort study.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42637946/",
+      "accessed_at": "2026-08-27T14:30:18.878Z",
+      "content_sha256": "f193d8b8f617fbcf93b0638af126a5e0fba2e7e57ee1cdf8421cbc1f26b5bf87"
+    },
+    {
+      "source_id": "src_crossref_c09202656505487e4533d9bf",
+      "source_type": "crossref",
+      "title": "Neutrophil extracellular traps induced by tumour-derived NGAL reprogram CAF subtypes via ITGA5 to promote tumour progression in pancreatic cancer",
+      "url": "https://api.crossref.org/v1/works/10.1136%2Fgutjnl-2025-337720",
+      "accessed_at": "2026-08-27T14:30:21.293Z",
+      "content_sha256": "68ae8f85c9143162071283a469bb5067aa9df48e62c54acb9ade35241b887cf3"
+    },
+    {
+      "source_id": "src_pubmed_42463423",
+      "source_type": "pubmed",
+      "title": "Neutrophil extracellular traps induced by tumour-derived NGAL reprogram CAF subtypes via ITGA5 to promote tumour progression in pancreatic cancer.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42463423/",
+      "accessed_at": "2026-08-27T14:30:21.028Z",
+      "content_sha256": "092cb5155381f3a330d781f0000061691718ab7fdf6cef7bbfae81792de0e31c"
+    },
+    {
+      "source_id": "src_pubmed_42431391",
+      "source_type": "pubmed",
+      "title": "TRDMT1-mediated mRNA m(5)C methylation decreases chemotherapy sensitivity by activating homologous recombination-mediated DNA damage repair and IRS2 expression in pancreatic cancer.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42431391/",
+      "accessed_at": "2026-08-27T14:30:22.619Z",
+      "content_sha256": "c4a9c30d91b85946e99c369841c0be84cb8e4bfa7e6d902539cd3b04c1d17fe5"
+    },
+    {
+      "source_id": "src_pubmed_42351923",
+      "source_type": "pubmed",
+      "title": "A Micro-Quantitative and FFPE-Compatible Workflow for Immunohistochemistry-Guided Spatial Proteomic Analysis of Cellular Subpopulations Within the Tumor Microenvironment.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42351923/",
+      "accessed_at": "2026-08-27T14:30:23.971Z",
+      "content_sha256": "28987b24f28a68688d020cf5572889cbec531acd7231bd3b92ff73b247e1214b"
+    }
+  ],
+  "profile": {
+    "positions": [
+      "北京协和医院名誉院长 中国科学院院士 外科学教授 博士生导师",
+      "中华医学会副会长 外科学分会主任委员 全国胰腺外科学组组长",
+      "北京协和医院基本外科在我国医学史上有着不可磨灭的辉煌 涌现出许多全国乃至世界闻名的医学家 如曾宪九 朱预 钟守先 赵玉沛教授等"
+    ],
+    "expertise": [
+      "尤其擅长疑难重症的外科处理"
+    ],
+    "education_and_career": [],
+    "research_directions": [
+      "对胰腺癌进行了全面的基础与临床研究 取得了系统性和开创性成果"
+    ],
+    "representative_outputs": [
+      "代表性论文：Isolation and Characterization of Extracellular Vesicles from Human and Mouse Pancreatic Tissue.（Bioengineering (Basel, Switzerland)，2026）",
+      "代表性论文：Short-term outcomes of robotic-assisted distal pancreatectomy using domestic KangDuo Surgical Robot-2000 System versus Da Vinci Xi system: a two-center prospective observational cohort study.（Surgical endoscopy，2026）",
+      "代表性论文：Neutrophil extracellular traps induced by tumour-derived NGAL reprogram CAF subtypes via ITGA5 to promote tumour progression in pancreatic cancer.（Gut，2026）",
+      "代表性论文：TRDMT1-mediated mRNA m(5)C methylation decreases chemotherapy sensitivity by activating homologous recombination-mediated DNA damage repair and IRS2 expression in pancreatic cancer.（Cancer letters，2026）",
+      "代表性论文：A Micro-Quantitative and FFPE-Compatible Workflow for Immunohistochemistry-Guided Spatial Proteomic Analysis of Cellular Subpopulations Within the Tumor Microenvironment.（Bioengineering (Basel, Switzerland)，2026）"
+    ],
+    "claims": [
+      {
+        "claim_id": "clm_identity_verified",
+        "claim_type": "identity",
+        "text": "The supplied identity for 赵玉沛 matched the retrieved official public evidence.",
+        "source_ids": [
+          "src_web_bc89c0b21d02443c3985c206",
+          "src_web_04da4050293f866d8e465f74",
+          "src_web_6d59928c7a9b3bd8f7aa5dd6"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_position_1",
+        "claim_type": "position",
+        "text": "北京协和医院名誉院长 中国科学院院士 外科学教授 博士生导师",
+        "source_ids": [
+          "src_web_6d59928c7a9b3bd8f7aa5dd6"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_position_2",
+        "claim_type": "position",
+        "text": "中华医学会副会长 外科学分会主任委员 全国胰腺外科学组组长",
+        "source_ids": [
+          "src_web_6d59928c7a9b3bd8f7aa5dd6"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_expertise_1",
+        "claim_type": "expertise",
+        "text": "尤其擅长疑难重症的外科处理",
+        "source_ids": [
+          "src_web_6d59928c7a9b3bd8f7aa5dd6"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_research_1",
+        "claim_type": "research_direction",
+        "text": "对胰腺癌进行了全面的基础与临床研究 取得了系统性和开创性成果",
+        "source_ids": [
+          "src_web_6d59928c7a9b3bd8f7aa5dd6"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_dept_1",
+        "claim_type": "position",
+        "text": "北京协和医院基本外科在我国医学史上有着不可磨灭的辉煌 涌现出许多全国乃至世界闻名的医学家 如曾宪九 朱预 钟守先 赵玉沛教授等",
+        "source_ids": [
+          "src_web_bc89c0b21d02443c3985c206"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_1",
+        "claim_type": "representative_output",
+        "text": "代表性论文：Isolation and Characterization of Extracellular Vesicles from Human and Mouse Pancreatic Tissue.（Bioengineering (Basel, Switzerland)，2026）",
+        "source_ids": [
+          "src_pubmed_42649769"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_2",
+        "claim_type": "representative_output",
+        "text": "代表性论文：Short-term outcomes of robotic-assisted distal pancreatectomy using domestic KangDuo Surgical Robot-2000 System versus Da Vinci Xi system: a two-center prospective observational cohort study.（Surgical endoscopy，2026）",
+        "source_ids": [
+          "src_pubmed_42637946"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_3",
+        "claim_type": "representative_output",
+        "text": "代表性论文：Neutrophil extracellular traps induced by tumour-derived NGAL reprogram CAF subtypes via ITGA5 to promote tumour progression in pancreatic cancer.（Gut，2026）",
+        "source_ids": [
+          "src_pubmed_42463423"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_4",
+        "claim_type": "representative_output",
+        "text": "代表性论文：TRDMT1-mediated mRNA m(5)C methylation decreases chemotherapy sensitivity by activating homologous recombination-mediated DNA damage repair and IRS2 expression in pancreatic cancer.（Cancer letters，2026）",
+        "source_ids": [
+          "src_pubmed_42431391"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_5",
+        "claim_type": "representative_output",
+        "text": "代表性论文：A Micro-Quantitative and FFPE-Compatible Workflow for Immunohistochemistry-Guided Spatial Proteomic Analysis of Cellular Subpopulations Within the Tumor Microenvironment.（Bioengineering (Basel, Switzerland)，2026）",
+        "source_ids": [
+          "src_pubmed_42351923"
+        ],
+        "verification_status": "verified"
+      }
+    ],
+    "primary_public_source_ids": [
+      "src_web_bc89c0b21d02443c3985c206",
+      "src_web_04da4050293f866d8e465f74",
+      "src_web_6d59928c7a9b3bd8f7aa5dd6",
+      "src_pubmed_42649769",
+      "src_pubmed_42637946",
+      "src_pubmed_42463423",
+      "src_pubmed_42431391",
+      "src_pubmed_42351923"
+    ]
+  },
+  "review": {
+    "title": "赵玉沛医生公开情况速览：北京协和医院基本外科专家",
+    "abstract": "赵玉沛，北京协和医院基本外科主任医师、教授，北京协和医院名誉院长，中国科学院院士。长期从事普通外科（尤其是胰腺外科）的临床、科研与教学工作，擅长疑难重症的外科处理，研究方向涵盖胰腺癌的基础与临床研究及胰腺内分泌肿瘤的诊治。本速览基于官方公开资料整理其职务、专长与职业要点，并列出经作者与机构核验的近期代表性论文，不对其研究质量作评价。",
+    "keywords": [
+      "赵玉沛",
+      "北京协和医院",
+      "基本外科",
+      "胰腺外科",
+      "中国科学院院士"
+    ],
+    "markdown": "## 赵玉沛医生速览\n\n**身份与现任公开职务**：北京协和医院基本外科主任医师、教授；北京协和医院名誉院长；中国科学院院士；中华医学会副会长、外科学分会主任委员；全国胰腺外科学组组长（来源：好大夫在线医生主页）。北京市科委官方页面亦确认其为“中国科学院院士 中国科协副主席 中华医学会副会长 中华医学会外科学分会主任委员 全国胰腺外科学组组长”。\n\n**专业方向**：普外科，尤其是胰腺外科；对胰腺癌进行了全面的基础与临床研究，擅长疑难重症的外科处理。\n\n**职业要点**：从医30余年，工作在普通外科临床、科研和教学第一线；担任《中华外科杂志》总编辑及十余种外科杂志名誉总编/副总编；荣获国家科技进步二等奖、全国五一劳动奖章、中国医师奖、首届周光召临床医师奖等荣誉。\n\n**代表性工作（经核验作者身份的近期论文）**：见核心证据部分，包括胰腺癌肿瘤微环境、化疗耐药机制、机器人胰体尾切除及胰腺组织研究方法等方向的研究，均为2026年发表的经核验论文。\n\n**就医提示**：出诊信息以北京协和医院官方公示为准；本速览仅为公开信息汇总，不构成医疗建议。",
+    "core_evidence": [
+      {
+        "reference_id": "ref_pmid_42637946",
+        "study_type": "两中心前瞻性观察性队列研究",
+        "sample_and_source": "2023年12月至2025年5月间在北京协和医院与北京大学第一医院拟行机器人辅助远端胰腺切除术的胰腺肿瘤患者，KD-SR-2000组33例、Da Vinci Xi组50例",
+        "methods": "非随机、非盲分组，前瞻性收集围手术期参数、术后并发症、人因工学评分及住院费用并比较",
+        "key_results": "两组在手术成功、中转、保脾及90天死亡率方面无显著差异；KD-SR-2000组住院费用显著更低（P<0.001）",
+        "limitations": "样本量有限的初步观察性研究，非随机非盲设计，人因工学方面尚需改进"
+      },
+      {
+        "reference_id": "ref_pmid_42463423",
+        "study_type": "基础与转化研究（含人类标本空间分析、体外共培养及动物模型）",
+        "sample_and_source": "人类胰腺导管腺癌标本、NETs-胰腺星状细胞及患者来源CAF共培养体系、原位和肝转移模型",
+        "methods": "空间定量分析、生物素化DNA pull-down联合质谱、CUT&RUN测序、单细胞RNA测序及八臂治疗研究",
+        "key_results": "定义了IL-17/NGAL/NETs/ITGA5轴；三联治疗（抗IL-17+AV3+抗PD-1）在模型中显示最大的肿瘤抑制和生存获益",
+        "limitations": "主要为临床前证据，人体疗效尚待临床验证"
+      },
+      {
+        "reference_id": "ref_pmid_42431391",
+        "study_type": "机制研究（细胞模型、小鼠模型及患者生存数据）",
+        "sample_and_source": "吉西他滨处理的胰腺导管腺癌细胞、TRDMT1缺陷小鼠模型及胰腺癌患者生存数据",
+        "methods": "转录组分析、m(5)C修饰测序、同源重组相关蛋白招募分析等",
+        "key_results": "TRDMT1介导的mRNA m(5)C甲基化影响同源重组修复与化疗敏感性，提示其可能为克服化疗耐药的潜在靶点",
+        "limitations": "结论主要来自临床前模型，尚需临床转化验证"
+      }
+    ],
+    "references": [
+      {
+        "reference_id": "ref_pmid_42649769",
+        "title": "Isolation and Characterization of Extracellular Vesicles from Human and Mouse Pancreatic Tissue.",
+        "journal": "Bioengineering (Basel, Switzerland)",
+        "publication_year": 2026,
+        "pmid": "42649769",
+        "doi": null,
+        "verification_status": "verified"
+      },
+      {
+        "reference_id": "ref_pmid_42637946",
+        "title": "Short-term outcomes of robotic-assisted distal pancreatectomy using domestic KangDuo Surgical Robot-2000 System versus Da Vinci Xi system: a two-center prospective observational cohort study.",
+        "journal": "Surgical endoscopy",
+        "publication_year": 2026,
+        "pmid": "42637946",
+        "doi": "10.1007/s00464-026-13157-x",
+        "verification_status": "verified"
+      },
+      {
+        "reference_id": "ref_pmid_42463423",
+        "title": "Neutrophil extracellular traps induced by tumour-derived NGAL reprogram CAF subtypes via ITGA5 to promote tumour progression in pancreatic cancer.",
+        "journal": "Gut",
+        "publication_year": 2026,
+        "pmid": "42463423",
+        "doi": "10.1136/gutjnl-2025-337720",
+        "verification_status": "verified"
+      },
+      {
+        "reference_id": "ref_pmid_42431391",
+        "title": "TRDMT1-mediated mRNA m(5)C methylation decreases chemotherapy sensitivity by activating homologous recombination-mediated DNA damage repair and IRS2 expression in pancreatic cancer.",
+        "journal": "Cancer letters",
+        "publication_year": 2026,
+        "pmid": "42431391",
+        "doi": null,
+        "verification_status": "verified"
+      },
+      {
+        "reference_id": "ref_pmid_42351923",
+        "title": "A Micro-Quantitative and FFPE-Compatible Workflow for Immunohistochemistry-Guided Spatial Proteomic Analysis of Cellular Subpopulations Within the Tumor Microenvironment.",
+        "journal": "Bioengineering (Basel, Switzerland)",
+        "publication_year": 2026,
+        "pmid": "42351923",
+        "doi": null,
+        "verification_status": "verified"
+      }
+    ],
+    "search_report": {
+      "databases": [
+        "pubmed",
+        "crossref"
+      ],
+      "searched_at": "2026-08-27T14:30:00.112Z",
+      "queries": [
+        "((\"Zhao YP\"[Author] OR \"Yupei Zhao\"[Author] OR \"Yu-Pei Zhao\"[Author] OR \"Zhao Yupei\"[Author]) AND (\"beijing\"[Affiliation] OR \"bei jing\"[Affiliation] OR \"peking\"[Affiliation] OR \"union\"[Affiliation] OR \"xiehe\"[Affiliation]) AND \"general surgery\"[Affiliation]) AND (2022:2026[Date - Publication])"
+      ],
+      "included_count": 5
+    }
+  },
+  "source_coverage": {
+    "literature_sources": [
+      "pubmed",
+      "crossref"
+    ],
+    "profile_sources": [
+      "official_web",
+      "pubmed"
+    ],
+    "cutoff_date": "2026-08-27",
+    "warnings": [
+      "abstract_only_evidence",
+      "licensed_chinese_literature_not_covered",
+      "verified_reference_target_not_reached"
+    ]
+  },
+  "predicted_questions": [
+    "赵玉沛医生目前在北京协和医院担任什么职务？",
+    "他的专业方向和擅长领域是什么？",
+    "他在胰腺外科领域有哪些代表性贡献或方向？",
+    "如何挂赵玉沛医生的号或查询出诊信息？",
+    "他近期有哪些经核验的代表性研究论文？"
+  ],
+  "answers": [
+    {
+      "question_index": 1,
+      "answer": "北京协和医院基本外科主任医师、教授，北京协和医院名誉院长，中国科学院院士。",
+      "source_ids": [
+        "src_web_6d59928c7a9b3bd8f7aa5dd6"
+      ]
+    },
+    {
+      "question_index": 2,
+      "answer": "普外科，尤其擅长疑难重症的外科处理；专业方向为胰腺癌及胰腺内分泌肿瘤的基础与临床研究。",
+      "source_ids": [
+        "src_web_6d59928c7a9b3bd8f7aa5dd6"
+      ]
+    },
+    {
+      "question_index": 3,
+      "answer": "完成我国首例经腹腔镜胰岛素瘤摘除术，率先在国内开展机器人胰岛素瘤手术（已成功实施100余例）；牵头制定中华医学会胰腺癌诊治指南和卫生部胰腺癌诊治国家行业标准；在国内率先建立胰腺疾病会诊中心。",
+      "source_ids": [
+        "src_web_6d59928c7a9b3bd8f7aa5dd6"
+      ]
+    },
+    {
+      "question_index": 4,
+      "answer": "检索到的公开来源未提供具体出诊时间表；建议通过北京协和医院官方预约挂号渠道查询，出诊信息以医院官网或医院公示为准。",
+      "source_ids": [
+        "src_web_bc89c0b21d02443c3985c206",
+        "src_web_6d59928c7a9b3bd8f7aa5dd6"
+      ]
+    },
+    {
+      "question_index": 5,
+      "answer": "经作者与机构核验的近期论文包括：国产康多机器人与达芬奇Xi机器人辅助远端胰腺切除术的两中心前瞻性队列研究（Surgical Endoscopy, 2026）、NETs/ITGA5轴促进胰腺癌进展的研究（Gut, 2026）、TRDMT1介导m(5)C甲基化影响胰腺癌化疗敏感性的研究（Cancer Letters, 2026）等。",
+      "source_ids": [
+        "src_pubmed_42637946",
+        "src_pubmed_42463423",
+        "src_pubmed_42431391"
+      ]
+    }
+  ],
+  "quality": {
+    "status": "passed_with_warnings",
+    "checks": [
+      "doctor_identity_resolution",
+      "official_profile_source_closure",
+      "verified_publication_attribution",
+      "reference_metadata_closed_set",
+      "prompt_injection_isolation",
+      "doctor_lookup_brief_contract"
+    ],
+    "warnings": [
+      "doctor_lookup_sources_require_user_verification",
+      "abstract_only_evidence",
+      "brief_relaxed_review_content_minimum",
+      "brief_relaxed_citation_reference_closure",
+      "brief_relaxed_paragraph_citation_coverage",
+      "brief_relaxed_answer_length_contract",
+      "brief_relaxed_numeric_evidence_closure",
+      "doctor_lookup_brief_completed",
+      "peer_review_skipped_after_deterministic_validation",
+      "verified_reference_target_not_reached"
+    ]
+  },
+  "schema_version": "doctor_research_result.v1",
+  "request_id": "req_research_worker_8d4e0b28fd804ee99c1f265a29f9e8be",
+  "run_id": "drr_8d4e0b28fd804ee99c1f265a29f9e8be",
+  "artifacts": [
+    {
+      "artifact_id": "dra_bc3d67e9d00c495aaaa27a5389412609",
+      "kind": "profile",
+      "filename": "赵玉沛_基础信息与研究方向.md",
+      "content_type": "text/markdown; charset=utf-8",
+      "size_bytes": 3874,
+      "sha256": "463dc71bdfa8c67ccdb39a321f9e16507efb5163ac99731c9e956d327699b1d7",
+      "expires_at": "2026-09-26T14:30:53.041Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_bc3d67e9d00c495aaaa27a5389412609/download"
+    },
+    {
+      "artifact_id": "dra_6b0947b870784cc6bf62fbeaf560afdc",
+      "kind": "review",
+      "filename": "赵玉沛_相关领域前沿综述.md",
+      "content_type": "text/markdown; charset=utf-8",
+      "size_bytes": 5436,
+      "sha256": "74c500ccf9a8eada8924a1c6e8104928d36b2748b2974e380ac8bf9ca87a9ba2",
+      "expires_at": "2026-09-26T14:30:53.041Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_6b0947b870784cc6bf62fbeaf560afdc/download"
+    },
+    {
+      "artifact_id": "dra_2e94c6f82d014a5386cd8913d514280c",
+      "kind": "questions",
+      "filename": "赵玉沛_医生可能问机器人问题.txt",
+      "content_type": "text/plain; charset=utf-8",
+      "size_bytes": 301,
+      "sha256": "32ea2a81527cbb802c8a702e160970d50f00a6d876ed15e4fa25758dafa34341",
+      "expires_at": "2026-09-26T14:30:53.041Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_2e94c6f82d014a5386cd8913d514280c/download"
+    },
+    {
+      "artifact_id": "dra_c5fb0fab26234224b86ea73525af4912",
+      "kind": "answers",
+      "filename": "赵玉沛_问题与答案.md",
+      "content_type": "text/markdown; charset=utf-8",
+      "size_bytes": 3359,
+      "sha256": "4486c9ab2fc2e06970299e15eb514a90e6af595ecf6c671c42d333a6713030c8",
+      "expires_at": "2026-09-26T14:30:53.041Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_c5fb0fab26234224b86ea73525af4912/download"
+    }
+  ]
+}

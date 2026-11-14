@@ -48,4 +48,4 @@
 - 存量 25 个 active 每日 Free 权益随 schema 30 迁移：plan 指向 `plan_free_once_1m_v1`，快照改为一次性 1,000,000，历史 day/month 窗口用量合计结转进单一 `period` 终身窗口；已取消/过期的历史权益保留原快照供审计。
 - 月付/年付购买不再触发补发 Free（`ensureFreeAllowance` 移除）；仅修复旧替换流误取消的存量免费权益。
 - 已于 2026-09-11 10:37 UTC（北京时间 18:37）随 Gateway `45465ee` 上线，25 条存量每日 Free 权益已迁移；
-  发布验收见[发布记录](../operations/r760-free-once-release-2026-09-11.zh-CN.md)。
+  发布验收见[发布记录](../archive/operations/r760-free-once-release-2026-09-11.zh-CN.md)。

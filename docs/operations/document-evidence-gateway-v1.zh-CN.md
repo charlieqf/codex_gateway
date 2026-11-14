@@ -1,7 +1,7 @@
 # 文献提取 Gateway 接入与发布
 
 2026-10-22。本文保留实现契约、发布前核验与运行步骤；正式部署及公网验收已完成，见
-[正式接入回执](../outbox/literature-gateway-acceptance-2026-10-22.zh-CN.md)。
+[正式接入回执](../archive/outbox/literature-gateway-acceptance-2026-10-22.zh-CN.md)。
 客户端需求来源：`C:\work\code\medevidence-opencode-stable\docs\literature-gateway-handoff-20261022.zh-CN.md`。
 
 ## 接入契约

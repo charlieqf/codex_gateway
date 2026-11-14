@@ -1,6 +1,6 @@
 # Qwen 生图与编辑接口改进（2026-11-05）
 
-状态：Gateway `749c5086f74919b1abeda9d1357de9145f8e7b0b` 已于 2026-11-04 21:51:20 UTC 部署，公网实际生图和参考图编辑验证通过；Desktop dev 改动尚未发布。生产模型、GPU worker、套餐快照与环境配置未改动。详见[线上发布回执](../operations/qwen-image-editing-release-2026-11-05.zh-CN.md)。
+状态：Gateway `749c5086f74919b1abeda9d1357de9145f8e7b0b` 已于 2026-11-04 21:51:20 UTC 部署，公网实际生图和参考图编辑验证通过；Desktop dev 改动尚未发布。生产模型、GPU worker、套餐快照与环境配置未改动。详见[线上发布回执](../archive/operations/qwen-image-editing-release-2026-11-05.zh-CN.md)。
 
 ## 功能与约束
 

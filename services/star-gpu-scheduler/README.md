@@ -21,12 +21,12 @@ and resource admission; model execution stays in Qwen/RADAR. Production uses
   inference (`HOST_MEMORY_MIB`), replacing 32 GiB for both on 2026-11-11. The
   values come from cgroup peaks measured on star: 7.2 GiB preprocessing and
   10.6 GiB inference. See the
-  [memory profile](../../docs/operations/ct-memory-profile-2026-11-11.zh-CN.md).
+  [memory profile](../../docs/archive/operations/ct-memory-profile-2026-11-11.zh-CN.md).
   Host `MemAvailable` must retain the configured host reserve. The code/deployment
   default is 12 GiB; production was explicitly adjusted to 11 GiB on 2026-09-22
   to recover a blocked original CT study.
   Preserve this live override in future release preparation; see the
-  [recovery receipt](../../docs/operations/ct-memory-admission-recovery-2026-09-22.zh-CN.md).
+  [recovery receipt](../../docs/archive/operations/ct-memory-admission-recovery-2026-09-22.zh-CN.md).
   Dual Qwen execution is conditional on this budget, not a guarantee at all times.
 - Since 2026-11-11 the GPU1 Qwen worker is disabled and removed from the pool's
   systemd dependencies; only `qwen-image-worker@0` stays resident. Two resident

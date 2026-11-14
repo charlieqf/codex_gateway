@@ -453,7 +453,7 @@ token_reservation_created = false
 `req-02cf5c14-f321-4261-92ea-b0b146fa83a2` 返回 200，判断为瞬时上游网络异常而非本次发布回归。
 
 上线前备份、数据库完整性、临时用户/凭证/预留清理、监听面和服务健康均已复核。完整发布证据与
-回滚边界见 `docs/operations/goldencode-local-context-admission-release-2026-08-30.zh-CN.md`。
+回滚边界见 `docs/archive/operations/goldencode-local-context-admission-release-2026-08-30.zh-CN.md`。
 
 ## 9. 建议测试矩阵
 

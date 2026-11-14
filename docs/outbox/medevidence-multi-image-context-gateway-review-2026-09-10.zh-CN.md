@@ -27,7 +27,7 @@ Gateway 按已部署提交 `31946c97954af05399582010f5da7589204aac4b` 的源码�
 | 总期限和 SSE 心跳 | 已有通用实现，应复用并验证视觉路径，不能列为全部待新建能力。 |
 
 已上线文案及验证见
-[报错改进上线记录](../operations/r760-model-error-copy-release-2026-09-10.zh-CN.md)。
+[报错改进上线记录](../archive/operations/r760-model-error-copy-release-2026-09-10.zh-CN.md)。
 本次文案发布保留原错误码及重试策略，没有实施图片裁剪或视觉自动恢复。
 
 ## 首批双方配合

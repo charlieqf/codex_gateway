@@ -1,0 +1,67 @@
+{
+  "run_id": "drr_899fac475f624370b113ff7828376c0c",
+  "doctor": {
+    "name": "乔杰",
+    "hospital": "北京大学第三医院",
+    "department": "妇产科",
+    "city": "北京"
+  },
+  "status": "succeeded",
+  "stage": "complete",
+  "warning_codes": [
+    "abstract_only_evidence",
+    "licensed_chinese_literature_not_covered",
+    "verified_reference_target_not_reached",
+    "doctor_lookup_sources_require_user_verification",
+    "brief_relaxed_review_content_minimum",
+    "brief_relaxed_citation_reference_closure",
+    "brief_relaxed_paragraph_citation_coverage",
+    "brief_relaxed_answer_length_contract",
+    "brief_relaxed_numeric_evidence_closure",
+    "doctor_lookup_brief_completed",
+    "bounded_doctor_lookup_contract_retry_completed"
+  ],
+  "terminal_reason": null,
+  "terminal_detail_public": null,
+  "active_elapsed_ms": 89888,
+  "skill_version": "1.6.118",
+  "prompt_version": "doctor-research-prompt.v32",
+  "output_schema_version": "doctor_research_result.v1",
+  "created_at": "2026-08-27T14:35:48.074Z",
+  "completed_at": "2026-08-27T14:37:18.286Z",
+  "budget": {
+    "external_requests": 112,
+    "external_response_bytes": 224000000,
+    "llm_calls": 2,
+    "input_tokens": 30045,
+    "output_tokens": 16000
+  },
+  "model_stages": [
+    {
+      "stage": "synthesize_review",
+      "attempt": 1,
+      "duration_ms": 39256,
+      "prompt_tokens": 8946,
+      "completion_tokens": 2764,
+      "error_code": null,
+      "error_detail_sanitized": null,
+      "maximum_output_tokens": 8000,
+      "terminal_source": "provider_response",
+      "cancel_requested": 0,
+      "cancel_observed": 0
+    },
+    {
+      "stage": "validate_outputs",
+      "attempt": 2,
+      "duration_ms": 26530,
+      "prompt_tokens": 11823,
+      "completion_tokens": 2733,
+      "error_code": null,
+      "error_detail_sanitized": null,
+      "maximum_output_tokens": 8000,
+      "terminal_source": "provider_response",
+      "cancel_requested": 0,
+      "cancel_observed": 0
+    }
+  ]
+}

@@ -220,10 +220,10 @@ Codex/Research 容器保持 healthy；旧 `gw` 和 R760 `goldencode:1443` 公网
 
 ## 9. 相关文档
 
-- `docs/implementation/domestic-gateway-doctor-research-migration-plan-2026-07-30.zh-CN.md`
+- `docs/operations/r760-control-plane-authority.md`
 - `docs/operations/system-status.md`
 - `docs/operations/environment-access.md`
-- `docs/operations/goldencode-cutover-audit-2026-08-04.zh-CN.md`
+- `docs/archive/operations/goldencode-cutover-audit-2026-08-04.zh-CN.md`
 - MedEvidence 仓库：`docs/desktop-release-r2.md`
 - MedEvidence 仓库：`docs/desktop-release-history.md`
 - MedEvidence 仓库：`docs/hardware/本地化迁移方案-CN-OE后端迁移R760-2026-07-02.md`

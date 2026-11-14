@@ -6,7 +6,7 @@ Use this runbook after collecting the affected user, approximate time and any
 session/message/request ID. Start read-only; do not restart or reauthenticate
 from the generic UI message alone.
 
-The [2026-09-10 error copy release](./r760-model-error-copy-release-2026-09-10.zh-CN.md)
+The [2026-09-10 error copy release](../archive/operations/r760-model-error-copy-release-2026-09-10.zh-CN.md)
 replaces the OpenAI-compatible adapter's generic unavailable message with operation-specific
 Chinese copy, such as “图片分析时发生处理错误” or “模型处理连接异常”. The codes and
 diagnostic workflow below remain valid. Older persisted messages can still contain the

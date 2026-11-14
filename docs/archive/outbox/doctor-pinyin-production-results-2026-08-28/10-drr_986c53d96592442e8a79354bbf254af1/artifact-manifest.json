@@ -1,0 +1,30 @@
+[
+  {
+    "kind": "answers",
+    "filename": "王伟林_问题与答案.md",
+    "content_type": "text/markdown; charset=utf-8",
+    "size_bytes": 2484,
+    "sha256": "882d8396894c46f52bc542ee05db957077a08b9dbe668bf39e29a46c85fc35f7"
+  },
+  {
+    "kind": "profile",
+    "filename": "王伟林_基础信息与研究方向.md",
+    "content_type": "text/markdown; charset=utf-8",
+    "size_bytes": 3540,
+    "sha256": "9250495ca65046e211c1ed50f598998efebdd2afdde0767681ffbd0e82fb0ab1"
+  },
+  {
+    "kind": "questions",
+    "filename": "王伟林_医生可能问机器人问题.txt",
+    "content_type": "text/plain; charset=utf-8",
+    "size_bytes": 214,
+    "sha256": "da64e645bd1a4cb2b62295bc3dd2404296ff2d0ca31d8f3cba7f5ad4f0db2b18"
+  },
+  {
+    "kind": "review",
+    "filename": "王伟林_相关领域前沿综述.md",
+    "content_type": "text/markdown; charset=utf-8",
+    "size_bytes": 7258,
+    "sha256": "c1697fec6d47b559a33ef0c59b12c687890695a0f8e440c95480392fad749149"
+  }
+]

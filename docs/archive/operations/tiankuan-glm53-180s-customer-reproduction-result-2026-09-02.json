@@ -1,0 +1,39 @@
+{
+  "evidence_version": 1,
+  "classification": "controlled_180s_upstream_incomplete_stream_reproduction",
+  "endpoint": "https://tokens.tiankuan.com/v1/chat/completions",
+  "model": "official/glm-5.3",
+  "started_at": "2026-09-02T00:09:09.341Z",
+  "request": {
+    "prompt_chars": 65000,
+    "reasoning_effort": "high",
+    "stream": true,
+    "max_tokens": 64000,
+    "client_timeout_ms": 210000,
+    "prompt_sha256": "c3e90581986b5ddc3a9881197f32f73ad11b299805e91ce3a76a50d206f5dc9f",
+    "request_body_sha256": "34a706cc39884f7de87f3de1a861be9431fe9d5de2d38f7bada76a4a660037e0"
+  },
+  "response": {
+    "http_status": 200,
+    "upstream_request_id": null,
+    "headers_ms": 1762,
+    "raw_first_event_ms": 1764,
+    "parsed_first_event_ms": 1764,
+    "reasoning_first_event_ms": 1764,
+    "visible_first_content_ms": null,
+    "last_raw_event_ms": 180435,
+    "total_duration_ms": 180576,
+    "raw_response_chars": 713255,
+    "reasoning_chars": 36406,
+    "visible_content_chars": 0,
+    "finish_reason": null,
+    "done_seen": false,
+    "normal_terminal_seen": false,
+    "usage": null,
+    "response_sha256": "8ac26e00ea38ddcbebc0c2c200f52c64264c0cd114adc98d76947f86607f756eb",
+    "error_kind": "eof_before_terminal",
+    "reproduced_180s_incomplete_stream_shape": true
+  },
+  "trace_note": "No common Trace ID response header was returned. The SSE payload id was not captured by the executed probe version.",
+  "result_note": "This is one controlled reproduction and does not claim that every identical request fails."
+}

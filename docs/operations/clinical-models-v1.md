@@ -129,4 +129,4 @@ STAR_URL、STAR_CA_FILE、STAR_TOKEN_FILE、DAILY_JOBS、ACTIVE_JOBS、CONTROL_T
 固定 HTTPS 目的地址、证书验证、独立后台凭据；Nginx 和应用日志脱敏覆盖两组完整路径及查询。
 临床数据库包含短期输入，不纳入长期每日/每周备份；发布备份需执行相同输入保留策略。
 
-video / video_zip / dicom_zip 已逐项通过公网实推理及下载验证，样本和覆盖范围见 [格式补充验收](./clinical-panecho-formats-acceptance-2026-10-01.zh-CN.md)。
+video / video_zip / dicom_zip 已逐项通过公网实推理及下载验证，样本和覆盖范围见 [格式补充验收](../archive/operations/clinical-panecho-formats-acceptance-2026-10-01.zh-CN.md)。

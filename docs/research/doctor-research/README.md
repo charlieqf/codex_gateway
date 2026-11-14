@@ -24,10 +24,9 @@ stack is retired from routine use and is not a compatibility or rollback path.
 - Client API and examples: [API Usage](./api-usage.zh-CN.md)
 - Production operations: [Production Runbook](./production-runbook.md)
 - Current known state: [Current Status](./current-status-problems-and-remediation.md)
-- Original architecture: [Azure Service Design](./api-service-design.md) —
-  historical design record only
-- Dated reports in this directory: implementation/incident evidence, not
-  current runbooks
+- Completed design, experiment and release evidence:
+  [Historical Research Archive](../../archive/README.md#research)
+- Active contracts and reusable runbooks remain in this directory
 
 Do not read the complete historical bundle for a normal status check or client
 question.

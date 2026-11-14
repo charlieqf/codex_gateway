@@ -1,0 +1,420 @@
+{
+  "doctor": {
+    "name": "杨璐",
+    "hospital": "北京协和医院",
+    "department": "皮肤科"
+  },
+  "identity_resolution": {
+    "status": "verified",
+    "confidence": "medium",
+    "canonical_identity_id": "dci_50f7c8f0f2b70ce4d9ed72cb4599bfba",
+    "matched_by": [
+      "institution",
+      "department"
+    ]
+  },
+  "sources": [
+    {
+      "source_id": "src_web_fff29d5ebe44a82ec9c1859d",
+      "source_type": "official_web",
+      "title": "搜索 - 北京协和医院 - 协和医院,北京协和医院,協和醫院,北京协和医院首页,北京协和医院电话,协和,協和,医院,醫院,北京協和醫院,北京协和医院妇科,北京协和医院地址,挂号",
+      "url": "https://www.pumch.cn/searchs/research/%E7%8E%AB%E7%91%B0%20%E7%9A%AE%E8%82%A4/type/site/category_id/1202/pagesize/7/p/35.html",
+      "accessed_at": "2026-08-27T14:31:00.529Z",
+      "content_sha256": "04b3c2a3519a86e49d2ff556897b5ad71fce7897414970b10027237394666e09"
+    },
+    {
+      "source_id": "src_web_20df31523a62bbb70daa0739",
+      "source_type": "official_web",
+      "title": "【杨璐】北京协和医院 - 皮肤科 - 医生门诊时间 - 好大夫在线",
+      "url": "https://www.haodf.com/doctor/9031931217.html",
+      "accessed_at": "2026-08-27T14:30:59.906Z",
+      "content_sha256": "02e9d415f9dacc54786ce5ac1487f1cf8d81044912107320c41276058ed871c7"
+    },
+    {
+      "source_id": "src_web_e3a592dc30ca2222d2718491",
+      "source_type": "official_web",
+      "title": "学习贯彻党的二十届四中全会精神 | 协和青年破浪前行 共绘健康中国画卷 - 北京协和医院 - 协和医院,北京协和医院,協和醫院,北京协和医院首页,北京协和医院电话,协和,協和,医院,醫院,北京協和醫院,北京协和医院妇科,北京协和医院地址,挂号",
+      "url": "https://www.pumch.cn/detail/44213.html",
+      "accessed_at": "2026-08-27T14:31:00.737Z",
+      "content_sha256": "4622341a396a8bb401c3e37ef0362cef772f5b7b0b41c436e4c9ba3a7f5c9532"
+    },
+    {
+      "source_id": "src_crossref_eb672abca6c0ca118b136775",
+      "source_type": "crossref",
+      "title": "Safety, Pharmacokinetics, and Efficacy of 1.5% Ruxolitinib Gel (HDM3010) in Adult Patients with Prurigo Nodularis: A Phase I/II, Randomized, Double-Blind, Vehicle-Controlled Multicenter Clinical Trial",
+      "url": "https://api.crossref.org/v1/works/10.1007%2Fs13555-026-01787-x",
+      "accessed_at": "2026-08-27T14:31:17.909Z",
+      "content_sha256": "60b58171315d65c407ee3bebad1209dabcf218aa9511f5dc6383abcf5a290a85"
+    },
+    {
+      "source_id": "src_pubmed_42151643",
+      "source_type": "pubmed",
+      "title": "Safety, Pharmacokinetics, and Efficacy of 1.5% Ruxolitinib Gel (HDM3010) in Adult Patients with Prurigo Nodularis: A Phase I/II, Randomized, Double-Blind, Vehicle-Controlled Multicenter Clinical Trial.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42151643/",
+      "accessed_at": "2026-08-27T14:31:16.106Z",
+      "content_sha256": "87b49b1b6a272129f1ebea5f9220e35c6517ebfac9ddc1d8636d164cc773cf33"
+    },
+    {
+      "source_id": "src_crossref_7d329e026de3940bb83acb90",
+      "source_type": "crossref",
+      "title": "X-linked Recessive Ectodysplasin A Mutations Induced Hypohidrotic Ectodermal Dysplasia and Severe Atopic Dermatitis Successfully Treated with Dupilumab",
+      "url": "https://api.crossref.org/v1/works/10.2340%2Factadv.v106.44646",
+      "accessed_at": "2026-08-27T14:31:32.823Z",
+      "content_sha256": "55e45efc9b152343999e8d0bb178817d188e9a690639ac376daec0a949615ad8"
+    },
+    {
+      "source_id": "src_pubmed_41508838",
+      "source_type": "pubmed",
+      "title": "X-linked Recessive Ectodysplasin A Mutations Induced Hypohidrotic Ectodermal Dysplasia and Severe Atopic Dermatitis Successfully Treated with Dupilumab.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/41508838/",
+      "accessed_at": "2026-08-27T14:31:31.326Z",
+      "content_sha256": "b9073bb5543e9b86b55e3e6c1403955d559e0618f28c8af7d9becdaea3cb5595"
+    },
+    {
+      "source_id": "src_crossref_2568de7383957441f808702e",
+      "source_type": "crossref",
+      "title": "Cutaneous Lymphoma Associated with JAK Inhibitors: A Pharmacovigilance Analysis of the FAERS Database and Literature Review",
+      "url": "https://api.crossref.org/v1/works/10.2340%2Factadv.v106.44546",
+      "accessed_at": "2026-08-27T14:31:34.344Z",
+      "content_sha256": "b877431564013900be617e7ef2c6ecef07fd6c8594f47fe81a14ca1c136c84bb"
+    },
+    {
+      "source_id": "src_pubmed_41508837",
+      "source_type": "pubmed",
+      "title": "Cutaneous Lymphoma Associated with JAK Inhibitors: A Pharmacovigilance Analysis of the FAERS Database and Literature Review.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/41508837/",
+      "accessed_at": "2026-08-27T14:31:34.086Z",
+      "content_sha256": "eea379c58c8240222cb522df61150fa51f995c81f80896473ec5aa3daa074d0f"
+    },
+    {
+      "source_id": "src_crossref_4bd55efde3de6c16d87402ff",
+      "source_type": "crossref",
+      "title": "Updates on the Role of Innate Immunity’s Pattern Recognition Receptors in Vitiligo Pathogenesis and Therapeutic Potential",
+      "url": "https://api.crossref.org/v1/works/10.2147%2Fccid.s574747",
+      "accessed_at": "2026-08-27T14:31:37.820Z",
+      "content_sha256": "156952d990fa5fde67335f939e09f625d9a729c4eea3aed99d5f659444ee307a"
+    },
+    {
+      "source_id": "src_pubmed_41450454",
+      "source_type": "pubmed",
+      "title": "Updates on the Role of Innate Immunity's Pattern Recognition Receptors in Vitiligo Pathogenesis and Therapeutic Potential.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/41450454/",
+      "accessed_at": "2026-08-27T14:31:37.556Z",
+      "content_sha256": "1baa7948bc3d0d5b3d9d80475524e1267102b313e7c8b37ad37bdbf288901eba"
+    }
+  ],
+  "profile": {
+    "positions": [],
+    "expertise": [],
+    "education_and_career": [
+      "毕业于清华大学八年制临床医学专业 获北京协和医院优秀临床医学博士后 优秀住院医等荣誉称号 曾于2014 2016年赴美国匹兹堡大学访问交流并进行基础医学研究"
+    ],
+    "research_directions": [
+      "从事皮肤病及性病的诊疗及研究 以第一作者发表多篇中 英文文章 参与编译 皮肤性病学 北京协和医院疑难重症皮肤病病例精讲 等多部专著"
+    ],
+    "representative_outputs": [
+      "代表性论文：Safety, Pharmacokinetics, and Efficacy of 1.5% Ruxolitinib Gel (HDM3010) in Adult Patients with Prurigo Nodularis: A Phase I/II, Randomized, Double-Blind, Vehicle-Controlled Multicenter Clinical Trial.（Dermatology and therapy，2026）",
+      "代表性论文：X-linked Recessive Ectodysplasin A Mutations Induced Hypohidrotic Ectodermal Dysplasia and Severe Atopic Dermatitis Successfully Treated with Dupilumab.（Acta dermato-venereologica，2026）",
+      "代表性论文：Cutaneous Lymphoma Associated with JAK Inhibitors: A Pharmacovigilance Analysis of the FAERS Database and Literature Review.（Acta dermato-venereologica，2026）",
+      "代表性论文：Updates on the Role of Innate Immunity's Pattern Recognition Receptors in Vitiligo Pathogenesis and Therapeutic Potential.（Clinical, cosmetic and investigational dermatology，2025）"
+    ],
+    "claims": [
+      {
+        "claim_id": "clm_identity_verified",
+        "claim_type": "identity",
+        "text": "The supplied identity for 杨璐 matched the retrieved official public evidence.",
+        "source_ids": [
+          "src_web_fff29d5ebe44a82ec9c1859d",
+          "src_web_20df31523a62bbb70daa0739",
+          "src_web_e3a592dc30ca2222d2718491"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_education_pittsburgh",
+        "claim_type": "education_and_career",
+        "text": "毕业于清华大学八年制临床医学专业 获北京协和医院优秀临床医学博士后 优秀住院医等荣誉称号 曾于2014 2016年赴美国匹兹堡大学访问交流并进行基础医学研究",
+        "source_ids": [
+          "src_web_fff29d5ebe44a82ec9c1859d",
+          "src_web_20df31523a62bbb70daa0739"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_books_papers",
+        "claim_type": "research_direction",
+        "text": "从事皮肤病及性病的诊疗及研究 以第一作者发表多篇中 英文文章 参与编译 皮肤性病学 北京协和医院疑难重症皮肤病病例精讲 等多部专著",
+        "source_ids": [
+          "src_web_fff29d5ebe44a82ec9c1859d",
+          "src_web_20df31523a62bbb70daa0739"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_1",
+        "claim_type": "representative_output",
+        "text": "代表性论文：Safety, Pharmacokinetics, and Efficacy of 1.5% Ruxolitinib Gel (HDM3010) in Adult Patients with Prurigo Nodularis: A Phase I/II, Randomized, Double-Blind, Vehicle-Controlled Multicenter Clinical Trial.（Dermatology and therapy，2026）",
+        "source_ids": [
+          "src_pubmed_42151643"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_2",
+        "claim_type": "representative_output",
+        "text": "代表性论文：X-linked Recessive Ectodysplasin A Mutations Induced Hypohidrotic Ectodermal Dysplasia and Severe Atopic Dermatitis Successfully Treated with Dupilumab.（Acta dermato-venereologica，2026）",
+        "source_ids": [
+          "src_pubmed_41508838"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_3",
+        "claim_type": "representative_output",
+        "text": "代表性论文：Cutaneous Lymphoma Associated with JAK Inhibitors: A Pharmacovigilance Analysis of the FAERS Database and Literature Review.（Acta dermato-venereologica，2026）",
+        "source_ids": [
+          "src_pubmed_41508837"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_4",
+        "claim_type": "representative_output",
+        "text": "代表性论文：Updates on the Role of Innate Immunity's Pattern Recognition Receptors in Vitiligo Pathogenesis and Therapeutic Potential.（Clinical, cosmetic and investigational dermatology，2025）",
+        "source_ids": [
+          "src_pubmed_41450454"
+        ],
+        "verification_status": "verified"
+      }
+    ],
+    "primary_public_source_ids": [
+      "src_web_fff29d5ebe44a82ec9c1859d",
+      "src_web_20df31523a62bbb70daa0739",
+      "src_web_e3a592dc30ca2222d2718491",
+      "src_pubmed_42151643",
+      "src_pubmed_41508838",
+      "src_pubmed_41508837",
+      "src_pubmed_41450454"
+    ]
+  },
+  "review": {
+    "title": "杨璐医生公开执业概况（北京协和医院皮肤科）",
+    "abstract": "杨璐，医学博士，毕业于清华大学八年制临床医学专业，曾于2014-2016年赴美国匹兹堡大学访问交流并进行基础医学研究，获北京协和医院优秀临床医学博士后、优秀住院医等荣誉称号。北京协和医院官网医师介绍（2022年发布）称其为皮肤科住院医师；好大夫在线页面（基本信息来自医院官网或公示信息）显示其为主治医师。其从事皮肤病及性病的诊疗及研究，以第一作者发表多篇中英文文章，并参与编译《皮肤性病学》《北京协和医院疑难重症皮肤病病例精讲》等专著。",
+    "keywords": [
+      "杨璐",
+      "北京协和医院",
+      "皮肤科",
+      "住院医师",
+      "主治医师",
+      "皮肤病与性病"
+    ],
+    "markdown": "# 杨璐医生公开执业概况\n\n## 身份与现任职务\n- 杨璐，医学博士，中国医学科学院北京协和医院皮肤科医生。\n- 北京协和医院官网医师介绍（2022-08-01发布）：现为北京协和医院皮肤科住院医师。\n- 好大夫在线页面（其基本信息来自医院官网或医院公示信息）显示：主治医师，专业方向为皮肤性病科。\n\n## 教育与经历\n- 毕业于清华大学八年制临床医学专业，获医学博士。\n- 曾于2014-2016年赴美国匹兹堡大学访问交流并进行基础医学研究。\n- 获北京协和医院优秀临床医学博士后、优秀住院医等荣誉称号。\n\n## 专长与研究方向\n- 从事皮肤病及性病的诊疗及研究。\n- 以第一作者发表多篇中、英文文章；参与编译《皮肤性病学》《北京协和医院疑难重症皮肤病病例精讲》等多部专著。\n\n## 说明\n- 两个公开来源对职称的表述不一致（住院医师 vs 主治医师），可能与信息发布时间不同有关，具体以医院最新公示为准。\n- 好大夫页面有一条患者反馈涉及带状疱疹就诊经历，属用户生成内容，仅作背景参考。\n\n本报告仅汇总公开信息，不构成医疗建议，也不对研究质量作评价。",
+    "core_evidence": [
+      {
+        "reference_id": "ref_pmid_42151643",
+        "study_type": "I/II期、随机、双盲、赋形剂对照的多中心临床试验（文献题录信息）",
+        "sample_and_source": "中国成人结节性痒疹患者，49例随机入组（PubMed索引文献，Dermatology and Therapy, 2026）",
+        "methods": "受试者按2:1随机接受1.5%芦可替尼凝胶（HDM3010）或赋形剂，每日一次或每日两次，4周双盲治疗期",
+        "key_results": "文献报告治疗相关不良事件发生率为4.1%且均为轻中度；平均峰浓度低于7 ng/mL；较赋形剂有更高的WI-NRS≥4分应答比例及WI-NRS、IGA PN-S、IGA PN-A评分改善",
+        "limitations": "以上仅为该文献报告的结果概述，本研究不对研究设计质量、因果推断或临床意义作评价"
+      },
+      {
+        "reference_id": "ref_pmid_41508837",
+        "study_type": "药物警戒数据库（FAERS）信号分析及文献综述（文献题录信息）",
+        "sample_and_source": "2004年1月至2023年9月FAERS数据库中与JAK抑制剂相关的皮肤淋巴瘤病例，共24例（Acta Dermato-Venereologica, 2026）",
+        "methods": "对FAERS数据进行不均衡性分析与贝叶斯分析以检测信号",
+        "key_results": "文献报告24例相关病例，多数患者（64%）为60岁及以上；巴瑞替尼相关皮肤淋巴瘤的报告比值比最高（23.91，95% CI 10.71-53.4）",
+        "limitations": "以上仅为该文献报告的结果概述，本研究不对方法学质量或临床意义作评价"
+      },
+      {
+        "reference_id": "ref_pmid_41450454",
+        "study_type": "综述（文献题录信息）",
+        "sample_and_source": "PubMed索引文献，Clinical, Cosmetic and Investigational Dermatology, 2025",
+        "methods": "对模式识别受体（PRRs）及其配体在白癜风发病机制中的作用和相关治疗策略的文献进行综述",
+        "key_results": "综述提出PRRs识别危险信号后激活先天与适应性免疫，导致黑素细胞损伤，并讨论了PRR抑制剂作为潜在治疗策略",
+        "limitations": "以上仅为该文献摘要内容的转述，本研究不对综述质量或结论可靠性作评价"
+      }
+    ],
+    "references": [
+      {
+        "reference_id": "ref_pmid_42151643",
+        "title": "Safety, Pharmacokinetics, and Efficacy of 1.5% Ruxolitinib Gel (HDM3010) in Adult Patients with Prurigo Nodularis: A Phase I/II, Randomized, Double-Blind, Vehicle-Controlled Multicenter Clinical Trial.",
+        "journal": "Dermatology and therapy",
+        "publication_year": 2026,
+        "pmid": "42151643",
+        "doi": "10.1007/s13555-026-01787-x",
+        "verification_status": "verified"
+      },
+      {
+        "reference_id": "ref_pmid_41508838",
+        "title": "X-linked Recessive Ectodysplasin A Mutations Induced Hypohidrotic Ectodermal Dysplasia and Severe Atopic Dermatitis Successfully Treated with Dupilumab.",
+        "journal": "Acta dermato-venereologica",
+        "publication_year": 2026,
+        "pmid": "41508838",
+        "doi": "10.2340/actadv.v106.44646",
+        "verification_status": "verified"
+      },
+      {
+        "reference_id": "ref_pmid_41508837",
+        "title": "Cutaneous Lymphoma Associated with JAK Inhibitors: A Pharmacovigilance Analysis of the FAERS Database and Literature Review.",
+        "journal": "Acta dermato-venereologica",
+        "publication_year": 2026,
+        "pmid": "41508837",
+        "doi": "10.2340/actadv.v106.44546",
+        "verification_status": "verified"
+      },
+      {
+        "reference_id": "ref_pmid_41450454",
+        "title": "Updates on the Role of Innate Immunity's Pattern Recognition Receptors in Vitiligo Pathogenesis and Therapeutic Potential.",
+        "journal": "Clinical, cosmetic and investigational dermatology",
+        "publication_year": 2025,
+        "pmid": "41450454",
+        "doi": "10.2147/ccid.s574747",
+        "verification_status": "verified"
+      }
+    ],
+    "search_report": {
+      "databases": [
+        "pubmed",
+        "crossref"
+      ],
+      "searched_at": "2026-08-27T14:30:55.776Z",
+      "queries": [
+        "((\"Yang L\"[Author] OR \"Lu Yang\"[Author] OR \"Yang Lu\"[Author]) AND (\"beijing\"[Affiliation] OR \"bei jing\"[Affiliation] OR \"peking\"[Affiliation] OR \"union\"[Affiliation] OR \"xiehe\"[Affiliation]) AND \"dermatology\"[Affiliation]) AND (2022:2026[Date - Publication])"
+      ],
+      "included_count": 4
+    }
+  },
+  "source_coverage": {
+    "literature_sources": [
+      "pubmed",
+      "crossref"
+    ],
+    "profile_sources": [
+      "official_web",
+      "pubmed"
+    ],
+    "cutoff_date": "2026-08-27",
+    "warnings": [
+      "abstract_only_evidence",
+      "licensed_chinese_literature_not_covered",
+      "verified_reference_target_not_reached"
+    ]
+  },
+  "predicted_questions": [
+    "杨璐医生目前的职称是什么？",
+    "杨璐医生的出诊时间怎么查询？",
+    "杨璐医生的受教育背景和海外经历是什么？",
+    "杨璐医生擅长看哪些皮肤病？",
+    "杨璐医生发表过哪些研究文章？"
+  ],
+  "answers": [
+    {
+      "question_index": 1,
+      "answer": "两个公开来源表述不一致：北京协和医院官网医师介绍（2022-08-01发布）称其为皮肤科住院医师；好大夫在线页面（基本信息来自医院官网或公示信息）显示其为主治医师。建议以医院最新公示或挂号平台信息为准。",
+      "source_ids": [
+        "src_web_fff29d5ebe44a82ec9c1859d",
+        "src_web_20df31523a62bbb70daa0739"
+      ]
+    },
+    {
+      "question_index": 2,
+      "answer": "好大夫在线有其门诊信息页面，但本次检索的页面文本中未包含具体出诊时间；具体出诊安排可通过北京协和医院官方预约挂号渠道查询。",
+      "source_ids": [
+        "src_web_20df31523a62bbb70daa0739"
+      ]
+    },
+    {
+      "question_index": 3,
+      "answer": "医学博士，毕业于清华大学8年制临床医学专业；曾于2014-2016年赴美国匹兹堡大学访问交流并进行基础医学研究；获北京协和医院优秀临床医学博士后、优秀住院医等荣誉称号。",
+      "source_ids": [
+        "src_web_fff29d5ebe44a82ec9c1859d",
+        "src_web_20df31523a62bbb70daa0739"
+      ]
+    },
+    {
+      "question_index": 4,
+      "answer": "据医院官网介绍，其从事皮肤病及性病的诊疗及研究。页面未列出更细分的具体专病方向；好大夫页面患者反馈中有带状疱疹就诊记录（用户生成内容，仅供参考）。",
+      "source_ids": [
+        "src_web_fff29d5ebe44a82ec9c1859d",
+        "src_web_20df31523a62bbb70daa0739"
+      ]
+    },
+    {
+      "question_index": 5,
+      "answer": "官网介绍称其以第一作者发表多篇中、英文文章，并参与编译《皮肤性病学》《北京协和医院疑难重症皮肤病病例精讲》等专著；具体论文清单在本次检索的公开来源中未完整列出。",
+      "source_ids": [
+        "src_web_fff29d5ebe44a82ec9c1859d",
+        "src_web_20df31523a62bbb70daa0739"
+      ]
+    }
+  ],
+  "quality": {
+    "status": "passed_with_warnings",
+    "checks": [
+      "doctor_identity_resolution",
+      "official_profile_source_closure",
+      "verified_publication_attribution",
+      "reference_metadata_closed_set",
+      "prompt_injection_isolation",
+      "doctor_lookup_brief_contract"
+    ],
+    "warnings": [
+      "doctor_lookup_sources_require_user_verification",
+      "abstract_only_evidence",
+      "brief_relaxed_review_content_minimum",
+      "brief_relaxed_citation_reference_closure",
+      "brief_relaxed_paragraph_citation_coverage",
+      "brief_relaxed_answer_length_contract",
+      "brief_relaxed_numeric_evidence_closure",
+      "doctor_lookup_brief_completed",
+      "peer_review_skipped_after_deterministic_validation",
+      "verified_reference_target_not_reached"
+    ]
+  },
+  "schema_version": "doctor_research_result.v1",
+  "request_id": "req_research_worker_80a78ef0b6174d61a84964667517c657",
+  "run_id": "drr_80a78ef0b6174d61a84964667517c657",
+  "artifacts": [
+    {
+      "artifact_id": "dra_2bb9a4d87f3b4c9c9fc3d6b219b5d6d4",
+      "kind": "profile",
+      "filename": "杨璐_基础信息与研究方向.md",
+      "content_type": "text/markdown; charset=utf-8",
+      "size_bytes": 3500,
+      "sha256": "3d778e5d512652bf582561579426f8ec8213ba3ae667560cd71b22a95fdac0bd",
+      "expires_at": "2026-09-26T14:32:19.377Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_2bb9a4d87f3b4c9c9fc3d6b219b5d6d4/download"
+    },
+    {
+      "artifact_id": "dra_4a5b5f7d52544b3b8144958d0483b6b8",
+      "kind": "review",
+      "filename": "杨璐_相关领域前沿综述.md",
+      "content_type": "text/markdown; charset=utf-8",
+      "size_bytes": 5463,
+      "sha256": "a3052b3b7208e3140c849ffc580ffe3c74ffbacf1a724a51f282730dad5f301b",
+      "expires_at": "2026-09-26T14:32:19.377Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_4a5b5f7d52544b3b8144958d0483b6b8/download"
+    },
+    {
+      "artifact_id": "dra_1dae5b2c18724cd08af6db80f6a7c2be",
+      "kind": "questions",
+      "filename": "杨璐_医生可能问机器人问题.txt",
+      "content_type": "text/plain; charset=utf-8",
+      "size_bytes": 244,
+      "sha256": "cad2ddea9781c33f03151df989f3933e5c43821bd7f1cdf874955c6d0e675f24",
+      "expires_at": "2026-09-26T14:32:19.377Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_1dae5b2c18724cd08af6db80f6a7c2be/download"
+    },
+    {
+      "artifact_id": "dra_044893eea659432babc64f40ef60f79a",
+      "kind": "answers",
+      "filename": "杨璐_问题与答案.md",
+      "content_type": "text/markdown; charset=utf-8",
+      "size_bytes": 4119,
+      "sha256": "a39140b3eb74e9a1d417a09b01fb450c02948271f3bcae83b37cdf55f030cc1b",
+      "expires_at": "2026-09-26T14:32:19.377Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_044893eea659432babc64f40ef60f79a/download"
+    }
+  ]
+}

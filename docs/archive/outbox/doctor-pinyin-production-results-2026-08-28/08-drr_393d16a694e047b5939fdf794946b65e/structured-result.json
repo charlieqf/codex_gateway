@@ -1,0 +1,426 @@
+{
+  "doctor": {
+    "name": "陈赛娟",
+    "hospital": "上海交通大学医学院附属瑞金医院",
+    "department": "血液科"
+  },
+  "identity_resolution": {
+    "status": "verified",
+    "confidence": "medium",
+    "canonical_identity_id": "dci_4be48a0c5462986410a3227ae8e6572f",
+    "matched_by": [
+      "institution",
+      "department"
+    ]
+  },
+  "sources": [
+    {
+      "source_id": "src_web_16831949e5d6af3d14cb633f",
+      "source_type": "official_web",
+      "title": "上海交通大学医学院附属瑞金医院2026年血液科博士后招收简章-高校人才网|高才网",
+      "url": "https://www.gaoxiaojob.com/announcement/detail/42904.html",
+      "accessed_at": "2026-08-27T14:38:12.278Z",
+      "content_sha256": "392d83f6edcc9bc85b3a9339ea9ba240443d5876bf66d42dd25e7b8cce0486b1"
+    },
+    {
+      "source_id": "src_web_e8c712652c4ce17a57010aaf",
+      "source_type": "official_web",
+      "title": "大江东丨上海科技功臣陈赛娟：秉坚韧之志，探科学之美_人民日报",
+      "url": "https://www.peopleapp.com/column/30052537890-500007575638",
+      "accessed_at": "2026-08-27T14:38:12.130Z",
+      "content_sha256": "f86a758ce0ba349df654f2e003e7780367f636115e1a8966e1852c83521b4b86"
+    },
+    {
+      "source_id": "src_web_d97cacffce3a00c4c2669926",
+      "source_type": "official_web",
+      "title": "“凝心聚力向未来” - 第四届中国老年医学学会血液学分会海上菁英论坛成功召开 - 中国老年医学学会",
+      "url": "https://www.zglnyxxh.com/details/636289772762959872",
+      "accessed_at": "2026-08-27T14:38:13.249Z",
+      "content_sha256": "00884fbe45e5053fd2f441bd3c744189fcda15f41f47f15bb5d7b31dd0d82956"
+    },
+    {
+      "source_id": "src_crossref_ca877aa561253aaf6722b7c3",
+      "source_type": "crossref",
+      "title": "The making of cells and organs in xenogeneic animal bioreactor",
+      "url": "https://api.crossref.org/v1/works/10.1038%2Fs41392-026-02781-7",
+      "accessed_at": "2026-08-27T14:38:16.716Z",
+      "content_sha256": "19360e9bd68c42d7677b614589becc7fccba5b5533420891923da57f7635e9da"
+    },
+    {
+      "source_id": "src_pubmed_42634082",
+      "source_type": "pubmed",
+      "title": "The making of cells and organs in xenogeneic animal bioreactor.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42634082/",
+      "accessed_at": "2026-08-27T14:38:14.979Z",
+      "content_sha256": "c5d0c2f73422209c705605e87dcba548c8ce9b8655dbee7b11a05c3833dcf81e"
+    },
+    {
+      "source_id": "src_crossref_7637e5309b4422739f9be4e7",
+      "source_type": "crossref",
+      "title": "Extranodal natural killer/T‐cell lymphoma: From fatal to curable",
+      "url": "https://api.crossref.org/v1/works/10.3322%2Fcaac.70094",
+      "accessed_at": "2026-08-27T14:38:18.218Z",
+      "content_sha256": "01c2efb54b638af52c5b976108641af319b44102285be15b360f5bb57f7d02f8"
+    },
+    {
+      "source_id": "src_pubmed_42372027",
+      "source_type": "pubmed",
+      "title": "Extranodal natural killer/T-cell lymphoma: From fatal to curable.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42372027/",
+      "accessed_at": "2026-08-27T14:38:17.961Z",
+      "content_sha256": "b00734aaecd1fc1f37d6a0d7376c8479fb867d1fdf754c1caca8ae6a1d702258"
+    },
+    {
+      "source_id": "src_crossref_1e93ff7f445c84df7917eb57",
+      "source_type": "crossref",
+      "title": "Targeting ZMIZ1 induces differentiation in acute myeloid leukemia via chromatin remodeling",
+      "url": "https://api.crossref.org/v1/works/10.1038%2Fs41392-026-02766-6",
+      "accessed_at": "2026-08-27T14:38:19.992Z",
+      "content_sha256": "1fc679ea83a9a83f9204cd6fa7717313c2582e2d7c881a6e4f551900a7822cda"
+    },
+    {
+      "source_id": "src_pubmed_42156735",
+      "source_type": "pubmed",
+      "title": "Targeting ZMIZ1 induces differentiation in acute myeloid leukemia via chromatin remodeling.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42156735/",
+      "accessed_at": "2026-08-27T14:38:19.730Z",
+      "content_sha256": "ddf54126617f301cd660df1877f47bd42cc516c85405f10ad5f0998295a7ab7b"
+    },
+    {
+      "source_id": "src_pubmed_42154554",
+      "source_type": "pubmed",
+      "title": "Molecular insight into the interplay among heterogeneous plasmacytes and microenvironment cells and their clinical relevance in myeloma.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42154554/",
+      "accessed_at": "2026-08-27T14:38:21.363Z",
+      "content_sha256": "bef7a20075526eb39a0c68a9a4bf8f7d0f5f7afa4cfa73d21466bb5037e97642"
+    },
+    {
+      "source_id": "src_pubmed_42107709",
+      "source_type": "pubmed",
+      "title": "Pioglitazone and metformin attenuate hemophilic arthropathy progression via peroxisome proliferator-activated receptor signaling pathway activation.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42107709/",
+      "accessed_at": "2026-08-27T14:38:22.495Z",
+      "content_sha256": "29d0b2f408de048211a7905d70acc2352d0a104f222d91095727d790928393ea"
+    }
+  ],
+  "profile": {
+    "positions": [],
+    "expertise": [],
+    "education_and_career": [],
+    "research_directions": [
+      "'她是我国首位克隆人类疾病基因的科学家 我国血液肿瘤多组学研究的开拓者'。"
+    ],
+    "representative_outputs": [
+      "代表性论文：The making of cells and organs in xenogeneic animal bioreactor.（Signal transduction and targeted therapy，2026）",
+      "代表性论文：Extranodal natural killer/T-cell lymphoma: From fatal to curable.（CA: a cancer journal for clinicians，2026）",
+      "代表性论文：Targeting ZMIZ1 induces differentiation in acute myeloid leukemia via chromatin remodeling.（Signal transduction and targeted therapy，2026）",
+      "代表性论文：Molecular insight into the interplay among heterogeneous plasmacytes and microenvironment cells and their clinical relevance in myeloma.（Proceedings of the National Academy of Sciences of the United States of America，2026）",
+      "代表性论文：Pioglitazone and metformin attenuate hemophilic arthropathy progression via peroxisome proliferator-activated receptor signaling pathway activation.（Journal of thrombosis and haemostasis : JTH，2026）"
+    ],
+    "claims": [
+      {
+        "claim_id": "clm_identity_verified",
+        "claim_type": "identity",
+        "text": "The supplied identity for 陈赛娟 matched the retrieved official public evidence.",
+        "source_ids": [
+          "src_web_16831949e5d6af3d14cb633f",
+          "src_web_e8c712652c4ce17a57010aaf",
+          "src_web_d97cacffce3a00c4c2669926"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_research_first_gene_clone",
+        "claim_type": "research_direction",
+        "text": "'她是我国首位克隆人类疾病基因的科学家 我国血液肿瘤多组学研究的开拓者'。",
+        "source_ids": [
+          "src_web_e8c712652c4ce17a57010aaf"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_1",
+        "claim_type": "representative_output",
+        "text": "代表性论文：The making of cells and organs in xenogeneic animal bioreactor.（Signal transduction and targeted therapy，2026）",
+        "source_ids": [
+          "src_pubmed_42634082"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_2",
+        "claim_type": "representative_output",
+        "text": "代表性论文：Extranodal natural killer/T-cell lymphoma: From fatal to curable.（CA: a cancer journal for clinicians，2026）",
+        "source_ids": [
+          "src_pubmed_42372027"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_3",
+        "claim_type": "representative_output",
+        "text": "代表性论文：Targeting ZMIZ1 induces differentiation in acute myeloid leukemia via chromatin remodeling.（Signal transduction and targeted therapy，2026）",
+        "source_ids": [
+          "src_pubmed_42156735"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_4",
+        "claim_type": "representative_output",
+        "text": "代表性论文：Molecular insight into the interplay among heterogeneous plasmacytes and microenvironment cells and their clinical relevance in myeloma.（Proceedings of the National Academy of Sciences of the United States of America，2026）",
+        "source_ids": [
+          "src_pubmed_42154554"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_5",
+        "claim_type": "representative_output",
+        "text": "代表性论文：Pioglitazone and metformin attenuate hemophilic arthropathy progression via peroxisome proliferator-activated receptor signaling pathway activation.（Journal of thrombosis and haemostasis : JTH，2026）",
+        "source_ids": [
+          "src_pubmed_42107709"
+        ],
+        "verification_status": "verified"
+      }
+    ],
+    "primary_public_source_ids": [
+      "src_web_16831949e5d6af3d14cb633f",
+      "src_web_e8c712652c4ce17a57010aaf",
+      "src_web_d97cacffce3a00c4c2669926",
+      "src_pubmed_42634082",
+      "src_pubmed_42372027",
+      "src_pubmed_42156735",
+      "src_pubmed_42154554",
+      "src_pubmed_42107709"
+    ]
+  },
+  "review": {
+    "title": "陈赛娟院士：瑞金医院血液科专家速览",
+    "abstract": "陈赛娟是中国工程院院士、国家转化医学研究中心（上海）主任，长期在上海交通大学医学院附属瑞金医院血液科从事血液肿瘤（尤其急性白血病）的基础与转化研究。她推动首创的APL'上海方案'使该病从最凶险变为可基本治愈；她是我国首位克隆人类疾病基因的科学家、血液肿瘤多组学研究的开拓者，2025年获上海科技功臣奖。近年代表性研究涵盖AML分化治疗新靶点、多发性骨髓瘤多组学、结外NK/T细胞淋巴瘤治疗进展等方向。",
+    "keywords": [
+      "陈赛娟",
+      "瑞金医院",
+      "血液科",
+      "急性早幼粒细胞白血病",
+      "上海方案",
+      "多组学",
+      "转化医学"
+    ],
+    "markdown": "# 陈赛娟院士：医生速览\n\n## 身份与现任公开职务\n- 中国工程院院士，上海交通大学医学院附属瑞金医院血液科（来源：瑞金医院博士后招收简章）\n- 国家转化医学研究中心（上海）主任（来源：中国老年医学学会会议报道）\n- 2025年度上海科技功臣奖得主（来源：人民日报客户端报道）\n\n## 专科方向\n血液肿瘤，尤其急性白血病的分子分型与精准治疗；拓展了白血病诱导分化/凋亡的治疗理念。\n\n## 主要经历（据公开报道）\n- 1978年成为王振义教授文革后首批两名硕士研究生之一；1986年公派赴法攻读博士；1989年回国到瑞金医院。\n- 1991年团队在国际上首次发现APL变异型染色体易位并克隆出PLZF基因，实现我国人类肿瘤疾病新基因克隆'零的突破'。\n- 推动首创ATRA+ATO协同靶向治疗APL的'上海方案'，使APL成为可基本治愈的白血病。\n- 以陈赛娟、陈竺、赵维莅为带头人的团队获2023年度国家科技进步奖一等奖（创新团队）。\n- 至今仍保持每周到瑞金医院血液科查房的习惯。\n\n## 近年研究方向（据验证的署名论文）\n- AML分化治疗新靶点（如ZMIZ1）\n- 多发性骨髓瘤多组学与分层模型\n- 结外NK/T细胞淋巴瘤的治愈路径\n- 血友病关节病变的干预机制、异种动物生物反应器等前沿方向\n\n注：以上均为公开来源支持的事实性信息，不代表对研究质量的评价。",
+    "core_evidence": [
+      {
+        "reference_id": "ref_pmid_42156735",
+        "study_type": "基础研究（含基因编辑筛选与动物模型）",
+        "sample_and_source": "AML患者样本与小鼠AML模型、AML类器官",
+        "methods": "CRISPR-Cas9靶向筛选结合Hi-C、ChIP-seq等表观遗传分析及小分子化合物验证",
+        "key_results": "该文为2026年发表于Signal Transduction and Targeted Therapy的论文，作者含Chen S，报告ZMIZ1为AML中可靶向的表观遗传脆弱点，敲除可诱导分化并延长小鼠生存",
+        "limitations": "属临床前研究，临床转化价值尚待后续验证；本文仅作书目性陈述"
+      },
+      {
+        "reference_id": "ref_pmid_42154554",
+        "study_type": "多组学队列研究",
+        "sample_and_source": "上海骨髓瘤多组学（SMMO）项目277例新诊断多发性骨髓瘤患者，含59例单细胞测序",
+        "methods": "全基因组/外显子测序、RNA-seq及单细胞RNA-seq分析",
+        "key_results": "该文为2026年发表于PNAS的论文，第一/通讯署名含Chen SJ，定义8个浆细胞亚群并提出基于Score100的骨髓瘤分层模型",
+        "limitations": "为中国单中心为主的队列，外部适用性需进一步验证；本文仅作书目性陈述"
+      },
+      {
+        "reference_id": "ref_pmid_42372027",
+        "study_type": "综述",
+        "sample_and_source": "对结外NK/T细胞淋巴瘤诊疗进展的文献综述",
+        "methods": "综述既有临床与研究证据",
+        "key_results": "该文为2026年发表于CA: A Cancer Journal for Clinicians的综述，署名含Chen SJ，总结该病从致命转为可治愈的治疗范式演变",
+        "limitations": "属综述，非原始研究数据；本文仅作书目性陈述"
+      }
+    ],
+    "references": [
+      {
+        "reference_id": "ref_pmid_42634082",
+        "title": "The making of cells and organs in xenogeneic animal bioreactor.",
+        "journal": "Signal transduction and targeted therapy",
+        "publication_year": 2026,
+        "pmid": "42634082",
+        "doi": "10.1038/s41392-026-02781-7",
+        "verification_status": "verified"
+      },
+      {
+        "reference_id": "ref_pmid_42372027",
+        "title": "Extranodal natural killer/T-cell lymphoma: From fatal to curable.",
+        "journal": "CA: a cancer journal for clinicians",
+        "publication_year": 2026,
+        "pmid": "42372027",
+        "doi": "10.3322/caac.70094",
+        "verification_status": "verified"
+      },
+      {
+        "reference_id": "ref_pmid_42156735",
+        "title": "Targeting ZMIZ1 induces differentiation in acute myeloid leukemia via chromatin remodeling.",
+        "journal": "Signal transduction and targeted therapy",
+        "publication_year": 2026,
+        "pmid": "42156735",
+        "doi": "10.1038/s41392-026-02766-6",
+        "verification_status": "verified"
+      },
+      {
+        "reference_id": "ref_pmid_42154554",
+        "title": "Molecular insight into the interplay among heterogeneous plasmacytes and microenvironment cells and their clinical relevance in myeloma.",
+        "journal": "Proceedings of the National Academy of Sciences of the United States of America",
+        "publication_year": 2026,
+        "pmid": "42154554",
+        "doi": null,
+        "verification_status": "verified"
+      },
+      {
+        "reference_id": "ref_pmid_42107709",
+        "title": "Pioglitazone and metformin attenuate hemophilic arthropathy progression via peroxisome proliferator-activated receptor signaling pathway activation.",
+        "journal": "Journal of thrombosis and haemostasis : JTH",
+        "publication_year": 2026,
+        "pmid": "42107709",
+        "doi": null,
+        "verification_status": "verified"
+      }
+    ],
+    "search_report": {
+      "databases": [
+        "pubmed",
+        "crossref"
+      ],
+      "searched_at": "2026-08-27T14:38:09.485Z",
+      "queries": [
+        "((\"Chen SJ\"[Author] OR \"Saijuan Chen\"[Author] OR \"Sai-Juan Chen\"[Author] OR \"Chen Saijuan\"[Author]) AND (\"shanghai\"[Affiliation] OR \"shang hai\"[Affiliation] OR \"jiaotong\"[Affiliation] OR \"jiao tong\"[Affiliation] OR \"ruijin\"[Affiliation] OR \"rui jin\"[Affiliation]) AND (\"hematology\"[Affiliation] OR \"haematology\"[Affiliation])) AND (2022:2026[Date - Publication])"
+      ],
+      "included_count": 5
+    }
+  },
+  "source_coverage": {
+    "literature_sources": [
+      "pubmed",
+      "crossref"
+    ],
+    "profile_sources": [
+      "official_web",
+      "pubmed"
+    ],
+    "cutoff_date": "2026-08-27",
+    "warnings": [
+      "abstract_only_evidence",
+      "licensed_chinese_literature_not_covered",
+      "verified_reference_target_not_reached"
+    ]
+  },
+  "predicted_questions": [
+    "陈赛娟现在在哪个医院、担任什么职务？",
+    "她看什么病、专长是什么？",
+    "她最著名的贡献是什么？",
+    "她最近还在做研究、出门诊/查房吗？",
+    "她的教育背景和主要经历是怎样的？"
+  ],
+  "answers": [
+    {
+      "question_index": 1,
+      "answer": "她在上海交通大学医学院附属瑞金医院血液科，为中国工程院院士，并担任国家转化医学研究中心（上海）主任。",
+      "source_ids": [
+        "src_web_16831949e5d6af3d14cb633f",
+        "src_web_d97cacffce3a00c4c2669926"
+      ]
+    },
+    {
+      "question_index": 2,
+      "answer": "专长为血液肿瘤，尤其急性白血病的分子分型与精准治疗；她拓展了白血病诱导分化凋亡的治疗理念。",
+      "source_ids": [
+        "src_web_e8c712652c4ce17a57010aaf"
+      ]
+    },
+    {
+      "question_index": 3,
+      "answer": "她推动首创治疗急性早幼粒细胞白血病（APL）的'上海方案'，使APL从'最凶险'变为可基本治愈的疾病；她也是我国首位克隆人类疾病基因的科学家。",
+      "source_ids": [
+        "src_web_e8c712652c4ce17a57010aaf"
+      ]
+    },
+    {
+      "question_index": 4,
+      "answer": "是。据人民日报2026年报道，她70多岁仍坚守科研一线，至今保持每周去瑞金医院血液科查房的习惯；医院亦发布了她团队2026年博士后招收启事。",
+      "source_ids": [
+        "src_web_e8c712652c4ce17a57010aaf",
+        "src_web_16831949e5d6af3d14cb633f"
+      ]
+    },
+    {
+      "question_index": 5,
+      "answer": "1978年成为王振义教授首批硕士研究生之一，1986年公派赴法国进修并攻读博士学位，1989年回国到瑞金医院；2025年获上海科技功臣奖。其具体门诊安排等细节在已检索的公开来源中未提供。",
+      "source_ids": [
+        "src_web_e8c712652c4ce17a57010aaf"
+      ]
+    }
+  ],
+  "quality": {
+    "status": "passed_with_warnings",
+    "checks": [
+      "doctor_identity_resolution",
+      "official_profile_source_closure",
+      "verified_publication_attribution",
+      "reference_metadata_closed_set",
+      "prompt_injection_isolation",
+      "doctor_lookup_brief_contract"
+    ],
+    "warnings": [
+      "doctor_lookup_sources_require_user_verification",
+      "abstract_only_evidence",
+      "brief_relaxed_review_content_minimum",
+      "brief_relaxed_citation_reference_closure",
+      "brief_relaxed_paragraph_citation_coverage",
+      "brief_relaxed_answer_length_contract",
+      "brief_relaxed_numeric_evidence_closure",
+      "doctor_lookup_brief_completed",
+      "bounded_doctor_lookup_contract_retry_completed",
+      "verified_reference_target_not_reached"
+    ]
+  },
+  "schema_version": "doctor_research_result.v1",
+  "request_id": "req_research_worker_393d16a694e047b5939fdf794946b65e",
+  "run_id": "drr_393d16a694e047b5939fdf794946b65e",
+  "artifacts": [
+    {
+      "artifact_id": "dra_94b25cbb807d4168a65fe01625522df2",
+      "kind": "profile",
+      "filename": "陈赛娟_基础信息与研究方向.md",
+      "content_type": "text/markdown; charset=utf-8",
+      "size_bytes": 2911,
+      "sha256": "466b17726e6915882603dfd44d612e930c5048e4b8a3d9f6cdd6ff6669644966",
+      "expires_at": "2026-09-26T14:39:14.617Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_94b25cbb807d4168a65fe01625522df2/download"
+    },
+    {
+      "artifact_id": "dra_3b3c9ff15e834506ba543a38ac392f13",
+      "kind": "review",
+      "filename": "陈赛娟_相关领域前沿综述.md",
+      "content_type": "text/markdown; charset=utf-8",
+      "size_bytes": 5302,
+      "sha256": "99a7a3824362d0c495efeeab340826ed4e47b9943b34626660e57d8865564e5d",
+      "expires_at": "2026-09-26T14:39:14.617Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_3b3c9ff15e834506ba543a38ac392f13/download"
+    },
+    {
+      "artifact_id": "dra_7ea3340dbf334e139dad9b9a1c9edf27",
+      "kind": "questions",
+      "filename": "陈赛娟_医生可能问机器人问题.txt",
+      "content_type": "text/plain; charset=utf-8",
+      "size_bytes": 245,
+      "sha256": "fedefab4bf37bfc4b881366c19c859a74a994d83f00185e375652f826f34226a",
+      "expires_at": "2026-09-26T14:39:14.617Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_7ea3340dbf334e139dad9b9a1c9edf27/download"
+    },
+    {
+      "artifact_id": "dra_51ae4d8fbd7d4fb5bf652d101df5c05b",
+      "kind": "answers",
+      "filename": "陈赛娟_问题与答案.md",
+      "content_type": "text/markdown; charset=utf-8",
+      "size_bytes": 2834,
+      "sha256": "d0c7406f91ff16f63707a27c16b37e3f9a85c6163968aa1e4f816271d7fcf7db",
+      "expires_at": "2026-09-26T14:39:14.617Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_51ae4d8fbd7d4fb5bf652d101df5c05b/download"
+    }
+  ]
+}

@@ -22,7 +22,7 @@ and 16 other containers are unchanged; Gateway has zero restarts/OOM and no
 warning/error logs at verification. Controlled drain reached zero active requests;
 the observed public interruption was 20.517956 seconds (502/503), with no forced
 request termination. No Desktop release or installed-client E2E is claimed.
-See the [release receipt](./desktop-support-reporting-release-2026-11-13.json),
+See the [release receipt](../archive/operations/desktop-support-reporting-release-2026-11-13.json),
 [client contract](../coordination/desktop-support-reporting-v1-contract.zh-CN.txt)
 and [operations notes](./desktop-support-reporting-v1.txt).
 
@@ -47,7 +47,7 @@ draining and replacing Gateway; its observed interruption was 18.442502 seconds.
 No in-flight request was forcibly terminated. Gateway is ready with zero
 restarts/OOM. Four existing tool-loop shadow warnings reported no request
 mutation; no error logs appeared at verification. No Desktop release was made.
-See the [release receipt](./native-tool-transcript-release-2026-11-13.json).
+See the [release receipt](../archive/operations/native-tool-transcript-release-2026-11-13.json).
 
 The following records describe the state at their stated dates. A previous
 record saying "live" is not a claim about the current Gateway revision, routing,
@@ -71,7 +71,7 @@ ports, 22 protected files and 17 other containers are unchanged.
 Natural idle reached 45.305 seconds; observed cutover interruption was 20.526557
 seconds. Gateway is ready with zero restarts/OOM. Two existing tool-loop shadow
 warnings reported no request mutation; no error logs appeared at verification.
-No Desktop release was made. See the [release receipt](./content-filter-release-2026-11-13.json).
+No Desktop release was made. See the [release receipt](../archive/operations/content-filter-release-2026-11-13.json).
 
 Gateway `ec921e16f0a11ce48cccdd9dfbe989fceffb4a70` was live as of
 2026-11-13T00:22:23.514830+00:00 and verified at 2026-11-13T00:23:31.577824+00:00.
@@ -91,7 +91,7 @@ secret mount were added; existing model routes and ports are unchanged.
 reached 45.907 seconds; observed cutover interruption was 21.543337 seconds.
 Gateway is ready with zero restarts/OOM and no warning/error logs at verification.
 Only main and the primary development worktree exist. No Desktop release was made.
-See the [release receipt](./gateway-cos-release-2026-11-13.json).
+See the [release receipt](../archive/operations/gateway-cos-release-2026-11-13.json).
 
 Gateway `0c45726ff69f620b86482d9bb9adaa7dff3e9cd8` was live as of
 2026-11-12T10:25:28.610902+00:00 and verified at 2026-11-12T10:32:41.892095+00:00.
@@ -109,7 +109,7 @@ passed; production environment, 21 protected files and 16 other containers
 are unchanged. Gateway is ready with zero restarts/OOM; observed cutover
 interruption was 17.452245 seconds. Desktop screenshot execution and
 the original user's PDF completion were not part of this parameter smoke test.
-See the [release receipt](./tencent-screenshot-recovery-release-2026-11-12.json).
+See the [release receipt](../archive/operations/tencent-screenshot-recovery-release-2026-11-12.json).
 
 Gateway `a0eb9a4622f3c421713510fa11701b1e8a89b054` is live as of
 2026-11-10T04:16:05.573890+00:00 and verified at 2026-11-10T04:18:16.236411+00:00.
@@ -122,7 +122,7 @@ Temporary credentials were revoked and test jobs removed. Both databases passed;
 Gateway is ready with zero restarts/OOM; observed cutover interruption was
 15.418686 seconds. AI subtitle content still requires review;
 this release does not claim acceptance of all prior screenshot issues.
-See the [release receipt](./medical-subtitles-rules-release-2026-11-10.json).
+See the [release receipt](../archive/operations/medical-subtitles-rules-release-2026-11-10.json).
 
 Gateway `39c2f6d563157627f2ece54ed43b95f794c35f7b` is live as of
 2026-11-09 23:31:54 UTC; final verification completed at 23:34:22 UTC.
@@ -137,7 +137,7 @@ observed a 16.405-second cutover interruption. Both databases and backup restore
 rehearsal passed. Production environment, 21 protected files and 15 other
 containers are unchanged. Gateway is ready with zero restarts/OOM; synthetic
 credentials were revoked, subjects disabled and reservations finalized.
-See the [release receipt](./gateway-vision-tool-release-2026-11-10.zh-CN.md).
+See the [release receipt](../archive/operations/gateway-vision-tool-release-2026-11-10.zh-CN.md).
 
 Gateway `f675af21d29f3c5d4c25a85e3a236a0ac9c72b37` is live as of
 2026-11-09 15:05:33.622734 UTC. Medical-interview subtitle cleaning retains the
@@ -154,7 +154,7 @@ completed fresh 50-second GoldenCode-D and 237.935-second GoldenCode flows,
 including conversation edits, reopen/review, burn-in and full media verification.
 Both latest comparisons reopened successfully. Temporary candidate
 environment files have been removed; production credentials and rollback
-backups are retained. See the [release receipt](./medical-subtitles-release-2026-11-09.zh-CN.md).
+backups are retained. See the [release receipt](../archive/operations/medical-subtitles-release-2026-11-09.zh-CN.md).
 
 Gateway `ee41ee2579766d9dcb3d780a3485d03445cc83c6` is live as of
 2026-11-09 12:31:35 UTC. Authenticated medical-interview subtitle routes now
@@ -165,7 +165,7 @@ restore rehearsal, 21 protected files and five other containers passed.
 Public cutover interruption was 14.352 seconds; subsequent readiness and anonymous
 subtitle rejection passed with zero Gateway restarts/OOM. Installed client dialogue
 acceptance remains in progress. See the
-[release receipt](./medical-subtitles-release-2026-11-09.zh-CN.md).
+[release receipt](../archive/operations/medical-subtitles-release-2026-11-09.zh-CN.md).
 
 Gateway `ac35987b61bfc0e66c74d3fa6fb256e6302cb148` is live as of
 2026-11-06 10:08:32 UTC; verification completed at 10:12:47 UTC.
@@ -179,7 +179,7 @@ Natural idle reached 41.771 seconds against the 30-second gate; public probes
 observed a 16.312-second cutover interruption. Both databases, synthetic cleanup,
 20 protected files and four other containers passed verification. Production
 environment is unchanged; Gateway is healthy with zero restarts/OOM.
-See the [release receipt](./upstream-413-release-2026-11-06.json) and
+See the [release receipt](../archive/operations/upstream-413-release-2026-11-06.json) and
 [client contract](../outbox/gateway-upstream-413-contract-2026-11-06.zh-CN.md).
 
 Gateway `e4b98f36a35d8a9b9057d45f01074c184b0942f6` is live as of
@@ -195,7 +195,7 @@ repeats across 14 image requests. Natural idle reached 41.329 seconds against th
 Both databases, synthetic cleanup, 20 protected files and four other containers
 passed verification. Gateway is healthy with zero restarts/OOM. Earlier seven-segment
 OCR mismatches remain a model-quality limitation; historical fingerprints cannot
-be backfilled. See the [release receipt](./tiankuan-vision-telemetry-release-2026-11-05.json).
+be backfilled. See the [release receipt](../archive/operations/tiankuan-vision-telemetry-release-2026-11-05.json).
 
 Gateway `749c5086f74919b1abeda9d1357de9145f8e7b0b` is live as of 2026-11-04T21:51:20.715671+00:00, verified at 2026-11-04T21:54:05.540230+00:00.
 Qwen image requests now support strict 1536x512 banners, one reference image,
@@ -207,7 +207,7 @@ four skipped. Database integrity, synthetic cleanup, 21 protected files and four
 other containers passed verification; Gateway is healthy with zero restarts/OOM.
 Qwen services, weights and production environment are unchanged. Desktop's
 reference-file/edit-latest controls still require a client release.
-See the [release receipt](./qwen-image-editing-release-2026-11-05.zh-CN.md).
+See the [release receipt](../archive/operations/qwen-image-editing-release-2026-11-05.zh-CN.md).
 
 Gateway `3cb59adcf8a4a45dd05fb6bf8ac582f80d57b58d` is live as of
 2026-11-04 20:47:08 UTC (Beijing 2026-11-05 04:47); verified at 20:47:58 UTC.
@@ -222,7 +222,7 @@ Tencent/Tiankuan tool calls passed. Both databases, synthetic cleanup, 21 protec
 files and four other containers passed verification. Gateway is healthy with
 zero restarts/OOM since replacement; long-duration production memory stability
 remains to be observed. Image generation settings and GPU services were unchanged.
-See the [release and verification receipt](./ajv-tool-cache-release-2026-11-05.zh-CN.md).
+See the [release and verification receipt](../archive/operations/ajv-tool-cache-release-2026-11-05.zh-CN.md).
 
 Gateway `6067ea300476be7962841a39f16cbf2580dae825` is live as of
 2026-10-31 10:17:35 UTC; online verification passed at 10:20:18 UTC.
@@ -236,7 +236,7 @@ injection checks and six real public model checks passed; both databases,
 synthetic cleanup, 21 protected files and four other containers were verified.
 At 10:23:59 UTC, two subsequent non-smoke DeepSeek text calls had succeeded,
 with no natural vision call yet; Gateway was ready with zero restarts/OOM.
-See the [release and verification receipt](./vision-reasoning-reset-release-2026-10-31.zh-CN.md),
+See the [release and verification receipt](../archive/operations/vision-reasoning-reset-release-2026-10-31.zh-CN.md),
 including the pre-existing OCR fixture issue and test-process proxy correction.
 
 Gateway `d84f60b898b5bb58831816cd41012034cadf54ce` is live as of
@@ -250,7 +250,7 @@ both databases, protected settings and the three other containers passed
 verification. The required 30-second idle window was retained; non-ready probe
 samples spanned about 20.4 seconds. The existing in-memory daily request counters
 reset with the deployment restart; Token ledgers were retained. See the
-[release and self-review record](./internal-request-floor-release-2026-10-29.zh-CN.md).
+[release and self-review record](../archive/operations/internal-request-floor-release-2026-10-29.zh-CN.md).
 
 Gateway `3b54c9eec0942e0719630153d27e101b7b6f0328` is live as of
 2026-10-28 23:53:23 UTC, verified at 23:56:42 UTC. Both cloud models accept
@@ -260,8 +260,8 @@ is 1870 seconds. Clean-image tests: 2224 passed, four skipped; ten public checks
 database integrity and synthetic cleanup passed. Gateway is healthy with zero
 restarts/OOM. Other containers and protected settings are preserved. The required
 30-second idle window was used; non-ready samples spanned about 19.4 seconds.
-See the [release receipt](./long-reasoning-timeout-release-2026-10-29.zh-CN.md)
-and [release latency review](./gateway-release-latency-review-2026-10-29.zh-CN.md).
+See the [release receipt](../archive/operations/long-reasoning-timeout-release-2026-10-29.zh-CN.md)
+and [release latency review](../archive/operations/gateway-release-latency-review-2026-10-29.zh-CN.md).
 
 Gateway `fee6fb0a437ef9c7120fce586e832498020529ec` is live as of
 2026-10-28 11:15:00 UTC, verified at 11:21:34 UTC. Active reasoning now disarms the
@@ -273,7 +273,7 @@ integrity, synthetic cleanup, protected configuration and other containers passe
 Cutover observed 503/502 samples spanning about 20.4 seconds. A five-second idle
 window was used before the operator's preference for 30 seconds was received;
 that option was subsequently withdrawn and the 30-second requirement is retained.
-See the [release receipt and execution deviation](./native-healthy-reasoning-release-2026-10-28.zh-CN.md).
+See the [release receipt and execution deviation](../archive/operations/native-healthy-reasoning-release-2026-10-28.zh-CN.md).
 
 Gateway `0072aea0cf40a57b09536f9bb35c6ffe0ba6175d` is live as of
 2026-10-28 07:59:12 UTC, verified at 08:06:22 UTC. Reasoning-only interrupted native
@@ -285,7 +285,7 @@ because admission was closed while a long request drained. Service recovered;
 50 successful bootstrap calls and four logins were observed by 08:07:46 UTC.
 The release tool's idle bypass was removed and drain timeout reduced to 30 seconds
 in main without another production restart. See the
-[release and outage record](./native-reasoning-recovery-release-2026-10-28.zh-CN.md).
+[release and outage record](../archive/operations/native-reasoning-recovery-release-2026-10-28.zh-CN.md).
 
 Gateway `1efc613f32bbd2a2068d18e1f7cc0639a44a7d03` is live as of
 2026-10-28 03:17:21 UTC, verified at 03:20:29 UTC. Vision adaptation never upgrades
@@ -295,7 +295,7 @@ smoke helpers were exercised: 501 related tests, 11 ops tests, two real candidat
 checks and six public checks passed. Production environment and three other
 containers are unchanged; Gateway is healthy with zero restarts/OOM, database
 integrity/FKs and synthetic cleanup passed. Cutover observed about 52 seconds of
-503/502 responses. See the [follow-up receipt](./cloud-vision-followup-2026-10-28.zh-CN.md)
+503/502 responses. See the [follow-up receipt](../archive/operations/cloud-vision-followup-2026-10-28.zh-CN.md)
 and [complete rollout procedure](./cloud-vision-rollout.md).
 
 Gateway `007f5073428ead3457c7f786b139aa6a4bddedb2` is live as of
@@ -307,7 +307,7 @@ public HTTPS checks. Synthetic credentials were revoked and pending reservations
 are zero; both databases passed integrity/FK checks. Gateway is healthy with zero
 restarts/OOM; three other containers and ports are unchanged. Cutover observed
 about 40 seconds of 503/502 responses. Desktop's local D image restriction still
-requires a client release. See the [release and review receipt](./cloud-vision-release-2026-10-28.zh-CN.md).
+requires a client release. See the [release and review receipt](../archive/operations/cloud-vision-release-2026-10-28.zh-CN.md).
 
 Research Worker `9db1efa7329287903e09f0d87232d050a2805453` is live as of
 2026-10-24 21:13:09 UTC, verified at 21:17:21 UTC. Semantic academic editing
@@ -318,7 +318,7 @@ and four downloaded artifacts verified by size/SHA-256. Synthetic credentials
 and artifacts were cleaned, preserving audit records. Worker and public Gateway
 are healthy with zero restarts; no Research runs remain active. Public Gateway
 stays on `954eb3b`; its current/previous links and three other containers are
-unchanged. See the [release receipt](./research-profile-release-2026-10-25.zh-CN.md).
+unchanged. See the [release receipt](../archive/operations/research-profile-release-2026-10-25.zh-CN.md).
 
 Follow-up on the six Research failures: they cover three distinct inputs, all
 later succeeded on resubmission; all 12 replacement artifacts passed size/hash
@@ -326,7 +326,7 @@ checks. Exact deployed-code reproduction confirmed academic-keyword false
 rejections and unreserved final-review calls. Two final editor responses already
 contained approval but failed JSON parsing due to appended material. All 65
 underlying model calls completed with `stop`. No application/production changes
-were made. See the [six-task investigation](./research-six-failures-investigation-2026-10-24.zh-CN.md).
+were made. See the [six-task investigation](../archive/operations/research-six-failures-investigation-2026-10-24.zh-CN.md).
 
 Read-only 24-hour review through 2026-10-24 06:59:58 UTC: Gateway remains
 healthy on `954eb3b`, with no restart/OOM. Of 944 model requests, 920 succeeded,
@@ -336,7 +336,7 @@ account's 15 Research tasks had nine successes and six profile-stage failures:
 all exhausted six calls with a candidate but no approved draft. Final public
 health at 07:17:16 UTC was ready; nine database integrity/FK checks and ledger
 reconciliation passed. Paid daily Token caps remain removed. See the
-[2026-10-24 review and concrete follow-ups](./gateway-24h-review-2026-10-24.zh-CN.md).
+[2026-10-24 review and concrete follow-ups](../archive/operations/gateway-24h-review-2026-10-24.zh-CN.md).
 
 Current Gateway `954eb3bedca6648405fa419d232cdb4a43dbe8fc` is live, deployed
 2026-10-23 03:15:27 UTC and verified at 03:19:45 UTC. The public catalog now has
@@ -353,7 +353,7 @@ disabled with revoked credentials and no pending reservations. The controlled
 drain/recreate window lasted about 58 seconds and recorded 17 HTTP 503 and three
 HTTP 502 responses, including health probes. Ports, 20 other protected files and
 three other containers were preserved. See the
-[DeepSeek release receipt](./goldencode-d-release-2026-10-23.zh-CN.md) and
+[DeepSeek release receipt](../archive/operations/goldencode-d-release-2026-10-23.zh-CN.md) and
 [client model-switching guide](../outbox/goldencode-model-switching-client-guide-2026-10-23.zh-CN.md).
 
 Gateway `25e021f79fb07c28e40ae9be7cd728573788a064` was deployed
@@ -367,7 +367,7 @@ nine database integrity/FK checks passed. Environment, ports, 22 protected
 files and three other containers were preserved; the smoke account is disabled
 with revoked credentials and zero pending reservations. Cutover recorded one
 transient credentials/current 503. See the
-[three-provider failover release receipt](./gateway-three-provider-failover-release-2026-10-23.zh-CN.md).
+[three-provider failover release receipt](../archive/operations/gateway-three-provider-failover-release-2026-10-23.zh-CN.md).
 
 Gateway `ea1ca390f8a09792b73b36f8dd3044d53f6c94bd` is live, deployed
 2026-10-22 21:46:52 UTC and verified at 21:49:19 UTC. Permanent gift/topup
@@ -380,7 +380,7 @@ Natural idle: 30.31 seconds; healthy, zero restarts, nine database integrity/FK
 checks passed. Environment, ports, 22 protected files and three other containers
 were preserved. All four smoke subjects are disabled with revoked credentials
 and no pending reservations; audit ledgers remain. See the
-[Token credits release receipt](./gateway-token-credits-release-2026-10-23.zh-CN.md)
+[Token credits release receipt](../archive/operations/gateway-token-credits-release-2026-10-23.zh-CN.md)
 and [identity/payment API contract](../outbox/gateway-token-credits-api-2026-10-23.zh-CN.md).
 
 Gateway `a259d29d378a6748d2227ce8a0cb8680a5373c87` is live, deployed
@@ -394,7 +394,7 @@ Natural idle: 30.31 seconds; healthy, zero restarts, schema 42 unchanged, nine
 active databases passed integrity/FK checks. Protected inputs, other containers
 and ports were preserved; temporary accounts and document artifacts were cleaned.
 Installed Desktop/PPT acceptance remains with the client team. See the
-[literature Gateway receipt](../outbox/literature-gateway-acceptance-2026-10-22.zh-CN.md).
+[literature Gateway receipt](../archive/outbox/literature-gateway-acceptance-2026-10-22.zh-CN.md).
 
 Gateway `8d55a638ec30753094802a063c771b28ee358f17` is live, deployed
 2026-10-21 00:27:40 UTC and verified at 00:32:11 UTC. AF3 is the sole protein
@@ -409,7 +409,7 @@ nine database integrity/FK checks passed, protected inputs/other containers/port
 preserved, eight smoke jobs and eight runtime files cleaned. The original AF3
 server session owns star AF2 retirement and independent ColabFold MSA setup;
 installed Desktop acceptance remains with the client team. See the
-[AF3 Gateway receipt](../outbox/alphafold3-gateway-acceptance-2026-10-21/README.md)
+[AF3 Gateway receipt](../archive/outbox/alphafold3-gateway-acceptance-2026-10-21/README.md)
 and [AF3 runbook](./alphafold3-gateway-v1.md).
 
 Gateway `43ba3d7536d4795147b84d91f3832ae1ab827a94` is live, deployed
@@ -424,7 +424,7 @@ passed. Both Echo upload-to-download regressions passed. Seven test jobs and
 runtime smoke files were cleaned. Nine databases passed integrity/FK checks;
 schema 42, protected inputs, other containers and model services are unchanged.
 Beta.107 conversation/UI acceptance remains with the client team. See the
-[AlphaFold Gateway receipt](../outbox/alphafold-gateway-acceptance-2026-10-20/README.md).
+[AlphaFold Gateway receipt](../archive/outbox/alphafold-gateway-acceptance-2026-10-20/README.md).
 
 Gateway `6d33d4a44ba19d31192d82ee1ecfb9e1ab08e502` is live, deployed
 2026-10-19 13:15:35 UTC and verified at 13:26:16 UTC. EchoNet-Dynamic and
@@ -437,7 +437,7 @@ downloads were verified. Seven test tasks were revoked and their input records
 removed. Healthy, zero restarts, schema 42 unchanged, eight databases passed
 integrity/FK checks. Other containers, protected inputs, star model services and
 GPU scheduling were preserved. Installed Desktop UI acceptance remains with the
-client team. See the [Echo Gateway release and integration receipt](../outbox/echo-gateway-acceptance-2026-10-19/README.md).
+client team. See the [Echo Gateway release and integration receipt](../archive/outbox/echo-gateway-acceptance-2026-10-19/README.md).
 
 Gateway `c183e3fdce91a127fe6c38678fe88b8a2305aa0c` is live, verified at
 2026-10-19 06:49:49 UTC, schema 42 unchanged. Native invalid-JSON repair retries
@@ -446,7 +446,7 @@ for 30 seconds of natural idle. Linux tests: 1888 passed / 4 skipped. Deployed
 pipeline checks, one real Tencent repair and public tool calls to all three
 GLM providers passed; temporary credentials were revoked. Healthy, zero restarts,
 six database integrity/FK checks passed, protected inputs and other project
-containers preserved. See the [JSON repair release receipt](./native-json-repair-release-2026-10-19.zh-CN.md).
+containers preserved. See the [JSON repair release receipt](../archive/operations/native-json-repair-release-2026-10-19.zh-CN.md).
 This does not fix the separate [RTI error-event parsing issue](./rti-stream-error-2026-10-19.zh-CN.md).
 
 Gateway `1e7e5fa0d7dc14a9ada87bb377f4bdb003e21a9f` is live, verified at
@@ -457,7 +457,7 @@ and credential creation/update normalization now enforce the same floor.
 Token policies, RPM and concurrency limits are unchanged. Linux tests: 1875
 passed / 4 skipped. Public credential and model checks passed; healthy, zero
 restarts, other containers preserved. See the
-[500 RPD operation and release record](./account-rpd-500-2026-10-16.zh-CN.md).
+[500 RPD operation and release record](../archive/operations/account-rpd-500-2026-10-16.zh-CN.md).
 
 Gateway `3d2d4e046a53e39d336caa5c797a072104cdf041` is live, verified at
 2026-10-15 00:04:22 UTC. Tool-validation failures retain bounded schema/syntax
@@ -468,7 +468,7 @@ recovery was removed before commit. Clean Linux tests: 1867 passed / 4 skipped.
 Deployed-image diagnostics and in-memory SQLite smoke passed; public health is
 ready, zero restarts, six database integrity/FK checks passed. Runtime environment,
 protected inputs, ports and other service containers are unchanged. See the
-[tool diagnostics release receipt](./gateway-tool-diagnostics-release-2026-10-15.zh-CN.md).
+[tool diagnostics release receipt](../archive/operations/gateway-tool-diagnostics-release-2026-10-15.zh-CN.md).
 
 GoldenCode now balances across Tencent `glm-5.3`, TianKuan `official/glm-5.3`
 and TokenSwitch `glm-5.3`, verified at 2026-10-14 00:40:27 UTC. This was a
@@ -479,7 +479,7 @@ TokenSwitch Chinese text, tool arguments, tool-result continuation and long-inpu
 preflights passed; public calls to all three members, progress and receipt replay
 passed. Healthy, zero restarts; both affected databases checked, both smoke
 subjects disabled with zero active credentials or unfinished reservations.
-See the [three-provider release receipt](./tokenswitch-three-provider-release-2026-10-14.zh-CN.md).
+See the [three-provider release receipt](../archive/operations/tokenswitch-three-provider-release-2026-10-14.zh-CN.md).
 
 Gateway `94b60aec5974e0aafadf0aeeba05fe045b745da2` is live as of
 2026-10-13 00:28:52 UTC; final smoke cleanup was verified at 00:35:11 UTC.
@@ -492,7 +492,7 @@ Gateway is healthy with zero restarts; six database integrity/FK checks passed.
 All seven smoke subjects are disabled, with zero active credentials or unfinished
 reservations. Research Worker remains on `088f11ad8b97afedb72699be5018420d8a10d51e`;
 other containers and ports were preserved. See the
-[progress and 900-second release receipt](./gateway-progress-release-2026-10-13.zh-CN.md).
+[progress and 900-second release receipt](../archive/operations/gateway-progress-release-2026-10-13.zh-CN.md).
 
 Gateway and Research Worker `088f11ad8b97afedb72699be5018420d8a10d51e`
 are live, verified at 2026-10-12 09:20:35 UTC. Person inputs accept optional
@@ -504,7 +504,7 @@ whole-job guarantee. Both services are healthy with zero restarts, six database
 integrity/FK checks passed, and other project containers were preserved.
 Test credentials/entitlements were revoked, subjects disabled, test runs expired
 and artifacts removed; audit records remain. See the
-[person research release receipt](./person-research-release-2026-10-12.zh-CN.md)
+[person research release receipt](../archive/operations/person-research-release-2026-10-12.zh-CN.md)
 for verification scope and caller compatibility checks.
 
 
@@ -517,7 +517,7 @@ other quotas and historical ledgers are unchanged. Clean Linux tests: 1814 passe
 synthetic reservations were settled at zero and the test credential was revoked.
 Five database integrity/FK checks passed. Gateway is healthy with RestartCount=0;
 environment, ports and other project containers are unchanged. See the
-[600K TPM release receipt](./gateway-tpm-600k-release-2026-10-12.zh-CN.md).
+[600K TPM release receipt](../archive/operations/gateway-tpm-600k-release-2026-10-12.zh-CN.md).
 
 Gateway `41e769ce035834fc970ad449828bbcf0df00929d` is live, verified at
 2026-10-12 01:58:23 UTC. Admin timeout diagnostics, completion-time operations
@@ -528,7 +528,7 @@ Schema 40, healthy, RestartCount=0. Clean Linux tests: 1804 passed / 4 skipped;
 real Tencent text, TianKuan streaming tool, replay and controlled public timeout
 checks passed. Five database integrity/FK checks passed and synthetic credentials
 were revoked. Public errors, retry limits and billing policy are unchanged.
-See the [timeout diagnostics release receipt](./gateway-timeout-release-2026-10-12.zh-CN.md)
+See the [timeout diagnostics release receipt](../archive/operations/gateway-timeout-release-2026-10-12.zh-CN.md)
 for migration compatibility, two controlled replacement windows and verification limits.
 
 Gateway `2378c8e44e0eead62458caa01024e1c1a38ccf9f` is live, verified at
@@ -539,7 +539,7 @@ passed, including PanEcho task recovery across this actual deployment, verified
 downloads, running cancellation and deletion. Health is ready, schema 38,
 RestartCount=0; five database integrity/FK checks passed, test resources were
 cleaned and other project containers preserved. See the
-[2378c8e release receipt](./clinical-gateway-release-2378c8e-2026-10-01.zh-CN.md).
+[2378c8e release receipt](../archive/operations/clinical-gateway-release-2378c8e-2026-10-01.zh-CN.md).
 
 AIPAL / PanEcho Gateway `abffeaf723f72c20ba11e4c6468b21a1c9de7b29` was released,
 verified at 2026-09-30 23:46:44 UTC. Both public v1 prefixes reuse the three CT
@@ -550,13 +550,13 @@ replacement recovery, running cancellation and deletion passed. 1730 tests
 passed / 4 skipped. Health is ready, schema 38, RestartCount=0; five databases
 passed integrity/FK checks. Test tasks and files were cleaned; other project
 containers were preserved. See the [client contract](./clinical-models-v1.md)
-and [release receipt](./clinical-gateway-release-2026-10-01.zh-CN.md).
+and [release receipt](../archive/operations/clinical-gateway-release-2026-10-01.zh-CN.md).
 
 PanEcho video, video ZIP and multi-frame DICOM ZIP public acceptance completed
 at 2026-10-01 01:47:18 UTC: 119 checks passed, identical predictions for equivalent
 pixels, nine verified downloads, and expected mixed-study/static-cine failures.
 All five test jobs and temporary files were cleaned; runtime/config stayed unchanged.
-See the [format supplement](./clinical-panecho-formats-acceptance-2026-10-01.zh-CN.md).
+See the [format supplement](../archive/operations/clinical-panecho-formats-acceptance-2026-10-01.zh-CN.md).
 
 Gateway and Qwen pool/broker `752221d` released: 2026-09-29 05:20:41 UTC;
 public health reverified at 05:32:24 UTC. Image generation stays on Qwen-Image-2.1
@@ -568,7 +568,7 @@ seconds to use this capacity; the backend cannot extend an old client timeout.
 Gateway/pool/broker are healthy with zero restarts; four database integrity/FK
 checks passed. Model workers, RADAR, IndexTTS, Nginx and other containers were
 preserved. Maintenance produced 14 observed HTTP 503 responses; see the
-[release receipt](./image-primary-queue-release-2026-09-29.zh-CN.md) for recovery,
+[release receipt](../archive/operations/image-primary-queue-release-2026-09-29.zh-CN.md) for recovery,
 verification limits and the [client notice](../outbox/image-primary-queue-client-notice-2026-09-29.zh-CN.md).
 
 Gateway `3d4c10a` released: 2026-09-23 02:31 UTC; verified 02:31–02:33 UTC.
@@ -576,7 +576,7 @@ Unlimited `plan_gift_once_*` entitlements are now one-off allowances, like the
 signup Free: they coexist with paid plans, are spent first, and do not block
 billing purchases. The container is healthy with zero restarts, schema 35, and
 the billing smoke passed 20/20. The Research Worker still runs the `3efd505`
-image. See the [3d4c10a receipt](./r760-gateway-release-3d4c10a-2026-09-23.zh-CN.md)
+image. See the [3d4c10a receipt](../archive/operations/r760-gateway-release-3d4c10a-2026-09-23.zh-CN.md)
 and [user quota operations](./user-quota-operations.zh-CN.md).
 
 Gateway `3efd505` released: 2026-09-23 00:41 UTC; verified 00:41–00:43 UTC.
@@ -596,7 +596,7 @@ was cleaned up. Changes now live:
 
 Seven Keys are still refused on R760; one is in active use. The Research Worker
 moved to `3efd505` at 00:51 UTC, so the academic-question change is live. See the
-[release receipt](./r760-gateway-release-3efd505-2026-09-23.zh-CN.md).
+[release receipt](../archive/operations/r760-gateway-release-3efd505-2026-09-23.zh-CN.md).
 
 Scheduled Gateway database backups enabled: 2026-09-22 23:42 UTC. The
 `codex-gateway-db-backup.timer` backs up gateway, client-events and imaging
@@ -612,7 +612,7 @@ Gateway vision structural observation released: 2026-09-22 22:55:35 UTC
 duplicates are persisted in `request_events.vision_observation_json`; routing,
 the 413 image-count contract and upstream bodies are unchanged. The
 partial/unavailable and 413-with-snapshot branches are covered only by unit tests
-so far. See the [vision observation release receipt](./r760-vision-observation-release-2026-09-23.zh-CN.md).
+so far. See the [vision observation release receipt](../archive/operations/r760-vision-observation-release-2026-09-23.zh-CN.md).
 
 Star GPU scheduling and CT memory admission last updated: 2026-11-11 05:48 UTC.
 Star runs scheduler `25d8d26`, RADAR `2f0ba2c2d8` and PanEcho `16b6cec518`
@@ -624,16 +624,16 @@ images. PanEcho no longer depends on Qwen readiness: it may use GPU0 or GPU1,
 but not GPU1 while a CT waits. Nothing is preempted, so a CT arriving during a
 running PanEcho waits for it to exit. A real PanEcho inference ran on GPU1 at
 05:58 UTC while an image held GPU0; the granted and actual GPU matched. See the
-[PanEcho GPU1 dispatch](./panecho-gpu1-dispatch-2026-11-11.zh-CN.md).
+[PanEcho GPU1 dispatch](../archive/operations/panecho-gpu1-dispatch-2026-11-11.zh-CN.md).
 CT reserves 12 GiB for preprocessing and 16 GiB for inference. These
 equal RADAR's per-task `MemoryMax` and are sized from measured peaks of 7.2 and
 10.6 GiB. The host reserve stays at the 11 GiB live override. Qwen growth is
 reserved from anonymous memory, not `MemoryCurrent`. After the rollout one CT
 job and one image were admitted concurrently without memory waits. The Desktop
-CT flow has not been re-run since. See the [CT memory profile and rollout](./ct-memory-profile-2026-11-11.zh-CN.md).
-Earlier history: [scheduler release](./star-qwen-radar-scheduler-release-2026-09-22.zh-CN.md),
-[CT memory recovery](./ct-memory-admission-recovery-2026-09-22.zh-CN.md),
-[dual-GPU release](./qwen-image-dual-gpu-release-2026-09-22.zh-CN.md).
+CT flow has not been re-run since. See the [CT memory profile and rollout](../archive/operations/ct-memory-profile-2026-11-11.zh-CN.md).
+Earlier history: [scheduler release](../archive/operations/star-qwen-radar-scheduler-release-2026-09-22.zh-CN.md),
+[CT memory recovery](../archive/operations/ct-memory-admission-recovery-2026-09-22.zh-CN.md),
+[dual-GPU release](../archive/operations/qwen-image-dual-gpu-release-2026-09-22.zh-CN.md).
 
 Image inference last verified: 2026-11-11 02:22 UTC, with one 512x512 image in
 34.5 s on GPU0. The public model `medcode-image-default` uses one local
@@ -641,15 +641,15 @@ Image inference last verified: 2026-11-11 02:22 UTC, with one 512x512 image in
 existing authenticated SSH tunnel; LLaDA stays stopped. The queue still admits
 12 outstanding requests but has only one execution slot. At about 75 s per image,
 a full burst can expire its tail at the 600 s queue limit. See the
-[controlled Chinese-label comparison](./qwen-image-label-prompt-comparison-2026-09-22.zh-CN.md).
+[controlled Chinese-label comparison](../archive/operations/qwen-image-label-prompt-comparison-2026-09-22.zh-CN.md).
 
-Last verified: 2026-09-22 06:25 UTC: imaging v1 admits only the explicitly approved Subjects `subj_yBZBxNUHIVszGz4BKXaltrw5`, `subj__3nJpw9INwhmK4k8Qq4K4jlI` and `medevidence-76650ea38feb47f4b259e1b065151696` (沈杰); schema 34. All three existing credentials return available:true, with independent limits of 10 jobs per UTC day and one unfinished job per Subject. Other Subjects remain unavailable. See [latest allowlist verification](../../artifacts/imaging-pilot-shen-20260922/activation.json) and [沈杰 activation receipt](./imaging-pilot-shen-2026-09-22.zh-CN.md). Earlier temporary test studies, credentials and entitlements were cleaned up as recorded in the [joint audit](../../artifacts/imaging-gateway-20260921/joint-final-audit.json). Phone readiness was last checked on 2026-09-18: 300/300 active identities ready, with no duplicate-phone groups.
+Last verified: 2026-09-22 06:25 UTC: imaging v1 admits only the explicitly approved Subjects `subj_yBZBxNUHIVszGz4BKXaltrw5`, `subj__3nJpw9INwhmK4k8Qq4K4jlI` and `medevidence-76650ea38feb47f4b259e1b065151696` (沈杰); schema 34. All three existing credentials return available:true, with independent limits of 10 jobs per UTC day and one unfinished job per Subject. Other Subjects remain unavailable. See [latest allowlist verification](../../artifacts/imaging-pilot-shen-20260922/activation.json) and [沈杰 activation receipt](../archive/operations/imaging-pilot-shen-2026-09-22.zh-CN.md). Earlier temporary test studies, credentials and entitlements were cleaned up as recorded in the [joint audit](../../artifacts/imaging-gateway-20260921/joint-final-audit.json). Phone readiness was last checked on 2026-09-18: 300/300 active identities ready, with no duplicate-phone groups.
 
 xAI proxy routing additionally verified 2026-09-14 03:03 UTC: dedicated
 `api.x.ai -> XAI-EGRESS` priority fallback with two tested leaf nodes, xAI HEAD
 health checks every 60 seconds, no public proxy/controller ports. Config-only
 SIGHUP rollout; Gateway/Mihomo/Research/Qwen containers unchanged and healthy.
-See the [xAI egress rollout](./xai-egress-rollout-2026-09-14.zh-CN.md).
+See the [xAI egress rollout](../archive/operations/xai-egress-rollout-2026-09-14.zh-CN.md).
 
 This file contains current operational state only. Dated release reports and Git
 history retain implementation evidence; do not append incident history here.
@@ -677,7 +677,7 @@ Gateway release verified on 2026-10-01 02:25:43 UTC:
 - Public Gateway: healthy, published only on
   `127.0.0.1:18787->8787`
 - Research Worker and Research LLM Gateway: healthy, without published host ports
-- Research Worker: `cdd6a693d97d85716e1ef95059ac41ed4cba2176` since 2026-10-12 06:24:31 UTC, verified 06:24:55 UTC (`RESEARCH_WORKER_VERSION=research-timeout-cdd6a693d97d`); previous worker `3efd505`. Practical-profile generation/review now allows 120 seconds per call, including a 10-second reserve (110-second provider deadline); the 570-second run deadline is unchanged. Healthy, zero restarts, integrity/FKs and private model readiness passed. Other containers and Gateway/current remain unchanged. See the [release and investigation receipt](./research-profile-timeout-2026-10-12.zh-CN.md), including one verification-script-triggered rollback and the successful second cutover.
+- Research Worker: `cdd6a693d97d85716e1ef95059ac41ed4cba2176` since 2026-10-12 06:24:31 UTC, verified 06:24:55 UTC (`RESEARCH_WORKER_VERSION=research-timeout-cdd6a693d97d`); previous worker `3efd505`. Practical-profile generation/review now allows 120 seconds per call, including a 10-second reserve (110-second provider deadline); the 570-second run deadline is unchanged. Healthy, zero restarts, integrity/FKs and private model readiness passed. Other containers and Gateway/current remain unchanged. See the [release and investigation receipt](../archive/operations/research-profile-timeout-2026-10-12.zh-CN.md), including one verification-script-triggered rollback and the successful second cutover.
 - Research maintenance: `44c7bdd76d47ea434e006e9ea4dc7d3482df4383`, healthy with zero restarts and unchanged by this Gateway release.
 - Research maintenance: healthy with zero restarts, checked 2026-09-11 01:04 UTC.
   Its missing temporary-smoke files were reproduced byte-for-byte from stored
@@ -696,7 +696,7 @@ CT flow repeated on the final revision. The dedicated Nginx imaging configuratio
 was explicitly approved and smoothly reloaded at 06:36 UTC. Its include is pinned
 to the a06d522 release; syntax, public health, 8 MiB limit and edge log isolation
 passed. Preserve this include on program rollback. See [Nginx evidence](../../artifacts/imaging-gateway-20260921/nginx-acceptance.json), the
-[Gateway imaging receipt](../outbox/medevidence-imaging-gateway-receipt-2026-09-21.zh-CN.md)
+[Gateway imaging receipt](../archive/outbox/medevidence-imaging-gateway-receipt-2026-09-21.zh-CN.md)
 and [activation runbook](./imaging-v1.md).
 
 The vision refresh route
@@ -713,7 +713,7 @@ imaging path/query and also redacts image asset identifiers, queries and unknown
 tails for image asset paths, including wrong methods, encoded paths and unmatched
 routes; actual routing and admission remain unchanged. All eight unauthenticated
 public request-log checks passed, with no test fixtures created. See the
-[asset log redaction receipt](./r760-vision-log-redaction-release-2026-09-20.zh-CN.md)
+[asset log redaction receipt](../archive/operations/r760-vision-log-redaction-release-2026-09-20.zh-CN.md)
 for authenticated integration coverage and the application-log scope.
 
 The preceding image-budget release passed 204 public HTTP response assertions, a client abort,
@@ -722,7 +722,7 @@ All 16 synthetic public-test assets were deleted and verified absent; the earlie
 storage preflight also deleted all 40 assets. Both test subjects are disabled,
 all three credentials revoked, both entitlements cancelled, and no reservations
 remain pending. Temporary plaintext credential files were removed. See the
-[image read-URL release receipt](./r760-vision-read-url-release-2026-09-20.zh-CN.md)
+[image read-URL release receipt](../archive/operations/r760-vision-read-url-release-2026-09-20.zh-CN.md)
 for cleanup, backup, capacity and rollback evidence. Refresh operational logs
 use route templates; Docker retains at most five 50 MB log files, not a fixed
 number of days.
@@ -730,7 +730,7 @@ number of days.
 Identity HTTP outcomes retain one final audit writer; phone/IP/device rejections
 use fixed-cardinality minute counters. Durable manual issuance and transactional
 security audits are unchanged. The
-[identity audit release receipt](./r760-identity-request-audit-release-2026-09-18.zh-CN.md)
+[identity audit release receipt](../archive/operations/r760-identity-request-audit-release-2026-09-18.zh-CN.md)
 records its separate validation and performance limits. Identity retention
 targets remain 30/7 days with bounded cleanup of 720,000 rows per table per day.
 
@@ -763,7 +763,7 @@ overwrite/append, A legacy/unknown-schema, short Chat/Responses, credential and
 vision capability checks passed; S reconstructed bytes matched the supplied text
 and each accepted A/S case used one provider call. All three databases passed
 integrity/FK checks, existing control rows were unchanged, and all six containers
-were healthy. See the [A/S deployment receipt](./r760-bounded-write-release-2026-09-15.zh-CN.md),
+were healthy. See the [A/S deployment receipt](../archive/operations/r760-bounded-write-release-2026-09-15.zh-CN.md),
 including the one in-flight request without a completion receipt at cutover.
 
 The retained phone enrollment behavior was deployed on September 14:
@@ -772,7 +772,7 @@ legacy subjects using their existing Desktop key; identity conflicts fail explic
 The fixed source passed 623 Linux tests, 24 public HTTP checks and a real 135-token
 model call. All pre-existing subject, credential, key, plan, entitlement and phone
 identity rows were preserved; synthetic accounts were disabled and cleaned up.
-See the [phone enrollment release](./r760-phone-enrollment-release-2026-09-14.zh-CN.md),
+See the [phone enrollment release](../archive/operations/r760-phone-enrollment-release-2026-09-14.zh-CN.md),
 including the two in-flight requests without completion receipts during the authorized restart.
 At that September 14 release the Research Worker remained on `0bfb985` with the
 practical-profile workflow. Its current independently deployed revision is listed above.
@@ -782,20 +782,20 @@ no re-grant on purchase); the 25 active daily Free grants were migrated in place
 their month-window usage carried over once. The paid templates now read monthly
 5M/day and 150M per billing period, yearly 6M/day and 200M per UTC calendar month;
 existing paid snapshots are unchanged. Old images cannot be rolled back after schema 30.
-See the [one-off Free release](./r760-free-once-release-2026-09-11.zh-CN.md) and the
+See the [one-off Free release](../archive/operations/r760-free-once-release-2026-09-11.zh-CN.md) and the
 [Free contract v2](../outbox/medevidence-free-once-quota-contract-2026-09-11.zh-CN.md).
 The private Research LLM Gateway runs `2126e7c`; it was
 unchanged by this release and remains healthy. The earlier
-[repair report](./doctor-research-discovery-repair-2026-09-10.zh-CN.md) and
-[generalization audit](./doctor-research-generalization-audit-2026-09-10.zh-CN.md)
+[repair report](../archive/operations/doctor-research-discovery-repair-2026-09-10.zh-CN.md) and
+[generalization audit](../archive/operations/doctor-research-generalization-audit-2026-09-10.zh-CN.md)
 describe the diagnostic history before the practical-profile flow.
 
-The [timeout observability release](./r760-timeout-observability-release-2026-09-08.zh-CN.md)
+The [timeout observability release](../archive/operations/r760-timeout-observability-release-2026-09-08.zh-CN.md)
 preserves interrupted stream progress and classifies header/body read timeouts.
 Public success/deadline tests and ordinary-user admin correlation passed;
 synthetic body-timeout tests passed during that release.
 
-The [Billing compatibility release](./r760-billing-create-compatibility-release-2026-09-09.zh-CN.md)
+The [Billing compatibility release](../archive/operations/r760-billing-create-compatibility-release-2026-09-09.zh-CN.md)
 preserves May's POST /subjects contract and makes resolve optional. Passing phone
 directly enables account linking and atomic new-phone provisioning with a
 one-off free entitlement and phone enrollment; the optional two-step
@@ -808,7 +808,7 @@ were migrated to `plan_free_once_1m_v1` with their month-window usage carried
 over once; cancelled/expired historical grants keep their original snapshots.
 
 Current paid templates (updated 2026-09-11 10:41 UTC, see the
-[paid quota adjustment](./medevidence-plan-quota-adjustment-2026-09-11.zh-CN.md)):
+[paid quota adjustment](../archive/operations/medevidence-plan-quota-adjustment-2026-09-11.zh-CN.md)):
 `plan_paid_monthly_v1` is 5M/day and 150M per billing-period month;
 `plan_paid_yearly_v1` is 6M/day and 200M per UTC calendar month with no yearly
 cap. Annual purchases use Billing `one_off` with explicit one-year start/end
@@ -816,7 +816,7 @@ dates; monthly purchases anchor their month window to the billing period. See
 the [monthly/yearly purchase handoff](../outbox/medevidence-monthly-yearly-purchase-api-2026-09-10.zh-CN.md),
 including outstanding credential-expiry coverage before full annual-payment acceptance.
 The Free/paid dual-ledger accounting from the
-[Free/paid accounting release](./r760-free-paid-quota-release-2026-09-10.zh-CN.md)
+[Free/paid accounting release](../archive/operations/r760-free-paid-quota-release-2026-09-10.zh-CN.md)
 still applies: paid requests borrow the remaining one-off Free first, and the
 base Free entitlement survives paid expiry and `replace_current=true` purchases.
 Client display fields are in the
@@ -825,7 +825,7 @@ as amended by the [one-off contract v2](../outbox/medevidence-free-once-quota-co
 Do not roll back directly to a program that assumes one active entitlement;
 recovery must preserve and understand both ledgers.
 
-The [quota review fixes](./r760-quota-review-fixes-release-2026-09-11.zh-CN.md)
+The [quota review fixes](../archive/operations/r760-quota-review-fixes-release-2026-09-11.zh-CN.md)
 preserve future renewals on default cancellation and reject conflicting resets
 with `409 quota_reset_conflict` until shared requests settle. The Gateway dashboard
 shows both balances and uncapped usage. Missing default Free templates are initialized
@@ -837,13 +837,13 @@ synthetic account was disabled with all credentials revoked. The separate Resear
 maintenance outage was recovered on September 11; all six runtime containers were
 healthy during the September 14 phone enrollment audit.
 
-The [model error copy release](./r760-model-error-copy-release-2026-09-10.zh-CN.md)
+The [model error copy release](../archive/operations/r760-model-error-copy-release-2026-09-10.zh-CN.md)
 describes failed vision/text operations in Chinese, with separate processing,
 connection, timeout and provider-access messages. Error codes, request IDs and
 retry contracts remain compatible with installed clients. Runtime fault injection
 and public health checks passed; existing control data and other services are unchanged.
 
-The [vision limits and recovery release](./r760-vision-limits-recovery-release-2026-09-10.zh-CN.md)
+The [vision limits and recovery release](../archive/operations/r760-vision-limits-recovery-release-2026-09-10.zh-CN.md)
 provides structured image/body limits and authenticated `/gateway/vision/capabilities`.
 Only vision requests declaring `x-medcode-vision-recovery-contract: 1` use bounded
 recovery: initial generation, tool repair and same-service retry share two calls
@@ -860,8 +860,8 @@ The public text surface contains:
 - `goldencode`: Tencent `glm-5.3`, TianKuan `official/glm-5.3` and TokenSwitch `glm-5.3`, all enabled with session-sticky balancing (verified 2026-10-14).
 - `goldencode-local`: R760 Qwen3.8-27B-FP8 local route
 
-The [TianKuan suspension record](./goldencode-tiankuan-suspension-2026-09-07.zh-CN.md)
-contains the provider-disable decision. The [Gateway failover release](./goldencode-failover-release-2026-09-07.zh-CN.md)
+The [TianKuan suspension record](../archive/operations/goldencode-tiankuan-suspension-2026-09-07.zh-CN.md)
+contains the provider-disable decision. The [Gateway failover release](../archive/operations/goldencode-failover-release-2026-09-07.zh-CN.md)
 enables P0 for all `goldencode` text requests while retaining Tencent as the only
 enabled member. Provider quota cooldown remains disabled. Cross-provider public
 acceptance awaits TianKuan restoration; Tencent-only public acceptance passed.
@@ -898,7 +898,7 @@ Release `6a9ae87` enforces exact vLLM token admission:
 
 The pinned Du Heng replay verified 24,577 prompt + 8,192 output = 32,769,
 overflowing the limit by one token. Full deployment evidence is in
-[GoldenCode Local context admission release](./goldencode-local-context-admission-release-2026-08-30.zh-CN.md).
+[GoldenCode Local context admission release](../archive/operations/goldencode-local-context-admission-release-2026-08-30.zh-CN.md).
 
 ## GoldenCode Local Tool Output Limit
 
@@ -916,7 +916,7 @@ The Du Heng failure-shape regression pins both recorded argument sizes
 (`24,024` and `22,209` bytes) and requires one upstream attempt. The production
 read-result replay also returned the structured contract with one attempt.
 Detailed evidence and the remaining Desktop recovery failure are in
-[GoldenCode Local tool-output truncation release](./goldencode-local-tool-output-truncation-release-2026-08-31.zh-CN.md).
+[GoldenCode Local tool-output truncation release](../archive/operations/goldencode-local-tool-output-truncation-release-2026-08-31.zh-CN.md).
 
 ## Desktop Client Messages
 

@@ -1,0 +1,30 @@
+[
+  {
+    "kind": "answers",
+    "filename": "李为民_问题与答案.md",
+    "content_type": "text/markdown; charset=utf-8",
+    "size_bytes": 4474,
+    "sha256": "b12ff238b11fa363cbcb5636adb621582ed4daf1ea3cad6653b344d16352a017"
+  },
+  {
+    "kind": "profile",
+    "filename": "李为民_基础信息与研究方向.md",
+    "content_type": "text/markdown; charset=utf-8",
+    "size_bytes": 3329,
+    "sha256": "7e064d3a9865274de3e20a00d906d1628d1b6e056d18c8479d4c846332a0a895"
+  },
+  {
+    "kind": "questions",
+    "filename": "李为民_医生可能问机器人问题.txt",
+    "content_type": "text/plain; charset=utf-8",
+    "size_bytes": 301,
+    "sha256": "b80cc8118b5d95522974431555d53ee97cdecca1b878bbbaaea9493d2235adb7"
+  },
+  {
+    "kind": "review",
+    "filename": "李为民_相关领域前沿综述.md",
+    "content_type": "text/markdown; charset=utf-8",
+    "size_bytes": 5574,
+    "sha256": "1cf82308ad16fb7f85e2720d9c86c1cbf6b52ffc0a4de4cc21e4236ee93685a4"
+  }
+]

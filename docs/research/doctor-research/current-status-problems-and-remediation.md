@@ -3,7 +3,7 @@
 Last verified: 2026-08-31.
 
 This file contains current state and open concerns only. Completed rollout,
-incident and case evidence remains in dated reports and Git history.
+incident and case evidence is in the [historical archive](../../archive/README.md#research) and Git history.
 
 ## Current State
 

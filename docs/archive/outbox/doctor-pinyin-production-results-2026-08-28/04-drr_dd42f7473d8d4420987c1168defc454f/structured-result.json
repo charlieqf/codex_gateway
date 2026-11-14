@@ -1,0 +1,410 @@
+{
+  "doctor": {
+    "name": "文煜冰",
+    "hospital": "北京协和医院",
+    "department": "肾内科"
+  },
+  "identity_resolution": {
+    "status": "verified",
+    "confidence": "medium",
+    "canonical_identity_id": "dci_368a237af1aa270bc8f1621fcecff674",
+    "matched_by": [
+      "institution",
+      "department"
+    ]
+  },
+  "sources": [
+    {
+      "source_id": "src_web_79822ccc6ca41c47d5841c2e",
+      "source_type": "official_web",
+      "title": "2009年第1期《院报》内容 - 北京协和医院 - 协和医院,北京协和医院,協和醫院,北京协和医院首页,北京协和医院电话,协和,協和,医院,醫院,北京協和醫院,北京协和医院妇科,北京协和医院地址,挂号",
+      "url": "https://www.pumch.cn/detail/15807.html",
+      "accessed_at": "2026-08-27T14:32:28.626Z",
+      "content_sha256": "691eddc80927184e9b6165fb4ad7f97deea170a39d563b126a44889d5fa7c813"
+    },
+    {
+      "source_id": "src_web_77fa69a2fc490e5144524c19",
+      "source_type": "official_web",
+      "title": "按科室找医生-佳学医生",
+      "url": "https://www.genejiedu.com/search/depar/1/17",
+      "accessed_at": "2026-08-27T14:32:29.490Z",
+      "content_sha256": "f6a87339c5d7299d892cec7375311b441bb21a153e30295aeefdd1caa56646ad"
+    },
+    {
+      "source_id": "src_crossref_d8ddbefaec52f6eb2e61e2ca",
+      "source_type": "crossref",
+      "title": "Clinicopathological features and outcomes of glomerular microangiopathy: a retrospective cohort study",
+      "url": "https://api.crossref.org/v1/works/10.1080%2F0886022x.2026.2675062",
+      "accessed_at": "2026-08-27T14:32:32.719Z",
+      "content_sha256": "0dc106941ab919ebbdf957f62c78bcd732f09e39f531173eed8fa5c2c3ab592e"
+    },
+    {
+      "source_id": "src_pubmed_42548161",
+      "source_type": "pubmed",
+      "title": "Clinicopathological features and outcomes of glomerular microangiopathy: a retrospective cohort study.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42548161/",
+      "accessed_at": "2026-08-27T14:32:31.690Z",
+      "content_sha256": "21ea7d962f06d341d99852af9a1de6aa6fdf92fe4f5af024659ae1f1e2ae0fce"
+    },
+    {
+      "source_id": "src_pubmed_42136332",
+      "source_type": "pubmed",
+      "title": "Effects of Different Vascular Lesions on the Clinical,Pathological, and Prognostic Features of Lupus Nephritis.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42136332/",
+      "accessed_at": "2026-08-27T14:32:34.136Z",
+      "content_sha256": "11608e87b7f3475b878b35ed26a7038ab562647b1ebf65cf0403536e4485dba1"
+    },
+    {
+      "source_id": "src_crossref_696fcdb487f65493368a8502",
+      "source_type": "crossref",
+      "title": "Glycogen storage disease type Ia with a 17-year history of renal involvement: a case report",
+      "url": "https://api.crossref.org/v1/works/10.1186%2Fs13256-026-05913-3",
+      "accessed_at": "2026-08-27T14:32:35.431Z",
+      "content_sha256": "4a789978e8c2647558a8965d8984504b09c7228e902bc1a540cada45805b69a3"
+    },
+    {
+      "source_id": "src_pubmed_41772674",
+      "source_type": "pubmed",
+      "title": "Glycogen storage disease type Ia with a 17-year history of renal involvement: a case report.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/41772674/",
+      "accessed_at": "2026-08-27T14:32:35.159Z",
+      "content_sha256": "9d9499368afd06caf7dc96858738f77fe418983884ca5c9b3802eb3b5a9b0e4a"
+    },
+    {
+      "source_id": "src_pubmed_41669850",
+      "source_type": "pubmed",
+      "title": "Effect of on-demand immunosuppressive therapy on long-term outcomes in patients with immunoglobulin A nephropathy: A real-world cohort study.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/41669850/",
+      "accessed_at": "2026-08-27T14:32:37.318Z",
+      "content_sha256": "87f5b2c61581764f837a3b7a4f862a7d75cc91557816f8e5780ece71b6509171"
+    },
+    {
+      "source_id": "src_crossref_d2922247c6ab8b502a826ddc",
+      "source_type": "crossref",
+      "title": "Classical complement activation in light and heavy chain deposition disease with acquired cutis laxa and bronchiolitis obliterans: a case report of monoclonal gammopathy of clinical significance",
+      "url": "https://api.crossref.org/v1/works/10.3389%2Ffimmu.2025.1718342",
+      "accessed_at": "2026-08-27T14:32:38.723Z",
+      "content_sha256": "1dd2dc0d0b36dc40245ebf3fd72b7a87d30ae944e82e78f9ff5c161c38cf5257"
+    },
+    {
+      "source_id": "src_pubmed_41403934",
+      "source_type": "pubmed",
+      "title": "Classical complement activation in light and heavy chain deposition disease with acquired cutis laxa and bronchiolitis obliterans: a case report of monoclonal gammopathy of clinical significance.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/41403934/",
+      "accessed_at": "2026-08-27T14:32:38.452Z",
+      "content_sha256": "2fedadb6106b2b36d3322d2fd6f975cc74aa446a31d358178303b9ac7f241aea"
+    }
+  ],
+  "profile": {
+    "positions": [],
+    "expertise": [],
+    "education_and_career": [],
+    "research_directions": [],
+    "representative_outputs": [
+      "代表性论文：Clinicopathological features and outcomes of glomerular microangiopathy: a retrospective cohort study.（Renal failure，2026）",
+      "代表性论文：Effects of Different Vascular Lesions on the Clinical,Pathological, and Prognostic Features of Lupus Nephritis.（Zhongguo yi xue ke xue yuan xue bao. Acta Academiae Medicinae Sinicae，2026）",
+      "代表性论文：Glycogen storage disease type Ia with a 17-year history of renal involvement: a case report.（Journal of medical case reports，2026）",
+      "代表性论文：Effect of on-demand immunosuppressive therapy on long-term outcomes in patients with immunoglobulin A nephropathy: A real-world cohort study.（Nephrologie & therapeutique，2026）",
+      "代表性论文：Classical complement activation in light and heavy chain deposition disease with acquired cutis laxa and bronchiolitis obliterans: a case report of monoclonal gammopathy of clinical significance.（Frontiers in immunology，2025）"
+    ],
+    "claims": [
+      {
+        "claim_id": "clm_identity_verified",
+        "claim_type": "identity",
+        "text": "The supplied identity for 文煜冰 matched the retrieved official public evidence.",
+        "source_ids": [
+          "src_web_79822ccc6ca41c47d5841c2e",
+          "src_web_77fa69a2fc490e5144524c19"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_1",
+        "claim_type": "representative_output",
+        "text": "代表性论文：Clinicopathological features and outcomes of glomerular microangiopathy: a retrospective cohort study.（Renal failure，2026）",
+        "source_ids": [
+          "src_pubmed_42548161"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_2",
+        "claim_type": "representative_output",
+        "text": "代表性论文：Effects of Different Vascular Lesions on the Clinical,Pathological, and Prognostic Features of Lupus Nephritis.（Zhongguo yi xue ke xue yuan xue bao. Acta Academiae Medicinae Sinicae，2026）",
+        "source_ids": [
+          "src_pubmed_42136332"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_3",
+        "claim_type": "representative_output",
+        "text": "代表性论文：Glycogen storage disease type Ia with a 17-year history of renal involvement: a case report.（Journal of medical case reports，2026）",
+        "source_ids": [
+          "src_pubmed_41772674"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_4",
+        "claim_type": "representative_output",
+        "text": "代表性论文：Effect of on-demand immunosuppressive therapy on long-term outcomes in patients with immunoglobulin A nephropathy: A real-world cohort study.（Nephrologie & therapeutique，2026）",
+        "source_ids": [
+          "src_pubmed_41669850"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_5",
+        "claim_type": "representative_output",
+        "text": "代表性论文：Classical complement activation in light and heavy chain deposition disease with acquired cutis laxa and bronchiolitis obliterans: a case report of monoclonal gammopathy of clinical significance.（Frontiers in immunology，2025）",
+        "source_ids": [
+          "src_pubmed_41403934"
+        ],
+        "verification_status": "verified"
+      }
+    ],
+    "primary_public_source_ids": [
+      "src_web_79822ccc6ca41c47d5841c2e",
+      "src_web_77fa69a2fc490e5144524c19",
+      "src_pubmed_42548161",
+      "src_pubmed_42136332",
+      "src_pubmed_41772674",
+      "src_pubmed_41669850",
+      "src_pubmed_41403934"
+    ]
+  },
+  "review": {
+    "title": "文煜冰医生公开情况简查：北京协和医院肾内科主治医师，肾脏病理方向",
+    "abstract": "文煜冰为北京协和医院肾内科主治医师，从事肾脏病专业肾脏病理工作，主管肾脏病理的日常诊断工作，并曾入选2008年度北京协和医院优秀员工名单。已验证的署名文献显示其研究涉及肾小球微血管病、狼疮性肾炎血管病变、糖原贮积病Ia型肾损害、IgA肾病长期治疗结局及单克隆丙种球蛋白血症相关肾病等方向。以上信息来自公开检索到的官方来源，未涵盖其全部执业信息。",
+    "keywords": [
+      "文煜冰",
+      "北京协和医院",
+      "肾内科",
+      "主治医师",
+      "肾脏病理",
+      "狼疮性肾炎",
+      "肾小球微血管病"
+    ],
+    "markdown": "# 文煜冰医生公开情况简查\n\n## 基本信息\n- **医院/科室**：北京协和医院 肾内科（来源：佳学医生按科室找医生页面）\n- **职称**：主治医师（来源同上）\n- **专业方向**：从事肾脏病专业肾脏病理工作，主管肾脏病理的日常诊断工作（来源同上）\n\n## 职业经历要点\n- 曾入选2008年度北京协和医院优秀员工名单（来源：北京协和医院2009年第1期《院报》）\n- 检索到的公开来源未提供其学历、毕业院校及现任行政职务等信息\n\n## 研究方向（基于已验证署名文献）\n- 肾小球微血管病（GMA）的临床病理特征与预后（Renal Failure，2026，第一作者）\n- 狼疮性肾炎肾血管病变与临床、病理及预后的关系（《中国医学科学院学报》，2026，第一作者）\n- 糖原贮积病Ia型肾脏受累17年长期病例报告（Journal of Medical Case Reports，2026）\n- IgA肾病按需免疫抑制治疗的长期结局真实世界队列研究（Nephrologie & Therapeutique，2026）\n- 轻重链沉积病伴获得性皮肤松弛症与闭塞性细支气管炎病例报告（Frontiers in Immunology，2025）\n\n**说明**：以上为公开来源支持的客观事实，不构成对其医疗水平的评价或医疗建议。",
+    "core_evidence": [
+      {
+        "reference_id": "ref_pmid_42548161",
+        "study_type": "单中心回顾性队列研究",
+        "sample_and_source": "2005年1月至2023年7月在北京协和医院诊断为肾小球微血管病（GMA）的32例患者；发表于Renal Failure（2026），第一作者Wen Y。",
+        "methods": "回顾性总结患者的临床与病理资料，并分析治疗与预后。",
+        "key_results": "纳入32例GMA患者，62.5%为男性，平均年龄46±17岁；最常见原发病为特发性多中心型Castleman病（31.2%）、POEMS综合征（21.9%）及抗VEGF药物暴露（21.9%）；所有患者均有不同程度蛋白尿；针对原发病的治疗可改善蛋白尿与肾功能。",
+        "limitations": "为单中心回顾性研究，样本量较小（32例）；本文仅作文献事实陈述，不推断临床有效性。"
+      },
+      {
+        "reference_id": "ref_pmid_42136332",
+        "study_type": "回顾性分析",
+        "sample_and_source": "北京协和医院10年间644例狼疮性肾炎患者；发表于《中国医学科学院学报》（2026），第一作者Wen YB。",
+        "methods": "回顾性分析临床病理数据，按肾血管病变类型分组（AS、TMA、ICD、LV），以无血管病变组为对照，比较临床、病理特征及肾脏预后。",
+        "key_results": "644例中女性占82.6%，LN Ⅳ/Ⅳ+Ⅴ型占60.4%；TMA组1年临床缓解率最低、eGFR年下降>5 mL/(min·1.73m²)比例最高；TMA与AS组长期肾脏存活率显著低于无血管病变组。",
+        "limitations": "为单中心回顾性分析；本文仅作文献事实陈述，不推断临床有效性。"
+      },
+      {
+        "reference_id": "ref_pmid_41669850",
+        "study_type": "真实世界回顾性队列研究（倾向评分匹配）",
+        "sample_and_source": "2003年1月至2016年12月治疗、随访至2024年8月的264例倾向评分匹配的IgA肾病患者；发表于Nephrologie & Therapeutique（2026）。",
+        "methods": "比较持续蛋白尿但未接受额外治疗与接受按需免疫抑制治疗患者的长期结局；采用Kaplan-Meier估计生存、Cox比例风险模型分析主要复合终点。",
+        "key_results": "中位随访9.9年，65/264（25%）发生主要复合终点；持续接受按需免疫抑制治疗者风险更低（8% vs 42%，HR 0.11，95%CI 0.05-0.21）。",
+        "limitations": "为回顾性观察性研究，存在混杂可能；本文仅作文献事实陈述，不推断临床有效性。"
+      }
+    ],
+    "references": [
+      {
+        "reference_id": "ref_pmid_42548161",
+        "title": "Clinicopathological features and outcomes of glomerular microangiopathy: a retrospective cohort study.",
+        "journal": "Renal failure",
+        "publication_year": 2026,
+        "pmid": "42548161",
+        "doi": "10.1080/0886022x.2026.2675062",
+        "verification_status": "verified"
+      },
+      {
+        "reference_id": "ref_pmid_42136332",
+        "title": "Effects of Different Vascular Lesions on the Clinical,Pathological, and Prognostic Features of Lupus Nephritis.",
+        "journal": "Zhongguo yi xue ke xue yuan xue bao. Acta Academiae Medicinae Sinicae",
+        "publication_year": 2026,
+        "pmid": "42136332",
+        "doi": null,
+        "verification_status": "verified"
+      },
+      {
+        "reference_id": "ref_pmid_41772674",
+        "title": "Glycogen storage disease type Ia with a 17-year history of renal involvement: a case report.",
+        "journal": "Journal of medical case reports",
+        "publication_year": 2026,
+        "pmid": "41772674",
+        "doi": "10.1186/s13256-026-05913-3",
+        "verification_status": "verified"
+      },
+      {
+        "reference_id": "ref_pmid_41669850",
+        "title": "Effect of on-demand immunosuppressive therapy on long-term outcomes in patients with immunoglobulin A nephropathy: A real-world cohort study.",
+        "journal": "Nephrologie & therapeutique",
+        "publication_year": 2026,
+        "pmid": "41669850",
+        "doi": null,
+        "verification_status": "verified"
+      },
+      {
+        "reference_id": "ref_pmid_41403934",
+        "title": "Classical complement activation in light and heavy chain deposition disease with acquired cutis laxa and bronchiolitis obliterans: a case report of monoclonal gammopathy of clinical significance.",
+        "journal": "Frontiers in immunology",
+        "publication_year": 2025,
+        "pmid": "41403934",
+        "doi": "10.3389/fimmu.2025.1718342",
+        "verification_status": "verified"
+      }
+    ],
+    "search_report": {
+      "databases": [
+        "pubmed",
+        "crossref"
+      ],
+      "searched_at": "2026-08-27T14:32:21.667Z",
+      "queries": [
+        "((\"Wen YB\"[Author] OR \"Yubing Wen\"[Author] OR \"Yu-Bing Wen\"[Author] OR \"Wen Yubing\"[Author]) AND (\"beijing\"[Affiliation] OR \"bei jing\"[Affiliation] OR \"peking\"[Affiliation] OR \"union\"[Affiliation] OR \"xiehe\"[Affiliation]) AND (\"nephrology\"[Affiliation] OR \"renal medicine\"[Affiliation])) AND (2022:2026[Date - Publication])"
+      ],
+      "included_count": 5
+    }
+  },
+  "source_coverage": {
+    "literature_sources": [
+      "pubmed",
+      "crossref"
+    ],
+    "profile_sources": [
+      "official_web",
+      "pubmed"
+    ],
+    "cutoff_date": "2026-08-27",
+    "warnings": [
+      "abstract_only_evidence",
+      "licensed_chinese_literature_not_covered",
+      "doctor_research_direction_evidence_not_found",
+      "verified_reference_target_not_reached"
+    ]
+  },
+  "predicted_questions": [
+    "文煜冰医生的职称和所在科室是什么？",
+    "文煜冰医生擅长什么领域？",
+    "他是否获得过医院层面的荣誉？",
+    "他在研究方面主要关注哪些方向？",
+    "他的学历或毕业院校信息能否查到？"
+  ],
+  "answers": [
+    {
+      "question_index": 1,
+      "answer": "根据公开检索的科室医生列表，文煜冰为北京协和医院肾内科主治医师。",
+      "source_ids": [
+        "src_web_77fa69a2fc490e5144524c19"
+      ]
+    },
+    {
+      "question_index": 2,
+      "answer": "公开资料显示其\"从事肾脏病专业肾脏病理工作 主管肾脏病理的日常诊断工作\"，即以肾脏病理诊断为主要专业方向。",
+      "source_ids": [
+        "src_web_77fa69a2fc490e5144524c19"
+      ]
+    },
+    {
+      "question_index": 3,
+      "answer": "北京协和医院2009年第1期《院报》显示，文煜冰曾入选2008年度北京协和医院优秀员工名单。",
+      "source_ids": [
+        "src_web_79822ccc6ca41c47d5841c2e"
+      ]
+    },
+    {
+      "question_index": 4,
+      "answer": "已验证的署名文献显示其研究涉及肾小球微血管病、狼疮性肾炎血管病变、糖原贮积病Ia型肾损害、IgA肾病按需免疫抑制治疗及单克隆丙种球蛋白血症相关肾病等方向。",
+      "source_ids": [
+        "src_pubmed_42548161",
+        "src_pubmed_42136332",
+        "src_pubmed_41772674",
+        "src_pubmed_41669850",
+        "src_pubmed_41403934"
+      ]
+    },
+    {
+      "question_index": 5,
+      "answer": "检索到的公开来源未提供其学历、毕业院校等教育背景信息，该细节在已获取的公开来源中不可得。",
+      "source_ids": [
+        "src_web_77fa69a2fc490e5144524c19",
+        "src_web_79822ccc6ca41c47d5841c2e"
+      ]
+    }
+  ],
+  "quality": {
+    "status": "passed_with_warnings",
+    "checks": [
+      "doctor_identity_resolution",
+      "official_profile_source_closure",
+      "verified_publication_attribution",
+      "reference_metadata_closed_set",
+      "prompt_injection_isolation",
+      "doctor_lookup_brief_contract"
+    ],
+    "warnings": [
+      "doctor_lookup_sources_require_user_verification",
+      "abstract_only_evidence",
+      "doctor_research_direction_evidence_not_found",
+      "brief_relaxed_review_content_minimum",
+      "brief_relaxed_citation_reference_closure",
+      "brief_relaxed_paragraph_citation_coverage",
+      "brief_relaxed_answer_length_contract",
+      "brief_relaxed_numeric_evidence_closure",
+      "doctor_lookup_brief_completed",
+      "bounded_doctor_lookup_contract_retry_completed",
+      "verified_reference_target_not_reached"
+    ]
+  },
+  "schema_version": "doctor_research_result.v1",
+  "request_id": "req_research_worker_dd42f7473d8d4420987c1168defc454f",
+  "run_id": "drr_dd42f7473d8d4420987c1168defc454f",
+  "artifacts": [
+    {
+      "artifact_id": "dra_8c1c7d0bd2b64e08aabf2ab2a938aefd",
+      "kind": "profile",
+      "filename": "文煜冰_基础信息与研究方向.md",
+      "content_type": "text/markdown; charset=utf-8",
+      "size_bytes": 2990,
+      "sha256": "cd2b5d1a755a5d53198e23304963cc327a0f6e46838e7d791bd84b0108543988",
+      "expires_at": "2026-09-26T14:33:34.729Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_8c1c7d0bd2b64e08aabf2ab2a938aefd/download"
+    },
+    {
+      "artifact_id": "dra_e64489e003c84ce2a35296e2a5a2a713",
+      "kind": "review",
+      "filename": "文煜冰_相关领域前沿综述.md",
+      "content_type": "text/markdown; charset=utf-8",
+      "size_bytes": 5846,
+      "sha256": "463be5b509362c8d91a9fc195c42d2e3cbb09a1f46ea7b5f29c83baa8a246525",
+      "expires_at": "2026-09-26T14:33:34.729Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_e64489e003c84ce2a35296e2a5a2a713/download"
+    },
+    {
+      "artifact_id": "dra_dc221f0b99c74ac0b83108b4f7ec5f47",
+      "kind": "questions",
+      "filename": "文煜冰_医生可能问机器人问题.txt",
+      "content_type": "text/plain; charset=utf-8",
+      "size_bytes": 247,
+      "sha256": "4eda8211308b81116ccd3fcb0c20b5692bb6adba09249e4007ff61a357000bf6",
+      "expires_at": "2026-09-26T14:33:34.729Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_dc221f0b99c74ac0b83108b4f7ec5f47/download"
+    },
+    {
+      "artifact_id": "dra_a03c89f76cab49beb9c8448d338341b3",
+      "kind": "answers",
+      "filename": "文煜冰_问题与答案.md",
+      "content_type": "text/markdown; charset=utf-8",
+      "size_bytes": 3275,
+      "sha256": "1e856c21941a2f70a9a1e759fc9623af9eeee9e8eba3078647434e9735088fcd",
+      "expires_at": "2026-09-26T14:33:34.729Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_a03c89f76cab49beb9c8448d338341b3/download"
+    }
+  ]
+}

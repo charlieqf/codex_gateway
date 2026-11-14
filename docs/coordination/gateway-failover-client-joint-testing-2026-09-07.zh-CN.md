@@ -19,4 +19,4 @@ Gateway 已上线 `840f287`；此前 `b4fbed4` 的公网文本、工具调用、
 
 验证边界：本次公网自测确认腾讯单链路及工具调用合同，未验证真实客户端本地副作用，也未验证
 腾讯／天宽两家之间的实际公网切换；当前额度冷却 P1 未启用。
-请求证据、当前开关和回滚说明见[发布记录](../operations/goldencode-failover-release-2026-09-07.zh-CN.md)。
+请求证据、当前开关和回滚说明见[发布记录](../archive/operations/goldencode-failover-release-2026-09-07.zh-CN.md)。

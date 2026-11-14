@@ -1,6 +1,6 @@
 Desktop 故障上报 v1：客户端实施契约
 日期：2026-11-13；状态：已上线，Gateway c4cdff393ad9864296243b1f33891840151934c5。
-上线验证：2026-11-13 21:25（北京时间），15 项公网接口自测通过。发布记录：docs/operations/desktop-support-reporting-release-2026-11-13.json。
+上线验证：2026-11-13 21:25（北京时间），15 项公网接口自测通过。发布记录：docs/archive/operations/desktop-support-reporting-release-2026-11-13.json。
 依据：desktop-support-reporting-implementation-plan-2026-11-13.zh-CN.md v0.2。
 示例：同目录 desktop-support-reporting-v1.examples.json。
 

@@ -91,7 +91,7 @@ git diff --check。临时目录测试实际执行“多文件修改—检查遗�
 
 六、发布结果与 Desktop 验收
 已按授权部署已测试的 main 提交，发布回执：
-  docs/operations/native-tool-transcript-release-2026-11-13.json
+  docs/archive/operations/native-tool-transcript-release-2026-11-13.json
 自然空闲等待未完成切换；一次受控排空因长请求超过 60 秒而取消并恢复接入，公网探针
 记录约 61.35 秒不可用。最终等待请求归零后成功切换，记录约 18.44 秒不可用；未强制
 终止在途请求。另有整机备份持有发布锁期间的正常等待，未抢占其锁。

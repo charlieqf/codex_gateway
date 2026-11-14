@@ -2,7 +2,7 @@
 
 日期：2026-10-13。面向 Gateway 与 Desktop 联调。
 
-状态：Gateway `94b60ae` 已于北京时间 2026-10-13 08:28:52 部署。progress 与 goldencode 单次请求 900 秒预算均已通过公网自测；实际观察到 waiting_upstream、reasoning 和模型活动时间。验证范围及限制见[发布记录](../operations/gateway-progress-release-2026-10-13.zh-CN.md)。
+状态：Gateway `94b60ae` 已于北京时间 2026-10-13 08:28:52 部署。progress 与 goldencode 单次请求 900 秒预算均已通过公网自测；实际观察到 waiting_upstream、reasoning 和模型活动时间。验证范围及限制见[发布记录](../archive/operations/gateway-progress-release-2026-10-13.zh-CN.md)。
 
 本契约在[模型调用回执与恢复 v1](model-call-recovery-v1.zh-CN.md)上可选增加 `progress`，用于说明服务端模型调用阶段。既有鉴权、回执状态、结果恢复、查询限流和防重复执行规则保持有效。
 
@@ -87,7 +87,7 @@ running 时保留原请求；查询不保证模型可以脱离原连接在后台
 
 ## 单次调用预算适配（2026-10-29 修订）
 
-请求头 `x-medcode-request-timeout-ms` 的允许范围为整数 1 至 1800000 毫秒；实际预算仍取服务端策略与客户端所请求上限的较小值。权威 R760 已于北京时间 2026-10-29 07:53:23 发布 `3b54c9e`，两个云模型的 1800000 配置和运行中收据期限已通过公网验证，见[发布收据](../operations/long-reasoning-timeout-release-2026-10-29.zh-CN.md)。客户端可将现有上限改为 1800000；不新增能力字段或协商步骤。仍须遵守任务剩余时间和显式请求预算，且增大请求头不能突破服务端预算。
+请求头 `x-medcode-request-timeout-ms` 的允许范围为整数 1 至 1800000 毫秒；实际预算仍取服务端策略与客户端所请求上限的较小值。权威 R760 已于北京时间 2026-10-29 07:53:23 发布 `3b54c9e`，两个云模型的 1800000 配置和运行中收据期限已通过公网验证，见[发布收据](../archive/operations/long-reasoning-timeout-release-2026-10-29.zh-CN.md)。客户端可将现有上限改为 1800000；不新增能力字段或协商步骤。仍须遵守任务剩余时间和显式请求预算，且增大请求头不能突破服务端预算。
 
 1800 秒针对单次原请求，内部多次模型尝试共享该预算。Desktop 还需取用户任务剩余时间及显式请求预算的较小值，不能因为查询、重试或休眠恢复而给原调用重新分配预算。默认 120 秒连接/流无数据保护与总预算分开处理，保持原值。
 
@@ -121,6 +121,6 @@ MEDCODE_TIANKUAN_TIMEOUT_MS=1800000
 MEDCODE_TOKENSWITCH_TIMEOUT_MS=1800000
 ```
 
-部署时将两个目标模型的 1800000 合并到现有 timeout JSON，保留其他 models、runtimes、defaultMs 及 `MEDCODE_CHAT_REQUEST_TIMEOUT_MS`，同步核对三个目标 adapter。示例文件不是生产配置，不能整份覆盖生产环境；其他模型的请求期限策略不随本次调整。应用停机等待为 1860 秒，容器停止宽限须为 1870 秒。上游自身的更短硬限制仍可能提前结束调用，需线上联调验证。当前实现与发布前检查见[长推理时限记录](../implementation/long-reasoning-timeout-2026-10-29.zh-CN.md)。
+部署时将两个目标模型的 1800000 合并到现有 timeout JSON，保留其他 models、runtimes、defaultMs 及 `MEDCODE_CHAT_REQUEST_TIMEOUT_MS`，同步核对三个目标 adapter。示例文件不是生产配置，不能整份覆盖生产环境；其他模型的请求期限策略不随本次调整。应用停机等待为 1860 秒，容器停止宽限须为 1870 秒。上游自身的更短硬限制仍可能提前结束调用，需线上联调验证。当前实现与发布前检查见[长推理时限记录](../archive/implementation/long-reasoning-timeout-2026-10-29.zh-CN.md)。
 
 历史进度功能验证（不代表本次 30 分钟调整已上线）：自审精简后类型检查通过，9 个相关测试文件共 490 项通过。覆盖 Gateway 主请求路径、回执恢复、状态隔离、真实连接取消、上游解析、工具修复与重试，以及共享截止时间。删去重复的观察容错用例，将当时的 900 秒边界并入既有期限测试；修复测试核对两次尝试的开始时间和截止时间保持不变。历史边界使用虚拟时钟验证，没有以真实付费模型运行 15 分钟的测试替代线上验收。

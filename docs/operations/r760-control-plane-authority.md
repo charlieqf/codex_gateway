@@ -217,7 +217,7 @@ Afterward verify the new expiry through unified-key resolve, the backing
 credential through `/gateway/credentials/current`, and the selected upstream
 through `/validate-key`, using the required Desktop version header. Keep all
 tokens in memory and emit only sanitized results. The 2026-09-17 closure
-record (`docs/operations/oct1-expiry-closure-check-2026-09-17.zh-CN.md`) names
+record (`docs/archive/operations/oct1-expiry-closure-check-2026-09-17.zh-CN.md`) names
 the affected users and is kept locally, outside the public repository.
 
 ## Usage

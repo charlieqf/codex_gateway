@@ -79,7 +79,7 @@ state only"，历史段落应压缩为一句并指向 dated 发布记录。
 
 ### D3. 额度调整记录中的 Free 表述过时（中）
 
-`docs/operations/medevidence-plan-quota-adjustment-2026-09-11.zh-CN.md:5`：
+`docs/archive/operations/medevidence-plan-quota-adjustment-2026-09-11.zh-CN.md:5`：
 "基础 Free 每日额度（`plan_free_daily_100k_v1`，100,000/日）独立保留"——该行写作时
 Free 尚为 100k/日，当日稍后被一次性模型取代。dated 文档不改写正文，但应在文首加
 修订注记指向 `r760-free-once-release-2026-09-11.zh-CN.md`。

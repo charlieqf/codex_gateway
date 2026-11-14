@@ -1,0 +1,460 @@
+{
+  "doctor": {
+    "name": "乔杰",
+    "hospital": "北京大学第三医院",
+    "department": "妇产科"
+  },
+  "identity_resolution": {
+    "status": "verified",
+    "confidence": "medium",
+    "canonical_identity_id": "dci_3f2b692cb25f3fe23ce831ccedfaf545",
+    "matched_by": [
+      "institution",
+      "department"
+    ]
+  },
+  "sources": [
+    {
+      "source_id": "src_web_5419134c3f08df81c9fdc2b2",
+      "source_type": "official_web",
+      "title": "北京大学第三医院院长乔杰参加面向全球网络直播的中国新冠疫情防控经验国际分享交流会-北大教育基金会",
+      "url": "https://www.pkuef.org/old/info/1175/5659.htm",
+      "accessed_at": "2026-08-27T14:36:00.714Z",
+      "content_sha256": "97c4cdb50abd764d0385b9daf14b01f5de102f22c34110985d28e9d29fd5e997"
+    },
+    {
+      "source_id": "src_web_171679e498a9ffefa136941c",
+      "source_type": "official_web",
+      "title": "【中国科学报】乔杰院士：杰青项目为“人类的繁衍”提供科学养料",
+      "url": "https://www.nsfc.gov.cn/p1/3381/2821/68795.html",
+      "accessed_at": "2026-08-27T14:35:57.946Z",
+      "content_sha256": "642392571917f007d0aae333959398d7f29151a9b33d63567e6516f919c2bba5"
+    },
+    {
+      "source_id": "src_web_73e2eeb52d6e92c6f142166f",
+      "source_type": "official_web",
+      "title": "乔杰院士女性生殖健康与生育力保护研究团队-北京大学深圳医院",
+      "url": "https://www.pkuszh.com.cn/xsb_kx_smgc/010015400004351.html",
+      "accessed_at": "2026-08-27T14:35:58.088Z",
+      "content_sha256": "d330f7042ec2d64953a47b4e7f6341b6375662b211ab903d13627bfa54578552"
+    },
+    {
+      "source_id": "src_pubmed_42635625",
+      "source_type": "pubmed",
+      "title": "NICE: A Two-Step Non-Invasive Framework for Embryo cfDNA Read Enrichment and Quality Assessment.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42635625/",
+      "accessed_at": "2026-08-27T14:36:03.569Z",
+      "content_sha256": "e29d3c70dca383dfbc7b496793997bd969f95560c12360845c87fa916825c39e"
+    },
+    {
+      "source_id": "src_pubmed_42634949",
+      "source_type": "pubmed",
+      "title": "A Novel Role of DELTEX2 in Maintaining Genomic Stability of Granulosa Cells During Ovarian Aging.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42634949/",
+      "accessed_at": "2026-08-27T14:36:05.534Z",
+      "content_sha256": "cd24854205081949cb3d09f71f28abab9ca5000e9d4a143953aa07beb96c9fdb"
+    },
+    {
+      "source_id": "src_crossref_237b7364f05f5107eaf6376e",
+      "source_type": "crossref",
+      "title": "Safeguarding the Right to a Whole Life",
+      "url": "https://api.crossref.org/v1/works/10.1002%2Fcai2.70080",
+      "accessed_at": "2026-08-27T14:36:07.484Z",
+      "content_sha256": "c8f2e258bd5796f9ede87c2d7971343fd4f2e8cc1d4292b9cde0f1dd2aa3a7ed"
+    },
+    {
+      "source_id": "src_pubmed_42614803",
+      "source_type": "pubmed",
+      "title": "Safeguarding the Right to a Whole Life.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42614803/",
+      "accessed_at": "2026-08-27T14:36:07.223Z",
+      "content_sha256": "efb10e91f5635a5860d808204cc3db01e73db75e14a4a20cfacfe3b55f4ed238"
+    },
+    {
+      "source_id": "src_crossref_8c6f318c8047cb18332e6e36",
+      "source_type": "crossref",
+      "title": "Single‐Cell and Spatial Analysis Reveal the Differences Between Left‐Sided and Right‐Sided Colorectal Cancer",
+      "url": "https://api.crossref.org/v1/works/10.1111%2Fcpr.70260",
+      "accessed_at": "2026-08-27T14:36:10.093Z",
+      "content_sha256": "600ae9bec7ea6aac8f731eb3266b099c90f7edf107fc1d9e073828a8dbe85aa7"
+    },
+    {
+      "source_id": "src_pubmed_42444407",
+      "source_type": "pubmed",
+      "title": "Single-Cell and Spatial Analysis Reveal the Differences Between Left-Sided and Right-Sided Colorectal Cancer.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42444407/",
+      "accessed_at": "2026-08-27T14:36:09.821Z",
+      "content_sha256": "c2c0ce5cf4943e12ead5d4de43211b597bda8856c2ce2c84634d35180c5d01e6"
+    },
+    {
+      "source_id": "src_pubmed_42406722",
+      "source_type": "pubmed",
+      "title": "A Three-Dimensional Culture Model Supporting Human Secondary-to-Antral Follicle Development In Vitro.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42406722/",
+      "accessed_at": "2026-08-27T14:36:12.203Z",
+      "content_sha256": "5ead4c63862bf19263db370f06c7710d59c82dd1cbcb06b9bd0e71a9b7fe38e9"
+    }
+  ],
+  "profile": {
+    "positions": [
+      "北京大学第三医院院长乔杰参加面向全球网络直播的中国新冠疫情防控经验国际分享交流会",
+      "中国工程院院士 北京大学常务副校长兼医学部主任乔杰同往常一样 已经在北京大学第三医院 以下简称北医三院 开始一天的工作",
+      "团队带头人为乔杰院士 现任中国科协副主席 北京大学党委常委 常务副校长 医学部主任 北京大学第三医院院长"
+    ],
+    "expertise": [],
+    "education_and_career": [],
+    "research_directions": [
+      "我 中心 于 2017年首次获批深圳市三名工程项目 引进了 北京大学第三医院生殖医学 乔杰院士女性生殖健康与生育力保护研究团队",
+      "研究新冠病毒对孕产妇及子代健康长期影响 探讨其对生殖系统 配子及胚胎发育影响将是后续重点研究方向"
+    ],
+    "representative_outputs": [
+      "代表性论文：NICE: A Two-Step Non-Invasive Framework for Embryo cfDNA Read Enrichment and Quality Assessment.（Advanced science (Weinheim, Baden-Wurttemberg, Germany)，2026）",
+      "代表性论文：A Novel Role of DELTEX2 in Maintaining Genomic Stability of Granulosa Cells During Ovarian Aging.（FASEB journal : official publication of the Federation of American Societies for Experimental Biology，2026）",
+      "代表性论文：Safeguarding the Right to a Whole Life.（Cancer innovation，2026）",
+      "代表性论文：Single-Cell and Spatial Analysis Reveal the Differences Between Left-Sided and Right-Sided Colorectal Cancer.（Cell proliferation，2026）",
+      "代表性论文：A Three-Dimensional Culture Model Supporting Human Secondary-to-Antral Follicle Development In Vitro.（Journal of visualized experiments : JoVE，2026）"
+    ],
+    "claims": [
+      {
+        "claim_id": "clm_identity_verified",
+        "claim_type": "identity",
+        "text": "The supplied identity for 乔杰 matched the retrieved official public evidence.",
+        "source_ids": [
+          "src_web_5419134c3f08df81c9fdc2b2",
+          "src_web_171679e498a9ffefa136941c",
+          "src_web_73e2eeb52d6e92c6f142166f"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_position_beiyi_sanyuan_yuanzhang",
+        "claim_type": "position",
+        "text": "北京大学第三医院院长乔杰参加面向全球网络直播的中国新冠疫情防控经验国际分享交流会",
+        "source_ids": [
+          "src_web_5419134c3f08df81c9fdc2b2"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_position_pkuc_fuzhixiaozhang",
+        "claim_type": "position",
+        "text": "中国工程院院士 北京大学常务副校长兼医学部主任乔杰同往常一样 已经在北京大学第三医院 以下简称北医三院 开始一天的工作",
+        "source_ids": [
+          "src_web_171679e498a9ffefa136941c"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_position_cast_fuzhuxi",
+        "claim_type": "position",
+        "text": "团队带头人为乔杰院士 现任中国科协副主席 北京大学党委常委 常务副校长 医学部主任 北京大学第三医院院长",
+        "source_ids": [
+          "src_web_73e2eeb52d6e92c6f142166f"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_research_shenzhen_sanming",
+        "claim_type": "research_direction",
+        "text": "我 中心 于 2017年首次获批深圳市三名工程项目 引进了 北京大学第三医院生殖医学 乔杰院士女性生殖健康与生育力保护研究团队",
+        "source_ids": [
+          "src_web_73e2eeb52d6e92c6f142166f"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_research_covid_mother_infant",
+        "claim_type": "research_direction",
+        "text": "研究新冠病毒对孕产妇及子代健康长期影响 探讨其对生殖系统 配子及胚胎发育影响将是后续重点研究方向",
+        "source_ids": [
+          "src_web_5419134c3f08df81c9fdc2b2"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_1",
+        "claim_type": "representative_output",
+        "text": "代表性论文：NICE: A Two-Step Non-Invasive Framework for Embryo cfDNA Read Enrichment and Quality Assessment.（Advanced science (Weinheim, Baden-Wurttemberg, Germany)，2026）",
+        "source_ids": [
+          "src_pubmed_42635625"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_2",
+        "claim_type": "representative_output",
+        "text": "代表性论文：A Novel Role of DELTEX2 in Maintaining Genomic Stability of Granulosa Cells During Ovarian Aging.（FASEB journal : official publication of the Federation of American Societies for Experimental Biology，2026）",
+        "source_ids": [
+          "src_pubmed_42634949"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_3",
+        "claim_type": "representative_output",
+        "text": "代表性论文：Safeguarding the Right to a Whole Life.（Cancer innovation，2026）",
+        "source_ids": [
+          "src_pubmed_42614803"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_4",
+        "claim_type": "representative_output",
+        "text": "代表性论文：Single-Cell and Spatial Analysis Reveal the Differences Between Left-Sided and Right-Sided Colorectal Cancer.（Cell proliferation，2026）",
+        "source_ids": [
+          "src_pubmed_42444407"
+        ],
+        "verification_status": "verified"
+      },
+      {
+        "claim_id": "clm_representative_output_pubmed_5",
+        "claim_type": "representative_output",
+        "text": "代表性论文：A Three-Dimensional Culture Model Supporting Human Secondary-to-Antral Follicle Development In Vitro.（Journal of visualized experiments : JoVE，2026）",
+        "source_ids": [
+          "src_pubmed_42406722"
+        ],
+        "verification_status": "verified"
+      }
+    ],
+    "primary_public_source_ids": [
+      "src_web_5419134c3f08df81c9fdc2b2",
+      "src_web_171679e498a9ffefa136941c",
+      "src_web_73e2eeb52d6e92c6f142166f",
+      "src_pubmed_42635625",
+      "src_pubmed_42634949",
+      "src_pubmed_42614803",
+      "src_pubmed_42444407",
+      "src_pubmed_42406722"
+    ]
+  },
+  "review": {
+    "title": "乔杰院士医生概览：北京大学第三医院院长、生殖医学专家",
+    "abstract": "乔杰为中国工程院院士，现任中国科协副主席、北京大学党委常委、常务副校长兼医学部主任、北京大学第三医院院长，长期从事妇产科与生殖医学工作，尤其深耕多囊卵巢综合征的发病机制与干预、女性生殖健康与生育力保护等方向。本报告基于官方公开来源，简要梳理其现任职务、执业机构、教育与职业经历要点及研究团队情况，供快速了解其公开职业身份。",
+    "keywords": [
+      "乔杰",
+      "北京大学第三医院",
+      "生殖医学",
+      "妇产科学",
+      "多囊卵巢综合征",
+      "生育力保护"
+    ],
+    "markdown": "# 乔杰 医生概览\n\n## 身份与现任职务\n- 中国工程院院士，中国科协副主席、北京大学党委常委、常务副校长、医学部主任、北京大学第三医院院长（据北京大学深圳医院官网及国家自然科学基金委转载报道）。\n- 执业机构：北京大学第三医院，妇产科/生殖医学领域。\n\n## 专业方向\n- 妇产科学、生殖医学、妇科内分泌；主要研究方向包括多囊卵巢综合征（PCOS）发病机制与干预、女性生殖健康与生育力保护、胚胎发育分子机制及植入前遗传学筛查等。\n\n## 教育与职业要点（官方来源支持）\n- 1981年考入北京医科大学（现北京大学医学部），选定妇产科方向。\n- 1987年师从李美芝教授，进入北医三院妇产科读研究生，研究多囊卵巢综合征。\n- 1996年博士毕业后独立开展基础与临床研究；1999年接任北医三院妇产科主任。\n- 2003年赴美国斯坦福大学进修；2008年获国家杰出青年科学基金项目资助。\n- 2024年作为第一完成人完成的“人类生殖发育表观遗传调控机制及代际传递规律研究”获国家自然科学奖二等奖。\n\n## 团队与学术影响\n- 北医三院生殖医学中心在国内最早开展辅助生殖技术，团队带头人即乔杰院士；其团队与北京大学深圳医院开展“三名工程”合作，围绕女性生殖健康与生育力保护设立四大研究方向。\n- 疫情期间曾以院长身份参与面向全球直播的中国新冠疫情防控经验国际分享交流会，作母婴安全保障主题报告。\n\n## 备注\n本报告仅基于检索到的官方公开来源，不构成医疗建议，也不对科研成果质量作评价。",
+    "core_evidence": [
+      {
+        "reference_id": "ref_pmid_42635625",
+        "study_type": "方法学研究（期刊论文）",
+        "sample_and_source": "胚胎培养液来源的游离DNA（cfDNA）相关研究，发表于Advanced Science",
+        "methods": "提出NICE两步非侵入式框架：使用改进的DECENT-plus算法富集胚胎cfDNA并降低母源DNA干扰，再基于生物特征构建机器学习模型评估胚胎质量",
+        "key_results": "报告该框架可抗母源DNA污染，用于胚胎整倍体性与质量评估及临床胚胎优先级决策支持",
+        "limitations": "属方法学验证研究；临床有效性、妊娠结局改善等需进一步研究证实，本文不评估其临床有效性"
+      },
+      {
+        "reference_id": "ref_pmid_42634949",
+        "study_type": "基础研究（细胞与动物实验，期刊论文）",
+        "sample_and_source": "老年小鼠卵巢组织与颗粒细胞、人卵巢颗粒细胞样肿瘤细胞系KGN，发表于FASEB Journal",
+        "methods": "基因敲低与过表达实验、端粒长度检测、细胞周期与增殖凋亡分析等",
+        "key_results": "报告DTX2下调与卵巢衰老相关，其过表达可上调TERT、减轻DNA损伤，机制可能与NOTCH2信号通路相关",
+        "limitations": "以小鼠与细胞系为主的临床前研究，向人体的外推性尚未在本文验证"
+      },
+      {
+        "reference_id": "ref_pmid_42406722",
+        "study_type": "方法学论文（JoVE）",
+        "sample_and_source": "人卵泡体外培养模型研究",
+        "methods": "建立支持人次级卵泡到窦卵泡阶段体外发育的三维培养体系，并进行免疫荧光分析",
+        "key_results": "报告该模型可再现卵泡生长、窦腔形成，并在GV期获得可卵母细胞，为卵泡发育与生殖毒理研究提供平台",
+        "limitations": "为体外模型研究，样本与临床适用性信息未在摘要中给出"
+      }
+    ],
+    "references": [
+      {
+        "reference_id": "ref_pmid_42635625",
+        "title": "NICE: A Two-Step Non-Invasive Framework for Embryo cfDNA Read Enrichment and Quality Assessment.",
+        "journal": "Advanced science (Weinheim, Baden-Wurttemberg, Germany)",
+        "publication_year": 2026,
+        "pmid": "42635625",
+        "doi": null,
+        "verification_status": "verified"
+      },
+      {
+        "reference_id": "ref_pmid_42634949",
+        "title": "A Novel Role of DELTEX2 in Maintaining Genomic Stability of Granulosa Cells During Ovarian Aging.",
+        "journal": "FASEB journal : official publication of the Federation of American Societies for Experimental Biology",
+        "publication_year": 2026,
+        "pmid": "42634949",
+        "doi": null,
+        "verification_status": "verified"
+      },
+      {
+        "reference_id": "ref_pmid_42614803",
+        "title": "Safeguarding the Right to a Whole Life.",
+        "journal": "Cancer innovation",
+        "publication_year": 2026,
+        "pmid": "42614803",
+        "doi": "10.1002/cai2.70080",
+        "verification_status": "verified"
+      },
+      {
+        "reference_id": "ref_pmid_42444407",
+        "title": "Single-Cell and Spatial Analysis Reveal the Differences Between Left-Sided and Right-Sided Colorectal Cancer.",
+        "journal": "Cell proliferation",
+        "publication_year": 2026,
+        "pmid": "42444407",
+        "doi": "10.1111/cpr.70260",
+        "verification_status": "verified"
+      },
+      {
+        "reference_id": "ref_pmid_42406722",
+        "title": "A Three-Dimensional Culture Model Supporting Human Secondary-to-Antral Follicle Development In Vitro.",
+        "journal": "Journal of visualized experiments : JoVE",
+        "publication_year": 2026,
+        "pmid": "42406722",
+        "doi": null,
+        "verification_status": "verified"
+      }
+    ],
+    "search_report": {
+      "databases": [
+        "pubmed",
+        "crossref"
+      ],
+      "searched_at": "2026-08-27T14:35:48.074Z",
+      "queries": [
+        "((\"Qiao J\"[Author] OR \"Jie Qiao\"[Author] OR \"Qiao Jie\"[Author]) AND (\"beijing\"[Affiliation] OR \"bei jing\"[Affiliation] OR \"peking\"[Affiliation] OR \"third\"[Affiliation] OR \"3rd\"[Affiliation]) AND (\"obstetrics\"[Affiliation] OR \"obstetric\"[Affiliation] OR \"gynecology\"[Affiliation] OR \"gynaecology\"[Affiliation])) AND (2022:2026[Date - Publication])"
+      ],
+      "included_count": 5
+    }
+  },
+  "source_coverage": {
+    "literature_sources": [
+      "pubmed",
+      "crossref"
+    ],
+    "profile_sources": [
+      "official_web",
+      "pubmed"
+    ],
+    "cutoff_date": "2026-08-27",
+    "warnings": [
+      "abstract_only_evidence",
+      "licensed_chinese_literature_not_covered",
+      "verified_reference_target_not_reached"
+    ]
+  },
+  "predicted_questions": [
+    "乔杰医生现在在哪里执业、担任什么职务？",
+    "她擅长看什么病、属于什么专科？",
+    "她的教育和职业经历有哪些关键节点？",
+    "她的主要研究方向是什么？",
+    "如何挂她的号或就诊于她的团队？"
+  ],
+  "answers": [
+    {
+      "question_index": 1,
+      "answer": "她现任北京大学第三医院院长，同时任中国科协副主席、北京大学党委常委、常务副校长、医学部主任；执业机构为北京大学第三医院（妇产科/生殖医学）。",
+      "source_ids": [
+        "src_web_171679e498a9ffefa136941c",
+        "src_web_73e2eeb52d6e92c6f142166f"
+      ]
+    },
+    {
+      "question_index": 2,
+      "answer": "她是妇产科/生殖医学专家，妇科内分泌方向，长期研究多囊卵巢综合征（PCOS），并致力于女性生殖健康与生育力保护。",
+      "source_ids": [
+        "src_web_171679e498a9ffefa136941c",
+        "src_web_73e2eeb52d6e92c6f142166f"
+      ]
+    },
+    {
+      "question_index": 3,
+      "answer": "1981年考入北京医科大学，1987年进入北医三院读研（师从李美芝教授，研究PCOS），1996年博士毕业，1999年任北医三院妇产科主任，2008年获国家杰出青年科学基金资助。",
+      "source_ids": [
+        "src_web_171679e498a9ffefa136941c"
+      ]
+    },
+    {
+      "question_index": 4,
+      "answer": "主要包括多囊卵巢综合征发病机制与干预、女性生殖健康与生育力保护、胚胎发育分子机制及植入前遗传学筛查、卵泡发育调控等；疫情期间还关注新冠对孕产妇及子代健康的影响。",
+      "source_ids": [
+        "src_web_171679e498a9ffefa136941c",
+        "src_web_73e2eeb52d6e92c6f142166f",
+        "src_web_5419134c3f08df81c9fdc2b2"
+      ]
+    },
+    {
+      "question_index": 5,
+      "answer": "检索到的公开来源未提供具体出诊时间或挂号方式；可关注北京大学第三医院官方挂号渠道，其团队亦通过深圳“3名工程”与北京大学深圳医院生殖医学科合作。",
+      "source_ids": [
+        "src_web_73e2eeb52d6e92c6f142166f"
+      ]
+    }
+  ],
+  "quality": {
+    "status": "passed_with_warnings",
+    "checks": [
+      "doctor_identity_resolution",
+      "official_profile_source_closure",
+      "verified_publication_attribution",
+      "reference_metadata_closed_set",
+      "prompt_injection_isolation",
+      "doctor_lookup_brief_contract"
+    ],
+    "warnings": [
+      "doctor_lookup_sources_require_user_verification",
+      "abstract_only_evidence",
+      "brief_relaxed_review_content_minimum",
+      "brief_relaxed_citation_reference_closure",
+      "brief_relaxed_paragraph_citation_coverage",
+      "brief_relaxed_answer_length_contract",
+      "brief_relaxed_numeric_evidence_closure",
+      "doctor_lookup_brief_completed",
+      "bounded_doctor_lookup_contract_retry_completed",
+      "verified_reference_target_not_reached"
+    ]
+  },
+  "schema_version": "doctor_research_result.v1",
+  "request_id": "req_research_worker_899fac475f624370b113ff7828376c0c",
+  "run_id": "drr_899fac475f624370b113ff7828376c0c",
+  "artifacts": [
+    {
+      "artifact_id": "dra_35e422358ccd4bf7a8eb9df694199926",
+      "kind": "profile",
+      "filename": "乔杰_基础信息与研究方向.md",
+      "content_type": "text/markdown; charset=utf-8",
+      "size_bytes": 3409,
+      "sha256": "60c05cb8367ed5a957858737a5786b01b5a39f1a3fc6d5efde1c873b979d7e3f",
+      "expires_at": "2026-09-26T14:37:18.286Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_35e422358ccd4bf7a8eb9df694199926/download"
+    },
+    {
+      "artifact_id": "dra_a7f53f5451104af0872404206b26d39e",
+      "kind": "review",
+      "filename": "乔杰_相关领域前沿综述.md",
+      "content_type": "text/markdown; charset=utf-8",
+      "size_bytes": 5515,
+      "sha256": "ced34f7a9d2b929a3f60f69a86f242f357e44ff75775fda237e122da7732529f",
+      "expires_at": "2026-09-26T14:37:18.286Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_a7f53f5451104af0872404206b26d39e/download"
+    },
+    {
+      "artifact_id": "dra_00c8dba0953c4d20975c8ffecc90b1bc",
+      "kind": "questions",
+      "filename": "乔杰_医生可能问机器人问题.txt",
+      "content_type": "text/plain; charset=utf-8",
+      "size_bytes": 259,
+      "sha256": "a341aab5a6995e8536d4ab883e2886bd89898eee374ccdd64d212f8d2bb81d9a",
+      "expires_at": "2026-09-26T14:37:18.286Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_00c8dba0953c4d20975c8ffecc90b1bc/download"
+    },
+    {
+      "artifact_id": "dra_40a1c68290aa4390b7309ed644c7b4ec",
+      "kind": "answers",
+      "filename": "乔杰_问题与答案.md",
+      "content_type": "text/markdown; charset=utf-8",
+      "size_bytes": 3264,
+      "sha256": "e5314fee064130553945fab8d4fe69743ffe595cdea0c94b929276fe2381c641",
+      "expires_at": "2026-09-26T14:37:18.286Z",
+      "download_url": "/gateway/research/v1/artifacts/dra_40a1c68290aa4390b7309ed644c7b4ec/download"
+    }
+  ]
+}

@@ -1,0 +1,187 @@
+{
+  "gateway_revision": "94b60aec5974e0aafadf0aeeba05fe045b745da2",
+  "historical_requests": [
+    {
+      "request_id": "req-fc7f1fb2-5557-4401-9e52-2471bfa69e45",
+      "started_at": "2026-10-13T08:41:15.190Z",
+      "duration_ms": 26841,
+      "receipt_replacements": 2,
+      "field": "tool_arguments.content",
+      "receipt_sha256": "b5842caeb7bd16fa33a8f884d55a98fffc707ee69ff13537738d5265c7c25db8"
+    },
+    {
+      "request_id": "req-eda75260-6b31-4d06-8c76-6986f6137e85",
+      "started_at": "2026-10-13T08:41:42.215Z",
+      "duration_ms": 32871,
+      "receipt_replacements": 6,
+      "field": "content",
+      "receipt_sha256": "597cbea393fca46828beb42ad1a1c070e70dd43e14b54e7edd6bf418746b8134"
+    }
+  ],
+  "historical_common": {
+    "provider": "tiankuan",
+    "model": "official/glm-5.3",
+    "status": "ok",
+    "receipt_state": "completed",
+    "attempts": 1,
+    "upstream_http_status": 200,
+    "effective_reasoning_effort": "high",
+    "client_tool_mode": "native",
+    "original_upstream_bytes_available": false
+  },
+  "synthetic_input_replacement_count": 0,
+  "synthetic_live_calls": [
+    {
+      "case": "text-1",
+      "at": "2026-10-13T09:06:17.125Z",
+      "duration_ms": 8790,
+      "status": 200,
+      "headers": {
+        "content-type": "text/event-stream;charset=UTF-8"
+      },
+      "raw_sha256": "1d2b58638b91208f93d8788b0f01f3b78a14965469047f5fa4c804463a9a54b5",
+      "raw_bytes": 181030,
+      "network_chunks": 472,
+      "valid_utf8": true,
+      "raw_literal_replacements": 4,
+      "raw_escaped_replacements": 0,
+      "text_replacements": 4,
+      "argument_replacements": 0,
+      "reasoning_replacements": 0,
+      "model_response_id": "20261013170617c4cca23c0ba54a15",
+      "finish_reason": "stop",
+      "usage": {
+        "prompt_tokens": 763,
+        "completion_tokens": 751,
+        "total_tokens": 1514,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 17
+        }
+      },
+      "adapter_errors": [],
+      "upstream_matches_adapter": true,
+      "one_byte_replay_matches_adapter": true,
+      "replacement_bytes": [
+        {
+          "byte_offset": 21086,
+          "hex": "65 6e 74 22 3a 22 ef bf bd ef bf bd 22 7d 7d 5d 2c 22"
+        },
+        {
+          "byte_offset": 21089,
+          "hex": "22 3a 22 ef bf bd ef bf bd 22 7d 7d 5d 2c 22 72 65 71"
+        },
+        {
+          "byte_offset": 90068,
+          "hex": "65 6e 74 22 3a 22 ef bf bd ef bf bd e9 a3 8e 22 7d 7d"
+        },
+        {
+          "byte_offset": 90071,
+          "hex": "22 3a 22 ef bf bd ef bf bd e9 a3 8e 22 7d 7d 5d 2c 22"
+        }
+      ],
+      "affected_events": [
+        {
+          "event_index": 86,
+          "field": "content",
+          "replacement_count": 2,
+          "snippets": [
+            "��"
+          ]
+        },
+        {
+          "event_index": 372,
+          "field": "content",
+          "replacement_count": 2,
+          "snippets": [
+            "��风"
+          ]
+        }
+      ],
+      "upstream_sse_request_id": "e1be29ee-6cfb-4005-97d8-779f1a709fc6"
+    },
+    {
+      "case": "tool-1",
+      "at": "2026-10-13T09:06:25.916Z",
+      "duration_ms": 14490,
+      "status": 200,
+      "headers": {
+        "content-type": "text/event-stream;charset=UTF-8"
+      },
+      "raw_sha256": "8508e471ae7af4c5834b7b886f349d1dabccdf9e64ce43a60ed2eec251d22d3e",
+      "raw_bytes": 6176,
+      "network_chunks": 7,
+      "valid_utf8": true,
+      "raw_literal_replacements": 2,
+      "raw_escaped_replacements": 0,
+      "text_replacements": 0,
+      "argument_replacements": 2,
+      "reasoning_replacements": 0,
+      "model_response_id": "202610131706269ebf1cc4aea1408f",
+      "finish_reason": "tool_calls",
+      "usage": {
+        "prompt_tokens": 926,
+        "completion_tokens": 761,
+        "total_tokens": 1687,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 9
+        }
+      },
+      "adapter_errors": [],
+      "upstream_matches_adapter": true,
+      "one_byte_replay_matches_adapter": true,
+      "replacement_bytes": [
+        {
+          "byte_offset": 2758,
+          "hex": "e6 98 a5 e9 a3 8e ef bf bd ef bf bd e7 bb bf e6 b1 9f"
+        },
+        {
+          "byte_offset": 2761,
+          "hex": "e9 a3 8e ef bf bd ef bf bd e7 bb bf e6 b1 9f e5 8d 97"
+        }
+      ],
+      "affected_events": [
+        {
+          "event_index": 9,
+          "field": "arguments",
+          "replacement_count": 2,
+          "snippets": [
+            "幕样式，请直接指出。春风��绿江南岸，明月何时照我还。\\n第"
+          ]
+        }
+      ],
+      "upstream_sse_request_id": "26515aa6-8957-48f9-be97-cb7cacbfda5d"
+    }
+  ],
+  "offline_chunking": {
+    "cases": [
+      {
+        "chunk_bytes": 1,
+        "exact": true
+      },
+      {
+        "chunk_bytes": 2,
+        "exact": true
+      },
+      {
+        "chunk_bytes": 3,
+        "exact": true
+      },
+      {
+        "chunk_bytes": 7,
+        "exact": true
+      },
+      {
+        "chunk_bytes": 355,
+        "exact": true
+      }
+    ],
+    "literal_replacement_preserved": true
+  },
+  "scope": "Synthetic provider calls only; no customer prompts replayed, no tools executed, no runtime or configuration changed."
+}

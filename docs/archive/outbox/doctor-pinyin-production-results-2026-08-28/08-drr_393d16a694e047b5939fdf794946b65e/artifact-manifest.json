@@ -1,0 +1,30 @@
+[
+  {
+    "kind": "answers",
+    "filename": "陈赛娟_问题与答案.md",
+    "content_type": "text/markdown; charset=utf-8",
+    "size_bytes": 2834,
+    "sha256": "d0c7406f91ff16f63707a27c16b37e3f9a85c6163968aa1e4f816271d7fcf7db"
+  },
+  {
+    "kind": "profile",
+    "filename": "陈赛娟_基础信息与研究方向.md",
+    "content_type": "text/markdown; charset=utf-8",
+    "size_bytes": 2911,
+    "sha256": "466b17726e6915882603dfd44d612e930c5048e4b8a3d9f6cdd6ff6669644966"
+  },
+  {
+    "kind": "questions",
+    "filename": "陈赛娟_医生可能问机器人问题.txt",
+    "content_type": "text/plain; charset=utf-8",
+    "size_bytes": 245,
+    "sha256": "fedefab4bf37bfc4b881366c19c859a74a994d83f00185e375652f826f34226a"
+  },
+  {
+    "kind": "review",
+    "filename": "陈赛娟_相关领域前沿综述.md",
+    "content_type": "text/markdown; charset=utf-8",
+    "size_bytes": 5302,
+    "sha256": "99a7a3824362d0c495efeeab340826ed4e47b9943b34626660e57d8865564e5d"
+  }
+]

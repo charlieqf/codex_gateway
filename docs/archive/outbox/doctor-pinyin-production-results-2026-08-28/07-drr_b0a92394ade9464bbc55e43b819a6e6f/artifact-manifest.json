@@ -1,0 +1,30 @@
+[
+  {
+    "kind": "answers",
+    "filename": "葛均波_问题与答案.md",
+    "content_type": "text/markdown; charset=utf-8",
+    "size_bytes": 3368,
+    "sha256": "20da9a197b817410e84a205d9f4e9762f09c50aeaf87bd58ab229964f0f61891"
+  },
+  {
+    "kind": "profile",
+    "filename": "葛均波_基础信息与研究方向.md",
+    "content_type": "text/markdown; charset=utf-8",
+    "size_bytes": 3305,
+    "sha256": "be00a67f1f344a623a5eef2885f6e2e4a37df77a00364c84306a3e83c2b36cd6"
+  },
+  {
+    "kind": "questions",
+    "filename": "葛均波_医生可能问机器人问题.txt",
+    "content_type": "text/plain; charset=utf-8",
+    "size_bytes": 271,
+    "sha256": "ed8d9042902c38dbdec6ed719c0001b96e78d14068fef5f899ab31a13dcde1f5"
+  },
+  {
+    "kind": "review",
+    "filename": "葛均波_相关领域前沿综述.md",
+    "content_type": "text/markdown; charset=utf-8",
+    "size_bytes": 5278,
+    "sha256": "a3a95ea7a4aedeb52eb7a559504a89c43215db5d52c6319664f09599c150864a"
+  }
+]

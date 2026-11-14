@@ -19,7 +19,7 @@ python scripts/reset-user-daily-quota.py <手机号>
 2026-09-24 起，新注册 Free 为一次性 **500 万 token**。为兼容现有开户和客户端合同，
 Plan ID 仍为 `plan_free_once_1m_v1`；额度应读取策略字段，不能从 ID 中的 `1m` 推断。
 此次已将 66 个纯 Free 账号升级至 500 万并清零终身用量；同时有其他有效权益的
-14 个账号未改动，历史快照可能仍为 100 万。详见[调整回执](./free-plan-5m-2026-09-24.zh-CN.md)。
+14 个账号未改动，历史快照可能仍为 100 万。详见[调整回执](../archive/operations/free-plan-5m-2026-09-24.zh-CN.md)。
 
 ## 选择做法
 

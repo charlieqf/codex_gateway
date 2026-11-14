@@ -153,4 +153,4 @@ Gateway 公网已验证三次切换步骤均可查询/原样重放，重放不�
 三次复用 ID 改模型均返回 409。客户端还需回传安装包版本、上述 UI 场景结果、
 对应 `x-request-id`、call ID 和时间（含时区）；无需提供 Key 或完整对话内容。
 
-上线记录见[DeepSeek 发布验收](../operations/goldencode-d-release-2026-10-23.zh-CN.md)。
+上线记录见[DeepSeek 发布验收](../archive/operations/goldencode-d-release-2026-10-23.zh-CN.md)。

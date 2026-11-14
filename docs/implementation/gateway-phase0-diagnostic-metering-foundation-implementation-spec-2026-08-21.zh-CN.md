@@ -57,7 +57,7 @@
 
 - `docs/implementation/gateway-rate-limit-error-contract-2026-07-15.zh-CN.md` 继续负责公开限流合同；
 - `docs/implementation/openai-sse-termination-error-contract-2026-07-18.zh-CN.md` 继续负责 SSE 完成与非正常终止判定；
-- `docs/implementation/medcode-public-model-usage-statistics.zh-CN.md` 继续负责模型和 token ledger 的归因基础；
+- `docs/consumer-technical-guide.md` 继续负责模型和 token ledger 的归因基础；
 - `docs/operations/r760-control-plane-authority.md` 继续负责 R760 权威、Azure 兼容合并和生产写入边界；
 - `docs/outbox/medevidence-desktop-retry-image-replay-request-observability-optimization-recommendations-2026-08-21.zh-CN.md` 只负责 Desktop 建议，不是本次 Gateway 实现合同。
 

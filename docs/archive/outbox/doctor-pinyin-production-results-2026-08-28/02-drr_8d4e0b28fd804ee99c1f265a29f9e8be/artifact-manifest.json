@@ -1,0 +1,30 @@
+[
+  {
+    "kind": "answers",
+    "filename": "赵玉沛_问题与答案.md",
+    "content_type": "text/markdown; charset=utf-8",
+    "size_bytes": 3359,
+    "sha256": "4486c9ab2fc2e06970299e15eb514a90e6af595ecf6c671c42d333a6713030c8"
+  },
+  {
+    "kind": "profile",
+    "filename": "赵玉沛_基础信息与研究方向.md",
+    "content_type": "text/markdown; charset=utf-8",
+    "size_bytes": 3874,
+    "sha256": "463dc71bdfa8c67ccdb39a321f9e16507efb5163ac99731c9e956d327699b1d7"
+  },
+  {
+    "kind": "questions",
+    "filename": "赵玉沛_医生可能问机器人问题.txt",
+    "content_type": "text/plain; charset=utf-8",
+    "size_bytes": 301,
+    "sha256": "32ea2a81527cbb802c8a702e160970d50f00a6d876ed15e4fa25758dafa34341"
+  },
+  {
+    "kind": "review",
+    "filename": "赵玉沛_相关领域前沿综述.md",
+    "content_type": "text/markdown; charset=utf-8",
+    "size_bytes": 5436,
+    "sha256": "74c500ccf9a8eada8924a1c6e8104928d36b2748b2974e380ac8bf9ca87a9ba2"
+  }
+]
