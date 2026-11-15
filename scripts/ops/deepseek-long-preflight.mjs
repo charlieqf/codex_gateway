@@ -5,6 +5,7 @@ import { resolvePublicModelRegistry, openAIModelObject } from "/app/apps/gateway
 import { resolveChatRequestTimeoutMs, parseChatRequestTimeoutPolicy } from "/app/apps/gateway/dist/services/chat-request-deadline.js";
 import { issueAccessCredential, validateFeaturePolicy } from "@codex-gateway/core";
 import { createSqliteStore, createSqliteTokenBudgetLimiter } from "@codex-gateway/store-sqlite";
+import { hrwAccountForKey } from "/app/apps/gateway/dist/test-support.js";
 import { isolatedProviderEnv } from "./vision-smoke-helpers.mjs";
 
 const id = "goldencode-d-long";
@@ -21,7 +22,9 @@ Object.assign(process.env, env, { MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(reg
 const resolved = resolvePublicModelRegistry(process.env);
 assert.deepEqual(resolved.models.filter(model => model.id !== id).map(openAIModelObject), before);
 assert.equal(resolveChatRequestTimeoutMs(parseChatRequestTimeoutPolicy(process.env), id, "tencent"), 1800000);
-assert.equal(resolved.get(id).runtime, "tencent");
+assert.equal(resolved.get(id).runtime, "pool");
+assert.deepEqual(registry[id].pool.members.map(m => m.runtime).sort(), ["tencent", "tiankuan"]);
+assert(registry[id].pool.members.every(m => m.upstreamModel === "deepseek-v4.1-flash-1017"));
 assert.equal(resolved.get(id).vision, undefined);
 const store = createSqliteStore({ path: ":memory:" });
 const now = new Date();
@@ -43,8 +46,19 @@ const app = buildGateway({ authMode: "credential", logger: false, provider, sess
   imagingService: null, aipalService: null, panechoService: null, echonetService: null,
   echonextService: null, alphafold3Service: null });
 const headers = { authorization: `Bearer ${issued.token}` };
-async function call(api, payload, expected = 200) {
-  const response = await app.inject({ method: "POST", url: `/v1/${api}`, headers, payload: { model: id, ...payload } });
+function session(model, runtime) {
+  const members = registry[model].pool.members;
+  for (let i = 0; i < 10000; i++) {
+    const value = `long-preflight-${runtime}-${i}`;
+    const selected = hrwAccountForKey(`client_session:${value}`, members.map(m => m.id));
+    if (members.find(m => m.id === selected).runtime === runtime) return value;
+  }
+  throw new Error("No matching session");
+}
+async function call(api, payload, expected = 200, runtime = "tencent") {
+  const model = payload.model ?? id;
+  const response = await app.inject({ method: "POST", url: `/v1/${api}`,
+    headers: { ...headers, "x-medcode-client-session-id": session(model, runtime) }, payload: { model, ...payload } });
   const event = store.listRequestEvents({ limit: 1 })[0];
   console.log(JSON.stringify({ api, stream: payload.stream === true, http: response.statusCode,
     upstream_model: event?.upstreamModel, runtime: event?.upstreamRuntime, status: event?.status,
@@ -52,7 +66,7 @@ async function call(api, payload, expected = 200) {
     ...(response.statusCode >= 400 ? { error_code: response.json().error?.code, error_message: response.json().error?.message } : {}) }));
   assert.equal(response.statusCode, expected);
   if (expected === 200) {
-    assert.equal(event?.upstreamRuntime, "tencent");
+    assert.equal(event?.upstreamRuntime, runtime);
     assert.equal(event?.upstreamModel, "deepseek-v4.1-flash-1017");
     const frames = payload.stream ? response.body.split("\n").filter(line => line.startsWith("data: ") && line !== "data: [DONE]")
       .map(line => JSON.parse(line.slice(6))) : [response.json()];
@@ -68,18 +82,35 @@ try {
   }
   console.log(JSON.stringify({ catalog: catalog.data.map(model => ({ id: model.id, context: model.context_window, output: model.max_output_tokens })) }));
   await call("chat/completions", { messages: [{ role: "user", content: "Reply OK" }], max_tokens: 128001 }, 400);
-  const streamed = await call("chat/completions", { stream: true, reasoning_effort: "low", max_tokens: 1024,
-    messages: [{ role: "user", content: "Reply only LONG_PREFLIGHT_OK." }] });
-  assert.ok(streamed.response.body.includes("[DONE]"));
-  assert.ok(streamed.response.body.includes('"finish_reason":"stop"'));
-  // Synthetic line anchors exercise full ingestion without customer data. Check
-  // provider-reported token usage, not a local heuristic, to prove >200k input.
-  const document = Array.from({ length: 30000 }, (_, i) => `[page=${i + 1} line=1] record ${i + 1}: ordinary reference material.`).join("\n");
-  const result = await call("responses", { reasoning: { effort: "low" }, max_output_tokens: 128000,
-    input: `Find the two boundary markers starting with FIRST_ANCHOR_ and LAST_ANCHOR_ in the document below. Return only those two complete markers.\nFIRST_ANCHOR_A17\n${document}\nLAST_ANCHOR_Z93` });
-  assert.ok(result.event.promptTokens > 200000);
-  assert.equal(result.response.json().status, "completed");
-  assert.ok(result.response.body.includes("FIRST_ANCHOR_A17") && result.response.body.includes("LAST_ANCHOR_Z93"));
+  // Near the advertised input budget when reserving the full output budget.
+  // Provider-reported input proves actual ingestion, not extraction accuracy.
+  const document = Array.from({ length: 49500 }, (_, i) => `[page=${i + 1} line=1] record ${i + 1}: ordinary reference material.`).join("\n");
+  const tool = { name: "probe_marker", description: "Read a synthetic marker.", parameters: {
+    type: "object", properties: { value: { type: "string", enum: ["CHECK"] } }, required: ["value"], additionalProperties: false } };
+  const prompt = "Call probe_marker with value CHECK. When the tool result is provided, return its marker only.";
+  for (const runtime of ["tencent", "tiankuan"]) {
+    const streamed = await call("chat/completions", { stream: true, reasoning_effort: "low", max_tokens: 1024,
+      messages: [{ role: "user", content: "Reply only LONG_PREFLIGHT_OK." }] }, 200, runtime);
+    assert.ok(streamed.response.body.includes("[DONE]"));
+    assert.ok(streamed.response.body.includes('"finish_reason":"stop"'));
+    const result = await call("responses", { reasoning: { effort: "low" }, max_output_tokens: 128000,
+      input: `Find the two boundary markers starting with FIRST_ANCHOR_ and LAST_ANCHOR_ in the document below. Return only those two complete markers.\nFIRST_ANCHOR_A17\n${document}\nLAST_ANCHOR_Z93` }, 200, runtime);
+    assert.ok(result.event.promptTokens > 880000 && result.event.promptTokens + 128000 <= 1024000);
+    assert.equal(result.response.json().status, "completed");
+    assert.ok(result.response.body.includes("FIRST_ANCHOR_A17") && result.response.body.includes("LAST_ANCHOR_Z93"));
+    const first = await call("chat/completions", { reasoning_effort: "low", max_tokens: 1024,
+      messages: [{ role: "user", content: prompt }], tools: [{ type: "function", function: tool }], tool_choice: "required" }, 200, runtime);
+    const tc = first.response.json().choices[0].message.tool_calls?.[0];
+    assert.equal(tc?.function.name, tool.name);assert.deepEqual(JSON.parse(tc.function.arguments), { value: "CHECK" });
+    const next = runtime === "tencent" ? "tiankuan" : "tencent";
+    const second = await call("responses", { stream: true, reasoning: { effort: "low" }, max_output_tokens: 1024,
+      input: [{ type: "message", role: "user", content: prompt }, { type: "function_call", call_id: tc.id, name: tc.function.name, arguments: tc.function.arguments },
+        { type: "function_call_output", call_id: tc.id, output: "LONG_PREFLIGHT_OK" }], tools: [{ type: "function", ...tool }] }, 200, next);
+    assert.ok(second.response.body.includes("response.completed") && second.response.body.includes("LONG_PREFLIGHT_OK"));
+    const old = await call("chat/completions", { model: "goldencode-d", reasoning_effort: "low", max_tokens: 1024,
+      messages: [{ role: "user", content: "Reply only LONG_PREFLIGHT_OK." }] }, 200, runtime);
+    assert.ok(old.response.body.includes("LONG_PREFLIGHT_OK"));
+  }
   assert.equal(store.database.prepare("SELECT count(*) AS n FROM token_reservations WHERE finalized_at IS NULL").get().n, 0);
   console.log(JSON.stringify({ passed: true, existing_catalog_preserved: true, production_database_opened: false }));
 } finally {
