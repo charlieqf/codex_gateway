@@ -1,0 +1,87 @@
+// Execute inside the deployed image with a protected candidate env and no production DB mounts.
+// LONG_MODEL_FRAGMENT_JSON contains only config/gateway.goldencode-d-long.json.
+import assert from "node:assert/strict";
+import { resolvePublicModelRegistry, openAIModelObject } from "/app/apps/gateway/dist/services/public-model-registry.js";
+import { resolveChatRequestTimeoutMs, parseChatRequestTimeoutPolicy } from "/app/apps/gateway/dist/services/chat-request-deadline.js";
+import { issueAccessCredential, validateFeaturePolicy } from "@codex-gateway/core";
+import { createSqliteStore, createSqliteTokenBudgetLimiter } from "@codex-gateway/store-sqlite";
+import { isolatedProviderEnv } from "./vision-smoke-helpers.mjs";
+
+const id = "goldencode-d-long";
+const original = resolvePublicModelRegistry(process.env);
+const before = original.models.filter(model => model.id !== id).map(openAIModelObject);
+const fragment = JSON.parse(process.env.LONG_MODEL_FRAGMENT_JSON);
+const registry = JSON.parse(process.env.MEDCODE_PUBLIC_MODELS_JSON);
+assert.deepEqual(registry[id], fragment[id]);
+const timeouts = process.env.MEDCODE_CHAT_REQUEST_TIMEOUTS_JSON;
+const env = isolatedProviderEnv(process.env);
+for (const name of Object.keys(process.env)) delete process.env[name];
+Object.assign(process.env, env, { MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(registry),
+  MEDCODE_PUBLIC_MODEL_ID: "goldencode", MEDCODE_CHAT_REQUEST_TIMEOUTS_JSON: timeouts });
+const resolved = resolvePublicModelRegistry(process.env);
+assert.deepEqual(resolved.models.filter(model => model.id !== id).map(openAIModelObject), before);
+assert.equal(resolveChatRequestTimeoutMs(parseChatRequestTimeoutPolicy(process.env), id, "tencent"), 1800000);
+assert.equal(resolved.get(id).runtime, "tencent");
+assert.equal(resolved.get(id).vision, undefined);
+const store = createSqliteStore({ path: ":memory:" });
+const now = new Date();
+store.upsertSubject({ id: "long-preflight", label: "Isolated long-document preflight", state: "active", createdAt: now });
+const issued = issueAccessCredential({ subjectId: "long-preflight", label: "Synthetic", scope: "code", now,
+  expiresAt: new Date(now.getTime() + 3600000), rate: { requestsPerMinute: 120, concurrentRequests: 2 } });
+store.insertAccessCredential(issued.record);
+store.createPlan({ id: "long-preflight", displayName: "Synthetic", scopeAllowlist: ["code"], now,
+  policy: { tokensPerMinute: null, tokensPerDay: null, tokensPerMonth: null, tokensTotal: null,
+    maxPromptTokensPerRequest: null, maxTotalTokensPerRequest: null, reserveTokensPerRequest: 0, missingUsageCharge: "none" },
+  featurePolicy: validateFeaturePolicy({ capabilities: ["chat", "tools"] }) });
+store.grantEntitlement({ subjectId: "long-preflight", planId: "long-preflight", periodKind: "unlimited", now });
+const provider = { kind: "codex", health: async () => ({ state: "healthy", checkedAt: new Date() }),
+  async *message() { throw new Error("Unexpected default provider"); } };
+const { buildGateway } = await import("/app/apps/gateway/dist/index.js");
+const app = buildGateway({ authMode: "credential", logger: false, provider, sessionStore: store, observationStore: store,
+  tokenBudgetLimiter: createSqliteTokenBudgetLimiter({ db: store.database }),
+  clientEventsStore: null, phoneAuthService: null, visionAssetService: null,
+  imagingService: null, aipalService: null, panechoService: null, echonetService: null,
+  echonextService: null, alphafold3Service: null });
+const headers = { authorization: `Bearer ${issued.token}` };
+async function call(api, payload, expected = 200) {
+  const response = await app.inject({ method: "POST", url: `/v1/${api}`, headers, payload: { model: id, ...payload } });
+  const event = store.listRequestEvents({ limit: 1 })[0];
+  console.log(JSON.stringify({ api, stream: payload.stream === true, http: response.statusCode,
+    upstream_model: event?.upstreamModel, runtime: event?.upstreamRuntime, status: event?.status,
+    prompt_tokens: event?.promptTokens, completion_tokens: event?.completionTokens,
+    ...(response.statusCode >= 400 ? { error_code: response.json().error?.code, error_message: response.json().error?.message } : {}) }));
+  assert.equal(response.statusCode, expected);
+  if (expected === 200) {
+    assert.equal(event?.upstreamRuntime, "tencent");
+    assert.equal(event?.upstreamModel, "deepseek-v4.1-flash-1017");
+    const frames = payload.stream ? response.body.split("\n").filter(line => line.startsWith("data: ") && line !== "data: [DONE]")
+      .map(line => JSON.parse(line.slice(6))) : [response.json()];
+    assert.ok(!frames.some(frame => frame.error || frame.type === "response.failed"));
+  }
+  return { response, event };
+}
+try {
+  const catalog = (await app.inject({ method: "GET", url: "/v1/models", headers })).json();
+  assert.deepEqual(catalog.data.find(model => model.id === id), openAIModelObject(resolved.get(id)));
+  for (const model of before.filter(model => model.id !== "goldencode-local")) {
+    assert.deepEqual(catalog.data.find(item => item.id === model.id), model);
+  }
+  console.log(JSON.stringify({ catalog: catalog.data.map(model => ({ id: model.id, context: model.context_window, output: model.max_output_tokens })) }));
+  await call("chat/completions", { messages: [{ role: "user", content: "Reply OK" }], max_tokens: 128001 }, 400);
+  const streamed = await call("chat/completions", { stream: true, reasoning_effort: "low", max_tokens: 1024,
+    messages: [{ role: "user", content: "Reply only LONG_PREFLIGHT_OK." }] });
+  assert.ok(streamed.response.body.includes("[DONE]"));
+  assert.ok(streamed.response.body.includes('"finish_reason":"stop"'));
+  // Synthetic line anchors exercise full ingestion without customer data. Check
+  // provider-reported token usage, not a local heuristic, to prove >200k input.
+  const document = Array.from({ length: 30000 }, (_, i) => `[page=${i + 1} line=1] record ${i + 1}: ordinary reference material.`).join("\n");
+  const result = await call("responses", { reasoning: { effort: "low" }, max_output_tokens: 128000,
+    input: `Find the two boundary markers starting with FIRST_ANCHOR_ and LAST_ANCHOR_ in the document below. Return only those two complete markers.\nFIRST_ANCHOR_A17\n${document}\nLAST_ANCHOR_Z93` });
+  assert.ok(result.event.promptTokens > 200000);
+  assert.equal(result.response.json().status, "completed");
+  assert.ok(result.response.body.includes("FIRST_ANCHOR_A17") && result.response.body.includes("LAST_ANCHOR_Z93"));
+  assert.equal(store.database.prepare("SELECT count(*) AS n FROM token_reservations WHERE finalized_at IS NULL").get().n, 0);
+  console.log(JSON.stringify({ passed: true, existing_catalog_preserved: true, production_database_opened: false }));
+} finally {
+  await app.close();
+}

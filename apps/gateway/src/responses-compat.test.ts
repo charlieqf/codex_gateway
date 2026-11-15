@@ -8,9 +8,9 @@ import {
 } from "./responses-compat.js";
 
 describe("Responses compatibility", () => {
-  it("accepts the DeepSeek public id while retaining an explicitly pinned endpoint", () => {
-    const body = { model: "goldencode-d", input: "Hello", reasoning: { effort: "low" } };
-    expect(parseResponsesRequest(body)).toMatchObject({ chatRequest: { model: "goldencode-d", reasoningEffort: "low" } });
+  it.each(["goldencode-d", "goldencode-d-long"])("accepts %s while retaining an explicitly pinned endpoint", (model) => {
+    const body = { model, input: "Hello", reasoning: { effort: "low" } };
+    expect(parseResponsesRequest(body)).toMatchObject({ chatRequest: { model, reasoningEffort: "low" } });
     expect(parseResponsesRequest(body, "goldencode")).toBeInstanceOf(GatewayError);
     expect(parseResponsesRequest({ ...body, model: "unknown" })).toBeInstanceOf(GatewayError);
   });

@@ -49,7 +49,7 @@ export interface ResponsesResult {
 
 export function parseResponsesRequest(
   body: unknown,
-  requiredModel: string | readonly string[] = ["goldencode", "goldencode-d"],
+  requiredModel: string | readonly string[] = ["goldencode", "goldencode-d", "goldencode-d-long"],
   observation?: VisionObservation
 ): ParsedResponsesRequest | GatewayError {
   if (!isRecord(body)) {
