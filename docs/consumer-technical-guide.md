@@ -24,7 +24,7 @@ Authorization: Bearer <API_KEY>
 | --- | --- | --- |
 | `goldencode` | Tencent GLM-5.3 云端路由 | 以 `/v1/models` 返回值为准 |
 | `goldencode-d` | DeepSeek 云端池 | 以 `/v1/models` 返回值为准 |
-| `goldencode-d-long` | 长文档文本，固定 Tencent `deepseek-v4.1-flash-1017` | 1,024,000 / 最多 128,000 tokens；以账号实际模型目录为准 |
+| `goldencode-d-long` | 长文档文本，腾讯／天宽双平台 `deepseek-v4.1-flash-1017` | 1,024,000 / 最多 128,000 tokens；以账号实际模型目录为准 |
 | `goldencode-local` | R760 Qwen3.8-27B-FP8 | 32,768 / 最多 8,192 tokens |
 
 公共图片模型名是 `medcode-image-default`，通过
@@ -32,7 +32,9 @@ Authorization: Bearer <API_KEY>
 
 ### 长文档入口
 
-`goldencode-d-long` 使用独立配置，不改变两个旧云端 ID 的路由、额度或截断处理。
+`goldencode-d-long` 使用独立双平台池；腾讯和天宽均固定 `deepseek-v4.1-flash-1017`，
+按会话优先的 HRW 策略分配请求，并沿用现有故障切换机制。
+`goldencode-d` 文本池同步统一到 1017；已有视觉路由、上下文额度和截断处理保持原样。
 它支持 Chat Completions 和 Responses；当前仅支持文本输入，不继承旧 ID 的视觉路由。
 合计上下文不是纯正文容量：系统提示、历史、工具定义和输出（包括推理）都需要预算。
 预留 128,000 token 输出时，输入理论预算为 896,000 token；调用方应再留出估算余量。
@@ -45,6 +47,8 @@ Gateway 不会自动裁剪云端文本输入或保证满窗口仍有完整输出
 已安装 MedEvidence 仍只发现既有三个 ID；
 开放客户端选择还需客户端注册新模型、同步输入/输出预算及压缩阈值，并验证工具调用。
 服务端增加该 ID 不会自动替换客户端默认模型，也不改变套餐余额。
+模型容量还受账号额度约束；调用前读取 `/gateway/credentials/current` 的 `credential.token`，
+其中 `maxPromptTokensPerRequest`、`maxTotalTokensPerRequest` 和 `tokensPerMinute` 可能低于模型上限。
 长窗口只扩大原文容量；字段的页码、行号、原文引用和预览跳转仍需文档解析与证据定位流程提供。
 
 ## 在线分析技能权限

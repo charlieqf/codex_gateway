@@ -9,6 +9,9 @@ import { hrwAccountForKey } from "/app/apps/gateway/dist/test-support.js";
 import { isolatedProviderEnv } from "./vision-smoke-helpers.mjs";
 
 const id = "goldencode-d-long";
+// Reuse a recorded near-window result only when image, provider version and
+// candidate config are unchanged; this flag repeats the smaller protocol checks.
+const skipLong = process.argv.includes("--skip-long");
 const original = resolvePublicModelRegistry(process.env);
 const before = original.models.filter(model => model.id !== id).map(openAIModelObject);
 const fragment = JSON.parse(process.env.LONG_MODEL_FRAGMENT_JSON);
@@ -93,12 +96,14 @@ try {
       messages: [{ role: "user", content: "Reply only LONG_PREFLIGHT_OK." }] }, 200, runtime);
     assert.ok(streamed.response.body.includes("[DONE]"));
     assert.ok(streamed.response.body.includes('"finish_reason":"stop"'));
+    if (!skipLong) {
     const result = await call("responses", { reasoning: { effort: "low" }, max_output_tokens: 128000,
       input: `Find the two boundary markers starting with FIRST_ANCHOR_ and LAST_ANCHOR_ in the document below. Return only those two complete markers.\nFIRST_ANCHOR_A17\n${document}\nLAST_ANCHOR_Z93` }, 200, runtime);
     assert.ok(result.event.promptTokens > 880000 && result.event.promptTokens + 128000 <= 1024000);
     assert.equal(result.response.json().status, "completed");
     assert.ok(result.response.body.includes("FIRST_ANCHOR_A17") && result.response.body.includes("LAST_ANCHOR_Z93"));
-    const first = await call("chat/completions", { reasoning_effort: "low", max_tokens: 1024,
+    }
+    const first = await call("chat/completions", { reasoning_effort: "low", max_tokens: 4096,
       messages: [{ role: "user", content: prompt }], tools: [{ type: "function", function: tool }], tool_choice: "required" }, 200, runtime);
     const tc = first.response.json().choices[0].message.tool_calls?.[0];
     assert.equal(tc?.function.name, tool.name);assert.deepEqual(JSON.parse(tc.function.arguments), { value: "CHECK" });
