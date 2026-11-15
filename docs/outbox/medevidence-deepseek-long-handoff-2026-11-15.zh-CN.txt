@@ -1,3 +1,6 @@
+【方案已撤销，2026-11-15】请勿再新增 goldencode-d-long 选项。最终方案已直接升级 goldencode-d 的文本总上下文至 1,024,000 token，并删除 goldencode-d-long。以同目录 medevidence-deepseek-context-upgrade-2026-11-15.zh-CN.txt 为准。以下保留先前方案记录。
+
+
 MedEvidence 团队：Gateway 已向标准 Desktop 凭据开放 goldencode-d-long，建议新增“DeepSeek 长文档”可选项，保留现有默认选择。新模型的腾讯、天宽文本路由均固定 deepseek-v4.1-flash-1017，支持会话优先的负载分配及符合条件时的故障切换；Chat Completions、Responses、流式响应和原生工具调用已通过 Gateway 验证。模型总上下文为 1,024,000 token，最大生成预算为 128,000 token；输入、输出和推理共享上下文，预留最大生成预算时输入理论预算为 896,000 token，需另留估算余量。请同步客户端模型注册、未知 ID 过滤、输入／输出预算和压缩阈值，并读取 /gateway/credentials/current 的 credential.allowed_public_models 与 credential.token；模型容量不能覆盖账号套餐的单次输入、合计及每分钟限额。请联调长文档上传后的文本调用、工具续接、流式结束、取消／超时和超限错误提示，并使用真实公告及发行说明书验证字段准确率、页／行／段落引用及在线预览跳转；同时回传首字延迟、总耗时、吞吐量、成功率及并发下的 P50／P95。Gateway 本次仅开放服务端能力，客户端代码和默认模型未作修改。
 
 验收边界与回传材料

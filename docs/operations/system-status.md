@@ -5,6 +5,36 @@ For a recent 12/24-hour service check, use the fixed
 
 ## Latest Gateway Deployment Verification
 
+Gateway `671f6309327104b3f8fcf930745705653a1c135b` is live as of
+2026-11-15T07:40:46.947317+00:00 and verified at 2026-11-15T07:44:07.565884+00:00.
+The final requested design upgrades existing `goldencode-d` text context to
+1,024,000 tokens and removes the unused `goldencode-d-long` model. Maximum
+generation stays 128,000; Tencent/TianKuan text routes remain pinned to 1017.
+Existing vision retains its 200,000 context and 128,000 output limits. Standard
+Desktop issuance returns the original three IDs; migration 46 removed only the
+retired ID from 383 credentials, including the internal service key. No credential
+still contains it. Account quotas, plans, balances, image routes and existing
+tool/recovery policies are unchanged. No client code or client release changed.
+
+The 67 focused checks, incremental build and schema-46 rehearsal passed. The
+rehearsal compared all 1,198 credentials and preserved 61 plans/1,118 entitlements.
+The exact candidate accepted 889,203 input tokens on each provider with 128,000
+generation budget; public calls accepted 358,196 on each. All nine public
+generation/tool/stream/image checks passed, and both APIs reject the retired ID
+(Chat 404 model_not_found; Responses 400 invalid_request). The first smoke assumed
+one tool call but received two valid parallel calls; the probe was corrected to
+return all tool results, with no production change. Both smoke accounts were
+cleaned, reservations finalized and revoked credentials returned public 401.
+These checks do not prove maximum-length generation or real extraction accuracy.
+Gateway is healthy with no restarts/OOM or warning/error logs at verification.
+Schema 46, quick check and foreign keys passed. Ports, 18 protected files and
+three other Compose services were preserved. The natural-idle/drain procedure
+was retained; public sampling observed about 29.59 seconds of 502/503 interruption.
+See the [release receipt](../archive/operations/deepseek-context-upgrade-release-2026-11-15.json)
+and [replacement client handoff](../outbox/medevidence-deepseek-context-upgrade-2026-11-15.zh-CN.txt).
+
+## Historical Verification Records
+
 Gateway `832e0ea8a5df86355ec6e3e900a4f6d85e89cd41` is live as of
 2026-11-15T07:02:45.391896+00:00 and verified at 2026-11-15T07:04:05.824513+00:00.
 Both `goldencode-d` and `goldencode-d-long` text pools now pin Tencent and
@@ -33,8 +63,6 @@ Ports, 18 protected files and three other Compose services were preserved. The
 [pool release receipt](../archive/operations/deepseek-1017-pool-release-2026-11-15.json),
 [Desktop permission receipt](../archive/operations/desktop-long-release-2026-11-15.json)
 and [client handoff](../outbox/medevidence-deepseek-long-handoff-2026-11-15.zh-CN.txt).
-
-## Historical Verification Records
 
 Gateway `cdcba7045c67ade0a665e433528dc4f8c539294e` is live as of
 2026-11-15T06:12:45.231565+00:00 and verified at 2026-11-15T06:17:29.034364+00:00.
