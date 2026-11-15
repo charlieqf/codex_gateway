@@ -18,10 +18,12 @@ const fragment = JSON.parse(process.env.LONG_MODEL_FRAGMENT_JSON);
 const registry = JSON.parse(process.env.MEDCODE_PUBLIC_MODELS_JSON);
 assert.deepEqual(registry[id], fragment[id]);
 const timeouts = process.env.MEDCODE_CHAT_REQUEST_TIMEOUTS_JSON;
+const failover = process.env.GATEWAY_GOLDENCODE_NATIVE_FAILOVER_MODE;
 const env = isolatedProviderEnv(process.env);
 for (const name of Object.keys(process.env)) delete process.env[name];
 Object.assign(process.env, env, { MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(registry),
-  MEDCODE_PUBLIC_MODEL_ID: "goldencode", MEDCODE_CHAT_REQUEST_TIMEOUTS_JSON: timeouts });
+  MEDCODE_PUBLIC_MODEL_ID: "goldencode", MEDCODE_CHAT_REQUEST_TIMEOUTS_JSON: timeouts,
+  GATEWAY_GOLDENCODE_NATIVE_FAILOVER_MODE: failover ?? "disabled" });
 const resolved = resolvePublicModelRegistry(process.env);
 assert.deepEqual(resolved.models.filter(model => model.id !== id).map(openAIModelObject), before);
 assert.equal(resolveChatRequestTimeoutMs(parseChatRequestTimeoutPolicy(process.env), id, "tencent"), 1800000);
