@@ -17526,22 +17526,23 @@ describe("GoldenCode DeepSeek pool", () => {
     }
   );
 
-  const cases = ["tencent", "tiankuan"].flatMap(first =>
+  const cases = (["goldencode-d", "goldencode-d-long"] as const).flatMap(publicModel => ["tencent", "tiankuan"].flatMap(first =>
     ["chat/completions", "responses"].flatMap(api =>
-      [false, true].flatMap(stream => [false, true].map(plain => ({ first, api, stream, plain })))));
-  it.each(cases)("routes $api stream=$stream plain=$plain from $first to the other DeepSeek member", async ({ first, api, stream, plain }) => {
-    await runGoldenCodeFailoverFixture({ publicModel: "goldencode-d", first, plain }, async ({ app, headers, calls, store }) => {
-      const payload: Record<string, unknown> = { ...nativeFailoverPayload(api, stream), model: "goldencode-d" };
+      [false, true].flatMap(stream => [false, true].map(plain => ({ publicModel, first, api, stream, plain }))))));
+  it.each(cases)("routes $publicModel $api stream=$stream plain=$plain from $first to the other DeepSeek member", async ({ publicModel, first, api, stream, plain }) => {
+    await runGoldenCodeFailoverFixture({ publicModel, first, plain }, async ({ app, headers, calls, store }) => {
+      const payload: Record<string, unknown> = { ...nativeFailoverPayload(api, stream), model: publicModel };
       if (plain) { delete payload.tools; delete payload.tool_choice; }
       const response = await app.inject({ method: "POST", url: `/v1/${api}`, headers, payload });
       expect(response.statusCode).toBe(200);
       expect(response.body).toContain(plain ? "failover text ok" : "lookup");
       expect(calls.map(call => call.runtime)).toEqual([first, first === "tencent" ? "tiankuan" : "tencent"]);
       for (const call of calls) {
-        expect(call.body.model).toBe(call.runtime === "tencent" ? "deepseek-v4.1-flash-1017" : "deepseek-v4.1-flash");
+        expect(call.body.model).toBe(call.runtime === "tencent" || publicModel === "goldencode-d-long" ? "deepseek-v4.1-flash-1017" : "deepseek-v4.1-flash");
         expect(call.body.thinking).toEqual({ type: "enabled" });
       }
-      expect(store.listRequestEvents({ limit: 1 })[0]).toMatchObject({ publicModelId: "goldencode-d" });
+      expect(store.listRequestEvents({ limit: 1 })[0]).toMatchObject({ publicModelId: publicModel });
+      expect(store.database.prepare("SELECT count(*) n FROM token_reservations WHERE finalized_at IS NULL").get()).toMatchObject({ n: 0 });
     });
   });
 
@@ -17595,7 +17596,7 @@ function nativeFailoverPayload(api: string, stream: boolean): Record<string, unk
 }
 
 async function runGoldenCodeFailoverFixture(options: {
-  publicModel?: "goldencode" | "goldencode-d";
+  publicModel?: "goldencode" | "goldencode-d" | "goldencode-d-long";
   first?: string; bothFail?: boolean; status?: number | "reset"; enabled?: boolean;
   members?: string[]; second?: string;
   repairThenFail?: boolean; cooldown?: string; clock?: () => Date; recover?: boolean;
@@ -17664,7 +17665,9 @@ async function runGoldenCodeFailoverFixture(options: {
   });
   const publicModel = options.publicModel ?? "goldencode";
   const cloudModels = JSON.parse(readFileSync(new URL("../../../config/gateway.goldencode.three-provider.example.json", import.meta.url), "utf8"));
-  const config: ReturnType<typeof goldencodePoolConfig> = publicModel === "goldencode-d"
+  if (publicModel === "goldencode-d-long") Object.assign(cloudModels,
+    JSON.parse(readFileSync(new URL("../../../config/gateway.goldencode-d-long.json", import.meta.url), "utf8")));
+  const config: ReturnType<typeof goldencodePoolConfig> = publicModel !== "goldencode"
     ? cloudModels[publicModel] : goldencodePoolConfig();
   config.reasoning = { effort: "high" };
   config.pool.members = config.pool.members.filter((member) => (options.members ?? ["tencent", "tiankuan"]).includes(member.runtime));
@@ -17682,8 +17685,8 @@ async function runGoldenCodeFailoverFixture(options: {
   }
   try {
     await withTemporaryEnv({
-      MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModel === "goldencode-d" ? { ...cloudModels, [publicModel]: config } : { goldencode: config }),
-      MEDCODE_PUBLIC_MODEL_ID: publicModel === "goldencode-d" ? "goldencode" : process.env.MEDCODE_PUBLIC_MODEL_ID,
+      MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModel !== "goldencode" ? { ...cloudModels, [publicModel]: config } : { goldencode: config }),
+      MEDCODE_PUBLIC_MODEL_ID: publicModel !== "goldencode" ? "goldencode" : process.env.MEDCODE_PUBLIC_MODEL_ID,
       MEDCODE_TENCENT_TOKENHUB_API_KEY: "tencent-test-key", MEDCODE_TENCENT_TOKENHUB_BASE_URL: server.baseUrl,
       MEDCODE_TIANKUAN_API_KEY: "tiankuan-test-key", MEDCODE_TIANKUAN_BASE_URL: server.baseUrl,
       MEDCODE_TOKENSWITCH_API_KEY: "tokenswitch-test-key", MEDCODE_TOKENSWITCH_BASE_URL: server.baseUrl,
@@ -17691,7 +17694,7 @@ async function runGoldenCodeFailoverFixture(options: {
       GATEWAY_GOLDENCODE_FAILOVER_SUBJECT_IDS: options.subjects ?? "subj_dev",
       GATEWAY_GOLDENCODE_QUOTA_COOLDOWN_SECONDS: options.cooldown ?? "0"
     }, async () => {
-      const { store, headers } = createModelEntitledStore(publicModel === "goldencode-d" ? ["goldencode", "goldencode-d"] : ["goldencode"], !!options.reasoningBreak, options.missingUsageCharge);
+      const { store, headers } = createModelEntitledStore(publicModel !== "goldencode" ? ["goldencode", publicModel] : ["goldencode"], !!options.reasoningBreak, options.missingUsageCharge);
       const app = buildGateway({ authMode: "credential", provider: new FakeProvider(), sessionStore: store,
         observationStore: store, tokenBudgetLimiter: createSqliteTokenBudgetLimiter({ db: store.database }),
         logger: false, ...(options.clock ? { now: options.clock } : {}) });
