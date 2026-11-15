@@ -5,6 +5,37 @@ For a recent 12/24-hour service check, use the fixed
 
 ## Latest Gateway Deployment Verification
 
+Gateway `832e0ea8a5df86355ec6e3e900a4f6d85e89cd41` is live as of
+2026-11-15T07:02:45.391896+00:00 and verified at 2026-11-15T07:04:05.824513+00:00.
+Both `goldencode-d` and `goldencode-d-long` text pools now pin Tencent and
+TianKuan to `deepseek-v4.1-flash-1017`. Long requests use the existing HRW
+session affinity and now participate in the existing eligible request failover.
+The long model retains 1,024,000 total context, 128,000 maximum generation and
+the 30-minute deadline, with no vision route. Existing image routes and old
+model limits remain unchanged. The earlier `921f6da` deployment upgraded 380
+unrevoked standard Desktop/legacy credentials and future standard issuance;
+custom/service allowlists and all account quotas remain unchanged. No eligible
+old three-model credential remains. No Desktop source or client release changed.
+
+The 32 focused failover tests and incremental build passed. The exact candidate,
+with production failover enabled, processed 889,203 input tokens on each provider
+with a requested 128,000 generation budget and recovered both document anchors.
+An initial 1,024-token synthetic tool budget exhausted once on TianKuan; protocol
+checks passed with 4,096, and the final candidate passed all checks. This is not
+proof of maximum-length generation, exhaustive boundaries or extraction accuracy.
+All eight public provider/tool/stream checks passed with finalized usage. Synthetic
+credentials were revoked, subjects disabled, entitlements cancelled, plans deprecated
+and no reservations left pending. Schema 45, quick check and foreign keys passed.
+Gateway is healthy with zero restarts/OOM and no warning/error logs at verification.
+Ports, 18 protected files and three other Compose services were preserved. The
+30-second natural-idle/drain gate was used; public sampling observed approximately
+30.63 seconds of interruption (502/503) before recovery. See the
+[pool release receipt](../archive/operations/deepseek-1017-pool-release-2026-11-15.json),
+[Desktop permission receipt](../archive/operations/desktop-long-release-2026-11-15.json)
+and [client handoff](../outbox/medevidence-deepseek-long-handoff-2026-11-15.zh-CN.txt).
+
+## Historical Verification Records
+
 Gateway `cdcba7045c67ade0a665e433528dc4f8c539294e` is live as of
 2026-11-15T06:12:45.231565+00:00 and verified at 2026-11-15T06:17:29.034364+00:00.
 `goldencode-d-long` is available for text through Chat Completions and Responses,
@@ -25,8 +56,6 @@ warning/error logs at verification. Schema 44 and integrity/FKs passed; ports,
 30-second natural-idle gate and drain ran before replacement; exact public
 interruption duration was not measured. No temporary production accounts were
 created. See the [release receipt](../archive/operations/deepseek-long-release-2026-11-15.json).
-
-## Historical Verification Records
 
 Gateway `c4cdff393ad9864296243b1f33891840151934c5` is live as of
 2026-11-13T13:23:41.610824+00:00 and verified at 2026-11-13T13:25:20.599065+00:00.
