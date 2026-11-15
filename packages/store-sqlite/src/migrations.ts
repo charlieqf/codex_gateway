@@ -1223,6 +1223,19 @@ export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogge
          AND EXISTS (SELECT 1 FROM json_each(allowed_public_models_json) WHERE value = 'goldencode')
          AND EXISTS (SELECT 1 FROM json_each(allowed_public_models_json) WHERE value = 'goldencode-local');
     `, logger);
+    // The long-document model joins the standard Desktop set. Service keys and
+    // custom restrictions remain explicit; revoked credentials stay untouched.
+    applyMigration(db, 45, `
+      UPDATE access_credentials
+         SET allowed_public_models_json = '["goldencode","goldencode-d","goldencode-d-long","goldencode-local"]'
+       WHERE credential_class IN ('desktop', 'unknown')
+         AND revoked_at IS NULL
+         AND json_valid(allowed_public_models_json)
+         AND json_array_length(allowed_public_models_json) = 3
+         AND EXISTS (SELECT 1 FROM json_each(allowed_public_models_json) WHERE value = 'goldencode')
+         AND EXISTS (SELECT 1 FROM json_each(allowed_public_models_json) WHERE value = 'goldencode-d')
+         AND EXISTS (SELECT 1 FROM json_each(allowed_public_models_json) WHERE value = 'goldencode-local');
+    `, logger);
   }
 }
 
