@@ -5,6 +5,29 @@ For a recent 12/24-hour service check, use the fixed
 
 ## Latest Gateway Deployment Verification
 
+Gateway `cdcba7045c67ade0a665e433528dc4f8c539294e` is live as of
+2026-11-15T06:12:45.231565+00:00 and verified at 2026-11-15T06:17:29.034364+00:00.
+`goldencode-d-long` is available for text through Chat Completions and Responses,
+fixed to Tencent `deepseek-v4.1-flash-1017`, with 1,024,000 total context,
+128,000 maximum generation tokens and a 30-minute request deadline. It has no
+vision route. All three existing model entries, defaults and terminal handling
+are unchanged. The existing internal service credential gained only this model
+in its allowlist through the guarded control operation; rate/token policy stayed
+unchanged. No Desktop source, model picker or release was changed.
+Focused tests: 34 passed; incremental build passed. An isolated candidate call
+processed 538,203 input tokens, and the public HTTPS call processed 358,196 with
+a requested 128,000 generation budget, returning both synthetic document anchors.
+This verifies ingestion/routing, not arbitrary document extraction accuracy or
+the full 1,024,000-token boundary. New-model Chat/Responses and both old cloud
+models passed public calls. Gateway is healthy with zero restarts/OOM and no
+warning/error logs at verification. Schema 44 and integrity/FKs passed; ports,
+18 protected files and three other Compose services were preserved. The standard
+30-second natural-idle gate and drain ran before replacement; exact public
+interruption duration was not measured. No temporary production accounts were
+created. See the [release receipt](../archive/operations/deepseek-long-release-2026-11-15.json).
+
+## Historical Verification Records
+
 Gateway `c4cdff393ad9864296243b1f33891840151934c5` is live as of
 2026-11-13T13:23:41.610824+00:00 and verified at 2026-11-13T13:25:20.599065+00:00.
 Desktop support reporting is available at `POST /gateway/client-events/support`,
@@ -25,8 +48,6 @@ request termination. No Desktop release or installed-client E2E is claimed.
 See the [release receipt](../archive/operations/desktop-support-reporting-release-2026-11-13.json),
 [client contract](../coordination/desktop-support-reporting-v1-contract.zh-CN.txt)
 and [operations notes](./desktop-support-reporting-v1.txt).
-
-## Historical Verification Records
 
 Gateway `ad6c6be2639197709bef67f65913b27ba80bc463` was live as of
 2026-11-13T10:09:13.925613+00:00 and verified at 2026-11-13T10:10:50.932315+00:00.

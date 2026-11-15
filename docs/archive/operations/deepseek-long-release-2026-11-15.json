@@ -1,0 +1,80 @@
+{
+  "verified_at": "2026-11-15T06:17:29.034364+00:00",
+  "revision": "cdcba7045c67ade0a665e433528dc4f8c539294e",
+  "image_id": "sha256:e737ce00296f64af4cf197a65ed7f70c84658920658f9257fc1942c06cd8daa8",
+  "healthy": true,
+  "restarts": 0,
+  "oom": false,
+  "log_levels_ge_warning": {},
+  "log_codes": {},
+  "current": "/opt/codex-gateway-r760/releases/cdcba7045c67ade0a665e433528dc4f8c539294e",
+  "previous": "/opt/codex-gateway-r760/releases/3c198fcfbc2cbdd0c513a7a7310f2b39e5d016f8",
+  "public_checks": [
+    {
+      "api": "chat/completions",
+      "model": "goldencode-d-long",
+      "stream": false,
+      "http": 200,
+      "request_id": "req-c91cfc3e-a907-4a36-9603-ae3ce5a6433d",
+      "status": "ok",
+      "upstream_runtime": "tencent",
+      "upstream_model": "deepseek-v4.1-flash-1017",
+      "prompt_tokens": 358196,
+      "completion_tokens": 110
+    },
+    {
+      "api": "responses",
+      "model": "goldencode-d-long",
+      "stream": true,
+      "http": 200,
+      "request_id": "req-ef8107cb-c01f-414f-a30b-3831bd99fa1f",
+      "status": "ok",
+      "upstream_runtime": "tencent",
+      "upstream_model": "deepseek-v4.1-flash-1017",
+      "prompt_tokens": 160,
+      "completion_tokens": 20
+    },
+    {
+      "api": "responses",
+      "model": "goldencode-d",
+      "stream": false,
+      "http": 200,
+      "request_id": "req-450b7411-f970-456a-9a92-0737ec30b9de",
+      "status": "ok",
+      "upstream_runtime": "tencent",
+      "upstream_model": "deepseek-v4.1-flash-1017",
+      "prompt_tokens": 162,
+      "completion_tokens": 39
+    },
+    {
+      "api": "chat/completions",
+      "model": "goldencode",
+      "stream": false,
+      "http": 200,
+      "request_id": "req-6d9cf3cb-547b-4cb7-9110-73b319e31635",
+      "status": "ok",
+      "upstream_runtime": "tiankuan",
+      "upstream_model": "official/glm-5.3",
+      "prompt_tokens": 137,
+      "completion_tokens": 8
+    }
+  ],
+  "temporary_accounts_created": false,
+  "deployed_at": "2026-11-15T06:12:45.231565+00:00",
+  "focused_tests_passed": 34,
+  "incremental_build_passed": true,
+  "isolated_long_input_tokens": 538203,
+  "requested_generation_budget": 128000,
+  "gateway_schema": 44,
+  "integrity": {
+    "quick_check": "ok",
+    "foreign_key_violations": 0
+  },
+  "existing_model_config_preserved": true,
+  "protected_files_preserved": 18,
+  "other_compose_services_preserved": 3,
+  "desktop_changed": false,
+  "scope": "Independent text-only model ID; fixed Tencent 1017; existing service key allowlist extended only",
+  "verification_limit": "Synthetic anchor retrieval proves ingestion and routing, not arbitrary extraction accuracy or the full context boundary",
+  "public_interruption_seconds": null
+}
