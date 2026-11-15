@@ -17526,10 +17526,11 @@ describe("GoldenCode DeepSeek pool", () => {
     }
   );
 
-  const cases = (["goldencode-d", "goldencode-d-long"] as const).flatMap(publicModel => ["tencent", "tiankuan"].flatMap(first =>
+  const cases = ["tencent", "tiankuan"].flatMap(first =>
     ["chat/completions", "responses"].flatMap(api =>
-      [false, true].flatMap(stream => [false, true].map(plain => ({ publicModel, first, api, stream, plain }))))));
-  it.each(cases)("routes $publicModel $api stream=$stream plain=$plain from $first to the other DeepSeek member", async ({ publicModel, first, api, stream, plain }) => {
+      [false, true].flatMap(stream => [false, true].map(plain => ({ first, api, stream, plain })))));
+  it.each(cases)("routes $api stream=$stream plain=$plain from $first to the other DeepSeek member", async ({ first, api, stream, plain }) => {
+    const publicModel = "goldencode-d";
     await runGoldenCodeFailoverFixture({ publicModel, first, plain }, async ({ app, headers, calls, store }) => {
       const payload: Record<string, unknown> = { ...nativeFailoverPayload(api, stream), model: publicModel };
       if (plain) { delete payload.tools; delete payload.tool_choice; }
@@ -17538,7 +17539,7 @@ describe("GoldenCode DeepSeek pool", () => {
       expect(response.body).toContain(plain ? "failover text ok" : "lookup");
       expect(calls.map(call => call.runtime)).toEqual([first, first === "tencent" ? "tiankuan" : "tencent"]);
       for (const call of calls) {
-        expect(call.body.model).toBe(call.runtime === "tencent" || publicModel === "goldencode-d-long" ? "deepseek-v4.1-flash-1017" : "deepseek-v4.1-flash");
+        expect(call.body.model).toBe("deepseek-v4.1-flash-1017");
         expect(call.body.thinking).toEqual({ type: "enabled" });
       }
       expect(store.listRequestEvents({ limit: 1 })[0]).toMatchObject({ publicModelId: publicModel });
@@ -17596,7 +17597,7 @@ function nativeFailoverPayload(api: string, stream: boolean): Record<string, unk
 }
 
 async function runGoldenCodeFailoverFixture(options: {
-  publicModel?: "goldencode" | "goldencode-d" | "goldencode-d-long";
+  publicModel?: "goldencode" | "goldencode-d";
   first?: string; bothFail?: boolean; status?: number | "reset"; enabled?: boolean;
   members?: string[]; second?: string;
   repairThenFail?: boolean; cooldown?: string; clock?: () => Date; recover?: boolean;
@@ -17665,8 +17666,6 @@ async function runGoldenCodeFailoverFixture(options: {
   });
   const publicModel = options.publicModel ?? "goldencode";
   const cloudModels = JSON.parse(readFileSync(new URL("../../../config/gateway.goldencode.three-provider.example.json", import.meta.url), "utf8"));
-  if (publicModel === "goldencode-d-long") Object.assign(cloudModels,
-    JSON.parse(readFileSync(new URL("../../../config/gateway.goldencode-d-long.json", import.meta.url), "utf8")));
   const config: ReturnType<typeof goldencodePoolConfig> = publicModel !== "goldencode"
     ? cloudModels[publicModel] : goldencodePoolConfig();
   config.reasoning = { effort: "high" };

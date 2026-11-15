@@ -1236,6 +1236,17 @@ export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogge
          AND EXISTS (SELECT 1 FROM json_each(allowed_public_models_json) WHERE value = 'goldencode-d')
          AND EXISTS (SELECT 1 FROM json_each(allowed_public_models_json) WHERE value = 'goldencode-local');
     `, logger);
+    // Retire the unused long ID without expanding any credential's access.
+    // The existing nonempty-array trigger rejects a sole-long credential.
+    applyMigration(db, 46, `
+      UPDATE access_credentials
+         SET allowed_public_models_json = (
+           SELECT json_group_array(value) FROM json_each(allowed_public_models_json)
+            WHERE value <> 'goldencode-d-long'
+         )
+       WHERE json_valid(allowed_public_models_json)
+         AND EXISTS (SELECT 1 FROM json_each(allowed_public_models_json) WHERE value = 'goldencode-d-long');
+    `, logger);
   }
 }
 

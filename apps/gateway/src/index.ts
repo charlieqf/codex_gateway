@@ -2467,7 +2467,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     const { subject, scope } = gatewayContext;
     const boundedWriteForRequest = isGoldenCodeCloudModel(publicModel.id) && modality === "text" &&
       boundedWriteEnabled(boundedWritePolicy, subject.id);
-    const goldencodeRequestFailover = (isGoldenCodeCloudModel(publicModel.id) || publicModel.id === "goldencode-d-long") &&
+    const goldencodeRequestFailover = isGoldenCodeCloudModel(publicModel.id) &&
       publicModel.runtime === "pool" && modality === "text" &&
       publicModel.pool!.members.every((member) =>
         member.runtime === "tencent" || member.runtime === "tiankuan" || member.runtime === "tokenswitch") &&

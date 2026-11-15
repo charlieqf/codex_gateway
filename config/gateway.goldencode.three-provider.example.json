@@ -36,9 +36,9 @@
   "goldencode-d": {
     "displayName": "GoldenCode DeepSeek",
     "runtime": "pool",
-    "contextWindow": 200000,
-    "maxContextWindow": 200000,
-    "upstreamContextWindow": 1048576,
+    "contextWindow": 1024000,
+    "maxContextWindow": 1024000,
+    "upstreamContextWindow": 1024000,
     "maxOutputTokens": 128000,
     "enabled": true,
     "vision": {
@@ -62,7 +62,7 @@
       "requireAllMembers": false,
       "members": [
         {"id": "goldencode-d-tencent", "runtime": "tencent", "upstreamModel": "deepseek-v4.1-flash-1017", "enabled": true},
-        {"id": "goldencode-d-tiankuan", "runtime": "tiankuan", "upstreamModel": "deepseek-v4.1-flash", "enabled": true}
+        {"id": "goldencode-d-tiankuan", "runtime": "tiankuan", "upstreamModel": "deepseek-v4.1-flash-1017", "enabled": true}
       ]
     }
   }

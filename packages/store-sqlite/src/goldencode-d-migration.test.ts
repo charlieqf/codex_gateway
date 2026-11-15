@@ -80,3 +80,52 @@ describe("Desktop long-document model migration", () => {
     } finally { store.close(); }
   });
 });
+
+describe("Retired long model migration", () => {
+  it("removes only the retired permission across classes and preserves quotas and revocation", () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    const now = new Date("2026-11-15T00:00:00Z");
+    try {
+      store.upsertSubject({ id: "retire-long", label: "Retire long", state: "active", createdAt: now });
+      const cases: Array<{ kind: CredentialClass; models: string[] | null; revoked?: boolean }> = [
+        { kind: "desktop", models: ["goldencode", "goldencode-d", "goldencode-d-long", "goldencode-local"] },
+        { kind: "service", models: ["goldencode-d-long", "goldencode-d"] },
+        { kind: "unknown", models: ["goldencode-d", "goldencode-d-long"], revoked: true },
+        { kind: "operator", models: ["custom", "goldencode-d-long"] },
+        { kind: "desktop", models: ["goldencode-d"] },
+        { kind: "service", models: null }
+      ];
+      for (const [i, item] of cases.entries()) {
+        const issued = issueAccessCredential({ subjectId: "retire-long", label: String(i), scope: "code", now,
+          expiresAt: new Date("2027-01-01T00:00:00Z"),
+          credentialClass: item.kind, allowedPublicModels: item.models,
+          knownPublicModelIds: ["goldencode", "goldencode-d", "goldencode-d-long", "goldencode-local", "custom"],
+          rate: { requestsPerMinute: 17, concurrentRequests: 2 } });
+        store.insertAccessCredential(issued.record);
+        if (item.revoked) store.revokeAccessCredentialByPrefix(issued.record.prefix, now);
+      }
+      const rows = () => store.database.prepare("SELECT * FROM access_credentials ORDER BY label").all();
+      const before = rows();
+      store.database.exec("DELETE FROM schema_migrations WHERE version=46");
+      migrateGatewaySchema(store.database);
+      expect(rows()).toEqual(before.map((row, i) => ({ ...row, allowed_public_models_json: cases[i].models
+        ? JSON.stringify(cases[i].models!.filter(model => model !== "goldencode-d-long")) : null })));
+      const after = rows(); migrateGatewaySchema(store.database); expect(rows()).toEqual(after);
+      expect(store.database.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
+    } finally { store.close(); }
+  });
+  it("never turns a sole retired-model permission into unrestricted access", () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    try {
+      store.upsertSubject({ id: "sole-long", label: "Sole long", state: "active", createdAt: new Date() });
+      const issued = issueAccessCredential({ subjectId: "sole-long", scope: "code", label: "Sole long",
+        expiresAt: new Date("2027-01-01T00:00:00Z"),
+        allowedPublicModels: ["goldencode-d-long"], knownPublicModelIds: ["goldencode-d-long"] });
+      store.insertAccessCredential(issued.record);
+      store.database.exec("DELETE FROM schema_migrations WHERE version=46");
+      expect(() => migrateGatewaySchema(store.database)).toThrow("allowed_public_models_json is invalid");
+      expect(store.database.prepare("SELECT allowed_public_models_json FROM access_credentials").get())
+        .toMatchObject({ allowed_public_models_json: '["goldencode-d-long"]' });
+    } finally { store.close(); }
+  });
+});

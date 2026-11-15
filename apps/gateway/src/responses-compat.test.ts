@@ -8,11 +8,12 @@ import {
 } from "./responses-compat.js";
 
 describe("Responses compatibility", () => {
-  it.each(["goldencode-d", "goldencode-d-long"])("accepts %s while retaining an explicitly pinned endpoint", (model) => {
+  it.each(["goldencode-d"])("accepts %s while retaining an explicitly pinned endpoint", (model) => {
     const body = { model, input: "Hello", reasoning: { effort: "low" } };
     expect(parseResponsesRequest(body)).toMatchObject({ chatRequest: { model, reasoningEffort: "low" } });
     expect(parseResponsesRequest(body, "goldencode")).toBeInstanceOf(GatewayError);
     expect(parseResponsesRequest({ ...body, model: "unknown" })).toBeInstanceOf(GatewayError);
+    expect(parseResponsesRequest({ ...body, model: "goldencode-d-long" })).toBeInstanceOf(GatewayError);
   });
   it("maps Codex message, function tools, and unsupported built-in tools to Chat Completions", () => {
     const parsed = parseResponsesRequest({

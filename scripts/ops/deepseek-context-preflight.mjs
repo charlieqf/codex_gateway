@@ -1,6 +1,7 @@
 // Execute inside the deployed image with a protected candidate env and no production DB mounts.
-// LONG_MODEL_FRAGMENT_JSON contains only config/gateway.goldencode-d-long.json.
+// DEEPSEEK_CONTEXT_JSON contains config/gateway.goldencode-d-context.json.
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { resolvePublicModelRegistry, openAIModelObject } from "/app/apps/gateway/dist/services/public-model-registry.js";
 import { resolveChatRequestTimeoutMs, parseChatRequestTimeoutPolicy } from "/app/apps/gateway/dist/services/chat-request-deadline.js";
 import { issueAccessCredential, validateFeaturePolicy } from "@codex-gateway/core";
@@ -8,29 +9,31 @@ import { createSqliteStore, createSqliteTokenBudgetLimiter } from "@codex-gatewa
 import { hrwAccountForKey } from "/app/apps/gateway/dist/test-support.js";
 import { isolatedProviderEnv } from "./vision-smoke-helpers.mjs";
 
-const id = "goldencode-d-long";
+const id = "goldencode-d";
 // Reuse a recorded near-window result only when image, provider version and
 // candidate config are unchanged; this flag repeats the smaller protocol checks.
 const skipLong = process.argv.includes("--skip-long");
 const original = resolvePublicModelRegistry(process.env);
 const before = original.models.filter(model => model.id !== id).map(openAIModelObject);
-const fragment = JSON.parse(process.env.LONG_MODEL_FRAGMENT_JSON);
+const limits = JSON.parse(process.env.DEEPSEEK_CONTEXT_JSON);
 const registry = JSON.parse(process.env.MEDCODE_PUBLIC_MODELS_JSON);
-assert.deepEqual(registry[id], fragment[id]);
+for (const [key, value] of Object.entries(limits)) assert.equal(registry[id][key], value);
+assert.equal(registry["goldencode-d-long"], undefined);
 const timeouts = process.env.MEDCODE_CHAT_REQUEST_TIMEOUTS_JSON;
-const failover = process.env.GATEWAY_GOLDENCODE_NATIVE_FAILOVER_MODE;
+const policyEnv = Object.fromEntries(Object.entries(process.env).filter(([key]) => /^GATEWAY_(GOLDENCODE_|BOUNDED_WRITE_)/.test(key)));
 const env = isolatedProviderEnv(process.env);
 for (const name of Object.keys(process.env)) delete process.env[name];
 Object.assign(process.env, env, { MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(registry),
   MEDCODE_PUBLIC_MODEL_ID: "goldencode", MEDCODE_CHAT_REQUEST_TIMEOUTS_JSON: timeouts,
-  GATEWAY_GOLDENCODE_NATIVE_FAILOVER_MODE: failover ?? "disabled" });
+  ...policyEnv });
 const resolved = resolvePublicModelRegistry(process.env);
 assert.deepEqual(resolved.models.filter(model => model.id !== id).map(openAIModelObject), before);
 assert.equal(resolveChatRequestTimeoutMs(parseChatRequestTimeoutPolicy(process.env), id, "tencent"), 1800000);
 assert.equal(resolved.get(id).runtime, "pool");
 assert.deepEqual(registry[id].pool.members.map(m => m.runtime).sort(), ["tencent", "tiankuan"]);
 assert(registry[id].pool.members.every(m => m.upstreamModel === "deepseek-v4.1-flash-1017"));
-assert.equal(resolved.get(id).vision, undefined);
+assert.equal(resolved.get(id).vision.runtime, "tiankuan");
+assert.equal(resolved.get(id).vision.contextWindow, 200000);
 const store = createSqliteStore({ path: ":memory:" });
 const now = new Date();
 store.upsertSubject({ id: "long-preflight", label: "Isolated long-document preflight", state: "active", createdAt: now });
@@ -85,6 +88,7 @@ try {
   for (const model of before.filter(model => model.id !== "goldencode-local")) {
     assert.deepEqual(catalog.data.find(item => item.id === model.id), model);
   }
+  assert(!catalog.data.some(model => model.id === "goldencode-d-long"));
   console.log(JSON.stringify({ catalog: catalog.data.map(model => ({ id: model.id, context: model.context_window, output: model.max_output_tokens })) }));
   await call("chat/completions", { messages: [{ role: "user", content: "Reply OK" }], max_tokens: 128001 }, 400);
   // Near the advertised input budget when reserving the full output budget.
@@ -114,9 +118,23 @@ try {
       input: [{ type: "message", role: "user", content: prompt }, { type: "function_call", call_id: tc.id, name: tc.function.name, arguments: tc.function.arguments },
         { type: "function_call_output", call_id: tc.id, output: "LONG_PREFLIGHT_OK" }], tools: [{ type: "function", ...tool }] }, 200, next);
     assert.ok(second.response.body.includes("response.completed") && second.response.body.includes("LONG_PREFLIGHT_OK"));
-    const old = await call("chat/completions", { model: "goldencode-d", reasoning_effort: "low", max_tokens: 1024,
-      messages: [{ role: "user", content: "Reply only LONG_PREFLIGHT_OK." }] }, 200, runtime);
-    assert.ok(old.response.body.includes("LONG_PREFLIGHT_OK"));
+
+  }
+  const image = "data:image/png;base64," + readFileSync(new URL("./fixtures/vision-document.png", import.meta.url)).toString("base64");
+  const vision = await app.inject({ method: "POST", url: "/v1/chat/completions", headers, payload: {
+    model: id, reasoning_effort: "low", max_tokens: 2048, messages: [{ role: "user", content: [
+      { type: "text", text: "Read the four-digit number in this image. Reply with only the four digits." },
+      { type: "image_url", image_url: { url: image } }] }] } });
+  assert.equal(vision.statusCode, 200);assert.equal(vision.json().choices[0].message.content.trim(), "8264");
+  const ve = store.listRequestEvents({ limit: 1 })[0];assert.equal(ve.upstreamRuntime, "tiankuan");
+  assert.equal(ve.upstreamModel, registry[id].vision.upstreamModel);
+  console.log(JSON.stringify({ vision_preserved: true, http: vision.statusCode, upstream_model: ve.upstreamModel }));
+  for (const api of ["chat/completions", "responses"]) {
+    const payload = api === "responses" ? { model: "goldencode-d-long", input: "Reply OK" }
+      : { model: "goldencode-d-long", messages: [{ role: "user", content: "Reply OK" }] };
+    const rejected = await app.inject({ method: "POST", url: `/v1/${api}`, headers, payload });
+    assert([400, 404].includes(rejected.statusCode));
+    console.log(JSON.stringify({ retired_model_rejected: api, http: rejected.statusCode, code: rejected.json().error.code }));
   }
   assert.equal(store.database.prepare("SELECT count(*) AS n FROM token_reservations WHERE finalized_at IS NULL").get().n, 0);
   console.log(JSON.stringify({ passed: true, existing_catalog_preserved: true, production_database_opened: false }));
