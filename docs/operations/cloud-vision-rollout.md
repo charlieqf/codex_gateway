@@ -136,6 +136,26 @@ SQLite integrity/FKs, sanitized logs, then update system status and a release re
 
 ## Full TianKuan switch and repeat-image telemetry (2026-11-05)
 
+### Tencent / TianKuan vision pools (2026-11-17)
+
+Vision also accepts `runtime: pool` with the same `pool.selection`,
+`requireAllMembers` and member configuration as text. Vision members are limited
+to Tencent and TianKuan. The vision pool has its own adapters and availability;
+text member enablement does not implicitly change vision. Retry excludes a failed
+pool member within the existing two-call vision budget, shared with tool repair.
+Dedicated xAI/TianKuan routes retain their existing retry behavior.
+
+For the temporary Tencent-only incident policy, prepare with
+`prepare-deepseek-vision.py --tencent-only`. This disables non-Tencent
+`goldencode-d` text members and configures both cloud vision pools with Tencent
+enabled and TianKuan disabled. Existing context/output limits and reasoning
+configuration are preserved. Tencent vision uses the verified
+`deepseek-v4.1-flash-1017`; the disabled TianKuan member retains its previous model.
+Preflight must cover high/64000, streaming, image/tool continuations and injected
+failures/repair. Use the reviewed release-specific cutover with
+`prepare_env(original_env, tencent_only=True)` and exact candidate equality;
+the historical deployment/preflight helpers below do not implement this mode.
+
 For the authorized complete replacement, add `--tiankuan` to both candidate preparation
 and preflight. This changes **both** cloud vision routes to TianKuan
 `deepseek-v4.1-flash`, preserving text routes, reasoning policy and limits. Build with

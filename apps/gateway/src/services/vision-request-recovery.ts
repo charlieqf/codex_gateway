@@ -3,6 +3,7 @@ import { GatewayError } from "@codex-gateway/core";
 import { isContentPolicyError } from "./provider-content-filter.js";
 import { isRecoverableReasoningStream, NativeCallBudget } from "./native-tool-failover.js";
 import { NATIVE_STREAM_RECOVERY_RESERVE_MS } from "./native-output-budget.js";
+import type { ChatRuntimeContext } from "./chat-runtime-dispatcher.js";
 import {
   attachProviderStreamSummary, combineProviderStreamSummaries, combineSuccessfulProviderStreamSummaries,
   providerStreamSummaryFromError, type ProviderStreamSummary
@@ -16,8 +17,23 @@ export class VisionRequestRecovery {
   readonly budget = new NativeCallBudget();
   contentDelivered = false;
   stopReason: VisionRetryStopReason | null = null;
+  private readonly attemptedAccounts = new Set<string>();
 
   constructor(readonly imageCount: number) {}
+
+  nextRuntime(current: ChatRuntimeContext): ChatRuntimeContext | null {
+    // Legacy dedicated vision routes retry their single adapter. Pools exclude
+    // failed members and never bypass enabled flags or provider availability.
+    if (!current.beginRetry) return current;
+    this.attemptedAccounts.add(current.runtimeInstanceId);
+    current.release();
+    const next = current.beginRetry({ excludeAccountIds: this.attemptedAccounts });
+    if (next instanceof GatewayError) {
+      this.stopReason = "no_available_service";
+      return null;
+    }
+    return next;
+  }
 
   snapshot() {
     return { image_count: this.imageCount, attempts: this.budget.used, maximum_attempts: 2,
@@ -83,10 +99,11 @@ export class VisionRequestRecovery {
 }
 
 // The same budget is passed to tool repair and every repeated execution. A retry
-// reuses this vision runtime instead of excluding its only provider account.
+// preserves the two-call limit across provider selection and tool repair.
 export async function runVisionRequestRecovery<T extends { providerSummary: ProviderStreamSummary | null }>(input: {
   recovery: VisionRequestRecovery; signal: AbortSignal; deadlineAt: Date | null; now: () => Date;
   outputCommitted: () => boolean; execute: (budget: NativeCallBudget, retry: boolean) => Promise<T | GatewayError>;
+  selectRetryRuntime?: () => boolean;
 }): Promise<T | GatewayError> {
   const summaries: ProviderStreamSummary[] = [];
   const finish = (error: GatewayError) => {
@@ -108,5 +125,6 @@ export async function runVisionRequestRecovery<T extends { providerSummary: Prov
       deadlineAt: input.deadlineAt, now: input.now, outputCommitted: input.outputCommitted() })) {
       return finish(input.recovery.endError(input, result) ?? result);
     }
+    if (input.selectRetryRuntime && !input.selectRetryRuntime()) return finish(result);
   }
 }

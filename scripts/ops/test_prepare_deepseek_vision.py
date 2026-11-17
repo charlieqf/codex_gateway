@@ -116,6 +116,28 @@ class PrepareVisionTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             prepare.prepare_env(self.env(), tiankuan=True)
 
+    def test_tencent_only_preserves_budgets_and_creates_both_vision_pools(self):
+        self.registry["goldencode-d"]["pool"]["members"] = [
+            {"runtime": runtime, "upstreamModel": "deepseek-v4.1-flash-1017", "enabled": True}
+            for runtime in ("tencent", "tiankuan")]
+        self.registry["goldencode"]["vision"].update(runtime="tiankuan", upstreamModel="deepseek-v4.1-flash")
+        self.registry["goldencode-d"]["vision"] = copy.deepcopy(self.registry["goldencode"]["vision"])
+        original = self.env()
+        result, changed = prepare.prepare_env(original, tencent_only=True)
+        self.assertTrue(changed)
+        registry = json.loads(result.splitlines()[2].split(b"=", 1)[1])
+        self.assertEqual([m["runtime"] for m in registry["goldencode-d"]["pool"]["members"] if m["enabled"]], ["tencent"])
+        for model in ("goldencode", "goldencode-d"):
+            vision = registry[model]["vision"]
+            self.assertEqual(vision["runtime"], "pool")
+            self.assertEqual([m["runtime"] for m in vision["pool"]["members"] if m["enabled"]], ["tencent"])
+            self.assertEqual(vision["pool"]["members"][1]["upstreamModel"], "deepseek-v4.1-flash")
+            for key in ("contextWindow", "maxOutputTokens", "reasoning", "enabled"):
+                self.assertEqual(vision[key], self.registry[model]["vision"][key])
+        self.assertEqual(registry["goldencode-local"], self.registry["goldencode-local"])
+        self.assertEqual(result.splitlines()[:2] + result.splitlines()[3:], original.splitlines()[:2] + original.splitlines()[3:])
+        self.assertEqual(prepare.prepare_env(result, tencent_only=True), (result, False))
+
 
 if __name__ == "__main__":
     unittest.main()

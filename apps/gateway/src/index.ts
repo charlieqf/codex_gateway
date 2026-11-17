@@ -207,7 +207,8 @@ import { resolveClinicalService } from "./clinical/runtime.js";
 import {
   modelNotFoundError,
   openAIModelObject,
-  resolvePublicModelRegistry
+  resolvePublicModelRegistry,
+  visionRoutingModel
 } from "./services/public-model-registry.js";
 import type { GatewayOptions } from "./gateway-options.js";
 import {
@@ -484,6 +485,16 @@ export function buildGateway(options: GatewayOptions = {}) {
     clock,
     app.log
   );
+  const visionPoolRouters = createPublicModelPoolRouters(
+    publicModelRegistry.models.flatMap(model => {
+      const route = visionRoutingModel(model);
+      if (!route || route.pool?.requireAllMembers && route.pool.members.some(member => member.enabled && !visionAdapters.has(member.id))) return [];
+      return [route];
+    }),
+    { openrouter: visionAdapters, qianfan: visionAdapters, aliyun: visionAdapters,
+      tencent: visionAdapters, tiankuan: visionAdapters, tokenswitch: visionAdapters },
+    clock, app.log
+  );
   const chatRuntimeDispatcher = createChatRuntimeDispatcher({
     codexRouter: upstreamRouter,
     openRouterAdapterForModel: (model) => openRouterAdapters.get(model.id) ?? null,
@@ -494,7 +505,8 @@ export function buildGateway(options: GatewayOptions = {}) {
     tokenSwitchAdapterForModel: (model) => tokenSwitchAdapters.get(model.id) ?? null,
     localOpenAIAdapterForModel: (model) => localOpenAIAdapters.get(model.id) ?? null,
     visionAdapterForModel: (model) => visionAdapters.get(model.id) ?? null,
-    poolRouterForModel: (model) => publicModelPoolRouters.get(model.id) ?? null
+    poolRouterForModel: (model) => publicModelPoolRouters.get(model.id) ?? null,
+    visionPoolRouterForModel: (model) => visionPoolRouters.get(model.id) ?? null
   });
   const openRouterAvailable = openRouterAdapters.size > 0;
   const qianfanAvailable = qianfanAdapters.size > 0;
@@ -938,7 +950,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       const allowedVisionModel = publicModelRegistry.models.some(
         (model) =>
           model.vision?.enabled === true &&
-          visionAdapters.has(model.id) &&
+          (visionAdapters.has(model.id) || visionPoolRouters.has(model.id)) &&
           credentialAllowsPublicModel(
             context.credential.allowedPublicModels,
             model.id,
@@ -2460,7 +2472,8 @@ export function buildGateway(options: GatewayOptions = {}) {
       return fail(requestedChatRequestTimeoutMs);
     }
 
-    const affinityKey = chatRuntimeAffinityKey(request, publicModel, upstreamRouter.softAffinity);
+    const affinityKey = chatRuntimeAffinityKey(request,
+      modality === "vision" ? visionRoutingModel(publicModel) ?? publicModel : publicModel, upstreamRouter.softAffinity);
     const attemptedAccountIds = new Set<string>();
     let statelessAttempts = 1;
     const gatewayContext = getGatewayContext(request);
@@ -2716,6 +2729,14 @@ export function buildGateway(options: GatewayOptions = {}) {
         startedAt: clock(),
         deadlineAt
       });
+    const selectVisionRetry = (current: ChatRuntimeContext, activeRequest: ActiveRequestHandle): boolean => {
+      const next = visionRecovery!.nextRuntime(current);
+      if (!next) return false;
+      attempt = next;
+      applyChatRuntimeContext(request, next);
+      activeRequest.update({ upstreamRuntime: next.runtime, upstreamAccountId: next.adapterInputUpstreamAccount.id });
+      return true;
+    };
 
     if (parsed.stream) {
       const offeredDelivery = nativeClientTools && boundedWriteForRequest && !executionOptions.captureErrors
@@ -2852,7 +2873,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             onModelProgress
           });
           if (nativeResult instanceof GatewayError) {
-            if (!nativeFailover) attempt.recordError(nativeResult);
+            if (!nativeFailover && !visionRecovery) attempt.recordError(nativeResult);
             markProviderStreamSummary(request, providerStreamSummaryFromError(nativeResult));
             request.gatewayErrorCode = nativeResult.code;
             writeOpenAIStreamError(request, reply, sse, nativeResult);
@@ -2886,7 +2907,7 @@ export function buildGateway(options: GatewayOptions = {}) {
                 ? deadline.signal.reason.code : "client_aborted";
               return;
             }
-            if (!nativeFailover) attempt.recordSuccess();
+            if (!nativeFailover && !visionRecovery) attempt.recordSuccess();
             request.log.info({ request_id: request.id, delivery_id: delivery.deliveryId,
               lossless_delivery_delivered: true, payload_utf8_bytes: delivery.payloadBytes,
               arguments_utf8_bytes: delivery.argumentsBytes, response_body_bytes: delivery.responseBytes,
@@ -2998,7 +3019,7 @@ export function buildGateway(options: GatewayOptions = {}) {
                 providerSummaries.push(errorSummary);
                 attempt.recordError(error);
                 if (visionRecovery && await visionRecovery.prepareRetry({ error, summary: errorSummary,
-                  signal: deadline.signal, deadlineAt: deadline.deadlineAt, now: clock, outputCommitted: initialChunkSent })) {
+                  signal: deadline.signal, deadlineAt: deadline.deadlineAt, now: clock, outputCommitted: initialChunkSent }) && selectVisionRetry(attempt, activeRequest)) {
                   statelessAttempts += 1;
                   retrying = true;
                   break;
@@ -3082,7 +3103,7 @@ export function buildGateway(options: GatewayOptions = {}) {
                 providerSummaries.push(errorSummary);
                 attempt.recordError(completionError);
                 if (visionRecovery && await visionRecovery.prepareRetry({ error: completionError, summary: errorSummary,
-                  signal: deadline.signal, deadlineAt: deadline.deadlineAt, now: clock, outputCommitted: initialChunkSent })) {
+                  signal: deadline.signal, deadlineAt: deadline.deadlineAt, now: clock, outputCommitted: initialChunkSent }) && selectVisionRetry(attempt, activeRequest)) {
                   statelessAttempts += 1;
                   continue;
                 }
@@ -3264,11 +3285,11 @@ export function buildGateway(options: GatewayOptions = {}) {
           onModelProgress
         });
         if (nativeResult instanceof GatewayError) {
-          if (!nativeFailover) attempt.recordError(nativeResult);
+          if (!nativeFailover && !visionRecovery) attempt.recordError(nativeResult);
           markProviderStreamSummary(request, providerStreamSummaryFromError(nativeResult));
           return fail(nativeResult);
         }
-        if (!nativeFailover) attempt.recordSuccess();
+        if (!nativeFailover && !visionRecovery) attempt.recordSuccess();
         activeRequest.markFirstByte();
         markFirstByte(request);
         content = nativeResult.content;
@@ -3324,7 +3345,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             }
             attempt.recordError(attemptResult);
             if (visionRecovery && await visionRecovery.prepareRetry({ error: attemptResult, summary: providerSummary,
-              signal: deadline.signal, deadlineAt: deadline.deadlineAt, now: clock, outputCommitted: false })) {
+              signal: deadline.signal, deadlineAt: deadline.deadlineAt, now: clock, outputCommitted: false }) && selectVisionRetry(attempt, activeRequest)) {
               statelessAttempts += 1;
               continue;
             }

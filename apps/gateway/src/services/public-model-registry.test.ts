@@ -400,7 +400,7 @@ describe("public model registry", () => {
           }
         })
       })
-    ).toThrow("vision.runtime must be xai or tiankuan");
+    ).toThrow("vision.runtime must be xai, tiankuan, tencent, or pool");
   });
 
   it("requires every enabled pool member when requireAllMembers is true", () => {

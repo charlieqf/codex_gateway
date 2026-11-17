@@ -7902,6 +7902,52 @@ describe("gateway phase 1 routes", () => {
     });
   });
 
+  it.each(
+    ["/v1/chat/completions", "/v1/responses"].flatMap(url =>
+      [false, true].flatMap(stream => [false, true].flatMap(tools =>
+        ["tencent", "tiankuan"].map(primary => ({ url, stream, tools, primary: primary as "tencent" | "tiankuan" })))))
+  )("switches vision pool providers and preserves high/64000: %j", async options => {
+    await runVisionRecoveryFixture({ ...options, visionPool: "both", failures: 1 }, ({ response, calls, events, wire }) => {
+      expect(response.statusCode).toBe(200);
+      expect(calls).toBe(2);
+      expect(events[0]).toMatchObject({ status: "ok", upstreamAttemptCount: 2, totalTokens: 12 });
+      expect(events[0].upstreamAttempts?.map(attempt => attempt.upstreamRuntime)).toEqual([
+        options.primary, options.primary === "tencent" ? "tiankuan" : "tencent"
+      ]);
+      for (const body of wire) expect(body).toMatchObject({ max_tokens: 64000, reasoning_effort: "high", stream: true });
+      expect(events[0].upstreamAttempts?.map(attempt => attempt.inputImageCount)).toEqual([4, 4]);
+    });
+  });
+
+  it.each(
+    ["/v1/chat/completions", "/v1/responses"].flatMap(url =>
+      [false, true].flatMap(stream => [false, true].map(tools => ({ url, stream, tools }))))
+  )("never returns to disabled TianKuan in a Tencent-only vision pool: %j", async options => {
+    await runVisionRecoveryFixture({ ...options, visionPool: "tencent", primary: "tiankuan", failures: 1 }, ({ calls, events }) => {
+      expect(calls).toBe(1);
+      expect(events[0]).toMatchObject({ status: "error", upstreamAttemptCount: 1 });
+      expect(events[0].upstreamAttempts?.map(attempt => attempt.upstreamRuntime)).toEqual(["tencent"]);
+      expect(events[0].upstreamAttempts?.at(-1)?.visionRecovery?.stopReason).toBe("no_available_service");
+    });
+  });
+
+  it.each([false, true])("keeps vision repair on Tencent with a shared two-call budget stream=%s", async stream => {
+    await runVisionRecoveryFixture({ stream, tools: true, visionPool: "tencent", firstInvalidTool: true, failures: 0 }, ({ response, calls, events, wire }) => {
+      expect(response.statusCode).toBe(200);
+      expect(calls).toBe(2);
+      expect(events[0]).toMatchObject({ status: "ok", totalTokens: 24 });
+      expect(events[0].upstreamAttempts?.map(attempt => attempt.upstreamRuntime)).toEqual(["tencent", "tencent"]);
+      for (const body of wire) expect(body).toMatchObject({ max_tokens: 64000, reasoning_effort: "high" });
+    });
+  });
+
+  it("does not switch vision pool after visible stream output", async () => {
+    await runVisionRecoveryFixture({ stream: true, visionPool: "both", partial: true, failures: 1 }, ({ calls, events }) => {
+      expect(calls).toBe(1);
+      expect(events[0].upstreamAttempts?.at(-1)?.visionRecovery?.stopReason).toBe("content_delivered");
+    });
+  });
+
   it.each([
     ["/v1/chat/completions", false], ["/v1/chat/completions", true],
     ["/v1/responses", false], ["/v1/responses", true]
@@ -8191,7 +8237,7 @@ describe("gateway phase 1 routes", () => {
     }
   });
 
-  it.each(["xai", "tiankuan"] as const)("registers the authenticated vision asset broker for %s vision users", async (visionRuntime) => {
+  it.each(["xai", "tiankuan", "tencent", "pool"] as const)("registers the authenticated vision asset broker for %s vision users", async (visionRuntime) => {
     const longAssetId = `va1.${"a".repeat(300)}.signature`;
     const productionPool = goldencodePoolConfig();
     productionPool.pool.requireAllMembers = false;
@@ -8200,6 +8246,7 @@ describe("gateway phase 1 routes", () => {
         ...productionPool,
         vision: {
           runtime: visionRuntime,
+          ...(visionRuntime === "pool" ? { pool: { members: [{ id: "vision-tencent", runtime: "tencent", upstreamModel: "deepseek-v4.1-flash-1017" }] } } : {}),
           upstreamModel: visionRuntime === "xai" ? "grok-4.5" : "deepseek-v4.1-flash",
           contextWindow: 200000,
           maxOutputTokens: 128000,
@@ -16500,12 +16547,15 @@ function issueCredentialForHrwAccount(accountId: string, accountIds: string[]) {
 async function runVisionRecoveryFixture(options: {
   url?: string; stream?: boolean; tools?: boolean; failures: number; status?: number;
   inBandError?: boolean; visionRuntime?: "xai" | "tiankuan";
+  visionPool?: "both" | "tencent"; primary?: "tencent" | "tiankuan";
   partial?: boolean; hang?: boolean; timeoutMs?: number; optIn?: boolean; retryAfter?: string; firstInvalidTool?: boolean; images?: number;
 }, check: (value: { response: Awaited<ReturnType<ReturnType<typeof buildGateway>["inject"]>>;
-  calls: number; events: ReturnType<ReturnType<typeof createSqliteStore>["listRequestEvents"]>; capabilities: unknown }) => void) {
+  calls: number; wire: Record<string, unknown>[]; events: ReturnType<ReturnType<typeof createSqliteStore>["listRequestEvents"]>; capabilities: unknown }) => void) {
   let calls = 0;
+  const wire: Record<string, unknown>[] = [];
   const upstream = await startOpenAICompatibleSseServer((_request, _body, response) => {
     calls += 1;
+    wire.push(JSON.parse(_body));
     const badTool = calls === 1 && options.firstInvalidTool;
     if (options.hang) return;
     if (calls <= options.failures && !badTool) {
@@ -16532,10 +16582,18 @@ async function runVisionRecoveryFixture(options: {
   });
   const config = goldencodePoolConfig();
   config.pool.requireAllMembers = false;
+  const visionPool = {
+    members: ["tencent", "tiankuan"].map(runtime => ({ id: `vision-${runtime}`, runtime,
+      upstreamModel: `deepseek-${runtime}`, enabled: runtime === "tencent" || options.visionPool === "both" }))
+  };
+  const sessions = Array.from({ length: 100 }, (_, i) => `vision-session-${i}`);
+  const session = sessions.find(value => hrwAccountForKey(`client_session:${value}`,
+    visionPool.members.map(member => member.id)) === `vision-${options.primary ?? "tencent"}`)!;
   try {
     await withTemporaryEnv({
       MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({ goldencode: { ...config,
-        vision: { runtime: options.visionRuntime ?? "xai", upstreamModel: options.visionRuntime === "tiankuan" ? "deepseek-v4.1-flash" : "grok-4.5", contextWindow: 200000, maxOutputTokens: 128000, enabled: true } } }),
+        vision: options.visionPool ? { runtime: "pool", pool: visionPool, contextWindow: 200000, maxOutputTokens: 128000 }
+          : { runtime: options.visionRuntime ?? "xai", upstreamModel: options.visionRuntime === "tiankuan" ? "deepseek-v4.1-flash" : "grok-4.5", contextWindow: 200000, maxOutputTokens: 128000, enabled: true } } }),
       MEDCODE_TENCENT_TOKENHUB_API_KEY: "synthetic-key", MEDCODE_TENCENT_TOKENHUB_BASE_URL: upstream.baseUrl,
       MEDCODE_TIANKUAN_API_KEY: "synthetic-key", MEDCODE_TIANKUAN_BASE_URL: upstream.baseUrl,
       MEDCODE_VISION_XAI_API_KEY: "synthetic-key", MEDCODE_VISION_XAI_BASE_URL: upstream.baseUrl
@@ -16549,19 +16607,20 @@ async function runVisionRecoveryFixture(options: {
         const tool = { type: "function", function: { name: "inspect_chart", parameters: {
           type: "object", properties: { value: { type: "integer" } }, required: ["value"], additionalProperties: false } } };
         const response = await app.inject({ method: "POST", url, headers: { ...headers,
+          "x-medcode-client-session-id": session,
           ...(options.optIn !== false ? { "x-medcode-vision-recovery-contract": "1" } : {}),
           ...(options.timeoutMs ? { "x-medcode-request-timeout-ms": String(options.timeoutMs) } : {}) },
           payload: url === "/v1/responses"
-            ? { model: "goldencode", stream: options.stream, input: [{ type: "message", role: "user", content: [
+            ? { model: "goldencode", stream: options.stream, ...(options.visionPool ? { max_output_tokens: 64000, reasoning: { effort: "high" } } : {}), input: [{ type: "message", role: "user", content: [
                 { type: "input_text", text: "Inspect the charts." },
                 ...Array.from({ length: options.images ?? 4 }, () => ({ type: "input_image", image_url: image })) ] }],
               ...(options.tools ? { tools: [{ type: "function", ...tool.function }], tool_choice: "required" } : {}) }
-            : { model: "goldencode", stream: options.stream, messages: [{ role: "user", content: [
+            : { model: "goldencode", stream: options.stream, ...(options.visionPool ? { max_tokens: 64000, reasoning_effort: "high" } : {}), messages: [{ role: "user", content: [
                 { type: "text", text: "Inspect the charts." },
                 ...Array.from({ length: options.images ?? 4 }, () => ({ type: "image_url", image_url: { url: image } })) ] }],
               ...(options.tools ? { tools: [tool], tool_choice: "required" } : {}) }
         });
-        check({ response, calls, capabilities: capabilities.json(), events: store.listRequestEvents({ requestId: expectRequestIdHeader(response) }) });
+        check({ response, calls, wire, capabilities: capabilities.json(), events: store.listRequestEvents({ requestId: expectRequestIdHeader(response) }) });
       } finally { await app.close(); }
     });
   } finally { await upstream.close(); }

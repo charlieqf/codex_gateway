@@ -22,3 +22,31 @@ describe("dedicated TianKuan vision credentials", () => {
     expect(adapters.get("goldencode")?.kind).toBe("tiankuan");
   });
 });
+
+describe("vision provider pools", () => {
+  const registry = (secondEnabled = true, secondRuntime = "tiankuan") => resolvePublicModelRegistry({
+    MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({ goldencode: { runtime: "codex", upstreamModel: "text-model",
+      vision: { runtime: "pool", pool: { members: [
+        { id: "vision-tencent", runtime: "tencent", upstreamModel: "deepseek-v4.1-flash-1017" },
+        { id: "vision-tiankuan", runtime: secondRuntime, upstreamModel: "deepseek-v4.1-flash", enabled: secondEnabled }
+      ] } } } })
+  }).models;
+  const credentials = { MEDCODE_TENCENT_TOKENHUB_API_KEY: "synthetic-tencent",
+    MEDCODE_TIANKUAN_API_KEY: "synthetic-tiankuan" };
+
+  it("creates both vision providers independently of text", () => {
+    const adapters = createVisionAdapters(registry(), credentials);
+    expect([...adapters].map(([id, adapter]) => [id, adapter.kind])).toEqual([
+      ["vision-tencent", "tencent"], ["vision-tiankuan", "tiankuan"]
+    ]);
+  });
+
+  it("does not instantiate disabled or uncredentialed vision members", () => {
+    expect([...createVisionAdapters(registry(false), credentials).keys()]).toEqual(["vision-tencent"]);
+    expect([...createVisionAdapters(registry(), { MEDCODE_TIANKUAN_API_KEY: "synthetic" }).keys()]).toEqual(["vision-tiankuan"]);
+  });
+
+  it("rejects providers without a supported vision route", () => {
+    expect(() => registry(true, "openrouter")).toThrow("vision.pool members must use tencent or tiankuan");
+  });
+});

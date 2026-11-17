@@ -3,6 +3,7 @@ import { OpenAICompatibleProviderAdapter } from "../services/openai-compatible-p
 import { resolveProviderApiKey } from "../services/provider-secret.js";
 import {
   providerReasoningSettings,
+  visionRoutingModel,
   type OpenAICompatibleRuntimeKind,
   type PublicModelConfig
 } from "../services/public-model-registry.js";
@@ -273,27 +274,11 @@ export function createVisionAdapters(
   logger?: { warn: (obj: Record<string, unknown>, msg: string) => void }
 ): OpenAICompatibleAdapterMap {
   const adapters = createXaiVisionAdapters(models, env, logger);
-  const targets = models.filter(model => model.enabled && model.vision?.enabled && model.vision.runtime === "tiankuan");
-  if (!targets.length) return adapters;
-  const apiKeyEnv = env.MEDCODE_TIANKUAN_API_KEY_ENV?.trim() || "MEDCODE_TIANKUAN_API_KEY";
-  const secret = resolveProviderApiKey(env, apiKeyEnv);
-  if (!secret.apiKey) {
-    logger?.warn({ api_key_env: apiKeyEnv, public_model_ids: targets.map(model => model.id) },
-      "TianKuan vision is configured but its API key is unavailable.");
-    return adapters;
-  }
-  for (const model of targets) {
-    const vision = model.vision!;
-    adapters.set(model.id, new OpenAICompatibleProviderAdapter({
-      providerKind: "tiankuan",
-      baseUrl: env.MEDCODE_TIANKUAN_BASE_URL?.trim() || "https://tokens.tiankuan.com/v1",
-      apiKey: secret.apiKey,
-      apiKeyEnv: secret.sourceEnvName,
-      upstreamModel: vision.upstreamModel,
-      reasoning: providerReasoningSettings(vision.reasoning),
-      reasoningParameterStyle: "effort_field",
-      timeoutMs: parsePositiveIntegerEnv(env.MEDCODE_TIANKUAN_TIMEOUT_MS, 300_000, "MEDCODE_TIANKUAN_TIMEOUT_MS")
-    }));
+  const targets = models.flatMap(model => visionRoutingModel(model) ?? []);
+  for (const [id, adapter] of [
+    ...createTencentAdapters(targets, env, logger), ...createTiankuanAdapters(targets, env, logger)
+  ]) {
+    adapters.set(id, adapter);
   }
   return adapters;
 }

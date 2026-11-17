@@ -68,8 +68,21 @@ export async function runNativeWithFailover(input: NativeClientToolsInput & {
     reasoningEffort: runtime.reasoningEffort
   });
   if (input.visionRecovery) {
+    let runtime = input.runtime;
     const result = await runVisionRequestRecovery({ ...input, recovery: input.visionRecovery, signal: input.signal!,
-      execute: (budget, retry) => execute(input.runtime, budget, retry) });
+      execute: async (budget, retry) => {
+        const result = await execute(runtime, budget, retry);
+        if (result instanceof GatewayError) runtime.recordError(result);
+        else runtime.recordSuccess();
+        return result;
+      },
+      selectRetryRuntime: () => {
+        const next = input.visionRecovery!.nextRuntime(runtime);
+        if (!next) return false;
+        runtime = next;
+        input.selected(runtime);
+        return true;
+      } });
     if (result instanceof GatewayError) return result;
     return { ...result, usage: openAIUsageFromTokenUsage(result.providerSummary?.usage ?? undefined) };
   }

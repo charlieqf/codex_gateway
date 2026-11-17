@@ -19,7 +19,9 @@ import tempfile
 REGISTRY_KEY = "MEDCODE_PUBLIC_MODELS_JSON"
 
 
-def prepare_env(original, tiankuan=False):
+def prepare_env(original, tiankuan=False, tencent_only=False):
+    if tiankuan and tencent_only:
+        raise ValueError("Choose one provider policy")
     lines = original.decode("utf-8").splitlines(keepends=True)
     entries = [i for i, line in enumerate(lines) if line.startswith(REGISTRY_KEY + "=")]
     if len(entries) != 1:
@@ -39,6 +41,40 @@ def prepare_env(original, tiankuan=False):
         raise ValueError("Both cloud models must already exist")
     if source.get("enabled", True) is not True or target.get("enabled", True) is not True:
         raise ValueError("Both cloud models must be enabled")
+    if tencent_only:
+        members = target.get("pool", {}).get("members", [])
+        tencent = [m for m in members if m.get("runtime") == "tencent" and m.get("enabled", True)]
+        if len(tencent) != 1 or tencent[0].get("upstreamModel") != "deepseek-v4.1-flash-1017":
+            raise ValueError("Expected the verified Tencent DeepSeek member")
+        proposed = copy.deepcopy(registry)
+        for member in proposed["goldencode-d"]["pool"]["members"]:
+            member["enabled"] = member["runtime"] == "tencent"
+        for model in ("goldencode", "goldencode-d"):
+            vision = proposed[model].get("vision")
+            if not isinstance(vision, dict) or vision.get("enabled", True) is not True:
+                raise ValueError("Both cloud models must already have enabled vision")
+            if vision.get("runtime") == "tiankuan":
+                vision["pool"] = {"requireAllMembers": False, "members": [
+                    {"id": model + "-vision-tencent", "runtime": "tencent",
+                     "upstreamModel": tencent[0]["upstreamModel"], "enabled": True},
+                    {"id": model + "-vision-tiankuan", "runtime": "tiankuan",
+                     "upstreamModel": vision["upstreamModel"], "enabled": False}
+                ]}
+                vision["runtime"] = "pool"
+                vision.pop("upstreamModel")
+            elif vision.get("runtime") == "pool":
+                vision_members = vision["pool"]["members"]
+                if len([m for m in vision_members if m["runtime"] == "tencent"]) != 1:
+                    raise ValueError("Expected one Tencent vision member")
+                for member in vision_members:
+                    member["enabled"] = member["runtime"] == "tencent"
+            else:
+                raise ValueError("Unexpected existing vision route")
+        if proposed == registry:
+            return original, False
+        ending = "\r\n" if lines[index].endswith("\r\n") else "\n" if lines[index].endswith("\n") else ""
+        lines[index] = REGISTRY_KEY + "=" + json.dumps(proposed, ensure_ascii=True, separators=(",", ":")) + ending
+        return "".join(lines).encode("utf-8"), True
     if tiankuan:
         members = [m for m in target.get("pool", {}).get("members", [])
                    if m.get("runtime") == "tiankuan" and m.get("enabled", True)]
@@ -87,16 +123,17 @@ def main():
     parser.add_argument("--env-file", type=pathlib.Path, required=True)
     parser.add_argument("--output", type=pathlib.Path)
     parser.add_argument("--tiankuan", action="store_true", help="Switch both cloud vision routes to the verified TianKuan member")
+    parser.add_argument("--tencent-only", action="store_true", help="Temporarily use Tencent for DeepSeek text and both cloud vision pools")
     args = parser.parse_args()
     original = args.env_file.read_bytes()
     try:
-        proposed, changed = prepare_env(original, tiankuan=args.tiankuan)
+        proposed, changed = prepare_env(original, tiankuan=args.tiankuan, tencent_only=args.tencent_only)
     except (ValueError, TypeError, KeyError):
         # JSON parse errors may include secret-bearing input; never emit them.
         parser.exit(1, "Registry validation failed; source unchanged.\n")
     if args.output:
         write_candidate(args.output, proposed)
-    print(json.dumps({"changed": changed, "changed_field": ("cloud_models.vision" if args.tiankuan else "goldencode-d.vision") if changed else None,
+    print(json.dumps({"changed": changed, "changed_field": ("goldencode-d.pool,cloud_models.vision" if args.tencent_only else "cloud_models.vision" if args.tiankuan else "goldencode-d.vision") if changed else None,
                       "source_sha256": hashlib.sha256(original).hexdigest(),
                       "proposed_sha256": hashlib.sha256(proposed).hexdigest(),
                       "candidate_written": args.output is not None, "activated": False}))

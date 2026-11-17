@@ -42,8 +42,9 @@ export interface PublicModelPoolConfig {
 }
 
 export interface PublicModelVisionConfig {
-  runtime: "xai" | "tiankuan";
+  runtime: "xai" | "tiankuan" | "tencent" | "pool";
   upstreamModel: string;
+  pool?: PublicModelPoolConfig;
   contextWindow: number;
   maxOutputTokens: number;
   reasoning?: PublicModelReasoningConfig;
@@ -165,6 +166,16 @@ export function publicModelPoolMemberAdapterKey(
   id: string
 ): string {
   return `${runtime}:${id}`;
+}
+
+// Reuse text adapters and pool selection without inheriting the text route or limits.
+export function visionRoutingModel(model: PublicModelConfig): PublicModelConfig | null {
+  const vision = model.vision;
+  if (!vision?.enabled || vision.runtime === "xai") return null;
+  return { ...model, runtime: vision.runtime, upstreamModel: vision.upstreamModel,
+    pool: vision.pool, reasoning: vision.reasoning, vision: undefined,
+    contextWindow: vision.contextWindow, maxContextWindow: vision.contextWindow,
+    upstreamContextWindow: vision.contextWindow, maxOutputTokens: vision.maxOutputTokens };
 }
 
 function createRegistry(models: PublicModelConfig[], defaultModelId: string): PublicModelRegistry {
@@ -432,10 +443,14 @@ function parseVisionConfig(
   if (!isRecord(value)) {
     throw new Error(`Public model '${id}' vision must be a JSON object.`);
   }
-  if (value.runtime !== "xai" && value.runtime !== "tiankuan") {
-    throw new Error(`Public model '${id}' vision.runtime must be xai or tiankuan.`);
+  if (!["xai", "tiankuan", "tencent", "pool"].includes(value.runtime as string)) {
+    throw new Error(`Public model '${id}' vision.runtime must be xai, tiankuan, tencent, or pool.`);
   }
-  const upstreamModel = parseOptionalString(value.upstreamModel ?? value.upstream_model);
+  const pool = value.runtime === "pool" ? parsePoolConfig(value.pool, `${id}.vision`) : undefined;
+  if (pool?.members.some(member => member.runtime !== "tencent" && member.runtime !== "tiankuan")) {
+    throw new Error(`Public model '${id}' vision.pool members must use tencent or tiankuan.`);
+  }
+  const upstreamModel = parseOptionalString(value.upstreamModel ?? value.upstream_model) ?? pool?.members[0]?.upstreamModel;
   if (!upstreamModel) {
     throw new Error(`Public model '${id}' vision.upstreamModel must be a non-empty string.`);
   }
@@ -445,8 +460,9 @@ function parseVisionConfig(
     `public model '${id}' vision.reasoning`
   );
   return {
-    runtime: value.runtime,
+    runtime: value.runtime as PublicModelVisionConfig["runtime"],
     upstreamModel,
+    ...(pool ? { pool } : {}),
     contextWindow: parsePositiveInteger(
       value.contextWindow ?? value.context_window,
       fallbackContextWindow,

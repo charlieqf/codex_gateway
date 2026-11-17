@@ -19,6 +19,7 @@ import {
   type UpstreamSoftAffinity
 } from "./upstream-account-router.js";
 import type { QuotaRequestShape } from "./provider-quota-circuit.js";
+import { visionRoutingModel } from "./public-model-registry.js";
 
 export type UpstreamRuntimeKind =
   | "codex"
@@ -83,6 +84,7 @@ export interface ChatRuntimeDispatcherInput {
   tokenSwitchAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
   localOpenAIAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
   visionAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
+  visionPoolRouterForModel?: (model: PublicModelConfig) => UpstreamAccountRouter | null;
   poolRouterForModel?: (model: PublicModelConfig) => UpstreamAccountRouter | null;
   openRouterAccount?: UpstreamAccount;
   qianfanAccount?: UpstreamAccount;
@@ -191,6 +193,14 @@ function beginVisionRuntime(
       message: `Model '${input.model.id}' does not support image input.`,
       httpStatus: 400
     });
+  }
+  if (vision.runtime === "pool") {
+    const router = dispatcherInput.visionPoolRouterForModel?.(input.model) ?? null;
+    if (!router) return new GatewayError({ code: "service_unavailable",
+      message: "MedCode vision service is temporarily unavailable.", httpStatus: 503, retryAfterSeconds: 30 });
+    return beginPoolRuntime(router,
+      { ...input, model: visionRoutingModel(input.model)!,
+        reasoningEffort: input.reasoningEffort ?? reasoningEffortFromConfig(vision.reasoning) });
   }
   const adapter = dispatcherInput.visionAdapterForModel?.(input.model) ?? null;
   if (!adapter) {
@@ -486,7 +496,7 @@ function defaultLocalOpenAIVirtualAccount(): UpstreamAccount {
   };
 }
 
-function defaultVisionVirtualAccount(runtime: "xai" | "tiankuan"): UpstreamAccount {
+function defaultVisionVirtualAccount(runtime: "xai" | "tiankuan" | "tencent"): UpstreamAccount {
   return {
     id: `${runtime}-vision-main`,
     provider: runtime,
