@@ -5,6 +5,39 @@ For a recent 12/24-hour service check, use the fixed
 
 ## Latest Gateway Deployment Verification
 
+Gateway `bb2b842f06330b6959c26be0f82a061f125e889d` started at
+2026-11-17T07:23:53.410Z and passed public verification at 07:25:39Z.
+The release prevents successful requests admitted before a newer failure from
+clearing its cooldown. Rate-limit errors use the effective cooldown, retain
+known upstream origin during cooldown rejection, and flush error headers for
+stream requests that fail before response headers are committed.
+
+The committed Linux image passed 213 targeted tests. Isolated preflight passed
+16 real text/vision calls and four injected 429 failovers in both directions.
+All 12 public checks passed across Tencent/TianKuan, text/vision, consecutive
+tool calls and Responses streaming, with high reasoning and a 64,000 output
+budget. All probe reservations finalized; no production test accounts were
+created. Existing goldencode-d text and vision dual-provider configuration,
+128,000 output ceiling, every runtime environment variable, ports and the three
+other Compose containers were preserved. The prior release remains the rollback.
+
+The user shortened only this deployment's natural-idle window to five seconds.
+The earlier 30-second wait was cancelled before mutation and admission verified
+open. The replacement required both active request/work counters to reach zero
+and retained the 30-second drain timeout. Public sampling recorded about 5.718
+seconds of 502/503 during replacement, followed by two consecutive ready checks.
+Gateway was healthy/not draining with zero restarts/OOM. Schema 46, SQLite quick
+check and foreign keys passed. A first probe setup failure (root lacked database
+access under dropped capabilities) sent no requests; service-user probes passed.
+Logs included an unrelated TokenSwitch monthly-quota 402 with Tencent failover
+and existing tool-loop shadow warnings; no public probe failed.
+
+See the [release receipt](../archive/operations/cooldown-release-2026-11-17.json)
+and [client error contract](../implementation/gateway-rate-limit-error-contract-2026-07-15.zh-CN.md).
+Protected recovery state: `/opt/codex-gateway-r760/backups/release-bb2b842f0633`.
+
+## Previous Gateway Deployment / Configuration Verification
+
 Gateway `b155a473d0cd7c5ad0e0051999d89e7fd049dd4a` was deployed at
 2026-11-17T04:13:41.858506Z and publicly verified at 04:20:16.782052Z.
 The temporary policy enables only Tencent for `goldencode-d` text and both

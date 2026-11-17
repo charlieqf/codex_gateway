@@ -1,0 +1,377 @@
+{
+  "revision": "bb2b842f06330b6959c26be0f82a061f125e889d",
+  "image_id": "sha256:cae742717e28a3e39056f48761ad55e377ab23baf935109b5191d8484b787e24",
+  "started_at": "2026-11-17T07:23:53.410207819Z",
+  "verified_at": "2026-11-17T07:25:39.307217+00:00",
+  "health": "ready",
+  "draining": false,
+  "restarts": 0,
+  "oom": false,
+  "configuration_preserved": true,
+  "other_containers_preserved": 3,
+  "goldencode_d_text": [
+    "tencent",
+    "tiankuan"
+  ],
+  "goldencode_d_vision": [
+    "tencent",
+    "tiankuan"
+  ],
+  "public_checks": [
+    {
+      "label": "tencent-text-tool-1",
+      "request_id": "req-6cb419fb-51f0-4f44-847c-e1978c0cd7f8",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "model": "deepseek-v4.1-flash-1017",
+      "budget": 64000,
+      "effort": "high",
+      "attempts": [
+        {
+          "runtime": "tencent",
+          "error": null,
+          "requestId": "f8cf8235-93c9-4908-828c-c3e806247b7f"
+        }
+      ],
+      "ledger_finalized": true
+    },
+    {
+      "label": "tencent-text-tool-2",
+      "request_id": "req-dc06d8b1-2ee1-49c6-91fb-90f3242b888c",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "model": "deepseek-v4.1-flash-1017",
+      "budget": 64000,
+      "effort": "high",
+      "attempts": [
+        {
+          "runtime": "tencent",
+          "error": null,
+          "requestId": "a000a8cd-6741-4490-9c1b-ca22b9e9d82b"
+        }
+      ],
+      "ledger_finalized": true
+    },
+    {
+      "label": "tencent-text-responses",
+      "request_id": "req-854014bc-f266-466e-a912-ffe2f753fc09",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "model": "deepseek-v4.1-flash-1017",
+      "budget": 64000,
+      "effort": "high",
+      "attempts": [
+        {
+          "runtime": "tencent",
+          "error": null,
+          "requestId": "6be0aba5-3ade-44d5-8b8f-d2010bfe40bb"
+        }
+      ],
+      "ledger_finalized": true
+    },
+    {
+      "label": "tencent-vision-tool-1",
+      "request_id": "req-061ce221-ce72-4c2a-93f9-6588c8801cab",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "model": "deepseek-v4.1-flash-1017",
+      "budget": 64000,
+      "effort": "high",
+      "attempts": [
+        {
+          "runtime": "tencent",
+          "error": null,
+          "requestId": "bc7e3b91-e943-437d-be63-b23682243c68",
+          "inputImageCount": 1
+        }
+      ],
+      "ledger_finalized": true
+    },
+    {
+      "label": "tencent-vision-tool-2",
+      "request_id": "req-769ff350-e3ea-4300-bf39-77f1daaced19",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "model": "deepseek-v4.1-flash-1017",
+      "budget": 64000,
+      "effort": "high",
+      "attempts": [
+        {
+          "runtime": "tencent",
+          "error": null,
+          "requestId": "87620063-520a-44de-8b66-ed3a57a2b01c",
+          "inputImageCount": 1
+        }
+      ],
+      "ledger_finalized": true
+    },
+    {
+      "label": "tencent-vision-responses",
+      "request_id": "req-bf5c2fc0-5af7-483a-8113-3689d5814898",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "model": "deepseek-v4.1-flash-1017",
+      "budget": 64000,
+      "effort": "high",
+      "attempts": [
+        {
+          "runtime": "tencent",
+          "error": null,
+          "requestId": "6c95de77-fda2-49d8-9815-7b39fde14936",
+          "inputImageCount": 1
+        }
+      ],
+      "ledger_finalized": true
+    },
+    {
+      "label": "tiankuan-text-tool-1",
+      "request_id": "req-485f92b7-f142-4867-9325-0eae13ea40dc",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tiankuan",
+      "model": "deepseek-v4.1-flash-1017",
+      "budget": 64000,
+      "effort": "high",
+      "attempts": [
+        {
+          "runtime": "tiankuan",
+          "error": null,
+          "requestId": null
+        }
+      ],
+      "ledger_finalized": true
+    },
+    {
+      "label": "tiankuan-text-tool-2",
+      "request_id": "req-6ac6ec0c-5989-471f-898e-8483824bcad3",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tiankuan",
+      "model": "deepseek-v4.1-flash-1017",
+      "budget": 64000,
+      "effort": "high",
+      "attempts": [
+        {
+          "runtime": "tiankuan",
+          "error": null,
+          "requestId": null
+        }
+      ],
+      "ledger_finalized": true
+    },
+    {
+      "label": "tiankuan-text-responses",
+      "request_id": "req-b549d570-f60b-4363-99ad-f76c0785a668",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tiankuan",
+      "model": "deepseek-v4.1-flash-1017",
+      "budget": 64000,
+      "effort": "high",
+      "attempts": [
+        {
+          "runtime": "tiankuan",
+          "error": null,
+          "requestId": null
+        }
+      ],
+      "ledger_finalized": true
+    },
+    {
+      "label": "tiankuan-vision-tool-1",
+      "request_id": "req-5c5fe71f-9fe7-46e5-a18e-65b43e5d9ca3",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tiankuan",
+      "model": "deepseek-v4.1-flash",
+      "budget": 64000,
+      "effort": "high",
+      "attempts": [
+        {
+          "runtime": "tiankuan",
+          "error": null,
+          "requestId": null,
+          "inputImageCount": 1
+        }
+      ],
+      "ledger_finalized": true
+    },
+    {
+      "label": "tiankuan-vision-tool-2",
+      "request_id": "req-1865cb22-1f7f-4ebf-ade0-00bd59c67a27",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tiankuan",
+      "model": "deepseek-v4.1-flash",
+      "budget": 64000,
+      "effort": "high",
+      "attempts": [
+        {
+          "runtime": "tiankuan",
+          "error": null,
+          "requestId": null,
+          "inputImageCount": 1
+        }
+      ],
+      "ledger_finalized": true
+    },
+    {
+      "label": "tiankuan-vision-responses",
+      "request_id": "req-1208311d-7124-464c-9b61-87b04a0c8d7f",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tiankuan",
+      "model": "deepseek-v4.1-flash",
+      "budget": 64000,
+      "effort": "high",
+      "attempts": [
+        {
+          "runtime": "tiankuan",
+          "error": null,
+          "requestId": null,
+          "inputImageCount": 1
+        }
+      ],
+      "ledger_finalized": true
+    },
+    {
+      "passed": true,
+      "checks": 12,
+      "temporaryAccountsCreated": 0,
+      "pendingReservations": 0,
+      "at": "2026-11-17T07:25:38.849Z"
+    }
+  ],
+  "warning_error_count": 2,
+  "warning_errors": [
+    {
+      "level": 40,
+      "code": null,
+      "request_id": "req-8574036d-a395-4888-9b02-4b671f86a49c"
+    },
+    {
+      "level": 40,
+      "code": null,
+      "request_id": "req-70c1af75-a3b4-4d0f-990a-a0239a46ee59"
+    }
+  ],
+  "interruption": {
+    "failed_samples": 11,
+    "sampled_seconds": 5.718,
+    "statuses": [
+      "502",
+      "503"
+    ]
+  },
+  "backup": "/opt/codex-gateway-r760/backups/release-bb2b842f0633",
+  "warning_diagnosis": {
+    "logs": [
+      {
+        "level": 40,
+        "time": 1794900244979,
+        "msg": "Provider returned sanitized error.",
+        "reqId": "req-8574036d-a395-4888-9b02-4b671f86a49c"
+      },
+      {
+        "level": 40,
+        "time": 1794900331654,
+        "msg": "Tool loop guard shadow threshold matched; request is not altered.",
+        "reqId": "req-70c1af75-a3b4-4d0f-990a-a0239a46ee59"
+      },
+      {
+        "level": 40,
+        "time": 1794900370288,
+        "msg": "Tool loop guard shadow threshold matched; request is not altered.",
+        "reqId": "req-d18ee9cb-cbec-4eae-8ce7-3ebf7ed8d651"
+      }
+    ],
+    "request_events": [
+      {
+        "request_id": "req-70c1af75-a3b4-4d0f-990a-a0239a46ee59",
+        "status": "ok",
+        "error_code": null,
+        "upstream_runtime": "tencent",
+        "upstream_http_status": 200,
+        "upstream_attempt_count": 1,
+        "limit_kind": null
+      }
+    ],
+    "classification": {
+      "provider_warning": "Other goldencode text pool: tokenswitch HTTP 402 TOKEN_MONTHLY_QUOTA_EXHAUSTED; existing failover selected Tencent. Not a goldencode-d probe failure.",
+      "shadow_warnings": "Existing tool-loop shadow observations; requests are not altered."
+    }
+  },
+  "operation": "upstream-cooldown-and-rate-limit-metadata",
+  "code_commit": "bb2b842f06330b6959c26be0f82a061f125e889d",
+  "previous_revision": "b155a473d0cd7c5ad0e0051999d89e7fd049dd4a",
+  "natural_idle_seconds": 5,
+  "idle_override": "User explicitly authorized five seconds for this deployment; normal shared helper unchanged.",
+  "drain_timeout_seconds": 30,
+  "schema": 46,
+  "sqlite_quick_check": "ok",
+  "foreign_key_violations": 0,
+  "build": {
+    "revision": "bb2b842f06330b6959c26be0f82a061f125e889d",
+    "image_id": "sha256:cae742717e28a3e39056f48761ad55e377ab23baf935109b5191d8484b787e24",
+    "build_seconds": 165.9,
+    "clean_image_tests": [
+      "Test Files  6 passed (6)",
+      "Tests  140 passed (140)",
+      "Test Files  1 passed (1)",
+      "Tests  73 passed | 547 skipped (620)"
+    ],
+    "status": "passed"
+  },
+  "isolated_preflight": {
+    "checks": 20,
+    "real_calls": 16,
+    "injected_429_failovers": 4,
+    "cases": [
+      {
+        "case": "real",
+        "checks": 16,
+        "passed": true
+      },
+      {
+        "case": "fault-tencent-text",
+        "checks": 1,
+        "passed": true
+      },
+      {
+        "case": "fault-tencent-vision",
+        "checks": 1,
+        "passed": true
+      },
+      {
+        "case": "fault-tiankuan-text",
+        "checks": 1,
+        "passed": true
+      },
+      {
+        "case": "fault-tiankuan-vision",
+        "checks": 1,
+        "passed": true
+      }
+    ]
+  },
+  "validation_note": "213 targeted tests passed from the committed Linux build. Public smoke covered 12 real requests; 429 failures were injected only in isolated instances.",
+  "initial_probe_failure": "The first public probe could not read the database as root under dropped capabilities; no model calls were sent. Retried as the existing service user, with no production permission change."
+}
