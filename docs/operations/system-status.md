@@ -3,6 +3,36 @@
 For a recent 12/24-hour service check, use the fixed
 [read-only review command](./gateway-service-review.zh-CN.md).
 
+## Latest Vision Configuration Verification (2026-11-17)
+
+At 2026-11-17T10:08:01Z (18:08 Beijing), `goldencode` vision was verified on
+Tencent/TianKuan dual-provider pools. Only its existing TianKuan member's
+`enabled` flag changed from false to true. The running image and revision
+`bb2b842f06330b6959c26be0f82a061f125e889d`, current/previous links, model mappings,
+200,000 vision context and 128,000 output ceiling were preserved. `goldencode`
+text remains Tencent/TianKuan/TokenSwitch; `goldencode-d` text and vision remain
+Tencent/TianKuan. This supersedes the earlier Tencent-only `goldencode` vision
+state recorded below.
+
+The exact image and candidate configuration passed eight real image calls and
+two isolated bidirectional 429 failovers. Six public image checks then passed
+across both providers, consecutive tool calls and Responses streaming, using
+high reasoning and a 64,000 output budget. Probe usage finalized with no pending
+reservations or new production accounts. These checks establish current routing
+and budget acceptance, not maximum-length generation or immunity to provider TPM
+limits. Users can continue the original conversation on `goldencode`.
+
+After two idle waits expired without mutation, the cutover satisfied the user's
+five-second natural-idle requirement and retained the 30-second drain timeout.
+Both active counters were zero before recreation. Public sampling recorded about
+5.256 seconds of 502/503, followed by readiness. At 10:09:07Z, public health was
+ready/not draining, restarts/OOM were zero, and no temporary preflight containers
+remained. Other Compose services were preserved. Observed application warnings
+were existing tool-loop shadow notices, which do not alter requests.
+
+See the [configuration receipt](../archive/operations/goldencode-vision-dual-2026-11-17.json).
+Protected config recovery: `/opt/codex-gateway-r760/backups/goldencode-vision-dual-20261117T0930Z`.
+
 ## Latest Gateway Deployment Verification
 
 Gateway `bb2b842f06330b6959c26be0f82a061f125e889d` started at

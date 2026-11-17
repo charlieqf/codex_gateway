@@ -1,0 +1,281 @@
+{
+  "started_at": "2026-11-17T10:05:03.584112+00:00",
+  "revision": "bb2b842f06330b6959c26be0f82a061f125e889d",
+  "backup": "/opt/codex-gateway-r760/backups/goldencode-vision-dual-20261117T0930Z",
+  "scope": [
+    "goldencode vision TianKuan enabled"
+  ],
+  "natural_idle_seconds": 5,
+  "drain_timeout_seconds": 30,
+  "lifecycle_before_drain": {
+    "draining": false,
+    "active_requests": 3,
+    "active_work": 3
+  },
+  "cutover_started_at": "2026-11-17T10:07:40.480330+00:00",
+  "lifecycle_at_recreate": {
+    "draining": true,
+    "active_requests": 0,
+    "active_work": 0
+  },
+  "applied": true,
+  "completed_at": "2026-11-17T10:08:01.255871+00:00",
+  "container_id": "36267664ac73df6c9ef5163a2b399ba941b4c4229d5481d55f0189522518b5aa",
+  "image_preserved": true,
+  "other_containers_preserved": true,
+  "public_checks": 6,
+  "output_budget_preserved": 128000,
+  "verified_at": "2026-11-17T10:09:07.557280+00:00",
+  "health": "ready",
+  "restarts": 0,
+  "oom": false,
+  "image_id": "sha256:cae742717e28a3e39056f48761ad55e377ab23baf935109b5191d8484b787e24",
+  "configuration_changes": [
+    "goldencode.vision.pool.members[tiankuan].enabled: false -> true"
+  ],
+  "preflight": {
+    "image_id": "sha256:cae742717e28a3e39056f48761ad55e377ab23baf935109b5191d8484b787e24",
+    "candidate_sha256": "1a3373e5ee095e46b3974c964e4b59631975396a3acf09bc3f8c5000a39b0abe",
+    "cases": [
+      {
+        "case": "real",
+        "checks": 8,
+        "passed": true
+      },
+      {
+        "case": "fault-tencent-vision",
+        "checks": 1,
+        "passed": true
+      },
+      {
+        "case": "fault-tiankuan-vision",
+        "checks": 1,
+        "passed": true
+      }
+    ],
+    "checks": 10,
+    "passed": true
+  },
+  "public_probes": [
+    {
+      "label": "tencent-vision-tool-1",
+      "request_id": "req-30cbf842-1ebb-45a3-9048-27b24c17d260",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "model": "deepseek-v4.1-flash-1017",
+      "budget": 64000,
+      "effort": "high",
+      "attempts": [
+        {
+          "runtime": "tencent",
+          "error": null,
+          "requestId": "ebde7578-ea3b-4eb7-a8b5-7d365e8baed7",
+          "inputImageCount": 1
+        }
+      ],
+      "ledger_finalized": true
+    },
+    {
+      "label": "tencent-vision-tool-2",
+      "request_id": "req-fd07604f-7599-48ff-b387-65b2b4ae17d6",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "model": "deepseek-v4.1-flash-1017",
+      "budget": 64000,
+      "effort": "high",
+      "attempts": [
+        {
+          "runtime": "tencent",
+          "error": null,
+          "requestId": "807f2911-a5e8-4d0f-91bc-6d30351f5722",
+          "inputImageCount": 1
+        }
+      ],
+      "ledger_finalized": true
+    },
+    {
+      "label": "tencent-vision-responses",
+      "request_id": "req-ab5c993a-29b5-4a91-879e-10aaa4e5c634",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "model": "deepseek-v4.1-flash-1017",
+      "budget": 64000,
+      "effort": "high",
+      "attempts": [
+        {
+          "runtime": "tencent",
+          "error": null,
+          "requestId": "3f94173b-e50c-4bb3-b7ea-b97e7753fddb",
+          "inputImageCount": 1
+        }
+      ],
+      "ledger_finalized": true
+    },
+    {
+      "label": "tiankuan-vision-tool-1",
+      "request_id": "req-b89e064d-0a83-43d8-a21f-ef16513d8ed0",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tiankuan",
+      "model": "deepseek-v4.1-flash",
+      "budget": 64000,
+      "effort": "high",
+      "attempts": [
+        {
+          "runtime": "tiankuan",
+          "error": null,
+          "requestId": null,
+          "inputImageCount": 1
+        }
+      ],
+      "ledger_finalized": true
+    },
+    {
+      "label": "tiankuan-vision-tool-2",
+      "request_id": "req-8ce85403-732e-45bf-babb-c6d0b99cee7c",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tiankuan",
+      "model": "deepseek-v4.1-flash",
+      "budget": 64000,
+      "effort": "high",
+      "attempts": [
+        {
+          "runtime": "tiankuan",
+          "error": null,
+          "requestId": null,
+          "inputImageCount": 1
+        }
+      ],
+      "ledger_finalized": true
+    },
+    {
+      "label": "tiankuan-vision-responses",
+      "request_id": "req-1efce491-9143-41e1-abd2-022bdcbe47a1",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tiankuan",
+      "model": "deepseek-v4.1-flash",
+      "budget": 64000,
+      "effort": "high",
+      "attempts": [
+        {
+          "runtime": "tiankuan",
+          "error": null,
+          "requestId": null,
+          "inputImageCount": 1
+        }
+      ],
+      "ledger_finalized": true
+    },
+    {
+      "passed": true,
+      "checks": 6,
+      "temporaryAccountsCreated": 0,
+      "pendingReservations": 0,
+      "at": "2026-11-17T10:08:00.184Z"
+    }
+  ],
+  "previous_idle_waits": [
+    {
+      "started_at": "2026-11-17T09:33:08.162178+00:00",
+      "idle_seconds": 5,
+      "samples": 1710,
+      "failed_samples": 0
+    },
+    {
+      "started_at": "2026-11-17T09:49:14.725750+00:00",
+      "idle_seconds": 5,
+      "samples": 1708,
+      "failed_samples": 0
+    }
+  ],
+  "interruption": {
+    "failed_samples": 10,
+    "seconds": 5.256,
+    "statuses": [
+      "502",
+      "503"
+    ]
+  },
+  "warnings": [
+    {
+      "level": 40,
+      "msg": "Tool loop guard shadow threshold matched; request is not altered.",
+      "reqId": "req-42afe5f9-2018-43ea-88c4-70c4d626de6f"
+    },
+    {
+      "level": 40,
+      "msg": "Tool loop guard shadow threshold matched; request is not altered.",
+      "reqId": "req-fb0dc88b-e195-4da3-819b-93d4ff236877"
+    },
+    {
+      "level": 40,
+      "msg": "Tool loop guard shadow threshold matched; request is not altered.",
+      "reqId": "req-b5b917ab-e763-4faf-a420-b41bb6a4fdf2"
+    },
+    {
+      "level": 40,
+      "msg": "Tool loop guard shadow threshold matched; request is not altered.",
+      "reqId": "req-5ed7f563-b144-487e-8540-c8ed6b1161b0"
+    },
+    {
+      "level": 40,
+      "msg": "Tool loop guard shadow threshold matched; request is not altered.",
+      "reqId": "req-43a59412-2898-4225-a7b6-36022cfc08ca"
+    },
+    {
+      "level": 40,
+      "msg": "Tool loop guard shadow threshold matched; request is not altered.",
+      "reqId": "req-11102fc4-af12-478b-926e-7d3e7355bd3e"
+    },
+    {
+      "level": 40,
+      "msg": "Tool loop guard shadow threshold matched; request is not altered.",
+      "reqId": "req-8732349d-4d51-4342-bdbd-0277d24468a5"
+    },
+    {
+      "level": 40,
+      "msg": "Tool loop guard shadow threshold matched; request is not altered.",
+      "reqId": "req-640cf174-5846-4d09-96c4-c576076cc0a2"
+    },
+    {
+      "level": 40,
+      "msg": "Tool loop guard shadow threshold matched; request is not altered.",
+      "reqId": "req-4fdcdae7-b96d-4f24-8aef-77953a2009f9"
+    }
+  ],
+  "temporary_containers": [],
+  "models": {
+    "goldencode": {
+      "text": [
+        "tencent",
+        "tiankuan",
+        "tokenswitch"
+      ],
+      "vision": [
+        "tencent",
+        "tiankuan"
+      ]
+    },
+    "goldencode-d": {
+      "text": [
+        "tencent",
+        "tiankuan"
+      ],
+      "vision": [
+        "tencent",
+        "tiankuan"
+      ]
+    }
+  }
+}
