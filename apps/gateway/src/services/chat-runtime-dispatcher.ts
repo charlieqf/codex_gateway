@@ -339,7 +339,7 @@ function contextFromLease(input: {
       if (!outcome) {
         return false;
       }
-      lease.recordOutcome(outcome);
+      lease.recordOutcome(outcome, error);
       return true;
     },
     beginRetry: input.beginRetry

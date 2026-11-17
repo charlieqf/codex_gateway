@@ -3738,7 +3738,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           }
           if (event.type === "error") {
             const error = streamErrorToGatewayError(event);
-            recordUpstreamErrorOutcome(upstreamRouter, lease, error);
+            recordUpstreamErrorOutcome(lease, error);
             outcomeRecorded = true;
             providerFailed = true;
             request.gatewayErrorCode = error.code;
@@ -3749,7 +3749,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           }
         }
         if (!providerFailed && !outcomeRecorded && !sse.isClosed()) {
-          upstreamRouter.recordOutcome(lease.upstreamAccount.id, "success");
+          lease.recordOutcome("success");
         }
       } finally {
         markProviderStreamSummary(

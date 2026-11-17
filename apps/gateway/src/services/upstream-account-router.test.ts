@@ -6,6 +6,7 @@ import type {
   StreamEvent,
   UpstreamAccount
 } from "@codex-gateway/core";
+import { GatewayError } from "@codex-gateway/core";
 import {
   applyStartupAuthState,
   parseUpstreamAccountPoolConfig,
@@ -39,6 +40,68 @@ class FakeImageGenerationProvider implements ImageGenerationProvider {
 }
 
 describe("UpstreamAccountRouter", () => {
+  it.each([undefined, 60000])("keeps a new 429 cooldown through an older successful lease (quota cooldown=%s)", quotaCooldownMs => {
+    let now = new Date(0);
+    const router = new UpstreamAccountRouter([runtime("member", { maxConcurrent: 3 })], {
+      now: () => now, quotaCooldownMs
+    });
+    const shape = { quotaRequest: { promptTokens: 80000, maximumOutputTokens: 64000 } };
+    const older = router.beginStateless(shape);
+    const failed = router.beginStateless(shape);
+    if (!("release" in older) || !("release" in failed)) throw new Error("expected leases");
+    now = new Date(1000);
+    const error = new GatewayError({ code: "rate_limited", message: "limited", httpStatus: 429, retryAfterSeconds: 60 });
+    failed.recordOutcome("rate_limited", error); failed.release();
+    expect(error).toMatchObject({ retryAfterSeconds: 120, rateLimitOrigin: "upstream" });
+    now = new Date(2000);
+    older.recordOutcome("success"); older.release();
+    expect(router.beginStateless(shape)).toMatchObject({ code: "rate_limited", retryAfterSeconds: 119, rateLimitOrigin: "upstream" });
+    expect(router.beginExistingSession("member")).toMatchObject({ retryAfterSeconds: 119, rateLimitOrigin: "upstream" });
+    now = new Date(120999);
+    expect(router.beginStateless(shape)).toMatchObject({ retryAfterSeconds: 1 });
+    now = new Date(121000);
+    const recovered = router.beginStateless(shape);
+    if (!("release" in recovered)) throw recovered;
+    recovered.recordOutcome("success"); recovered.release();
+    expect(router.listAccounts()[0]!.upstreamAccount.cooldownUntil).toBeNull();
+  });
+
+  it("does not let a shorter concurrent failure shorten a provider Retry-After", () => {
+    let now = new Date(0);
+    const router = new UpstreamAccountRouter([runtime("member", { maxConcurrent: 3 })], { now: () => now });
+    const first = router.beginStateless();
+    const second = router.beginStateless();
+    const third = router.beginStateless();
+    if (!("release" in first) || !("release" in second) || !("release" in third)) throw new Error("expected leases");
+    const error = new GatewayError({ code: "rate_limited", message: "limited", httpStatus: 429,
+      retryAfterSeconds: 60, upstreamRetryAfterSeconds: 300 });
+    first.recordOutcome("rate_limited", error); first.release();
+    expect(error).toMatchObject({ retryAfterSeconds: 300, upstreamRetryAfterSeconds: 300 });
+    now = new Date(10001);
+    second.recordOutcome("service_error"); second.release();
+    const later = new GatewayError({ code: "rate_limited", message: "limited", httpStatus: 429,
+      retryAfterSeconds: 60, upstreamRetryAfterSeconds: 0 });
+    third.recordOutcome("rate_limited", later); third.release();
+    expect(later).toMatchObject({ retryAfterSeconds: 290, upstreamRetryAfterSeconds: 0 });
+    expect(router.beginStateless()).toMatchObject({ retryAfterSeconds: 290, rateLimitOrigin: "upstream" });
+  });
+
+  it("does not mislabel concurrency or mixed and restored cooldowns as an upstream 429", () => {
+    const now = new Date(0);
+    const router = new UpstreamAccountRouter([runtime("busy"), runtime("limited")], { now: () => now, softAffinity: "none" });
+    const busy = router.beginStateless();
+    const limited = router.beginStateless();
+    if (!("release" in busy) || !("release" in limited)) throw new Error("expected leases");
+    expect(router.beginStateless()).toMatchObject({ rateLimitOrigin: "gateway", retryAfterSeconds: 1 });
+    limited.recordOutcome("rate_limited"); limited.release();
+    expect(router.beginStateless()).toMatchObject({ rateLimitOrigin: "unknown", retryAfterSeconds: 1 });
+    busy.release();
+    const restored = new UpstreamAccountRouter([runtime("restored", { upstreamAccount: upstreamAccount("restored", {
+      cooldownUntil: new Date(120000)
+    }) })], { now: () => now });
+    expect(restored.beginStateless()).toMatchObject({ rateLimitOrigin: "unknown", retryAfterSeconds: 120 });
+  });
+
   it("rejects a missing quota budget without consuming a lease", () => {
     const router = new UpstreamAccountRouter([runtime("quota-member")], { quotaCooldownMs: 60000 });
     expect(() => router.beginStateless()).toThrow("require a request token budget");

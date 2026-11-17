@@ -30,11 +30,12 @@ describe("streamErrorToGatewayError", () => {
   it.each([0, 10])("preserves an explicit provider Retry-After of %s seconds", (seconds) => {
     const gatewayError = new GatewayError({
       code: "rate_limited", message: "limited", httpStatus: 429,
-      retryAfterSeconds: seconds, upstreamRetryAfterSeconds: seconds
+      retryAfterSeconds: seconds, upstreamRetryAfterSeconds: seconds, rateLimitOrigin: "upstream"
     });
     const error = streamErrorToGatewayError({ code: gatewayError.code, message: gatewayError.message, gatewayError });
     expect(error.retryAfterSeconds).toBe(seconds);
     expect(error.upstreamRetryAfterSeconds).toBe(seconds);
+    expect(error.rateLimitOrigin).toBe("upstream");
   });
 
   it("preserves client abort errors without classifying the upstream as unavailable", () => {

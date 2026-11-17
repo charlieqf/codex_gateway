@@ -1,5 +1,6 @@
 import type { ProviderFailureClassification } from "./provider-failure.js";
 import type { IdentityAuditFacts } from "./identity-request-audit.js";
+import type { RateLimitOrigin } from "./token-budget.js";
 
 export const gatewayErrorCodes = [
   "missing_credential",
@@ -174,7 +175,9 @@ export class GatewayError extends Error {
   readonly identityFailure?: IdentityAuditFacts;
   readonly code: GatewayErrorCode;
   readonly httpStatus: number;
-  readonly retryAfterSeconds?: number;
+  /** The router replaces the provider hint with its effective remaining cooldown. */
+  retryAfterSeconds?: number;
+  rateLimitOrigin?: RateLimitOrigin;
   readonly upstreamRetryAfterSeconds?: number;
   readonly upstreamStatus?: number;
   readonly contractVersion?: number;
@@ -198,6 +201,7 @@ export class GatewayError extends Error {
     message: string;
     httpStatus: number;
     retryAfterSeconds?: number;
+    rateLimitOrigin?: RateLimitOrigin;
     upstreamRetryAfterSeconds?: number;
     upstreamStatus?: number;
     contractVersion?: number;
@@ -222,6 +226,7 @@ export class GatewayError extends Error {
     this.code = input.code;
     this.httpStatus = input.httpStatus;
     this.retryAfterSeconds = input.retryAfterSeconds;
+    this.rateLimitOrigin = input.rateLimitOrigin;
     this.upstreamRetryAfterSeconds = input.upstreamRetryAfterSeconds;
     this.upstreamStatus = input.upstreamStatus;
     this.contractVersion = input.contractVersion;

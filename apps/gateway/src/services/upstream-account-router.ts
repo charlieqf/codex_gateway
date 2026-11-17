@@ -5,6 +5,7 @@ import {
   GatewayError,
   type ProviderAdapter,
   type ProviderKind,
+  type RateLimitOrigin,
   type UpstreamAccount,
   type UpstreamAccountState
 } from "@codex-gateway/core";
@@ -28,7 +29,7 @@ export interface UpstreamAccountSelection {
 export interface UpstreamAccountLease extends UpstreamAccountSelection {
   updateQuotaRequest?(shape: QuotaRequestShape): void;
   release(): void;
-  recordOutcome(outcome: UpstreamAccountOutcome): void;
+  recordOutcome(outcome: UpstreamAccountOutcome, error?: GatewayError): void;
 }
 
 export interface UpstreamImageLease {
@@ -92,6 +93,8 @@ interface UpstreamAccountRuntime {
   weight: number;
   maxConcurrent: number | null;
   inflight: number;
+  failureGeneration: number;
+  cooldownOrigin: RateLimitOrigin;
   quota?: ProviderQuotaCircuit;
   image: {
     state: "active" | "key_invalid" | "unhealthy" | "missing";
@@ -161,6 +164,8 @@ export class UpstreamAccountRouter {
         weight: input.weight ?? 1,
         maxConcurrent: input.maxConcurrent ?? null,
         inflight: 0,
+        failureGeneration: 0,
+        cooldownOrigin: "unknown",
         quota: options.quotaCooldownMs ? new ProviderQuotaCircuit(options.quotaCooldownMs, () => this.now().getTime()) : undefined,
         image: {
           state: input.upstreamAccount.imageApiKeyEnv && input.imageProvider ? "active" : "missing",
@@ -236,7 +241,7 @@ export class UpstreamAccountRouter {
     return this.imageLease(runtime);
   }
 
-  recordOutcome(accountId: string, outcome: UpstreamAccountOutcome): UpstreamAccount | null {
+  recordOutcome(accountId: string, outcome: UpstreamAccountOutcome, retryAfter?: number): UpstreamAccount | null {
     const runtime = this.runtimes.find((candidate) => candidate.upstreamAccount.id === accountId);
     if (!runtime) {
       return null;
@@ -248,18 +253,25 @@ export class UpstreamAccountRouter {
       runtime.upstreamAccount.state = "active";
       runtime.upstreamAccount.lastUsedAt = now;
       runtime.upstreamAccount.cooldownUntil = null;
+      runtime.cooldownOrigin = "unknown";
       this.onAccountUpdated?.(runtime.upstreamAccount);
       return runtime.upstreamAccount;
     }
 
-    const cooldownUntil = new Date(now.getTime() + cooldownSeconds(this.cooldown, outcome) * 1000);
+    runtime.failureGeneration += 1;
+    const delay = Math.max(cooldownSeconds(this.cooldown, outcome), outcome === "rate_limited" ? retryAfter ?? 0 : 0);
+    const cooldownUntil = new Date(now.getTime() + delay * 1000);
     if (outcome === "provider_reauth_required") {
       // Reauth state already excludes the account; cooldown gives operators a clear incident window.
       runtime.upstreamAccount.state = "reauth_required";
     } else {
       runtime.upstreamAccount.state = "active";
     }
-    runtime.upstreamAccount.cooldownUntil = cooldownUntil;
+    // A later, shorter failure must not shorten an already active cooldown.
+    if (!runtime.upstreamAccount.cooldownUntil || cooldownUntil >= runtime.upstreamAccount.cooldownUntil) {
+      runtime.upstreamAccount.cooldownUntil = cooldownUntil;
+      runtime.cooldownOrigin = outcome === "rate_limited" ? "upstream" : "unknown";
+    }
     this.onAccountUpdated?.(runtime.upstreamAccount);
     return runtime.upstreamAccount;
   }
@@ -332,6 +344,7 @@ export class UpstreamAccountRouter {
         code: "rate_limited",
         message: "The upstream account for this session is cooling down.",
         httpStatus: 429,
+        rateLimitOrigin: runtime.cooldownOrigin,
         retryAfterSeconds: retryAfterSeconds(runtime.upstreamAccount, nowMs)
       });
     }
@@ -340,6 +353,7 @@ export class UpstreamAccountRouter {
         code: "rate_limited",
         message: "The upstream account for this session is at its concurrency limit.",
         httpStatus: 429,
+        rateLimitOrigin: "gateway",
         retryAfterSeconds: 1
       });
     }
@@ -439,6 +453,7 @@ export class UpstreamAccountRouter {
         code: "rate_limited",
         message: "All upstream accounts are temporarily busy.",
         httpStatus: 429,
+        rateLimitOrigin: poolRateLimitOrigin(busy, nowMs),
         retryAfterSeconds: Math.min(
           ...busy.map((runtime) => runtimeRetryAfterSeconds(runtime, nowMs))
         )
@@ -484,6 +499,7 @@ export class UpstreamAccountRouter {
       throw new Error("Quota-aware leases require a request token budget.");
     }
     const ticket = runtime.quota && shape ? runtime.quota.begin(shape) : undefined;
+    const generation = runtime.failureGeneration;
     const reportQuota = () => {
       if (runtime.quota) this.onQuotaStateChanged?.(runtime.upstreamAccount.id, runtime.quota.snapshot());
     };
@@ -501,12 +517,20 @@ export class UpstreamAccountRouter {
     return {
       upstreamAccount: runtime.upstreamAccount,
       provider: runtime.provider,
-      recordOutcome: (outcome) => {
+      recordOutcome: (outcome, error) => {
         if (released || outcomeRecorded) return;
         outcomeRecorded = true;
         if (ticket) runtime.quota!.finish(ticket, outcome === "quota_exhausted" ? "quota" : outcome === "success" ? "success" : "other");
-        this.recordOutcome(runtime.upstreamAccount.id, outcome);
+        // A success only proves recovery if no newer failure occurred after admission.
+        if (outcome !== "success" || generation === runtime.failureGeneration) {
+          this.recordOutcome(runtime.upstreamAccount.id, outcome,
+            error?.upstreamRetryAfterSeconds ?? error?.retryAfterSeconds);
+        }
         syncQuota();
+        if (error?.code === "rate_limited") {
+          error.retryAfterSeconds = runtimeRetryAfterSeconds(runtime, this.now().getTime());
+          error.rateLimitOrigin = "upstream";
+        }
         if (ticket && (ticket.recovery || outcome === "quota_exhausted")) reportQuota();
       },
       ...(ticket ? { updateQuotaRequest: (actual: QuotaRequestShape) => {
@@ -814,6 +838,12 @@ function runtimeRetryAfterSeconds(runtime: UpstreamAccountRuntime, nowMs: number
   return isCoolingDown(runtime.upstreamAccount, nowMs)
     ? retryAfterSeconds(runtime.upstreamAccount, nowMs)
     : 1;
+}
+
+function poolRateLimitOrigin(runtimes: UpstreamAccountRuntime[], nowMs: number): RateLimitOrigin {
+  const origins = runtimes.map(runtime => isCoolingDown(runtime.upstreamAccount, nowMs)
+    ? runtime.cooldownOrigin : isAtConcurrencyCap(runtime) ? "gateway" : "unknown");
+  return origins.every(origin => origin === origins[0]) ? origins[0]! : "unknown";
 }
 
 function isImageCoolingDown(runtime: UpstreamAccountRuntime): boolean {

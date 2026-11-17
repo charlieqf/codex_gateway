@@ -479,6 +479,7 @@ export function streamErrorToGatewayError(event: {
       httpStatus: 429,
       retryAfterSeconds: event.gatewayError?.retryAfterSeconds ?? 60,
       upstreamRetryAfterSeconds: event.gatewayError?.upstreamRetryAfterSeconds,
+      rateLimitOrigin: event.gatewayError?.rateLimitOrigin,
       providerFailure: failure
     });
   }

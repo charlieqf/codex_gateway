@@ -7919,6 +7919,16 @@ describe("gateway phase 1 routes", () => {
     });
   });
 
+  it.each(["tencent", "tiankuan"] as const)("preserves the provider wait when switching a rate-limited vision member: %s", async primary => {
+    await runVisionRecoveryFixture({ visionPool: "both", primary, stream: true, tools: true,
+      status: 429, retryAfter: "0", failures: 1 }, ({ response, calls, events }) => {
+      expect(response.statusCode).toBe(200);
+      expect(calls).toBe(2);
+      expect(events[0].upstreamAttempts?.map(attempt => attempt.upstreamRuntime))
+        .toEqual([primary, primary === "tencent" ? "tiankuan" : "tencent"]);
+    });
+  });
+
   it.each(
     ["/v1/chat/completions", "/v1/responses"].flatMap(url =>
       [false, true].flatMap(stream => [false, true].map(tools => ({ url, stream, tools }))))
@@ -14293,11 +14303,11 @@ describe("gateway phase 1 routes", () => {
     expect(response.json().error).toMatchObject({
       code: "rate_limited",
       request_id: requestId,
-      retry_after_seconds: 60,
+      retry_after_seconds: 120,
       limit_kind: null,
       rate_limit_origin: "upstream"
     });
-    expect(response.headers["retry-after"]).toBe("60");
+    expect(response.headers["retry-after"]).toBe("120");
     expect(response.headers["x-gateway-rate-limit-origin"]).toBe("upstream");
     expect(providers.map((provider) => provider.messages.length)).toEqual([1, 1]);
 
@@ -14661,7 +14671,7 @@ describe("gateway phase 1 routes", () => {
     expect(response.payload).toContain('"limit_kind":null');
     expect(response.payload).toContain('"rate_limit_origin":"upstream"');
     expect(response.payload).toContain(`"request_id":"${requestId}"`);
-    expect(response.payload).toContain('"retry_after_seconds":60');
+    expect(response.payload).toContain('"retry_after_seconds":120');
     expect(providers.map((provider) => provider.messages.length)).toEqual([1, 1]);
 
     await app.close();
@@ -16981,6 +16991,59 @@ async function withTemporaryEnv(
 }
 
 describe("GoldenCode native provider failover", () => {
+  it.each(["tencent", "tiankuan"])("keeps the 429 member cold while the other DeepSeek member succeeds: %s", async first => {
+    await runGoldenCodeFailoverFixture({ publicModel: "goldencode-d", first, status: 429, retryAfter: "300" },
+      async ({ app, headers, calls }) => {
+        const payload = { ...nativeFailoverPayload("chat/completions", true), model: "goldencode-d", max_tokens: 64000 };
+        for (let i = 0; i < 2; i++) {
+          const response = await app.inject({ method: "POST", url: "/v1/chat/completions", headers, payload });
+          expect(response.statusCode, response.body).toBe(200);
+          expect(response.body).toContain("call_failover_ok");
+        }
+        const other = first === "tencent" ? "tiankuan" : "tencent";
+        expect(calls.map(call => call.runtime)).toEqual([first, other, other]);
+        for (const call of calls) expect(call.body).toMatchObject({ max_tokens: 64000, reasoning_effort: "high" });
+      });
+  });
+
+  it.each([false, true].flatMap(plain => [false, true].flatMap(stream =>
+    ["chat/completions", "responses"].map(api => ({ plain, stream, api })))))
+  ("keeps 429 cooldown metadata consistent from provider rejection through recovery: $api stream=$stream plain=$plain", async mode => {
+    let now = new Date();
+    await runGoldenCodeFailoverFixture({ publicModel: "goldencode-d", first: "tencent", disabledMember: "tiankuan",
+      status: 429, retryAfter: "30", recover: true, plain: mode.plain, clock: () => now }, async ({ app, headers, calls }) => {
+      const payload = nativeFailoverPayload(mode.api, mode.stream);
+      payload.model = "goldencode-d";
+      if (mode.api === "responses") payload.max_output_tokens = 64000;
+      else payload.max_tokens = 64000;
+      if (mode.plain) { delete payload.tools; delete payload.tool_choice; }
+      const first = await app.inject({ method: "POST", url: `/v1/${mode.api}`, headers, payload });
+      expect(publicFailoverError(first.body)).toMatchObject({ code: "rate_limited", retry_after_seconds: 120,
+        rate_limit_origin: "upstream", limit_kind: null, automatic_retry_allowed: false });
+      if (first.statusCode === 429) {
+        expect(first.headers["retry-after"]).toBe("120");
+        expect(first.headers["x-gateway-rate-limit-origin"]).toBe("upstream");
+      }
+      expect(calls.map(call => call.runtime)).toEqual(["tencent"]);
+      expect(calls[0]!.body).toMatchObject({ max_tokens: 64000, reasoning_effort: "high" });
+
+      now = new Date(now.getTime() + 30001);
+      const cooling = await app.inject({ method: "POST", url: `/v1/${mode.api}`, headers, payload: { ...payload, stream: false } });
+      expect(cooling.statusCode).toBe(429);
+      expect(cooling.json().error).toMatchObject({ code: "rate_limited", retry_after_seconds: 90,
+        rate_limit_origin: "upstream", limit_kind: null });
+      expect(cooling.headers["retry-after"]).toBe("90");
+      expect(cooling.headers["x-gateway-rate-limit-origin"]).toBe("upstream");
+      expect(calls).toHaveLength(1);
+
+      now = new Date(now.getTime() + 90000);
+      const recovered = await app.inject({ method: "POST", url: `/v1/${mode.api}`, headers, payload });
+      expect(recovered.statusCode, recovered.body).toBe(200);
+      expect(recovered.body).toContain(mode.plain ? "failover text ok" : "call_failover_ok");
+      expect(calls.map(call => call.runtime)).toEqual(["tencent", "tencent"]);
+    });
+  });
+
   it.each(["reset", "eof"].flatMap(reasoningBreak => [false, true].flatMap(stream =>
     ["chat/completions", "responses"].flatMap(api => (["none", "estimate", "reserve"] as const)
       .map(missingUsageCharge => ({ reasoningBreak, stream, api, missingUsageCharge }))))))(
@@ -17657,7 +17720,7 @@ function nativeFailoverPayload(api: string, stream: boolean): Record<string, unk
 
 async function runGoldenCodeFailoverFixture(options: {
   publicModel?: "goldencode" | "goldencode-d";
-  first?: string; bothFail?: boolean; status?: number | "reset"; enabled?: boolean;
+  first?: string; bothFail?: boolean; status?: number | "reset"; enabled?: boolean; retryAfter?: string;
   members?: string[]; second?: string;
   repairThenFail?: boolean; cooldown?: string; clock?: () => Date; recover?: boolean;
   disabledMember?: string; subjects?: string; fallbackInvalid?: boolean; repairSuccess?: boolean; partial?: boolean; plain?: boolean;
@@ -17703,7 +17766,8 @@ async function runGoldenCodeFailoverFixture(options: {
     if (options.status === "reset" && runtime === first) { response.destroy(); return; }
     const repair = ((options.repairThenFail || options.repairSuccess) && calls.length === 1) || (options.fallbackInvalid && calls.length === 2);
     if (!repair && !options.repairSuccess && !options.partial && (options.bothFail || (runtime === first && (!options.recover || calls.length === 1)))) {
-      response.writeHead(typeof options.status === "number" ? options.status : 402, { "content-type": "application/json" });
+      response.writeHead(typeof options.status === "number" ? options.status : 402, { "content-type": "application/json",
+        ...(options.retryAfter !== undefined ? { "retry-after": options.retryAfter } : {}) });
       response.end(JSON.stringify({ error: { message: "enterprise quota exhausted" }, request_id: "quota_test_request" }));
       return;
     }

@@ -40,7 +40,7 @@ export function applyGatewayErrorHeaders(
     reply.header("x-gateway-limit-kind", context.limitKind);
   }
   if (error.code === "rate_limited") {
-    reply.header("x-gateway-rate-limit-origin", rateLimitOrigin(context));
+    reply.header("x-gateway-rate-limit-origin", rateLimitOrigin(error, context));
   }
 }
 
@@ -98,7 +98,7 @@ export function gatewayErrorMetadata(
       error.code === "service_unavailable" ||
       error.code === "client_aborted" ||
       (context.visionRecovery && ["tool_call_validation_failed", "tool_call_output_truncated", "output_length_exceeded"].includes(error.code)) ||
-      (error.code === "rate_limited" && rateLimitOrigin(context) === "upstream")
+      (error.code === "rate_limited" && rateLimitOrigin(error, context) === "upstream")
     )
       ? { retry_contract_version: 1, automatic_retry_allowed: false }
       : {}),
@@ -147,7 +147,7 @@ export function gatewayErrorMetadata(
       ? {
           rate_limit_contract_version: 1,
           limit_kind: context.limitKind ?? null,
-          rate_limit_origin: rateLimitOrigin(context)
+          rate_limit_origin: rateLimitOrigin(error, context)
         }
       : {}),
     ...(context.limitDetails
@@ -203,6 +203,6 @@ export function researchErrorPayload(
   };
 }
 
-function rateLimitOrigin(context: GatewayErrorResponseContext): RateLimitOrigin {
-  return context.rateLimitOrigin ?? (context.limitKind ? "gateway" : "unknown");
+function rateLimitOrigin(error: GatewayError, context: GatewayErrorResponseContext): RateLimitOrigin {
+  return context.rateLimitOrigin ?? (context.limitKind ? "gateway" : error.rateLimitOrigin ?? "unknown");
 }

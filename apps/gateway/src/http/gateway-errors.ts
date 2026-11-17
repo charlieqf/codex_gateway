@@ -48,6 +48,10 @@ export function writeOpenAIStreamError(
   }
 
   applyGatewayErrorHeaders(reply, error, errorContext);
+  // Hijacked SSE responses bypass Fastify's normal header flush.
+  for (const [name, value] of Object.entries(reply.getHeaders())) {
+    if (value !== undefined) reply.raw.setHeader(name, value);
+  }
   reply.raw.statusCode = error.httpStatus;
   reply.raw.setHeader("content-type", "application/json; charset=utf-8");
   reply.raw.setHeader("cache-control", "no-store");
@@ -111,6 +115,10 @@ function inferUpstreamRateLimitOrigin(
   error: GatewayError
 ): void {
   if (error.code !== "rate_limited" || request.gatewayLimitKind) {
+    return;
+  }
+  if (error.rateLimitOrigin) {
+    markRateLimitOrigin(request, error.rateLimitOrigin);
     return;
   }
   if (

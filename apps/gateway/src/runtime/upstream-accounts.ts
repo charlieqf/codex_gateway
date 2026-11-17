@@ -288,13 +288,12 @@ export function isStatelessRetryableProviderError(error: GatewayError): boolean 
 }
 
 export function recordUpstreamErrorOutcome(
-  router: UpstreamAccountRouter,
   lease: UpstreamAccountLease,
   error: GatewayError
 ): boolean {
   const outcome = upstreamOutcomeFromError(error);
   if (outcome) {
-    router.recordOutcome(lease.upstreamAccount.id, outcome);
+    lease.recordOutcome(outcome, error);
     return true;
   }
   return false;
