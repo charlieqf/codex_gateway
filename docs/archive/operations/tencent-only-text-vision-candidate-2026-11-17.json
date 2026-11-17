@@ -1,0 +1,650 @@
+{
+  "status": "candidate_verified_deployment_blocked_by_natural_idle_requirement",
+  "verified_at": "2026-11-17T03:05:16.868551+00:00",
+  "candidate_revision": "b155a473d0cd7c5ad0e0051999d89e7fd049dd4a",
+  "production_revision": "671f6309327104b3f8fcf930745705653a1c135b",
+  "production_container_unchanged": true,
+  "production_config_unchanged": true,
+  "public_health": [
+    {
+      "http": 200,
+      "state": "ready",
+      "draining": false
+    },
+    {
+      "http": 200,
+      "state": "ready",
+      "draining": false
+    }
+  ],
+  "scope": {
+    "text": [
+      "goldencode-d"
+    ],
+    "vision": [
+      "goldencode",
+      "goldencode-d"
+    ],
+    "enabled_provider": "tencent",
+    "disabled_provider": "tiankuan",
+    "max_output_tokens": 128000,
+    "tested_request_output_budget": 64000,
+    "tested_reasoning_effort": "high"
+  },
+  "checks": [
+    {
+      "label": "real-tool-1",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "attempts": 1,
+      "wire": [
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        }
+      ]
+    },
+    {
+      "label": "real-tool-2",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "attempts": 1,
+      "wire": [
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        }
+      ]
+    },
+    {
+      "label": "real-tool-3",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "attempts": 1,
+      "wire": [
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        }
+      ]
+    },
+    {
+      "label": "real-tool-4",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "attempts": 1,
+      "wire": [
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        }
+      ]
+    },
+    {
+      "label": "real-tool-5",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "attempts": 1,
+      "wire": [
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        }
+      ]
+    },
+    {
+      "label": "real-tool-6",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "attempts": 1,
+      "wire": [
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        }
+      ]
+    },
+    {
+      "label": "real-tool-7",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "attempts": 1,
+      "wire": [
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        }
+      ]
+    },
+    {
+      "label": "real-tool-8",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "attempts": 1,
+      "wire": [
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        }
+      ]
+    },
+    {
+      "label": "real-responses",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "attempts": 1,
+      "wire": [
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        }
+      ]
+    },
+    {
+      "label": "vision-goldencode-chat-completions-false",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "attempts": 1,
+      "wire": [
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        }
+      ]
+    },
+    {
+      "label": "vision-goldencode-chat-completions-true",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "attempts": 1,
+      "wire": [
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        }
+      ]
+    },
+    {
+      "label": "vision-goldencode-responses-false",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "attempts": 1,
+      "wire": [
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        }
+      ]
+    },
+    {
+      "label": "vision-goldencode-responses-true",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "attempts": 1,
+      "wire": [
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        }
+      ]
+    },
+    {
+      "label": "vision-goldencode-d-chat-completions-false",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "attempts": 1,
+      "wire": [
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        }
+      ]
+    },
+    {
+      "label": "vision-goldencode-d-chat-completions-true",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "attempts": 1,
+      "wire": [
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        }
+      ]
+    },
+    {
+      "label": "vision-goldencode-d-responses-false",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "attempts": 1,
+      "wire": [
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        }
+      ]
+    },
+    {
+      "label": "vision-goldencode-d-responses-true",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "attempts": 1,
+      "wire": [
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        }
+      ]
+    },
+    {
+      "label": "vision-tool-1",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "attempts": 1,
+      "wire": [
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        }
+      ]
+    },
+    {
+      "label": "vision-tool-2",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "attempts": 1,
+      "wire": [
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        }
+      ]
+    },
+    {
+      "label": "vision-tool-3",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "attempts": 1,
+      "wire": [
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        }
+      ]
+    },
+    {
+      "label": "vision-tool-4",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "attempts": 1,
+      "wire": [
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        }
+      ]
+    },
+    {
+      "label": "vision-tool-5",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "attempts": 1,
+      "wire": [
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        }
+      ]
+    },
+    {
+      "label": "vision-tool-6",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "attempts": 1,
+      "wire": [
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        }
+      ]
+    },
+    {
+      "label": "vision-tool-7",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "attempts": 1,
+      "wire": [
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        }
+      ]
+    },
+    {
+      "label": "vision-tool-8",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "attempts": 1,
+      "wire": [
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        }
+      ]
+    },
+    {
+      "label": "fault-native",
+      "http": 503,
+      "status": "error",
+      "error": "upstream_unavailable",
+      "runtime": "tencent",
+      "attempts": 1,
+      "wire": [
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        }
+      ]
+    },
+    {
+      "label": "fault-text",
+      "http": 503,
+      "status": "error",
+      "error": "upstream_unavailable",
+      "runtime": "tencent",
+      "attempts": 1,
+      "wire": [
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        }
+      ]
+    },
+    {
+      "label": "validation-repair",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "attempts": 2,
+      "wire": [
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        },
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        }
+      ]
+    },
+    {
+      "label": "vision-fault-native",
+      "http": 503,
+      "status": "error",
+      "error": "upstream_unavailable",
+      "runtime": "tencent",
+      "attempts": 1,
+      "wire": [
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        }
+      ]
+    },
+    {
+      "label": "vision-fault-text",
+      "http": 503,
+      "status": "error",
+      "error": "upstream_unavailable",
+      "runtime": "tencent",
+      "attempts": 1,
+      "wire": [
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        }
+      ]
+    },
+    {
+      "label": "vision-validation-repair",
+      "http": 200,
+      "status": "ok",
+      "error": null,
+      "runtime": "tencent",
+      "attempts": 2,
+      "wire": [
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        },
+        {
+          "target": "tencent",
+          "model": "deepseek-v4.1-flash-1017",
+          "max_tokens": 64000,
+          "effort": "high",
+          "stream": true
+        }
+      ]
+    }
+  ],
+  "preflight": {
+    "revision": "b155a473d0cd7c5ad0e0051999d89e7fd049dd4a",
+    "image_id": "sha256:6f403caef8505ccf329326f15abd0e34d75c5096e194602227668782fe9de368",
+    "candidate_sha256": "92a8b544f3f0a4c9963f7fff0185b083d13477800b4835e17c68090d8db6069e",
+    "preflight_rc": 0,
+    "cases": [
+      {
+        "case": "vision-real",
+        "rc": 0
+      },
+      {
+        "case": "fault-native",
+        "rc": 0
+      },
+      {
+        "case": "fault-text",
+        "rc": 0
+      },
+      {
+        "case": "validation-repair",
+        "rc": 0
+      },
+      {
+        "case": "vision-fault-native",
+        "rc": 0
+      },
+      {
+        "case": "vision-fault-text",
+        "rc": 0
+      },
+      {
+        "case": "vision-validation-repair",
+        "rc": 0
+      }
+    ],
+    "real_checks": 25,
+    "reused_passed_checks": 11
+  },
+  "local_and_image_validation": {
+    "typescript": true,
+    "typescript_tests": 181,
+    "python_tests": 10
+  },
+  "db_rehearsal": {
+    "schema": 46,
+    "opened": true
+  },
+  "backup": "/opt/codex-gateway-r760/backups/release-b155a473d0cd",
+  "db_backup": "/data/backups/codex-gateway-daily/20261117T021652Z",
+  "cutover_blocker": "Both 900-second attempts expired without a 30-second natural idle window. User explicitly retained this requirement. Both release processes exited; admission is open.",
+  "upstream_max_completion_tokens_error_reproduced": false,
+  "probe_correction": "Responses image probe initially omitted type=message and was rejected locally before upstream; corrected remaining checks passed and 11 unchanged passed checks were reused.",
+  "build_correction": "Static base image flattened from 371 layers; runtime configuration and healthcheck preserved. Candidate has 4 layers.",
+  "public_model_smoke_after_cutover": "not_run_no_cutover",
+  "user_confirmed_keep_30_second_idle_window": true,
+  "cutover_attempts": [
+    {
+      "attempt": 1,
+      "idle_timeout_seconds": 900,
+      "result": "no_continuous_30_second_idle_window",
+      "production_changed": false
+    },
+    {
+      "attempt": 2,
+      "idle_timeout_seconds": 900,
+      "result": "no_continuous_30_second_idle_window",
+      "production_changed": false
+    }
+  ],
+  "deployment_process_running": false,
+  "production_restart_count": 0,
+  "other_containers_preserved": true,
+  "previous_release": "/opt/codex-gateway-r760/releases/832e0ea8a5df86355ec6e3e900a4f6d85e89cd41"
+}

@@ -3,6 +3,28 @@
 For a recent 12/24-hour service check, use the fixed
 [read-only review command](./gateway-service-review.zh-CN.md).
 
+## Pending Tencent-only Text and Vision Candidate (2026-11-17)
+
+Candidate `b155a473d0cd7c5ad0e0051999d89e7fd049dd4a` adds Tencent/TianKuan
+vision pools. Its reviewed temporary configuration enables only Tencent for
+`goldencode-d` text and both cloud vision routes (`goldencode`, `goldencode-d`).
+Existing context/output limits are preserved: DeepSeek text 1,024,000 context,
+vision 200,000 context, maximum generation 128,000. The candidate passed 181
+focused TypeScript tests, 10 configuration-helper tests, the build and schema-46
+backup rehearsal. Exact-image preflight passed 25 real high/64,000 calls,
+including both APIs, streaming and eight consecutive text and image tool rounds,
+plus six injected failure/repair checks that never called TianKuan.
+
+**Not deployed.** Two 900-second release attempts found no continuous 30-second
+natural-idle window. The operator explicitly retained that requirement. Both
+release processes exited; no background cutover is pending. At
+2026-11-17T03:05:16Z, production still ran `671f6309327104b3f8fcf930745705653a1c135b`
+with the same container, image, configuration and zero restarts; admission was
+open and two consecutive public health checks passed. DeepSeek text therefore remains
+Tencent/TianKuan and vision remains TianKuan until a future successful cutover.
+The immutable candidate and protected backup are retained; post-cutover public
+model smokes have not run. See the [candidate evidence](../archive/operations/tencent-only-text-vision-candidate-2026-11-17.json).
+
 ## Latest Gateway Deployment Verification
 
 Gateway `671f6309327104b3f8fcf930745705653a1c135b` is live as of
