@@ -1,0 +1,600 @@
+{
+  "revision": "b155a473d0cd7c5ad0e0051999d89e7fd049dd4a",
+  "previous": "671f6309327104b3f8fcf930745705653a1c135b",
+  "schema": 46,
+  "operation": "tencent-only-deepseek-text-and-cloud-vision",
+  "started_at": "2026-11-17T04:05:03.523130+00:00",
+  "completed_at": "2026-11-17T04:13:41.858506+00:00",
+  "changed_env": [
+    "MEDCODE_PUBLIC_MODELS_JSON"
+  ],
+  "protected_files_preserved": 18,
+  "other_containers_preserved": 3,
+  "image_id": "sha256:6f403caef8505ccf329326f15abd0e34d75c5096e194602227668782fe9de368",
+  "status": "deployed_and_publicly_verified",
+  "verified_at": "2026-11-17T04:20:16.782052+00:00",
+  "current": "/opt/codex-gateway-r760/releases/b155a473d0cd7c5ad0e0051999d89e7fd049dd4a",
+  "container_id": "106b1877989f34e99c1289685cff939332732616b335e4ffffdd6c4b74136d05",
+  "health": "healthy",
+  "restart_count": 0,
+  "oom_killed": false,
+  "public_health": [
+    {
+      "http": 200,
+      "state": "ready",
+      "draining": false
+    },
+    {
+      "http": 200,
+      "state": "ready",
+      "draining": false
+    }
+  ],
+  "scope": {
+    "text": [
+      "goldencode-d"
+    ],
+    "vision": [
+      "goldencode",
+      "goldencode-d"
+    ],
+    "only_enabled_provider": "tencent",
+    "dual_provider_vision_supported": true,
+    "tencent_upstream_model": "deepseek-v4.1-flash-1017",
+    "max_output_tokens": 128000,
+    "deepseek_text_context": 1024000,
+    "vision_context": 200000
+  },
+  "validation": {
+    "typescript_tests": 181,
+    "python_tests": 10,
+    "candidate_real_calls": 25,
+    "initial_fault_repair_checks": 6,
+    "additional_vision_contract_fault_checks": [
+      {
+        "case": "vision-fault-native",
+        "rc": 0
+      },
+      {
+        "case": "vision-fault-text",
+        "rc": 0
+      },
+      {
+        "case": "vision-validation-repair",
+        "rc": 0
+      }
+    ],
+    "public_checks": [
+      {
+        "label": "tool-round-1",
+        "request_id": "req-de9b33aa-d2d8-43ab-ada4-6c6bd045431a",
+        "http": 200,
+        "status": "ok",
+        "error": null,
+        "runtime": "tencent",
+        "model": "deepseek-v4.1-flash-1017",
+        "budget": 64000,
+        "effort": "high",
+        "attempts": [
+          {
+            "runtime": "tencent",
+            "kind": "native_initial",
+            "error": null
+          }
+        ],
+        "ledger_finalized": true
+      },
+      {
+        "label": "tool-round-2",
+        "request_id": "req-581dbc84-5a17-4b9f-afd0-3e504f1a6870",
+        "http": 200,
+        "status": "ok",
+        "error": null,
+        "runtime": "tencent",
+        "model": "deepseek-v4.1-flash-1017",
+        "budget": 64000,
+        "effort": "high",
+        "attempts": [
+          {
+            "runtime": "tencent",
+            "kind": "native_initial",
+            "error": null
+          }
+        ],
+        "ledger_finalized": true
+      },
+      {
+        "label": "tool-round-3",
+        "request_id": "req-25f980a3-f06d-4ca8-980e-208288037c92",
+        "http": 200,
+        "status": "ok",
+        "error": null,
+        "runtime": "tencent",
+        "model": "deepseek-v4.1-flash-1017",
+        "budget": 64000,
+        "effort": "high",
+        "attempts": [
+          {
+            "runtime": "tencent",
+            "kind": "native_initial",
+            "error": null
+          }
+        ],
+        "ledger_finalized": true
+      },
+      {
+        "label": "tool-round-4",
+        "request_id": "req-dede7e2a-bf69-4bd6-b501-c19d5b037c0d",
+        "http": 200,
+        "status": "ok",
+        "error": null,
+        "runtime": "tencent",
+        "model": "deepseek-v4.1-flash-1017",
+        "budget": 64000,
+        "effort": "high",
+        "attempts": [
+          {
+            "runtime": "tencent",
+            "kind": "native_initial",
+            "error": null
+          }
+        ],
+        "ledger_finalized": true
+      },
+      {
+        "label": "tool-round-5",
+        "request_id": "req-8b5a8e7a-7a2b-46f5-ad8b-c65cc1a0d17c",
+        "http": 200,
+        "status": "ok",
+        "error": null,
+        "runtime": "tencent",
+        "model": "deepseek-v4.1-flash-1017",
+        "budget": 64000,
+        "effort": "high",
+        "attempts": [
+          {
+            "runtime": "tencent",
+            "kind": "native_initial",
+            "error": null
+          }
+        ],
+        "ledger_finalized": true
+      },
+      {
+        "label": "tool-round-6",
+        "request_id": "req-f5bd15bb-29f6-4039-bf81-aaaffb6c5e8a",
+        "http": 200,
+        "status": "ok",
+        "error": null,
+        "runtime": "tencent",
+        "model": "deepseek-v4.1-flash-1017",
+        "budget": 64000,
+        "effort": "high",
+        "attempts": [
+          {
+            "runtime": "tencent",
+            "kind": "native_initial",
+            "error": null
+          }
+        ],
+        "ledger_finalized": true
+      },
+      {
+        "label": "tool-round-7",
+        "request_id": "req-af2b345a-78e2-42a5-aa4d-3fcbbe764740",
+        "http": 200,
+        "status": "ok",
+        "error": null,
+        "runtime": "tencent",
+        "model": "deepseek-v4.1-flash-1017",
+        "budget": 64000,
+        "effort": "high",
+        "attempts": [
+          {
+            "runtime": "tencent",
+            "kind": "native_initial",
+            "error": null
+          }
+        ],
+        "ledger_finalized": true
+      },
+      {
+        "label": "tool-round-8",
+        "request_id": "req-c74ed442-7c34-4fb5-a34f-b4a58664bfed",
+        "http": 200,
+        "status": "ok",
+        "error": null,
+        "runtime": "tencent",
+        "model": "deepseek-v4.1-flash-1017",
+        "budget": 64000,
+        "effort": "high",
+        "attempts": [
+          {
+            "runtime": "tencent",
+            "kind": "native_initial",
+            "error": null
+          }
+        ],
+        "ledger_finalized": true
+      },
+      {
+        "label": "responses-stream",
+        "request_id": "req-2ac2870b-3d88-4f97-967d-8efc338415b6",
+        "http": 200,
+        "status": "ok",
+        "error": null,
+        "runtime": "tencent",
+        "model": "deepseek-v4.1-flash-1017",
+        "budget": 64000,
+        "effort": "high",
+        "attempts": [
+          {
+            "runtime": "tencent",
+            "kind": "primary",
+            "error": null
+          }
+        ],
+        "ledger_finalized": true
+      },
+      {
+        "label": "vision-goldencode-chat-completions-false",
+        "request_id": "req-a5eb2d7c-1f64-4654-975b-be1726a40c83",
+        "http": 200,
+        "status": "ok",
+        "error": null,
+        "runtime": "tencent",
+        "model": "deepseek-v4.1-flash-1017",
+        "budget": 64000,
+        "effort": "high",
+        "attempts": [
+          {
+            "runtime": "tencent",
+            "kind": "primary",
+            "error": null
+          }
+        ],
+        "ledger_finalized": true
+      },
+      {
+        "label": "vision-goldencode-chat-completions-true",
+        "request_id": "req-9751aebe-927a-465e-925d-2d1bad286822",
+        "http": 200,
+        "status": "ok",
+        "error": null,
+        "runtime": "tencent",
+        "model": "deepseek-v4.1-flash-1017",
+        "budget": 64000,
+        "effort": "high",
+        "attempts": [
+          {
+            "runtime": "tencent",
+            "kind": "primary",
+            "error": null
+          }
+        ],
+        "ledger_finalized": true
+      },
+      {
+        "label": "vision-goldencode-responses-false",
+        "request_id": "req-d4a7ca87-6e28-466f-8fe1-6b270d6c5f6b",
+        "http": 200,
+        "status": "ok",
+        "error": null,
+        "runtime": "tencent",
+        "model": "deepseek-v4.1-flash-1017",
+        "budget": 64000,
+        "effort": "high",
+        "attempts": [
+          {
+            "runtime": "tencent",
+            "kind": "primary",
+            "error": null
+          }
+        ],
+        "ledger_finalized": true
+      },
+      {
+        "label": "vision-goldencode-responses-true",
+        "request_id": "req-8fc568dd-b26e-4af2-be7c-6efa52a535a9",
+        "http": 200,
+        "status": "ok",
+        "error": null,
+        "runtime": "tencent",
+        "model": "deepseek-v4.1-flash-1017",
+        "budget": 64000,
+        "effort": "high",
+        "attempts": [
+          {
+            "runtime": "tencent",
+            "kind": "primary",
+            "error": null
+          }
+        ],
+        "ledger_finalized": true
+      },
+      {
+        "label": "vision-goldencode-d-chat-completions-false",
+        "request_id": "req-c8af474c-bd35-4f2a-b1ae-e99a5bcd2535",
+        "http": 200,
+        "status": "ok",
+        "error": null,
+        "runtime": "tencent",
+        "model": "deepseek-v4.1-flash-1017",
+        "budget": 64000,
+        "effort": "high",
+        "attempts": [
+          {
+            "runtime": "tencent",
+            "kind": "primary",
+            "error": null
+          }
+        ],
+        "ledger_finalized": true
+      },
+      {
+        "label": "vision-goldencode-d-chat-completions-true",
+        "request_id": "req-d1cd9da7-8de6-497d-8454-7f036a7ea39b",
+        "http": 200,
+        "status": "ok",
+        "error": null,
+        "runtime": "tencent",
+        "model": "deepseek-v4.1-flash-1017",
+        "budget": 64000,
+        "effort": "high",
+        "attempts": [
+          {
+            "runtime": "tencent",
+            "kind": "primary",
+            "error": null
+          }
+        ],
+        "ledger_finalized": true
+      },
+      {
+        "label": "vision-goldencode-d-responses-false",
+        "request_id": "req-72721024-d4d3-4b41-8fe1-8db78cc88ecb",
+        "http": 200,
+        "status": "ok",
+        "error": null,
+        "runtime": "tencent",
+        "model": "deepseek-v4.1-flash-1017",
+        "budget": 64000,
+        "effort": "high",
+        "attempts": [
+          {
+            "runtime": "tencent",
+            "kind": "primary",
+            "error": null
+          }
+        ],
+        "ledger_finalized": true
+      },
+      {
+        "label": "vision-goldencode-d-responses-true",
+        "request_id": "req-79ddfd8e-e944-44b8-bd98-5a64d1a80ac3",
+        "http": 200,
+        "status": "ok",
+        "error": null,
+        "runtime": "tencent",
+        "model": "deepseek-v4.1-flash-1017",
+        "budget": 64000,
+        "effort": "high",
+        "attempts": [
+          {
+            "runtime": "tencent",
+            "kind": "primary",
+            "error": null
+          }
+        ],
+        "ledger_finalized": true
+      },
+      {
+        "label": "vision-tool-round-1",
+        "request_id": "req-6fc46dd8-6225-4e66-bcb9-f75289fa7220",
+        "http": 200,
+        "status": "ok",
+        "error": null,
+        "runtime": "tencent",
+        "model": "deepseek-v4.1-flash-1017",
+        "budget": 64000,
+        "effort": "high",
+        "attempts": [
+          {
+            "runtime": "tencent",
+            "kind": "native_initial",
+            "error": null
+          }
+        ],
+        "ledger_finalized": true
+      },
+      {
+        "label": "vision-tool-round-2",
+        "request_id": "req-61b36cc1-0a5f-4b42-a710-0df4fe14552d",
+        "http": 200,
+        "status": "ok",
+        "error": null,
+        "runtime": "tencent",
+        "model": "deepseek-v4.1-flash-1017",
+        "budget": 64000,
+        "effort": "high",
+        "attempts": [
+          {
+            "runtime": "tencent",
+            "kind": "native_initial",
+            "error": null
+          }
+        ],
+        "ledger_finalized": true
+      },
+      {
+        "label": "vision-tool-round-3",
+        "request_id": "req-759d4ff9-a278-4253-b5d3-ffbcee66cbac",
+        "http": 200,
+        "status": "ok",
+        "error": null,
+        "runtime": "tencent",
+        "model": "deepseek-v4.1-flash-1017",
+        "budget": 64000,
+        "effort": "high",
+        "attempts": [
+          {
+            "runtime": "tencent",
+            "kind": "native_initial",
+            "error": null
+          }
+        ],
+        "ledger_finalized": true
+      },
+      {
+        "label": "vision-tool-round-4",
+        "request_id": "req-85977a7d-8408-49fa-9a74-2e18d314b035",
+        "http": 200,
+        "status": "ok",
+        "error": null,
+        "runtime": "tencent",
+        "model": "deepseek-v4.1-flash-1017",
+        "budget": 64000,
+        "effort": "high",
+        "attempts": [
+          {
+            "runtime": "tencent",
+            "kind": "native_initial",
+            "error": null
+          }
+        ],
+        "ledger_finalized": true
+      },
+      {
+        "label": "vision-tool-round-5",
+        "request_id": "req-dd8fcd1f-de45-46a1-8bac-91340135668a",
+        "http": 200,
+        "status": "ok",
+        "error": null,
+        "runtime": "tencent",
+        "model": "deepseek-v4.1-flash-1017",
+        "budget": 64000,
+        "effort": "high",
+        "attempts": [
+          {
+            "runtime": "tencent",
+            "kind": "native_initial",
+            "error": null
+          }
+        ],
+        "ledger_finalized": true
+      },
+      {
+        "label": "vision-tool-round-6",
+        "request_id": "req-c4a15e75-2226-44ea-a187-6ad0d0e16b9f",
+        "http": 200,
+        "status": "ok",
+        "error": null,
+        "runtime": "tencent",
+        "model": "deepseek-v4.1-flash-1017",
+        "budget": 64000,
+        "effort": "high",
+        "attempts": [
+          {
+            "runtime": "tencent",
+            "kind": "native_initial",
+            "error": null
+          }
+        ],
+        "ledger_finalized": true
+      },
+      {
+        "label": "vision-tool-round-7",
+        "request_id": "req-3b1770e4-8932-406b-ac49-ea7603c3ba2c",
+        "http": 200,
+        "status": "ok",
+        "error": null,
+        "runtime": "tencent",
+        "model": "deepseek-v4.1-flash-1017",
+        "budget": 64000,
+        "effort": "high",
+        "attempts": [
+          {
+            "runtime": "tencent",
+            "kind": "native_initial",
+            "error": null
+          }
+        ],
+        "ledger_finalized": true
+      },
+      {
+        "label": "vision-tool-round-8",
+        "request_id": "req-4a783af2-9960-4f5e-9958-58016338af6d",
+        "http": 200,
+        "status": "ok",
+        "error": null,
+        "runtime": "tencent",
+        "model": "deepseek-v4.1-flash-1017",
+        "budget": 64000,
+        "effort": "high",
+        "attempts": [
+          {
+            "runtime": "tencent",
+            "kind": "native_initial",
+            "error": null
+          }
+        ],
+        "ledger_finalized": true
+      }
+    ],
+    "public_checks_passed": 25,
+    "public_text_rounds": 8,
+    "public_image_tool_rounds": 8,
+    "request_output_budget": 64000,
+    "reasoning_effort": "high",
+    "temporary_production_accounts_created": 0,
+    "all_probe_reservations_finalized": true
+  },
+  "post_cutover_traffic": [
+    {
+      "public_model_id": "goldencode",
+      "upstream_runtime": "tencent",
+      "status": "ok",
+      "error_code": null,
+      "requests": 5
+    },
+    {
+      "public_model_id": "goldencode-d",
+      "upstream_runtime": "tencent",
+      "status": "ok",
+      "error_code": null,
+      "requests": 21
+    }
+  ],
+  "post_cutover_tiankuan_attempts_in_scope": 0,
+  "warning_error_log_counts": {},
+  "idle_window": {
+    "continuous_seconds": 30,
+    "preceding_900_second_timeouts": 5,
+    "successful_attempt": 6,
+    "admission_open_during_wait": true
+  },
+  "cutover_public_unready": {
+    "sample_count": 10,
+    "first": {
+      "at": "2026-11-17T04:13:29.301698+00:00",
+      "http": 503
+    },
+    "last": {
+      "at": "2026-11-17T04:13:33.984034+00:00",
+      "http": 502
+    },
+    "first_ready_after": {
+      "at": "2026-11-17T04:13:34.502869+00:00",
+      "http": 200,
+      "ready": true
+    },
+    "observed_seconds": 5.201171
+  },
+  "backup": "/opt/codex-gateway-r760/backups/release-b155a473d0cd",
+  "candidate_evidence": "tencent-only-text-vision-candidate-2026-11-17.json",
+  "probe_corrections": [
+    "Preflight Responses image input initially omitted type=message; fixed without code/config change; reused 11 unchanged passed checks.",
+    "Initial public image probe expected opt-in attempt image counts without x-medcode-vision-recovery-contract:1. Successful image request was followed by corrected v1 vision checks; reused nine completed text checks."
+  ],
+  "limits": "Synthetic contract/OCR and requested budgets verified; not a maximum-length generation or broad model-quality benchmark. Tencent previously reported max_completion_tokens errors were not reproduced in these probes."
+}

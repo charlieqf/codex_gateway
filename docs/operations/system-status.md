@@ -3,29 +3,46 @@
 For a recent 12/24-hour service check, use the fixed
 [read-only review command](./gateway-service-review.zh-CN.md).
 
-## Pending Tencent-only Text and Vision Candidate (2026-11-17)
-
-Candidate `b155a473d0cd7c5ad0e0051999d89e7fd049dd4a` adds Tencent/TianKuan
-vision pools. Its reviewed temporary configuration enables only Tencent for
-`goldencode-d` text and both cloud vision routes (`goldencode`, `goldencode-d`).
-Existing context/output limits are preserved: DeepSeek text 1,024,000 context,
-vision 200,000 context, maximum generation 128,000. The candidate passed 181
-focused TypeScript tests, 10 configuration-helper tests, the build and schema-46
-backup rehearsal. Exact-image preflight passed 25 real high/64,000 calls,
-including both APIs, streaming and eight consecutive text and image tool rounds,
-plus six injected failure/repair checks that never called TianKuan.
-
-**Not deployed.** Two 900-second release attempts found no continuous 30-second
-natural-idle window. The operator explicitly retained that requirement. Both
-release processes exited; no background cutover is pending. At
-2026-11-17T03:05:16Z, production still ran `671f6309327104b3f8fcf930745705653a1c135b`
-with the same container, image, configuration and zero restarts; admission was
-open and two consecutive public health checks passed. DeepSeek text therefore remains
-Tencent/TianKuan and vision remains TianKuan until a future successful cutover.
-The immutable candidate and protected backup are retained; post-cutover public
-model smokes have not run. See the [candidate evidence](../archive/operations/tencent-only-text-vision-candidate-2026-11-17.json).
-
 ## Latest Gateway Deployment Verification
+
+Gateway `b155a473d0cd7c5ad0e0051999d89e7fd049dd4a` was deployed at
+2026-11-17T04:13:41.858506Z and publicly verified at 04:20:16.782052Z.
+The temporary policy enables only Tencent for `goldencode-d` text and both
+cloud vision routes (`goldencode`, `goldencode-d`), using
+`deepseek-v4.1-flash-1017`. Vision now supports Tencent/TianKuan pools, with
+TianKuan disabled in those vision pools. Initial routing and eligible provider retries
+respect enabled members; the existing opt-in vision recovery v1 two-call budget
+is shared with tool repair. DeepSeek text context remains 1,024,000, vision
+context remains 200,000, and maximum output remains 128,000. Other text model
+routes and account policies were preserved.
+
+The committed candidate passed 181 focused TypeScript tests, 10 configuration
+helper tests, the build and a schema-46 backup rehearsal. Its 25 real preflight
+calls and six injected failure/repair checks passed. Three additional isolated
+vision recovery v1 failure/repair checks on the deployed image also passed,
+without calling TianKuan. All 25 public checks passed with high reasoning and
+64,000 output budget: eight consecutive text tool rounds, Responses streaming,
+both APIs and stream modes for both cloud vision models, and eight consecutive
+image tool rounds with history. Every probe reservation finalized consistently
+with the request ledger; no temporary production accounts were created.
+The first public image probe omitted the recovery-v1 header while asserting
+opt-in attempt metadata. That image request succeeded; the corrected image
+checks passed, and the nine already-passed text checks were reused.
+These probes did not reproduce Tencent's earlier output-parameter errors;
+they do not prove maximum-length generation or broad model accuracy.
+
+The sixth release attempt found the required continuous 30-second natural-idle
+window after five 900-second waits expired without changing production.
+Admission remained open during all waits. Public sampling observed about
+5.20 seconds of 503/502 during cutover, then recovered. Gateway is healthy,
+not draining, with zero restarts/OOM and no application warning/error events at verification.
+Schema 46, quick check and foreign keys passed during cutover; ports,
+18 protected files and three other Compose services were preserved. Current
+points to `b155a47`; previous is `671f630`. Post-cutover scoped request records
+contained zero TianKuan attempts. See the [release receipt](../archive/operations/tencent-only-text-vision-release-2026-11-17.json).
+Protected recovery state remains at `/opt/codex-gateway-r760/backups/release-b155a473d0cd`.
+
+## Previous Gateway Deployment Verification (2026-11-15)
 
 Gateway `671f6309327104b3f8fcf930745705653a1c135b` is live as of
 2026-11-15T07:40:46.947317+00:00 and verified at 2026-11-15T07:44:07.565884+00:00.
@@ -78,7 +95,7 @@ proof of maximum-length generation, exhaustive boundaries or extraction accuracy
 All eight public provider/tool/stream checks passed with finalized usage. Synthetic
 credentials were revoked, subjects disabled, entitlements cancelled, plans deprecated
 and no reservations left pending. Schema 45, quick check and foreign keys passed.
-Gateway is healthy with zero restarts/OOM and no warning/error logs at verification.
+Gateway is healthy with zero restarts/OOM and no application warning/error events at verification.
 Ports, 18 protected files and three other Compose services were preserved. The
 30-second natural-idle/drain gate was used; public sampling observed approximately
 30.63 seconds of interruption (502/503) before recovery. See the
@@ -189,7 +206,7 @@ or revoked. Both databases passed. Only two COS env keys and the read-only COS
 secret mount were added; existing model routes and ports are unchanged.
 21 protected files and 16 other containers passed verification. Natural idle
 reached 45.907 seconds; observed cutover interruption was 21.543337 seconds.
-Gateway is ready with zero restarts/OOM and no warning/error logs at verification.
+Gateway is ready with zero restarts/OOM and no application warning/error events at verification.
 Only main and the primary development worktree exist. No Desktop release was made.
 See the [release receipt](../archive/operations/gateway-cos-release-2026-11-13.json).
 
