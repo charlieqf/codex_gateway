@@ -78,7 +78,9 @@ migration 37 从已有回执一次性初始化持久容量计数。之后容量�
 
 原子准入写入失败时，模型不会执行。终态回执写入失败时，Gateway 记录错误并尽力完成原响应传输；原已准入记录仍阻止同 ID 重做，查询表现为 unknown。进程退出后遗留的 running 记录按 unknown 处理。
 
-### 断线恢复与主动停止（待发布）
+### 断线恢复与主动停止
+
+北京时间 2026-11-21，R760 已部署 `9db3fb7` 并通过公网断线、查询、取消及超时验证。见[发布回执](../archive/operations/model-call-recovery-release-2026-11-21.json)。
 
 Gateway 准入带 call ID 的调用后，原 HTTP 连接断开时继续按原截止时间执行。Desktop 用原 ID 查询，生成中为 `running`，成功后从 `completed.response` 取回完整 JSON 或 SSE。上游报错或超时按原错误保存为 `failed`。查询不会延长原预算。
 

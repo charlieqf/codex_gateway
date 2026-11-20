@@ -3,6 +3,25 @@
 For a recent 12/24-hour service check, use the fixed
 [read-only review command](./gateway-service-review.zh-CN.md).
 
+## Latest Gateway Deployment Verification (2026-11-21 Beijing)
+
+Gateway `9db3fb7dabd96aba7d8ed3ac8ec8b9d1cccdf0a1` started at 2026-11-20 21:27:52 UTC.
+Public verification finished at 21:31:47 UTC. Admitted Chat Completions with a call ID
+continue within the original deadline after disconnect. Desktop can recover the original JSON or SSE
+through the receipt. Explicit stop uses the authenticated `POST /gateway/model-calls/:id/cancel` endpoint.
+
+All 16 distinct public scenarios passed. The beta.165 receipt reader recovered both pre-header
+disconnects with one model POST and one upstream attempt each. Mid-stream recovery preserved all
+31,161 bytes including the 665-byte observed prefix. Native tool-call recovery preserved the
+arguments and the next model step consumed the synthetic result. Stops, deadlines, legacy disconnect,
+isolation, replay and Chat/Responses text and vision regressions passed.
+
+The clean Linux build passed 203 focused tests and the isolated candidate passed 20 preflight checks.
+Public health sampling observed approximately 5.72 seconds of 502/503 during replacement.
+Final checks found zero restarts, zero pending probe reservations and zero foreign-key violations.
+The three other Compose containers and runtime configuration were preserved.
+See the [release receipt](../archive/operations/model-call-recovery-release-2026-11-21.json).
+
 ## Latest Vision Configuration Verification (2026-11-17)
 
 At 2026-11-17T10:08:01Z (18:08 Beijing), `goldencode` vision was verified on
@@ -33,7 +52,7 @@ were existing tool-loop shadow notices, which do not alter requests.
 See the [configuration receipt](../archive/operations/goldencode-vision-dual-2026-11-17.json).
 Protected config recovery: `/opt/codex-gateway-r760/backups/goldencode-vision-dual-20261117T0930Z`.
 
-## Latest Gateway Deployment Verification
+## Previous Gateway Deployment Verification (2026-11-17)
 
 Gateway `bb2b842f06330b6959c26be0f82a061f125e889d` started at
 2026-11-17T07:23:53.410Z and passed public verification at 07:25:39Z.
