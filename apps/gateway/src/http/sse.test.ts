@@ -49,11 +49,11 @@ describe("setupSseResponse", () => {
     } } });
     const sse = setupSseResponse(reply);
     expect(sse.writeData({ content: "original" })).toBe(true);
-    const delivered = outcome === "completed" ? sse.writeDone() : sse.writeData({ error: { code: "upstream_timeout" } }, "failed");
-    expect(delivered).toBe(false);
+    const accepted = outcome === "completed" ? sse.writeDone() : sse.writeData({ error: { code: "upstream_timeout" } }, "failed");
+    expect(accepted).toBe(true);
     expect(saved?.state).toBe(outcome);
     expect(saved?.body).toContain(outcome === "completed" ? "data: [DONE]" : '"upstream_timeout"');
-    expect(sse.isClosed()).toBe(true);
+    expect(sse.isClosed()).toBe(false);
     sse.end();
   });
 
@@ -104,6 +104,24 @@ describe("setupSseResponse", () => {
 
     sse.end();
     expect(raw.writes).toHaveLength(writesAfterFailure);
+  });
+
+  it("finishes the receipt if a socket closes during a backpressured write", async () => {
+    const raw = new FakeRawReply();
+    raw.writableNeedDrain = true;
+    const receipt = { append: vi.fn(), finish: vi.fn() };
+    const sse = setupSseResponse(Object.assign(createReply(raw), { request: { modelCallReceipt: receipt } }));
+    const signal = new AbortController().signal;
+    try {
+      const first = sse.writeDataAsync("first", signal);
+      raw.emit("close");
+      expect(await first).toBe(true);
+      expect(await sse.writeDataAsync("second", signal)).toBe(true);
+      expect(sse.writeDone()).toBe(true);
+      expect(raw.writes).toEqual(['data: "first"\n\n']);
+      expect(receipt.append.mock.calls.flat()).toEqual(['data: "first"\n\n', 'data: "second"\n\n', "data: [DONE]\n\n"]);
+      expect(receipt.finish).toHaveBeenCalledOnce();
+    } finally { sse.end(); }
   });
 
   it("aborts the SSE signal when the raw reply closes", () => {

@@ -32,7 +32,8 @@ export function installGatewayLifecycle(app: FastifyInstance): GatewayLifecycle 
   app.addHook("onRequest", async (request, reply) => {
     const path = request.url.split("?", 1)[0];
     if (path === "/gateway/health" && request.method === "GET") return;
-    const recovery = request.method === "GET" && path?.startsWith("/gateway/model-calls/");
+    const recovery = (request.method === "GET" && path?.startsWith("/gateway/model-calls/")) ||
+      (request.method === "POST" && request.routeOptions.url === "/gateway/model-calls/:id/cancel");
     if (lifecycle.draining && !recovery) {
       return reply.header("retry-after", "5").code(503).send({
         error: { code: "service_unavailable", message: "Gateway is draining; retry after the indicated delay.", retry_after_seconds: 5 }

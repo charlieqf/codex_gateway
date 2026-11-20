@@ -43,7 +43,7 @@ export function writeOpenAIStreamError(
 ): boolean {
   const errorContext = gatewayErrorResponseContext(request, error);
   const payload = openAIErrorPayload(error, errorContext);
-  if (reply.raw.headersSent) {
+  if (reply.raw.headersSent || request.modelCallReceipt?.hasFrames) {
     return sse.writeData(payload, "failed");
   }
 
@@ -60,7 +60,7 @@ export function writeOpenAIStreamError(
     // Hijacked responses bypass onSend. Persist the actual JSON failure before
     // sending it, so losing the error response does not lose the known outcome.
     request.modelCallReceipt?.finish(body, "failed");
-    return reply.raw.write(body);
+    return reply.raw.destroyed ? !!request.modelCallReceipt : reply.raw.write(body);
   } catch {
     return false;
   }

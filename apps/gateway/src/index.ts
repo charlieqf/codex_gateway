@@ -916,7 +916,18 @@ export function buildGateway(options: GatewayOptions = {}) {
     await cleanupExpiredTokenReservations(tokenBudgetLimiter, request.log, clock());
   });
 
+  // Detached JSON calls may never emit HTTP finish. onSend runs after their
+  // handler has settled and the serialized result has reached the receipt.
+  app.addHook("onSend", async (request, reply, payload) => {
+    if (request.modelCallReceipt) {
+      releaseRateLimit(request);
+      recordObservation(request, observationStore, reply.statusCode);
+    }
+    return payload;
+  });
+
   app.addHook("onResponse", async (request, reply) => {
+    if (request.modelCallReceipt) return; // JSON onSend or the SSE execution finalizer owns this call.
     releaseRateLimit(request);
     recordObservation(request, observationStore, reply.statusCode);
     recordRateLimitOutcome(request, reply.statusCode);
@@ -2748,7 +2759,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       const requestStartedAt = clock();
       const deadline = createChatRequestDeadline({
         timeoutMs: chatRequestTimeoutMs || (visionRecovery ? 600_000 : 0),
-        parentSignals: [executionOptions.signal, sse.signal],
+        parentSignals: request.modelCallReceipt ? [executionOptions.signal] : [executionOptions.signal, sse.signal],
         now: requestStartedAt
       });
       request.modelCallReceipt?.startProgress(requestStartedAt, deadline.deadlineAt);
@@ -2772,6 +2783,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       };
 
       try {
+        deadline.signal.throwIfAborted();
         if (strictClientTools) {
           const onProviderError = createProviderErrorLogger(request);
           const strictResult = await runStrictClientTools({
@@ -2897,21 +2909,21 @@ export function buildGateway(options: GatewayOptions = {}) {
             activeRequest.markFirstByte();
             for (const frame of delivery.frames) {
               if (!await sse.writeDataAsync(frame, deadline.signal)) {
-                request.gatewayErrorCode = deadline.signal.reason instanceof GatewayError
-                  ? deadline.signal.reason.code : "client_aborted";
+                deadline.signal.throwIfAborted();
+                request.gatewayErrorCode = "client_aborted";
                 return;
               }
             }
-            if (deadline.signal.aborted || !sse.writeDone()) {
-              request.gatewayErrorCode = deadline.signal.reason instanceof GatewayError
-                ? deadline.signal.reason.code : "client_aborted";
+            deadline.signal.throwIfAborted();
+            if (!sse.writeDone()) {
+              request.gatewayErrorCode = "client_aborted";
               return;
             }
             if (!nativeFailover && !visionRecovery) attempt.recordSuccess();
             request.log.info({ request_id: request.id, delivery_id: delivery.deliveryId,
-              lossless_delivery_delivered: true, payload_utf8_bytes: delivery.payloadBytes,
+              lossless_delivery_delivered: !sse.signal.aborted, payload_utf8_bytes: delivery.payloadBytes,
               arguments_utf8_bytes: delivery.argumentsBytes, response_body_bytes: delivery.responseBytes,
-              transport_chunk_count: delivery.chunkCount }, "Complete write handed to the response stream; client commit remains unconfirmed.");
+              transport_chunk_count: delivery.chunkCount }, "Complete write generated; client commit remains unconfirmed.");
             return;
           } else if (nativeResult.toolCalls.length > 0) {
             writeInitialChunk();
@@ -3003,7 +3015,7 @@ export function buildGateway(options: GatewayOptions = {}) {
               reportModelOutput(onModelProgress, event);
               onProviderEvent(event);
               providerSummary.record(event);
-              if (sse.isClosed()) {
+              if (sse.isClosed() || (deadline.signal.aborted && event.type !== "error")) {
                 break;
               }
               if (event.type === "completed") {
@@ -3012,7 +3024,7 @@ export function buildGateway(options: GatewayOptions = {}) {
                 continue;
               }
               if (event.type === "error") {
-                let error = streamErrorToGatewayError(event);
+                let error = streamErrorToGatewayError(event, deadline.signal);
                 const errorSummary = providerSummary.snapshot(
                   chatRuntimeAttemptContext(attempt, attemptKind, parsed.toolChoice)
                 );
@@ -3090,6 +3102,7 @@ export function buildGateway(options: GatewayOptions = {}) {
               continue;
             }
             if (!failed && !sse.isClosed()) {
+              deadline.signal.throwIfAborted();
               const successSummary = providerSummary.snapshot(
                 chatRuntimeAttemptContext(attempt, attemptKind, parsed.toolChoice)
               );
@@ -3177,11 +3190,17 @@ export function buildGateway(options: GatewayOptions = {}) {
         }
 
         if (!sse.isClosed() && !failed) {
+          deadline.signal.throwIfAborted();
           writeInitialChunk();
           const finishReason = hasToolCalls ? "tool_calls" : "stop";
           sse.writeData(createFinalChatCompletionChunk(shape, finishReason, usage));
           sse.writeDone();
         }
+      } catch (cause) {
+        if (!request.modelCallReceipt && !deadline.signal.aborted) throw cause;
+        const error = chatCompletionErrorFromUnknown(deadline.signal.reason ?? cause);
+        markGatewayError(request, error);
+        if (!sse.isClosed()) writeOpenAIStreamError(request, reply, sse, error);
       } finally {
         releaseDelivery?.();
         markProviderCallFinished(request, deadline.signal, clock());
@@ -3204,7 +3223,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     const requestStartedAt = clock();
     const deadline = createChatRequestDeadline({
       timeoutMs: chatRequestTimeoutMs || (visionRecovery ? 600_000 : 0),
-      parentSignals: [executionOptions.signal, request.gatewayClientDisconnect?.signal],
+      parentSignals: [executionOptions.signal],
       now: requestStartedAt
     });
     request.modelCallReceipt?.startProgress(requestStartedAt, deadline.deadlineAt);
@@ -3215,6 +3234,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       markProviderEvent(request, event, clock());
 
     try {
+      deadline.signal.throwIfAborted();
       if (strictClientTools) {
         const onProviderError = createProviderErrorLogger(request);
         const strictResult = await runStrictClientTools({
@@ -3416,6 +3436,7 @@ export function buildGateway(options: GatewayOptions = {}) {
         markProviderStreamSummary(request, finalSummary);
       }
 
+      deadline.signal.throwIfAborted();
       return createChatCompletionResponse({
         shape,
         content,
@@ -3423,6 +3444,9 @@ export function buildGateway(options: GatewayOptions = {}) {
         finishReason: toolCalls.length > 0 ? "tool_calls" : "stop",
         usage
       });
+    } catch (cause) {
+      if (deadline.signal.reason instanceof GatewayError) return fail(deadline.signal.reason);
+      throw cause;
     } finally {
       markProviderCallFinished(request, deadline.signal, clock());
       await finalizeTokenBudget(request, tokenBudgetLimiter, { now: clock });
@@ -3456,7 +3480,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       return sendOpenAIError(request, reply, parsed);
     }
     return executeChatCompletion(request, reply, parsed, {
-      signal: request.gatewayClientDisconnect?.signal
+      signal: request.modelCallReceipt?.signal ?? request.gatewayClientDisconnect?.signal
     });
   };
 

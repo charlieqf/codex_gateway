@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { once } from "node:events";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import Fastify from "fastify";
@@ -9,7 +10,6 @@ import {
 } from "../../../packages/store-sqlite/src/model-calls.js";
 import {
   registerModelCallRecovery,
-  type ModelCallReceipt,
   modelCallHeader,
   modelCallContractHeader,
 } from "./model-call-recovery.js";
@@ -591,43 +591,138 @@ describe("durable model call recovery", () => {
     expect(f.calls.count).toBe(120);
   });
 
-  it("does not promote an aborted socket to success if its handler later finishes", async () => {
+  it("keeps admission available after clients disconnect before their calls are admitted", async () => {
+    let calls = 0;
+    const f = credentialGateway({ kind: "test", health: async () => ({ state: "healthy", checkedAt: new Date() }),
+      async *message() { calls++; yield { type: "message_delta", text: "ready" }; yield { type: "completed" }; } });
+    let entered!: () => void;
+    let closed!: Promise<unknown>;
+    f.app.addHook("preValidation", async (request, reply) => {
+      if (!request.headers["x-delay-admission"]) return;
+      closed = once(reply.raw, "close");
+      entered();
+      await closed;
+    });
+    const address = await f.app.listen({ host: "127.0.0.1", port: 0 });
+    const headers = { ...f.headers, "content-type": "application/json" };
+    for (let n = 0; n < 4; n++) {
+      const started = new Promise<void>(r => { entered = r; });
+      const abort = new AbortController();
+      const post = fetch(`${address}/v1/chat/completions`, { method: "POST", signal: abort.signal,
+        headers: { ...headers, [modelCallHeader]: newCallId(), "x-delay-admission": "1" }, body: "{}" });
+      await started;
+      abort.abort();
+      await expect(post).rejects.toMatchObject({ name: "AbortError" });
+      await closed;
+    }
+    const next = await f.app.inject({ method: "POST", url: "/v1/chat/completions",
+      headers: { ...headers, [modelCallHeader]: newCallId() }, payload: modelPayload });
+    expect(next.statusCode).toBe(200);
+    expect(calls).toBe(1);
+  });
+
+  it.each([true, false])("recovers the full result after a pre-header disconnect (stream=%s)", async stream => {
     let entered!: () => void, release!: () => void, closed!: () => void;
-    const started = new Promise<void>((resolve) => { entered = resolve; });
-    const wait = new Promise<void>((resolve) => { release = resolve; });
-    const socketClosed = new Promise<void>((resolve) => { closed = resolve; });
-    const f = fixture(undefined, Date.now, { entered, wait });
-    let retainedReceipt: ModelCallReceipt | undefined;
-    f.app.addHook("preHandler", async request => {
-      if (request.method !== "POST") return;
-      retainedReceipt = request.modelCallReceipt;
-      retainedReceipt?.startProgress(new Date(), new Date(Date.now() + 900_000));
-      retainedReceipt?.observeProgress("attempt_started");
-      retainedReceipt?.observeProgress("reasoning");
+    const started = new Promise<void>(r => { entered = r; });
+    const wait = new Promise<void>(r => { release = r; });
+    const socketClosed = new Promise<void>(r => { closed = r; });
+    let upstreamCalls = 0, modelPosts = 0;
+    const f = credentialGateway({
+      kind: "test", health: async () => ({ state: "healthy", checkedAt: new Date() }),
+      async *message(input) {
+        upstreamCalls++;
+        input.onModelProgress?.("reasoning");
+        entered();
+        await wait;
+        input.signal!.throwIfAborted();
+        yield { type: "message_delta", text: "part one" };
+        yield { type: "message_delta", text: " and two" };
+        yield { type: "completed" };
+      },
     });
     f.app.addHook("onRequest", async (request, reply) => {
-      if (request.method === "POST") reply.raw.once("close", closed);
+      if (request.url === "/v1/chat/completions") {
+        modelPosts++;
+        reply.raw.once("close", closed);
+      }
     });
-    const address = await f.app.listen({ port: 0, host: "127.0.0.1" });
+    const address = await f.app.listen({ host: "127.0.0.1", port: 0 });
     const id = newCallId();
-    const headers = { authorization: "user-a", [modelCallHeader]: id, "content-type": "application/json" };
+    const get = async () => (await fetch(`${address}/gateway/model-calls/${id}`, { headers: f.headers })).json();
     const abort = new AbortController();
-    const received = fetch(`${address}/v1/chat/completions`, { method: "POST", headers,
-      body: JSON.stringify({ stream: true }), signal: abort.signal }).then((r) => r.text()).catch(() => "");
-    await started;
+    let receivedHeaders = false;
+    const post = fetch(`${address}/v1/chat/completions`, {
+      method: "POST", signal: abort.signal, body: JSON.stringify({ ...modelPayload, stream }),
+      headers: { ...f.headers, [modelCallHeader]: id, "content-type": "application/json", "x-medcode-request-timeout-ms": "10000" },
+    }).then(r => { receivedHeaders = true; return r.text(); }).catch(() => undefined);
     try {
-      expect((await f.app.inject({ url: `/gateway/model-calls/${id}`, headers })).json().progress.phase).toBe("reasoning");
-      abort.abort(); await socketClosed;
-    } finally { abort.abort(); release(); await received; }
-    const receipt = (await f.app.inject({ url: `/gateway/model-calls/${id}`, headers })).json();
-    expect(receipt.state).toBe("unknown");
-    expect(receipt.response).toBeUndefined();
-    expect(receipt.progress).toBeUndefined();
-    retainedReceipt?.observeProgress("generating");
-    expect(retainedReceipt?.progressSnapshot()).toBeUndefined();
-    const replay = await f.app.inject({ method: "POST", url: "/v1/chat/completions", headers, payload: { stream: true } });
-    expect(replay.json().error.code).toBe("model_call_unconfirmed");
-    expect(f.calls.count).toBe(1);
+      await started;
+      const original = await get();
+      abort.abort();
+      await socketClosed;
+      await post;
+      expect(receivedHeaders).toBe(false);
+      expect(await get()).toMatchObject({ state: "running", request_id: original.request_id,
+        progress: { phase: "reasoning", deadline_at: original.progress.deadline_at } });
+      release();
+      await expect.poll(async () => (await get()).state).toBe("completed");
+      const result = await get();
+      expect(result.request_id).toBe(original.request_id);
+      expect(result.response.headers["x-request-id"]).toBe(original.request_id);
+      if (stream) {
+        const frames = result.response.body.trimEnd().split("\n\n").map((frame: string) => frame.slice(6));
+        expect(frames.pop()).toBe("[DONE]");
+        expect(frames.map((frame: string) => JSON.parse(frame).choices[0].delta.content ?? "").join("")).toBe("part one and two");
+      } else {
+        expect(JSON.parse(result.response.body).choices[0].message.content).toBe("part one and two");
+      }
+      expect(modelPosts).toBe(1);
+      expect(upstreamCalls).toBe(1);
+    } finally { abort.abort(); release(); await post; }
+  });
+
+  it.each([
+    [true, "throw"], [false, "throw"], [true, "buffered delta"], [false, "empty end"],
+    [true, "transport error"], [false, "transport error"],
+  ] as const)("stops the admitted upstream (stream=%s, adapter ends with %s)", async (stream, ending) => {
+    let entered!: () => void, release!: () => void;
+    const started = new Promise<void>(r => { entered = r; });
+    const fallback = new Promise<void>(r => { release = r; });
+    let upstreamSignal!: AbortSignal;
+    const f = credentialGateway({
+      kind: "test", health: async () => ({ state: "healthy", checkedAt: new Date() }),
+      async *message(input) {
+        upstreamSignal = input.signal!;
+        entered();
+        await Promise.race([fallback, new Promise<void>(r => upstreamSignal.addEventListener("abort", () => r(), { once: true }))]);
+        if (ending === "throw") upstreamSignal.throwIfAborted();
+        if (ending === "buffered delta") yield { type: "message_delta", text: "late output" };
+        if (ending === "transport error") yield { type: "error", code: "upstream_unavailable", message: "Reader closed" };
+      },
+    });
+    const id = newCallId(), url = `/gateway/model-calls/${id}`;
+    const post = f.app.inject({ method: "POST", url: "/v1/chat/completions",
+      headers: { ...f.headers, [modelCallHeader]: id }, payload: { ...modelPayload, stream } }).then(r => r);
+    try {
+      await started;
+      const cancel = { method: "POST" as const, url: `${url}/cancel` };
+      expect((await f.app.inject(cancel)).statusCode).toBe(401);
+      const other = issueAccessCredential({ subjectId: "recovery-subject", scope: "medical", label: "other scope",
+        expiresAt: new Date(Date.now() + 60_000) });
+      f.store.insertAccessCredential(other.record);
+      expect((await f.app.inject({ ...cancel, headers: { authorization: `Bearer ${other.token}` } })).statusCode).toBe(204);
+      expect(upstreamSignal.aborted).toBe(false);
+      f.app.gatewayLifecycle.drain();
+      expect((await f.app.inject({ ...cancel, headers: f.headers })).statusCode).toBe(204);
+      expect(upstreamSignal.aborted).toBe(true);
+      expect(upstreamSignal.reason.code).toBe("client_aborted");
+      const original = await post;
+      expect(original.statusCode).toBe(499);
+      expect(original.json().error.code).toBe("client_aborted");
+      expect((await f.app.inject({ url, headers: f.headers })).json()).toMatchObject({
+        state: "failed", response: { status: 499, body: original.body },
+      });
+    } finally { release(); await post; }
   });
 
   it("recovers a completed result when the real socket is destroyed before DONE is delivered", async () => {

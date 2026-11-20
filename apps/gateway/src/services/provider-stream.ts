@@ -404,6 +404,7 @@ export async function collectProviderMessage(
     reportModelOutput(input.onModelProgress, event);
     input.onProviderEvent?.(event);
     collector.record(event);
+    if (input.signal?.aborted && event.type !== "error") break;
     if (event.type === "message_delta") {
       if (input.suppressTextAfterToolCall && hasToolCalls) {
         continue;
@@ -434,13 +435,18 @@ export async function collectProviderMessage(
 
     if (event.type === "error") {
       return attachProviderStreamSummary(
-        streamErrorToGatewayError(event),
+        streamErrorToGatewayError(event, input.signal),
         collector.snapshot(providerAttemptContext(input))
       );
     }
   }
 
   result.providerSummary = collector.snapshot(providerAttemptContext(input));
+  // Some adapters end their iterator on cancellation without emitting an error.
+  if (input.signal?.reason instanceof GatewayError) {
+    return attachProviderStreamSummary(input.signal.reason, result.providerSummary);
+  }
+  input.signal?.throwIfAborted();
   const completionError = providerCompletionError(result.providerSummary, {
     outputTruncationMode: input.outputTruncationMode,
     outputKind: resolveCollectedOutputKind(input.outputKind ?? "auto", result)
@@ -459,7 +465,7 @@ export function streamErrorToGatewayError(event: {
   message: string;
   gatewayError?: GatewayError;
   providerFailure?: ProviderFailureClassification;
-}): GatewayError {
+}, signal?: AbortSignal): GatewayError {
   if (event.gatewayError?.contextWindowDetails || event.gatewayError?.requestLimitDetails) {
     return event.gatewayError;
   }
@@ -524,6 +530,8 @@ export function streamErrorToGatewayError(event: {
     });
   }
   if (event.code === "upstream_unavailable") {
+    // Closing the reader can surface as a generic transport failure.
+    if (signal?.reason instanceof GatewayError && signal.reason.code === "client_aborted") return signal.reason;
     return new GatewayError({
       code: "upstream_unavailable",
       message: event.message,

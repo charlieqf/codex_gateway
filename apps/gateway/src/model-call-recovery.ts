@@ -6,7 +6,7 @@ import {
   type ModelCallResponse,
 } from "@codex-gateway/store-sqlite";
 import { InMemoryRequestRateLimiter } from "./services/rate-limiter.js";
-import type { ModelProgressEvent } from "@codex-gateway/core";
+import { GatewayError, type ModelProgressEvent } from "@codex-gateway/core";
 import { ModelCallProgressTracker } from "./services/model-call-progress.js";
 
 export const modelCallHeader = "x-medcode-call-id";
@@ -38,8 +38,18 @@ const errorMessages = {
 };
 
 // One owner for buffering, terminal state and cleanup. JSON and SSE use the
-// same finish operation; a socket close can only abort a still-open receipt.
+// same finish operation, independently of the original response socket.
 export class ModelCallReceipt {
+  private readonly cancellation = new AbortController();
+  get signal() { return this.cancellation.signal; }
+  get hasFrames() { return this.bytes > 0; }
+
+  cancel() {
+    this.cancellation.abort(new GatewayError({
+      code: "client_aborted", httpStatus: 499, message: "Model call stopped by the user.",
+    }));
+  }
+
   private readonly frames: string[] = [];
   private bytes = 0;
   private finished = false;
@@ -69,17 +79,11 @@ export class ModelCallReceipt {
 
   finish(body?: string, outcome?: "completed" | "failed") {
     if (this.finished) return;
-    this.settle(body !== undefined || this.bytes <= modelCallMaxResponseBytes ? {
+    const response = body !== undefined || this.bytes <= modelCallMaxResponseBytes ? {
       status: this.reply.raw.statusCode,
       headers: responseHeaders(this.reply),
       body: body ?? this.frames.join(""),
-    } : undefined, outcome);
-  }
-
-  abort() { this.settle(); }
-
-  private settle(response?: ModelCallResponse, outcome?: "completed" | "failed") {
-    if (this.finished) return;
+    } : undefined;
     this.finished = true;
     this.progress = undefined;
     this.frames.length = 0;
@@ -113,6 +117,8 @@ export function registerModelCallRecovery(
   // Protect DB admission and response replay without holding this short-lived
   // permit during upstream work. In particular, model saturation cannot block GET.
   function acquireReceiptPermit(request: FastifyRequest, reply: FastifyReply, kind: "recovery" | "admission") {
+    // Authentication may have outlasted the socket's close event.
+    request.gatewayClientDisconnect?.signal.throwIfAborted();
     const permit = (kind === "recovery" ? recovery : admission).acquire({
       key: request.gatewayContext!.subject.id,
       scope: "subject",
@@ -166,6 +172,20 @@ export function registerModelCallRecovery(
           ? { response: JSON.parse(row.response_json) as ModelCallResponse }
           : {}),
       };
+    },
+  );
+
+  app.post<{ Params: { id: string } }>(
+    "/gateway/model-calls/:id/cancel",
+    { config: { skipRateLimit: true } },
+    async (request, reply) => {
+      reply.header("cache-control", "no-store").header(modelCallContractHeader, "1");
+      const context = request.gatewayContext;
+      if (!context) return reply.code(401).send();
+      if (!acquireReceiptPermit(request, reply, "recovery")) return reply;
+      if (!pattern.test(request.params.id)) return reply.code(400).send(error("model_call_invalid"));
+      active.get(JSON.stringify([context.subject.id, context.scope, request.params.id]))?.cancel();
+      return reply.code(204).send();
     },
   );
 
@@ -258,7 +278,10 @@ export function registerModelCallRecovery(
     });
     active.set(key, receipt);
     request.modelCallReceipt = receipt;
-    reply.raw.once("close", () => receipt.abort());
+    // From admission on, only explicit cancellation and the original deadline
+    // govern execution, quota settlement and the receipt.
+    request.gatewayClientDisconnect?.cleanup();
+    request.gatewayClientDisconnect = undefined;
     permit.release();
   });
 

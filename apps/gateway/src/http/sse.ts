@@ -1,8 +1,10 @@
+import { once } from "node:events";
 import { GatewayError } from "@codex-gateway/core";
 import type { FastifyReply } from "fastify";
 
 export interface SseHandle {
   readonly signal: AbortSignal;
+  /** True when neither the socket nor a recovery receipt can consume output. */
   isClosed(): boolean;
   writeComment(comment: string): boolean;
   writeData(data: unknown, terminal?: "failed"): boolean;
@@ -14,145 +16,64 @@ export interface SseHandle {
 }
 
 export function setupSseResponse(reply: FastifyReply, options: { deferHeartbeat?: boolean } = {}): SseHandle {
-  reply.raw.setHeader("content-type", "text/event-stream; charset=utf-8");
-  reply.raw.setHeader("cache-control", "no-cache");
-  reply.raw.setHeader("connection", "keep-alive");
+  const raw = reply.raw;
+  raw.setHeader("content-type", "text/event-stream; charset=utf-8");
+  raw.setHeader("cache-control", "no-cache");
+  raw.setHeader("connection", "keep-alive");
   reply.hijack();
 
-  const abort = new AbortController();
-  let closed = false;
-  const close = () => {
-    if (closed) {
-      return;
-    }
-    closed = true;
-    abort.abort(
-      new GatewayError({
-        code: "client_aborted",
-        message: "Client disconnected.",
-        httpStatus: 499
-      })
-    );
-  };
-  reply.raw.on("close", close);
+  const receipt = reply.request?.modelCallReceipt;
+  const disconnect = new AbortController();
+  const close = () => disconnect.abort(new GatewayError({
+    code: "client_aborted", message: "Client disconnected.", httpStatus: 499,
+  }));
+  raw.once("close", close);
 
-  const guard = (write: () => boolean): boolean => {
-    if (closed) {
-      return false;
+  function writeSocket(frame: string) {
+    if (disconnect.signal.aborted) return "closed";
+    if (!raw.destroyed && !raw.writableEnded) {
+      try {
+        return raw.write(frame) ? "ready" : "backpressure";
+      } catch { /* detach the failed socket */ }
     }
-    const ok = write();
-    if (!ok) {
-      close();
-    }
-    return ok;
-  };
+    close();
+    return "closed";
+  }
 
-  // S's manifest is decided after collection. A comment would commit headers
-  // before that decision. Ordinary requests retain their existing heartbeat.
-  const heartbeat = options.deferHeartbeat ? undefined : setInterval(() => {
-    guard(() => writeSseComment(reply, "ping"));
-  }, 25_000);
-  heartbeat?.unref?.();
+  function writeFrame(frame: string, terminal?: "completed" | "failed") {
+    receipt?.append(frame);
+    if (terminal) receipt?.finish(undefined, terminal);
+    const written = writeSocket(frame);
+    return written === "closed" && receipt ? "ready" : written;
+  }
+
+  // A heartbeat must not commit headers before the write-delivery manifest.
+  const heartbeat = options.deferHeartbeat ? undefined : setInterval(() => writeSocket(":ping\n\n"), 25_000);
+  heartbeat?.unref();
 
   return {
-    signal: abort.signal,
-    isClosed: () => closed,
-    writeComment: (comment) => guard(() => writeSseComment(reply, comment)),
-    writeData: (data, terminal) => guard(() => writeSseData(reply, data, terminal)),
+    signal: disconnect.signal,
+    isClosed: () => !receipt && disconnect.signal.aborted,
+    writeComment: comment => writeSocket(`:${comment}\n\n`) !== "closed",
+    writeData: (data, terminal) => writeFrame(`data: ${JSON.stringify(data)}\n\n`, terminal) !== "closed",
     writeDataAsync: async (data, signal) => {
-      if (closed || signal.aborted || reply.raw.destroyed || reply.raw.writableEnded) return false;
-      try {
-        const frame = `data: ${JSON.stringify(data)}\n\n`;
-        reply.request?.modelCallReceipt?.append(frame);
-        if (reply.raw.write(frame)) return true;
-        return await new Promise<boolean>((resolve) => {
-          const finish = (ok: boolean) => {
-            reply.raw.off("drain", drained);
-            reply.raw.off("close", stopped);
-            reply.raw.off("error", stopped);
-            signal.removeEventListener("abort", stopped);
-            resolve(ok);
-          };
-          const drained = () => finish(!closed && !signal.aborted);
-          const stopped = () => finish(false);
-          reply.raw.once("drain", drained);
-          reply.raw.once("close", stopped);
-          reply.raw.once("error", stopped);
-          signal.addEventListener("abort", stopped, { once: true });
-          if (closed || signal.aborted || reply.raw.destroyed) stopped();
-          else if (!reply.raw.writableNeedDrain) drained();
-        });
-      } catch { close(); return false; }
+      if (signal.aborted) return false;
+      const written = writeFrame(`data: ${JSON.stringify(data)}\n\n`);
+      if (written === "backpressure" && raw.writableNeedDrain) {
+        try {
+          await once(raw, "drain", { signal: AbortSignal.any([signal, disconnect.signal]) });
+        } catch {
+          if (!signal.aborted && !disconnect.signal.aborted) close(); // socket error
+        }
+      }
+      return !signal.aborted && (!disconnect.signal.aborted || receipt !== undefined);
     },
-    writeDone: () => guard(() => writeSseDone(reply)),
-    writeEvent: (event, data) => guard(() => writeSseEvent(reply, event, data)),
+    writeDone: () => writeFrame("data: [DONE]\n\n", "completed") !== "closed",
+    writeEvent: (event, data) => writeFrame(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`) !== "closed",
     end: () => {
       clearInterval(heartbeat);
-      reply.raw.off("close", close);
-      if (!reply.raw.destroyed && !reply.raw.writableEnded) {
-        reply.raw.end();
-      }
-    }
+      raw.off("close", close);
+      if (!raw.destroyed && !raw.writableEnded) raw.end();
+    },
   };
-}
-
-function writeSseEvent(reply: FastifyReply, event: string, data: unknown): boolean {
-  if (reply.raw.destroyed || reply.raw.writableEnded) {
-    return false;
-  }
-
-  try {
-    const frame = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-    reply.request?.modelCallReceipt?.append(frame);
-    reply.raw.write(frame);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function writeSseData(reply: FastifyReply, data: unknown, terminal?: "failed"): boolean {
-  if (reply.raw.destroyed || reply.raw.writableEnded) {
-    return false;
-  }
-
-  try {
-    const frame = `data: ${JSON.stringify(data)}\n\n`;
-    reply.request?.modelCallReceipt?.append(frame);
-    // An SSE error is terminal even when HTTP headers already committed 200.
-    if (terminal) reply.request?.modelCallReceipt?.finish(undefined, terminal);
-    reply.raw.write(frame);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function writeSseDone(reply: FastifyReply): boolean {
-  if (reply.raw.destroyed || reply.raw.writableEnded) {
-    return false;
-  }
-
-  try {
-    reply.request?.modelCallReceipt?.append("data: [DONE]\n\n");
-    // Commit before delivering the terminal marker; a lost response is recoverable.
-    reply.request?.modelCallReceipt?.finish();
-    reply.raw.write("data: [DONE]\n\n");
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function writeSseComment(reply: FastifyReply, comment: string): boolean {
-  if (reply.raw.destroyed || reply.raw.writableEnded) {
-    return false;
-  }
-
-  try {
-    reply.raw.write(`:${comment}\n\n`);
-    return true;
-  } catch {
-    return false;
-  }
 }
