@@ -9,13 +9,14 @@ import { createSqliteStore } from "@codex-gateway/store-sqlite";
 import { credentialAuthHook } from "../http/auth.js";
 import { buildGateway } from "../index.js";
 import { registerSubtitleRoutes } from "./routes.js";
+import type { SubtitleCleaner } from "./clean.js";
 
 const cleanups: (() => unknown | Promise<unknown>)[] = [];
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); });
 const prefix = "/gateway/subtitles/v1";
 const fakeModel: ProviderAdapter = { kind: "fake", health: async () => ({ state: "healthy", checkedAt: new Date() }), async *message() { yield { type: "completed" }; } };
 
-async function setup() {
+async function setup(clean: SubtitleCleaner = async (model, input) => ({ model, received: input })) {
   const directory = await mkdtemp(path.join(os.tmpdir(), "subtitle-gateway-"));
   cleanups.push(() => rm(directory, { recursive: true, force: true }));
   const identity = createSqliteStore({ path: ":memory:" });
@@ -37,7 +38,7 @@ async function setup() {
   const start = async () => {
     const app = Fastify({ logger: { level: "warn" } });
     app.addHook("onRequest", (request, reply) => credentialAuthHook(request, reply, { store: identity, provider: fakeModel, upstreamAccount: {} as UpstreamAccount }));
-    registerSubtitleRoutes(app, { CODEX_SUBTITLE_STORAGE: directory }, provider, async (model, input) => ({ model, received: input }));
+    registerSubtitleRoutes(app, { CODEX_SUBTITLE_STORAGE: directory }, provider, clean);
     await app.ready();
     cleanups.push(() => app.close());
     return app;
@@ -70,6 +71,53 @@ it("retains ambiguous submission without automatic retry or private error leakag
   expect(again.json()).toEqual(first.json());
   expect(again.body).not.toContain("private");
   expect(t.calls).toEqual(["CreateRecTask"]);
+});
+
+it("returns exactly one subtitle slot when a client disconnects while waiting for cleanup", async () => {
+  const finish: (() => void)[] = [];
+  const t = await setup(async () => {
+    await new Promise<void>(resolve => finish.push(resolve));
+    return { ok: true };
+  });
+  const id = (await t.app.inject(t.upload())).json().job_id;
+  await expect.poll(async () => (await t.app.inject({ url: prefix + "/transcriptions/" + id, headers: t.headers() })).json().status).toBe("SUCCEEDED");
+  const origin = await t.app.listen({ host: "127.0.0.1", port: 0 });
+  const clean = (signal?: AbortSignal) => fetch(origin + prefix + "/clean", {
+    method: "POST", headers: { ...t.headers(), "content-type": "application/json" }, signal,
+    body: JSON.stringify({ job_id: id, version: "medical-interview-2", model: "goldencode", core: [
+      { id: 0, text: "原始采访", words: [{ id: 0, text: "原始采访" }] },
+    ], before: [], after: [], glossary: [] }),
+  });
+  const resubmit = async () => (await t.app.inject(t.upload())).statusCode;
+  const client = new AbortController();
+  try {
+    const first = clean(client.signal);
+    await expect.poll(() => finish.length).toBe(1);
+    const second = clean();
+    await expect.poll(() => finish.length).toBe(2);
+    expect(await resubmit()).toBe(429);
+
+    client.abort();
+    await expect(first).rejects.toMatchObject({ name: "AbortError" });
+    await expect.poll(resubmit).toBe(200);
+    const replacement = clean();
+    await expect.poll(() => finish.length).toBe(3);
+    finish[0]();
+    expect(await resubmit()).toBe(429);
+
+    finish[1]();
+    expect((await second).status).toBe(200);
+    const next = clean();
+    await expect.poll(() => finish.length).toBe(4);
+    expect(await resubmit()).toBe(429);
+    finish[2]();
+    finish[3]();
+    expect((await replacement).status).toBe(200);
+    expect((await next).status).toBe(200);
+    expect(await resubmit()).toBe(200);
+  } finally {
+    for (const resolve of finish) resolve();
+  }
 });
 
 it("resumes a persisted task and keeps its result after a service restart", async () => {

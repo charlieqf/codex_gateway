@@ -78,9 +78,12 @@ export function registerSubtitleRoutes(root: FastifyInstance, env: NodeJS.Proces
       if (!subject) return fail(reply, 401, "invalid_credential");
       if (!provider || !directory || !clean) return fail(reply, 503, "subtitle_service_unavailable");
       if (request.headers["content-encoding"]) return fail(reply, 400, "invalid_subtitle_request");
+      if (reply.raw.destroyed) return reply.hijack();
       if (admissions.size >= 8 || (owners.get(subject) ?? 0) >= 2) return fail(reply, 429, "subtitle_busy");
       admissions.add(request.id);
       owners.set(subject, (owners.get(subject) ?? 0) + 1);
+      // After the request body is complete a disconnect may only close the response.
+      reply.raw.once("close", () => release(request));
     });
     const release = (request: import("fastify").FastifyRequest) => {
       if (!admissions.delete(request.id)) return;
