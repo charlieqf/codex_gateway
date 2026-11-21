@@ -3,7 +3,21 @@
 For a recent 12/24-hour service check, use the fixed
 [read-only review command](./gateway-service-review.zh-CN.md).
 
-## Latest Gateway Deployment Verification (2026-11-21 Beijing)
+## Subtitle admission fix (2026-11-21 Beijing)
+
+R760 started Gateway `88b4b3ada555707d3693fd40cab75f2dc11cf216` at 17:27:35 Beijing.
+A public synthetic transcription returned 202 and reached SUCCEEDED. After the client
+sent a complete cleanup request and disconnected, Nginx recorded 499. With the
+replacement cleanup still running, resubmitting the same audio returned 200 and
+reused the completed transcription. The replacement cleanup also returned 200.
+Two earlier `goldencode` cleanup probes returned 503. A later public check returned 200.
+
+At 17:32 Beijing the affected account had an active entitlement and a valid credential.
+The original task still had no stored transcription. The access log contained only
+test subtitle traffic since cutover. The Gateway was ready with zero restarts.
+See the [release verification](../archive/operations/subtitle-admission-release-2026-11-21.json).
+
+## Model call recovery deployment verification (2026-11-21 Beijing)
 
 Gateway `9db3fb7dabd96aba7d8ed3ac8ec8b9d1cccdf0a1` started at 2026-11-20 21:27:52 UTC.
 Public verification finished at 21:31:47 UTC. Admitted Chat Completions with a call ID

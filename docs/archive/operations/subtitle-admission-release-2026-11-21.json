@@ -1,0 +1,70 @@
+{
+  "revision": "88b4b3ada555707d3693fd40cab75f2dc11cf216",
+  "previous": "9db3fb7dabd96aba7d8ed3ac8ec8b9d1cccdf0a1",
+  "started_at": "2026-11-21T09:27:35.312228841Z",
+  "verified_at": "2026-11-21T09:32:57.074754+00:00",
+  "public_ready": true,
+  "restarts": 0,
+  "oom": false,
+  "other_containers_preserved": 3,
+  "backup": "/data/backups/codex-gateway-daily/20261121T092448Z",
+  "db_schema": 46,
+  "cutover_failed_samples": 8,
+  "first_failed_at": "2026-11-21T09:27:31.988764+00:00",
+  "last_failed_at": "2026-11-21T09:27:35.633031+00:00",
+  "focused_tests": 12,
+  "public_checks": [
+    {
+      "label": "submit",
+      "at": "2026-11-21T09:29:49.980Z",
+      "http": 202,
+      "request_id": "req-be19b0c6-7ab3-4717-a6b7-fe83e13d2f42"
+    },
+    {
+      "label": "baseline cleanup",
+      "model": "goldencode",
+      "http": 503,
+      "code": "subtitle_clean_failed",
+      "request_id": "req-437d9cc8-1bc5-47d7-87a8-0c8a981d7aa7"
+    },
+    {
+      "label": "baseline cleanup",
+      "model": "goldencode-d",
+      "http": 200,
+      "request_id": "req-87eedd33-3375-499c-b7f9-bfd8fee49ef4"
+    },
+    {
+      "label": "client disconnected after upload",
+      "at": "2026-11-21T09:30:16.402Z",
+      "bytes": 833
+    },
+    {
+      "label": "idempotent submit during replacement",
+      "at": "2026-11-21T09:30:17.325Z",
+      "http": 200,
+      "request_id": "req-c3c1c061-ee90-4cf2-8f47-f5046b820fc0"
+    },
+    {
+      "label": "replacement clean",
+      "at": "2026-11-21T09:30:51.839Z",
+      "http": 200,
+      "request_id": "req-af49bf4f-0dbd-499d-b628-2102500dd5ec"
+    }
+  ],
+  "probe_clean_499": 1,
+  "goldencode_first_attempt_http": 503,
+  "goldencode_recheck": {
+    "label": "baseline cleanup",
+    "model": "goldencode",
+    "http": 200,
+    "request_id": "req-0762d97e-f0c7-4d65-af76-e44c42675c3b"
+  },
+  "affected_account": {
+    "state": "active",
+    "valid_credentials": 1,
+    "active_entitlements": 1,
+    "original_job_present": false,
+    "non_probe_subtitle_traffic_since_cutover": {}
+  },
+  "smoke_accounts_cleaned": 3
+}
