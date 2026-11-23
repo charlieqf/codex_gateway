@@ -24,6 +24,7 @@ Authorization: Bearer <API_KEY>
 | --- | --- | --- |
 | `goldencode` | Tencent GLM-5.3 云端路由 | 以 `/v1/models` 返回值为准 |
 | `goldencode-d` | DeepSeek 云端池，腾讯／天宽文本路由均为 `deepseek-v4.1-flash-1017` | 文本总上下文 1,024,000 / 最多生成 128,000 tokens；含图片请求仍按视觉路由限制 |
+| `goldencode-flash` | 腾讯与天宽按会话分流，支持文本、图片和原生工具调用，默认推理强度 `low` | 文本和图片均为 200,000 上下文 / 最多 128,000 输出 tokens |
 | `goldencode-local` | R760 Qwen3.8-27B-FP8 | 32,768 / 最多 8,192 tokens |
 
 公共图片模型名是 `medcode-image-default`，通过

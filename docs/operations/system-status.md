@@ -1,5 +1,17 @@
 # System Status
 
+## GoldenCode Flash dual-provider release (2026-11-24 Beijing)
+
+At 07:43 Beijing R760 deployed `6a71c661712c2270afd17432680832f8028bdcb1`.
+`goldencode-flash` routes text and images to Tencent `glm-5.3-flash` and
+TianKuan `official/glm-5.3-flash` with equal-weight session affinity. Each
+provider passed four public calls covering text, screenshot recognition, a
+native tool call and continuation after its result. All eight reservations
+settled and the synthetic credential was revoked. Public health probes recorded
+502/503 samples spanning 5.76 seconds during replacement and then returned ready.
+The container was healthy with zero restarts. See the
+[release receipt](../archive/operations/goldencode-flash-release-2026-11-24.json).
+
 For a recent 12/24-hour service check, use the fixed
 [read-only review command](./gateway-service-review.zh-CN.md).
 
