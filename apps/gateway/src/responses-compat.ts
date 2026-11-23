@@ -7,6 +7,7 @@ import {
 } from "./services/vision-observation.js";
 import {
   GatewayError,
+  goldenCodeCloudModelIds,
   isRecord,
   type MessageImageInput
 } from "@codex-gateway/core";
@@ -49,7 +50,7 @@ export interface ResponsesResult {
 
 export function parseResponsesRequest(
   body: unknown,
-  requiredModel: string | readonly string[] = ["goldencode", "goldencode-d"],
+  requiredModel: string | readonly string[] = goldenCodeCloudModelIds,
   observation?: VisionObservation
 ): ParsedResponsesRequest | GatewayError {
   if (!isRecord(body)) {

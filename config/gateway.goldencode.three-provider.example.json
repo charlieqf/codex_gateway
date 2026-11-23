@@ -65,5 +65,36 @@
         {"id": "goldencode-d-tiankuan", "runtime": "tiankuan", "upstreamModel": "deepseek-v4.1-flash-1017", "enabled": true}
       ]
     }
+  },
+  "goldencode-flash": {
+    "displayName": "GoldenCode Flash",
+    "runtime": "pool",
+    "contextWindow": 200000,
+    "maxContextWindow": 200000,
+    "upstreamContextWindow": 1000000,
+    "maxOutputTokens": 128000,
+    "enabled": true,
+    "reasoning": {
+      "effort": "low",
+      "supportedEfforts": ["low", "high", "max"],
+      "legacyAliases": {"none": "low", "medium": "high"}
+    },
+    "pool": {
+      "requireAllMembers": false,
+      "members": [
+        {"id": "goldencode-flash-tencent", "runtime": "tencent", "upstreamModel": "glm-5.3-flash"},
+        {"id": "goldencode-flash-tiankuan", "runtime": "tiankuan", "upstreamModel": "official/glm-5.3-flash"}
+      ]
+    },
+    "vision": {
+      "runtime": "pool",
+      "pool": {
+        "requireAllMembers": false,
+        "members": [
+          {"id": "goldencode-flash-vision-tencent", "runtime": "tencent", "upstreamModel": "glm-5.3-flash"},
+          {"id": "goldencode-flash-vision-tiankuan", "runtime": "tiankuan", "upstreamModel": "official/glm-5.3-flash"}
+        ]
+      }
+    }
   }
 }

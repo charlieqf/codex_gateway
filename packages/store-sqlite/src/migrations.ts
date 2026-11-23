@@ -1247,6 +1247,17 @@ export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogge
        WHERE json_valid(allowed_public_models_json)
          AND EXISTS (SELECT 1 FROM json_each(allowed_public_models_json) WHERE value = 'goldencode-d-long');
     `, logger);
+    // Add Flash to the standard Desktop set only, including legacy unclassified keys.
+    applyMigration(db, 47, `
+      UPDATE access_credentials
+         SET allowed_public_models_json = '["goldencode","goldencode-d","goldencode-flash","goldencode-local"]'
+       WHERE credential_class IN ('desktop', 'unknown') AND revoked_at IS NULL
+         AND json_valid(allowed_public_models_json)
+         AND json_array_length(allowed_public_models_json) = 3
+         AND EXISTS (SELECT 1 FROM json_each(allowed_public_models_json) WHERE value = 'goldencode')
+         AND EXISTS (SELECT 1 FROM json_each(allowed_public_models_json) WHERE value = 'goldencode-d')
+         AND EXISTS (SELECT 1 FROM json_each(allowed_public_models_json) WHERE value = 'goldencode-local');
+    `, logger);
   }
 }
 

@@ -3159,7 +3159,7 @@ describe("gateway phase 1 routes", () => {
           ? store.getAccessCredentialByPrefix(unified.codexCredentialPrefix)
               ?.allowedPublicModels
           : null
-      ).toEqual(["goldencode", "goldencode-d", "goldencode-local"]);
+      ).toEqual(["goldencode", "goldencode-d", "goldencode-flash", "goldencode-local"]);
       expect(upstreamV2Client.calls).toHaveLength(1);
       expect(upstreamV2Client.calls[0]).toMatchObject({
         externalProvider: "medevidence_backend",
@@ -17669,10 +17669,21 @@ describe("GoldenCode DeepSeek pool", () => {
     });
   });
 
+  it.each(["tencent", "tiankuan"])("fails over goldencode-flash from %s using the provider's model ID", async first => {
+    await runGoldenCodeFailoverFixture({ publicModel: "goldencode-flash", first, status: 429 }, async ({ app, headers, calls }) => {
+      const response = await app.inject({ method: "POST", url: "/v1/responses", headers,
+        payload: { ...nativeFailoverPayload("responses", true), model: "goldencode-flash" } });
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("call_failover_ok");
+      expect(calls.map(call => call.runtime)).toEqual([first, first === "tencent" ? "tiankuan" : "tencent"]);
+      for (const call of calls) expect(call.body.model).toBe(call.runtime === "tiankuan" ? "official/glm-5.3-flash" : "glm-5.3-flash");
+    });
+  });
+
   it("lists the independent cloud pools, preserves sticky routing and enforces credential restrictions", async () => {
     await runGoldenCodeFailoverFixture({ publicModel: "goldencode-d", first: "tiankuan", plain: true, recover: true }, async ({ app, headers, calls, store }) => {
       const models = await app.inject({ method: "GET", url: "/v1/models", headers });
-      expect(models.json().data.map((model: { id: string }) => model.id)).toEqual(["goldencode", "goldencode-d"]);
+      expect(models.json().data.map((model: { id: string }) => model.id)).toEqual(["goldencode", "goldencode-d", "goldencode-flash"]);
       for (let i = 0; i < 2; i++) {
         const response = await app.inject({ method: "POST", url: "/v1/chat/completions", headers,
           payload: { model: "goldencode-d", messages: [{ role: "user", content: "Reply OK" }], max_tokens: 64 } });
@@ -17685,7 +17696,7 @@ describe("GoldenCode DeepSeek pool", () => {
       const restrictedHeaders = { ...headers, authorization: `Bearer ${restrictedKey.token}` };
       const restricted = await app.inject({ method: "GET", url: "/v1/models", headers: restrictedHeaders });
       // Discovery is a service catalog; credential restrictions apply at execution.
-      expect(restricted.json().data.map((model: { id: string }) => model.id)).toEqual(["goldencode", "goldencode-d"]);
+      expect(restricted.json().data.map((model: { id: string }) => model.id)).toEqual(["goldencode", "goldencode-d", "goldencode-flash"]);
       const denied = await app.inject({ method: "POST", url: "/v1/responses", headers: restrictedHeaders,
         payload: { model: "goldencode-d", input: "Reply OK" } });
       expect(denied.statusCode).toBe(403);
@@ -17719,7 +17730,7 @@ function nativeFailoverPayload(api: string, stream: boolean): Record<string, unk
 }
 
 async function runGoldenCodeFailoverFixture(options: {
-  publicModel?: "goldencode" | "goldencode-d";
+  publicModel?: "goldencode" | "goldencode-d" | "goldencode-flash";
   first?: string; bothFail?: boolean; status?: number | "reset"; enabled?: boolean; retryAfter?: string;
   members?: string[]; second?: string;
   repairThenFail?: boolean; cooldown?: string; clock?: () => Date; recover?: boolean;

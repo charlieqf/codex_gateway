@@ -33,12 +33,12 @@ describe("DeepSeek model entitlement migration", () => {
   });
 });
 
-describe("Desktop long-document model migration", () => {
+describe.each([[45, "goldencode-d-long"], [47, "goldencode-flash"]] as const)("Desktop model migration %i (%s)", (version, model) => {
   it("extends standard Desktop credentials only, preserves other fields and is idempotent", () => {
     const store = createSqliteStore({ path: ":memory:" });
     const now = new Date("2026-11-15T00:00:00Z");
     const standard = ["goldencode", "goldencode-d", "goldencode-local"];
-    const extended = ["goldencode", "goldencode-d", "goldencode-d-long", "goldencode-local"];
+    const extended = ["goldencode", "goldencode-d", model, "goldencode-local"];
     const cases: Array<{ kind: CredentialClass; models: string[] | null; extend?: boolean; revoked?: boolean }> = [
       { kind: "desktop", models: standard, extend: true },
       { kind: "desktop", models: [...standard].reverse(), extend: true },
@@ -67,7 +67,7 @@ describe("Desktop long-document model migration", () => {
       }
       const rows = () => store.database.prepare("SELECT * FROM access_credentials ORDER BY label").all();
       const before = rows();
-      store.database.exec("DELETE FROM schema_migrations WHERE version=45");
+      store.database.prepare("DELETE FROM schema_migrations WHERE version=?").run(version);
       migrateGatewaySchema(store.database);
       const after = rows();
       for (const [i, row] of after.entries()) {
