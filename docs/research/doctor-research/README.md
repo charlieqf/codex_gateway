@@ -1,6 +1,6 @@
 # Doctor Research
 
-Last updated: 2026-08-31.
+Last updated: 2026-11-24.
 
 Doctor Research is the asynchronous doctor-profile research capability hosted
 inside the authoritative R760 Gateway deployment. The former Azure Research
@@ -12,10 +12,11 @@ stack is retired from routine use and is not a compatibility or rollback path.
 - API prefix: `/gateway/research/v1`
 - Authentication: real-user `cgu_live_*` credential with an active
   `doctor_research` entitlement
-- Runtime: public Gateway, isolated Research LLM Gateway, Worker and
-  maintenance service in Compose project `codex_gateway_r760`
-- Research LLM: isolated `goldencode` profile; do not route through the public
-  Gateway pool or GoldenCode Local
+- Runtime: public Gateway, Research Worker and maintenance service in Compose
+  project `codex_gateway_r760`. The former private LLM Gateway is retained for rollback.
+- Research LLM: the R760 Worker calls the public Gateway's `goldencode` pool
+  over the internal Compose network. A dedicated chat-only service account meters
+  Research separately. Client credentials continue to own Research tasks and artifacts.
 - State/artifacts/backups: dedicated Research volumes, not the ordinary Gateway
   request/client-message databases
 

@@ -1,5 +1,15 @@
 # System Status
 
+## Doctor Research public Gateway cutover (2026-11-24 Beijing)
+
+At 09:30 Beijing the R760 Research Worker moved to the public `goldencode`
+pool with independent service accounting. Live calls succeeded on Tencent and
+TianKuan. An end-to-end acceptance run produced four downloadable artifacts.
+Two retries of the original incident input received successful responses on
+all 16 model calls but produced no artifacts. The Research Worker rejected
+the brief for JSON structure and source passage citation errors.
+See the [Doctor Research production runbook](../research/doctor-research/production-runbook.md).
+
 ## GoldenCode Flash dual-provider release (2026-11-24 Beijing)
 
 At 07:43 Beijing R760 deployed `6a71c661712c2270afd17432680832f8028bdcb1`.
