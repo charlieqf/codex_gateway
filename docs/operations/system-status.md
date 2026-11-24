@@ -8,6 +8,10 @@ TianKuan. An end-to-end acceptance run produced four downloadable artifacts.
 Two retries of the original incident input received successful responses on
 all 16 model calls but produced no artifacts. The Research Worker rejected
 the brief for JSON structure and source passage citation errors.
+At 09:54 Beijing Worker revision `019b5cb` restored publication reads when
+the model appends simulated results or an early draft to its read request.
+At 09:56 the original incident input succeeded. The Worker read five PubMed
+records, and the four artifacts passed authenticated download and digest checks.
 See the [Doctor Research production runbook](../research/doctor-research/production-runbook.md).
 
 ## GoldenCode Flash dual-provider release (2026-11-24 Beijing)
