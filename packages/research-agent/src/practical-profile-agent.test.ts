@@ -299,6 +299,19 @@ describe("Practical profile scope, provenance and durable recovery (scripted mod
     expect(f.input.dependencies.generate).toHaveBeenCalledTimes(5);
   });
 
+  it("returns the rejected editorial category and permitted choices to the editor for repair", async () => {
+    const responses: unknown[] = []; const f = fixture(responses);
+    const invalid = { ...f.draft, facts: [{ ...f.draft.facts[0]!, type: "appointments" }] };
+    responses.push({ draft: f.draft }, { approved: true, draft: invalid }, { approved: true, draft: f.draft });
+    expect(await preparePracticalProfile(f.input)).toMatchObject({ outcome: "resolved", draft: f.draft });
+    const [, firstEdit, repair] = vi.mocked(f.input.dependencies.generate).mock.calls;
+    expect(firstEdit![0].system).toContain("position, expertise, education_and_career, research_direction, representative_output");
+    expect(repair![0].role).toBe("editor");
+    expect(JSON.parse(repair![0].prompt).observations.at(-1)).toMatchObject({
+      action: "invalid_edited_draft", result: expect.stringContaining('facts/0: Invalid fact type "appointments". Choose from position')
+    });
+  });
+
   it.each(["extra_json", "missing_approval", "bad_citation"])("bounds editor repairs across recovery and never approves %s", async defect => {
     const responses: unknown[] = []; const f = fixture(responses);
     const bad = structuredClone(f.draft); bad.qa[0]!.citations[0]!.sourceId = "src_invented";
