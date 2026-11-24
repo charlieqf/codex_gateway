@@ -129,14 +129,27 @@ describe("Practical profile scope, provenance and durable recovery (scripted mod
     expect(legacy).toEqual(before);
     expect(normalizePracticalResultWarnings(normalized as unknown as Record<string, unknown>)).toBe(normalized);
   });
-  it.each(["inline_fence", "missing_outer_envelope"])("accepts a complete draft with %s while still requiring factual editing", async defect => {
+  it.each(["inline_fence", "missing_outer_envelope", "bare_draft"])("accepts a complete draft with %s while still requiring factual editing", async defect => {
     const responses: unknown[] = []; const f = fixture(responses);
     const text = JSON.stringify({ draft: f.draft });
-    responses.push(defect === "inline_fence" ? "```json\n" + text + "```" : text.slice(0, -1), { approved: true, draft: f.draft });
+    const authorReply = defect === "bare_draft" ? f.draft : defect === "inline_fence" ? "```json\n" + text + "```" : text.slice(0, -1);
+    responses.push(authorReply, { approved: true, draft: f.draft });
     expect(await preparePracticalProfile(f.input)).toMatchObject({ outcome: "resolved", draft: f.draft });
     const calls = vi.mocked(f.input.dependencies.generate).mock.calls;
     expect(calls).toHaveLength(2); expect(calls[1]![0].role).toBe("editor");
     expect(JSON.parse(calls[1]![0].prompt).service_timing.request_date).toBe("2026-09-11");
+  });
+
+  it.each(['[tool results]\nSIMULATED', '{"draft":{"facts":["SIMULATED"]}}'])("reads real publications and discards appended output %s", async suffix => {
+    const responses: unknown[] = []; const f = fixture(responses);
+    responses.push({ actions: [{ type: "search_publications", query: "cardiology" }] },
+      JSON.stringify({ actions: [{ type: "read_publications", pmids: ["12345", "98765"] }] }) + "\n\n" + suffix,
+      f.draft, { approved: true, draft: f.draft });
+    expect(await preparePracticalProfile(f.input)).toMatchObject({ outcome: "resolved" });
+    expect(vi.mocked(f.input.dependencies.readPublication).mock.calls).toEqual([["12345"]]);
+    const calls = vi.mocked(f.input.dependencies.generate).mock.calls;
+    expect(calls.map(([call]) => call.role)).toEqual(["author", "author", "author", "editor"]);
+    expect(calls[2]![0].prompt).not.toContain("SIMULATED");
   });
 
   it.each(["truncated_inner", "trailing_object", "truncated_approval"])("does not infer incomplete content or approval: %s", async defect => {
