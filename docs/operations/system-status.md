@@ -12,6 +12,11 @@ At 09:54 Beijing Worker revision `019b5cb` restored publication reads when
 the model appends simulated results or an early draft to its read request.
 At 09:56 the original incident input succeeded. The Worker read five PubMed
 records, and the four artifacts passed authenticated download and digest checks.
+At 11:27 Beijing Worker revision `35b0680` addressed a second failure: the
+editor introduced unsupported fact categories. Both editorial instructions
+and validation feedback now use the same category list as the validator.
+The original client reference and input succeeded on replay at 11:29:59.
+All four artifacts passed authenticated download and digest checks.
 See the [Doctor Research production runbook](../research/doctor-research/production-runbook.md).
 
 ## GoldenCode Flash dual-provider release (2026-11-24 Beijing)
