@@ -341,6 +341,28 @@ describe("durable model call recovery", () => {
     expect(next.calls.count).toBe(0);
   });
 
+  it.each([-300_001, -300_000, 60_000, 60_001, 101_002])("checks the new call ID admission boundary (offset %i ms)", async (offsetMs) => {
+    const serverTimeMs = 1_795_569_034_317;
+    const f = fixture(undefined, () => serverTimeMs);
+    const id = `${serverTimeMs + offsetMs}_${randomUUID()}`;
+    const response = await f.app.inject({
+      method: "POST", url: "/v1/chat/completions",
+      headers: { authorization: "user-a", [modelCallHeader]: id }, payload: {},
+    });
+    if (offsetMs === -300_000 || offsetMs === 60_000) {
+      expect(response.statusCode).toBe(200);
+      expect(f.calls.count).toBe(1);
+      return;
+    }
+    expect(response.statusCode).toBe(409);
+    expect(response.json().error).toMatchObject({
+      code: "model_call_timestamp_out_of_window", server_time_ms: serverTimeMs,
+      offset_ms: offsetMs, retry_contract_version: 1, automatic_retry_allowed: false,
+    });
+    expect(f.calls.count).toBe(0);
+    expect(f.store.get("user-a", "code", id)).toBeUndefined();
+  });
+
   it("expires stored content and rejects stale IDs after tombstone removal", async () => {
     const time = { now: Date.now() };
     const f = fixture(undefined, () => time.now);
@@ -363,10 +385,17 @@ describe("durable model call recovery", () => {
         })
       ).json().state,
     ).toBe("expired");
-    expect((await f.app.inject(request)).json().error.code).toBe("model_call_expired");
+    const expired = await f.app.inject(request);
+    expect(expired.statusCode).toBe(409);
+    expect(expired.json().error).toEqual({
+      code: "model_call_expired", message: expect.any(String),
+      retry_contract_version: 1, automatic_retry_allowed: false,
+    });
     time.now += 8 * 86_400_000;
     f.store.prune(time.now);
-    expect((await f.app.inject(request)).statusCode).toBe(409);
+    const removed = await f.app.inject(request);
+    expect(removed.statusCode).toBe(409);
+    expect(removed.json().error.code).toBe("model_call_timestamp_out_of_window");
     expect(f.calls.count).toBe(1);
   });
 

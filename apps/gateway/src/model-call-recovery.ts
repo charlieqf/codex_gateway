@@ -30,7 +30,8 @@ const receiptRate = { requestsPerMinute: 120, requestsPerDay: 10_000, concurrent
 const errorMessages = {
   model_call_invalid: "Invalid model call ID; expected a millisecond timestamp and UUID.",
   model_call_conflict: "This model call ID is bound to a different execution request.",
-  model_call_expired: "This model call has expired or its timestamp is outside the admission window; it was not executed again.",
+  model_call_expired: "The original model call receipt has expired.",
+  model_call_timestamp_out_of_window: "The call ID timestamp is outside the admission window. This request was not executed.",
   model_call_pending: "The original model call is still running. Query its result before continuing.",
   model_call_unconfirmed: "The original model call cannot be confirmed. It was not executed again.",
   model_call_query_limited: "Model call recovery traffic is limited. Wait for Retry-After before querying again.",
@@ -226,22 +227,26 @@ export function registerModelCallRecovery(
           ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, value[key]]))
           : value))
       .digest("hex");
-    if (
-      !existing &&
-      (now() - Number(match[1]) > 300_000 || Number(match[1]) - now() > 60_000)
-    )
-      return reply.code(409).send(error("model_call_expired"));
-    const admitted =
-      !existing &&
-      store.admit({
+    let admitted = false;
+    if (!existing) {
+      const serverTimeMs = now();
+      const offsetMs = Number(match[1]) - serverTimeMs;
+      if (offsetMs < -300_000 || offsetMs > 60_000) {
+        return reply.code(409).send(error("model_call_timestamp_out_of_window", {
+          server_time_ms: serverTimeMs,
+          offset_ms: offsetMs,
+        }));
+      }
+      admitted = store.admit({
         subject: context.subject.id,
         scope: context.scope,
         id,
         fingerprint,
         request: request.id,
         owner,
-        now: now(),
+        now: serverTimeMs,
       });
+    }
     if (!admitted) {
       const row = existing ?? store.get(context.subject.id, context.scope, id);
       if (row?.fingerprint !== fingerprint)
@@ -313,13 +318,14 @@ function responseHeaders(reply: FastifyReply) {
   );
 }
 
-function error(code: keyof typeof errorMessages) {
+function error(code: keyof typeof errorMessages, timing?: { server_time_ms: number; offset_ms: number }) {
   return {
     error: {
       code,
       message: errorMessages[code],
       retry_contract_version: 1,
       automatic_retry_allowed: false,
+      ...timing,
     },
   };
 }
