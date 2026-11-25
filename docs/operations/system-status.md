@@ -1,5 +1,11 @@
 # System Status
 
+## Qwen default image generation restored (2026-11-26 Beijing)
+
+At 04:31 Beijing R760 removed the temporary Grok text-to-image override and recreated the Gateway at the existing image revision `372872c` after observing zero in-flight requests and work. The Star 35B vLLM process had stopped and GPU 0 had 47,920 MiB free before the preflight. A direct medium-quality Qwen generation passed in 57.109 seconds.
+
+Public request `req-6923d711-ca73-474a-aa88-a9aa54524e5b` used `medcode-image-default` with quality omitted. Gateway recorded `qwen-image / qwen-image-2.1` and returned HTTP 200 with a decoded 1024x1024 JPEG at medium quality (40 steps) in 56.262 seconds. The temporary credential returned 401 after revocation. Health probes observed 502/503 during replacement and returned to ready 6.30 seconds after the first failed probe.
+
 ## Image generation and model call timestamps (2026-11-25 Beijing)
 
 R760 deployed Gateway `372872c` at 15:58 Beijing after observing zero in-flight requests and work. Standard text-to-image requests for `medcode-image-default` use `grok-imagine-image-2.0` with `quality=medium`. Reference-image edits and `1536x512` banners use Qwen. To restore standard generation to the configured Qwen primary, remove `MEDCODE_IMAGE_TEXT_ROUTE` from the Gateway service environment and recreate the Gateway through the release procedure.
