@@ -72,7 +72,7 @@ session/turn ID 与文件交付 manifest 绑定，不能当作普通日志头忽
 
 新 ID 时间戳必须处于服务端当前时间的前 5 分钟至后 1 分钟窗口内，含两端。客户端应在实际模型步骤准备发送时创建 ID。
 
-**2026-11-25 联调变更（待发布）**：同主体、同 scope 下查无回执且 ID 时间戳超窗时，POST 返回 HTTP 409，`error.code` 为 `model_call_timestamp_out_of_window`。本次请求在准入前结束，上游执行次数为 0，也不创建回执。`error.server_time_ms` 是准入检查时的服务器 Unix 毫秒时间，`error.offset_ms` 为调用 ID 时间戳减去该值。正值表示 ID 超前，负值表示 ID 滞后。响应沿用 `error.retry_contract_version: 1` 和 `error.automatic_retry_allowed: false`。
+**2026-11-25 联调变更（已上线并通过公网验证）**：同主体、同 scope 下查无回执且 ID 时间戳超窗时，POST 返回 HTTP 409，`error.code` 为 `model_call_timestamp_out_of_window`。本次请求在准入前结束，上游执行次数为 0，也不创建回执。`error.server_time_ms` 是准入检查时的服务器 Unix 毫秒时间，`error.offset_ms` 为调用 ID 时间戳减去该值。正值表示 ID 超前，负值表示 ID 滞后。响应沿用 `error.retry_contract_version: 1` 和 `error.automatic_retry_allowed: false`。
 
 对于刚创建 ID 的模型步骤，Desktop 可提示“本次模型调用尚未执行”。如果正在恢复旧 ID，该码只说明网关拒绝了这一次 POST；原步骤是否执行过，应结合客户端已有的执行记录判断。引导用户同步系统时间前，应复核当前时差，因为旧 ID 或发送延迟也会造成负偏移。
 

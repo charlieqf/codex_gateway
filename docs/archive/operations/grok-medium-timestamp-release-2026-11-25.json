@@ -1,0 +1,95 @@
+{
+  "date_beijing": "2026-11-25",
+  "revision": "372872c67db6104e6217e8b62a11b7970e0565a2",
+  "previous_revision": "6a71c661712c2270afd17432680832f8028bdcb1",
+  "started_at": "2026-11-25T07:58:53.121216835Z",
+  "verified_at": "2026-11-25T07:59:38.350182+00:00",
+  "public_health": [
+    200,
+    200
+  ],
+  "restarts": 0,
+  "oom": false,
+  "other_containers_preserved": 3,
+  "schema": 47,
+  "quick_check": "ok",
+  "foreign_key_violations": 0,
+  "log_warning_error_levels": {},
+  "cutover_failed_probe_count": 13,
+  "cutover_failed_http": [
+    "502",
+    "503"
+  ],
+  "first_failed_to_next_ready_seconds": 6.78,
+  "cutover_gate": "first sample with active_requests=0 and active_work=0, followed by drain confirmation",
+  "image_route": {
+    "public_model": "medcode-image-default",
+    "text_provider": "xai",
+    "upstream_quality": "medium",
+    "qwen_requests": [
+      "reference_image",
+      "1536x512"
+    ]
+  },
+  "public_probes": [
+    {
+      "label": "ahead",
+      "http": 409,
+      "error": {
+        "code": "model_call_timestamp_out_of_window",
+        "message": "The call ID timestamp is outside the admission window. This request was not executed.",
+        "retry_contract_version": 1,
+        "automatic_retry_allowed": false,
+        "server_time_ms": 1795593544240,
+        "offset_ms": 100914
+      },
+      "upstream_attempts": 0,
+      "receipt_created": false
+    },
+    {
+      "label": "behind",
+      "http": 409,
+      "error": {
+        "code": "model_call_timestamp_out_of_window",
+        "message": "The call ID timestamp is outside the admission window. This request was not executed.",
+        "retry_contract_version": 1,
+        "automatic_retry_allowed": false,
+        "server_time_ms": 1795593544271,
+        "offset_ms": -310016
+      },
+      "upstream_attempts": 0,
+      "receipt_created": false
+    },
+    {
+      "label": "expired_synthetic_completed_receipt",
+      "http": 409,
+      "original_http": 200,
+      "error": {
+        "code": "model_call_expired",
+        "message": "The original model call receipt has expired.",
+        "retry_contract_version": 1,
+        "automatic_retry_allowed": false
+      },
+      "replay_upstream_attempts": 0
+    },
+    {
+      "label": "public_image",
+      "http": 200,
+      "provider": "xai",
+      "model": "grok-imagine-image-2.0",
+      "width": 1024,
+      "height": 1024,
+      "format": "jpeg",
+      "bytes": 15538,
+      "elapsed_ms": 32744
+    }
+  ],
+  "fixture_cleanup": {
+    "active_credentials": 0,
+    "pending_reservations": 0,
+    "remaining_receipts": 0,
+    "subject_state": "disabled",
+    "plan_state": "deprecated",
+    "revoked_http": 401
+  }
+}

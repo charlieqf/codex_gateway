@@ -1,5 +1,11 @@
 # System Status
 
+## Image generation and model call timestamps (2026-11-25 Beijing)
+
+R760 deployed Gateway `372872c` at 15:58 Beijing after observing zero in-flight requests and work. Standard text-to-image requests for `medcode-image-default` use `grok-imagine-image-2.0` with `quality=medium`. Reference-image edits and `1536x512` banners use Qwen. To restore standard generation to the configured Qwen primary, remove `MEDCODE_IMAGE_TEXT_ROUTE` from the Gateway service environment and recreate the Gateway through the release procedure.
+
+A public generation returned a decoded 1024?1024 JPEG in 32.744 seconds. Public timestamp probes confirmed distinct errors for new out-of-window calls and expired receipts. Health probes observed 502/503 during replacement and recovered in 6.78 seconds from the first failed sample. [Release evidence and redacted response samples](../archive/operations/grok-medium-timestamp-release-2026-11-25.json).
+
 ## Doctor Research public Gateway cutover (2026-11-24 Beijing)
 
 At 09:30 Beijing the R760 Research Worker moved to the public `goldencode`
