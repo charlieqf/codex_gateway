@@ -46,6 +46,8 @@ export interface ImageGenerationUsage {
 }
 
 export interface ImageGenerationResult {
+  /** The upstream selects its own raster format and dimensions. */
+  requiresOutputEncoding?: boolean;
   id?: string;
   created?: number;
   model?: string;
@@ -94,6 +96,7 @@ export interface XAIImageGenerationProviderOptions {
   baseUrl?: string;
   timeoutMs?: number;
   resolution?: "1k" | "2k";
+  quality?: "medium";
 }
 
 export interface GeminiImageGenerationProviderOptions {
@@ -297,7 +300,7 @@ export async function finalizeImageGenerationResult(input: {
   const hasMismatchedFormat = input.result.data.some(
     (item) => item.mime_type !== undefined && item.mime_type !== requestedMimeType
   );
-  if (input.request.outputSize === input.request.size && !hasSvgOutput && !hasMismatchedFormat) {
+  if (!input.result.requiresOutputEncoding && input.request.outputSize === input.request.size && !hasSvgOutput && !hasMismatchedFormat) {
     return input.result;
   }
 
@@ -603,6 +606,7 @@ export class XAIImageGenerationProvider implements ImageGenerationProvider {
           prompt: input.request.prompt,
           response_format: "b64_json",
           aspect_ratio: aspectRatioForSize(input.request.size),
+          quality: this.options.quality,
           resolution: this.options.resolution ?? "1k"
         }),
         signal: controller.signal
@@ -611,7 +615,7 @@ export class XAIImageGenerationProvider implements ImageGenerationProvider {
       if (!response.ok) {
         throw normalizeOpenAIImageError(response.status, payload);
       }
-      return parseOpenAIImageResult(payload, input.request.outputFormat);
+      return { ...parseOpenAIImageResult(payload, input.request.outputFormat), requiresOutputEncoding: true };
     } catch (err) {
       if (err instanceof GatewayError) {
         throw err;

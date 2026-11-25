@@ -5,6 +5,7 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
+import sharp from "sharp";
 import {
   defaultImageGenerationFeaturePolicy,
   encryptSecret,
@@ -1378,6 +1379,44 @@ describe("gateway phase 1 routes", () => {
         : { reference_images: null, quality_steps: null, banner_size: null });
       expect((await app.inject({ method: "GET", url: "/gateway/images/capabilities" })).statusCode).toBe(401);
     } finally { await app.close(); }
+  });
+
+  it("routes ordinary generation to Grok medium while keeping edits and banners on Qwen", async () => {
+    const { store, headers } = createImageEntitledStore();
+    const qwen = new FakeImageGenerationProvider(undefined, "qwen-image");
+    const dir = mkdtempSync(path.join(tmpdir(), "gateway-image-route-"));
+    const file = path.join(dir, "keys");
+    writeFileSync(file, "xai:test-key");
+    vi.stubEnv("MEDCODE_IMAGE_BILLING_FALLBACK_KEYS_FILE", file);
+    vi.stubEnv("MEDCODE_IMAGE_GENERATION_ENABLED", "1");
+    vi.stubEnv("MEDCODE_IMAGE_FALLBACK_ENABLED", "0");
+    vi.stubEnv("MEDCODE_IMAGE_TEXT_ROUTE", "grok-medium");
+    const jpeg = await sharp({ create: { width: 96, height: 64, channels: 3, background: "white" } }).jpeg().toBuffer();
+    const fetch = vi.fn(async (_url: unknown, init: RequestInit) => {
+      expect(JSON.parse(String(init.body))).toMatchObject({ model: "grok-imagine-image-2.0", quality: "medium" });
+      return Response.json({ data: [{ b64_json: jpeg.toString("base64") }] });
+    });
+    vi.stubGlobal("fetch", fetch);
+    const app = buildGateway({ authMode: "credential", provider: new FakeProvider(), sessionStore: store,
+      imageGenerationProvider: qwen, logger: false });
+    try {
+      const generate = (payload: object) => app.inject({ method: "POST", url: "/gateway/images/generations",
+        headers, payload: { prompt: "A blue circle", ...payload } });
+      const response = await generate({ size: "1536x1024", output_format: "png" });
+      expect(response.statusCode).toBe(200);
+      const [image] = response.json().data;
+      expect(image.mime_type).toBe("image/png");
+      expect(await sharp(Buffer.from(image.b64_json, "base64")).metadata()).toMatchObject({ format: "png", width: 1536, height: 1024 });
+      expect((await generate({ size: "1536x512" })).statusCode).toBe(200);
+      expect((await generate({ reference_image: { b64_json: jpeg.toString("base64") } })).statusCode).toBe(200);
+      expect(qwen.calls).toHaveLength(2);
+      expect(fetch).toHaveBeenCalledTimes(1);
+    } finally {
+      await app.close();
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("never forwards reference pixels or banner requests to a text-only image provider", async () => {

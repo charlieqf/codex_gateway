@@ -284,7 +284,8 @@ import {
 } from "./runtime/research.js";
 import {
   createDefaultImageGenerationProvider,
-  resolveImageGenerationBillingFallbacks
+  resolveImageGenerationBillingFallbacks,
+  resolveTextImageRoute
 } from "./runtime/image-providers.js";
 import {
   backfillClientDiagnosticsForMessage,
@@ -709,6 +710,8 @@ export function buildGateway(options: GatewayOptions = {}) {
     app.log
   );
   const accountPoolImageBindingDeclared = upstreamRouter.hasImageBindingDeclared();
+  const textImageRoute = !accountPoolImageBindingDeclared && imageGenerationProvider?.providerKind === "qwen-image"
+    ? resolveTextImageRoute(process.env) : undefined;
   const imageModelMap = parseImageModelMap(process.env.MEDCODE_IMAGE_MODEL_MAP_JSON);
   const imageMaxPromptChars = maxPromptCharsFromEnv(process.env.MEDCODE_IMAGE_MAX_PROMPT_CHARS);
   const imageRequestTimeoutMs = parsePositiveIntegerEnv(
@@ -2240,7 +2243,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       model: "medcode-image-default",
       reference_images: enabled && qwen ? { max_count: 1, max_bytes: maxReferenceBytes,
         max_pixels: 2048 ** 2, formats: ["png", "jpeg", "webp"] } : null,
-      quality_steps: enabled && qwen ? Object.fromEntries(Object.entries(qwenQualitySteps)
+      quality_steps: enabled && qwen && !textImageRoute ? Object.fromEntries(Object.entries(qwenQualitySteps)
         .filter(([quality]) => policy?.imageGeneration?.allowedQualities.includes(quality))) : null,
       banner_size: enabled && qwen && (policy?.imageGeneration?.allowedSizes.includes("1536x1024") ||
         policy?.imageGeneration?.allowedSizes.includes("1536x512")) ? "1536x512" : null
@@ -2279,18 +2282,18 @@ export function buildGateway(options: GatewayOptions = {}) {
         );
       }
 
-      const upstreamModel = resolveImageUpstreamModel(
+      const authorizedModel = resolveImageUpstreamModel(
         parsed,
         access.entitlement.featurePolicySnapshot,
         imageModelMap
       );
-      if (upstreamModel instanceof GatewayError) {
-        return sendImageError(request, reply, upstreamModel);
+      if (authorizedModel instanceof GatewayError) {
+        return sendImageError(request, reply, authorizedModel);
       }
       if (accountPoolImageBindingDeclared) {
         return generateImageWithAccountPool(request, reply, upstreamRouter, {
           parsed,
-          upstreamModel,
+          upstreamModel: authorizedModel,
           timeoutMs: imageRequestTimeoutMs,
           billingFallbacks: imageGenerationBillingFallbacks
         });
@@ -2307,17 +2310,20 @@ export function buildGateway(options: GatewayOptions = {}) {
         );
       }
 
+      const route = !parsed.referenceImage && parsed.size !== "1536x512" ? textImageRoute : undefined;
+      const provider = route?.provider ?? imageGenerationProvider;
+      const upstreamModel = route?.upstreamModel ?? authorizedModel;
       const abort = createImageRequestAbort(
         request.gatewayClientDisconnect?.signal,
         imageRequestTimeoutMs
       );
       try {
         applyImageAttemptAttribution(request, {
-          provider: imageGenerationProvider,
+          provider,
           upstreamModel,
           upstreamAccountId: null
         });
-        const result = await runImageGenerationWithAbort(imageGenerationProvider, abort, {
+        const result = await runImageGenerationWithAbort(provider, abort, {
           request: parsed,
           upstreamModel
         });

@@ -83,6 +83,36 @@ export function parseImagePrimaryProvider(value: string | undefined): "openai" |
   throw new Error("MEDCODE_IMAGE_PRIMARY_PROVIDER must be openai, llada or qwen.");
 }
 
+export function resolveTextImageRoute(env: NodeJS.ProcessEnv): {
+  provider: ImageGenerationProvider;
+  upstreamModel: string;
+} | undefined {
+  const route = env.MEDCODE_IMAGE_TEXT_ROUTE?.trim();
+  if (!route || env.MEDCODE_IMAGE_GENERATION_ENABLED !== "1") return undefined;
+  if (route !== "grok-medium") throw new Error("Unsupported MEDCODE_IMAGE_TEXT_ROUTE.");
+  const file = env.MEDCODE_IMAGE_BILLING_FALLBACK_KEYS_FILE?.trim();
+  const key = file && parseImageBillingFallbackKeysFile(file).find(entry => entry.provider === "xai")?.apiKey;
+  if (!key) throw new Error("The grok-medium image route requires a configured xAI key.");
+  return {
+    upstreamModel: "grok-imagine-image-2.0",
+    provider: new XAIImageGenerationProvider({ ...xaiImageOptions(key, env), quality: "medium" })
+  };
+}
+
+function xaiImageOptions(apiKey: string, env: NodeJS.ProcessEnv) {
+  return {
+    apiKey,
+    baseUrl: env.MEDCODE_IMAGE_BILLING_FALLBACK_XAI_BASE_URL,
+    timeoutMs: parsePositiveIntegerEnv(
+      env.MEDCODE_IMAGE_BILLING_FALLBACK_XAI_TIMEOUT_MS ??
+        env.MEDCODE_IMAGE_BILLING_FALLBACK_TIMEOUT_MS ?? env.MEDCODE_IMAGE_TIMEOUT_MS,
+      180_000,
+      "MEDCODE_IMAGE_BILLING_FALLBACK_XAI_TIMEOUT_MS"
+    ),
+    resolution: parseXAIImageResolution(env.MEDCODE_IMAGE_BILLING_FALLBACK_XAI_RESOLUTION)
+  };
+}
+
 export function resolveImageGenerationBillingFallbacks(
   options: GatewayOptions,
   env: NodeJS.ProcessEnv,
@@ -233,18 +263,7 @@ function createExtraImageGenerationBillingFallback(
   if (provider === "xai") {
     return {
       accountId: `${imageBillingFallbackAccountId}-xai-${index}`,
-      provider: new XAIImageGenerationProvider({
-        apiKey,
-        baseUrl: env.MEDCODE_IMAGE_BILLING_FALLBACK_XAI_BASE_URL,
-        timeoutMs: parsePositiveIntegerEnv(
-          env.MEDCODE_IMAGE_BILLING_FALLBACK_XAI_TIMEOUT_MS ??
-            env.MEDCODE_IMAGE_BILLING_FALLBACK_TIMEOUT_MS ??
-            env.MEDCODE_IMAGE_TIMEOUT_MS,
-          180_000,
-          "MEDCODE_IMAGE_BILLING_FALLBACK_XAI_TIMEOUT_MS"
-        ),
-        resolution: parseXAIImageResolution(env.MEDCODE_IMAGE_BILLING_FALLBACK_XAI_RESOLUTION)
-      }),
+      provider: new XAIImageGenerationProvider(xaiImageOptions(apiKey, env)),
       upstreamModel: parseImageBillingFallbackModel(
         env.MEDCODE_IMAGE_BILLING_FALLBACK_XAI_MODEL,
         defaultXAIImageBillingFallbackModel,
