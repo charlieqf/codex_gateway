@@ -16,6 +16,15 @@ const adminToken = "support-test-admin-token-32-characters";
 const cleanup: (() => Promise<unknown>)[] = [];
 afterEach(async () => { while (cleanup.length) await cleanup.pop()!(); vi.restoreAllMocks(); });
 function report(manual = false) { return structuredClone({ ...(manual ? examples.manual_authenticated : examples.automatic_anonymous), report_id: randomUUID() }); }
+it("accepts exact SMS diagnostic paths while rejecting query strings", () => {
+  const manual = report(true);
+  for (const path of ["/auth/send_sms", "/auth/login_sms", "/auth/refresh_token"]) {
+    manual.diagnostics[0].path = path;
+    expect(parseSupportReport(manual)).toBeTruthy();
+    manual.diagnostics[0].path = path + "?code=123456";
+    expect(parseSupportReport(manual)).toBeNull();
+  }
+});
 function fixture(limits?: { rows: number; bytes: number }, accessMode: "token" | "open" = "token") {
   const directory = mkdtempSync(join(tmpdir(), "gateway-support-"));
   const events = createSqliteClientEventsStore({ path: join(directory, "client-events.db") });

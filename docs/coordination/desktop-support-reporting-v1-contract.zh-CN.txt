@@ -39,7 +39,7 @@ error_codes 白名单：ENOTFOUND、EAI_AGAIN、ETIMEDOUT、ECONNREFUSED、ECONN
 4. diagnostics 条目
 必填：occurred_at、process、operation_id、event（start | complete | error）。
 可选：account_subject_id、operation（枚举同上）、method（GET | POST）、path、request_id、model_call_id、session_id、message_id、transport。
-path 仅允许：/v1/chat/completions、/v1/responses、/gateway/model-calls/:id、/gateway/auth/v1/login/start、/gateway/auth/v1/session/bootstrap、/gateway/auth/v1/token/refresh、/gateway/auth/v1/logout、/gateway/account/v1/current、/gateway/unified-keys/resolve、/gateway/credentials/current。
+path 仅允许：/v1/chat/completions、/v1/responses、/gateway/model-calls/:id、/gateway/auth/v1/login/start、/gateway/auth/v1/session/bootstrap、/gateway/auth/v1/token/refresh、/gateway/auth/v1/logout、/gateway/account/v1/current、/gateway/unified-keys/resolve、/gateway/credentials/current、/auth/send_sms、/auth/login_sms、/auth/refresh_token。
 条目按故障时账号筛选；有账号的报告中，请求类条目的 account_subject_id 必须与报告一致；无账号标记的公共条目仅用于 startup/sidecar，且不能携带请求路径或请求关联 ID。匿名故障且报告无账号上下文时，相关诊断也不得声称其他账号。
 总时间跨度最多 10 分钟，每条距故障时间不超过 10 分钟。未知阶段和错误用 unknown，不以错误 message 补充。
 

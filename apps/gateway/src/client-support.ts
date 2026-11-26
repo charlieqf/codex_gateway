@@ -38,7 +38,8 @@ const diagnostic = object({
   event: enumeration("start", "complete", "error"), operation, method: enumeration("GET", "POST"), transport,
   path: enumeration("/v1/chat/completions", "/v1/responses", "/gateway/model-calls/:id",
     "/gateway/auth/v1/login/start", "/gateway/auth/v1/session/bootstrap", "/gateway/auth/v1/token/refresh",
-    "/gateway/auth/v1/logout", "/gateway/account/v1/current", "/gateway/unified-keys/resolve", "/gateway/credentials/current")
+    "/gateway/auth/v1/logout", "/gateway/account/v1/current", "/gateway/unified-keys/resolve", "/gateway/credentials/current",
+    "/auth/send_sms", "/auth/login_sms", "/auth/refresh_token")
 }, ["occurred_at", "process", "operation_id", "event"]);
 
 export interface SupportDiagnostic {
