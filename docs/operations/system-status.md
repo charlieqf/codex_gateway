@@ -1,5 +1,11 @@
 # System Status
 
+## GoldenCode Flash dual-provider routing restored (2026-11-26 Beijing)
+
+At 09:44 and 09:46 Tencent returned HTTP 402 (401008) for Flash image analysis. A direct text probe also received 402 for Flash while Tencent GLM-5.3 text returned 200. The image pool temporarily used TianKuan alone at 09:57. After the operator reported enabling postpaid billing, Tencent Flash passed direct text and image probes at 09:58.
+
+At 10:12 R760 restored the original Flash vision pool at zero in-flight requests and work. Public tests of text and image analysis on both Tencent and TianKuan all returned HTTP 200 with correct answers in one upstream attempt each. Tencent image request: `req-95476178-e98c-41c6-9277-beb14a81332c`. TianKuan history-image request: `req-a9689baf-b8d9-43b2-aa3a-467d66a5208e`. Replacement health probes observed 502/503 and reached ready 6.27 seconds after the first failed sample. The temporary credential was revoked.
+
 ## Qwen default image generation restored (2026-11-26 Beijing)
 
 At 04:31 Beijing R760 removed the temporary Grok text-to-image override and recreated the Gateway at the existing image revision `372872c` after observing zero in-flight requests and work. The Star 35B vLLM process had stopped and GPU 0 had 47,920 MiB free before the preflight. A direct medium-quality Qwen generation passed in 57.109 seconds.
